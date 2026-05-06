@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:panthur.com.au)",
+      "WebSearch",
+      "WebFetch(domain:www.panthur.com.au)",
+      "WebFetch(domain:support.panthur.com.au)",
+      "WebFetch(domain:members.panthur.com.au)",
+      "Bash(git -C \"c:/Users/Brad/OneDrive/Documents/Repos/Compete\" log --oneline -10)",
+      "Bash(git -C \"c:/Users/Brad/OneDrive/Documents/Repos/Compete\" status)"
+    ]
+  }
+}
