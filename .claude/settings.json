@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export PATH=\"/c/Users/Brad/AppData/Local/Programs/PHP/current:$PATH\")",
+      "Bash(export PATH=\"/c/Users/Brad/AppData/Local/Programs/PHP/current:$PATH\" && php --version && ls \"/c/Users/Brad/AppData/Local/Programs/PHP/current/\" | head -20)",
+      "Read(//c/Users/Brad/AppData/Local/Programs/PHP/current//**)",
+      "Bash(find \"/c/Users/Brad/AppData\" -name \"composer\" -o -name \"composer.phar\" 2>/dev/null | head -5; find \"/c/ProgramData\" -name \"composer\" 2>/dev/null | head -5; ls \"/c/Users/Brad/AppData/Local/Programs/PHP/current/\" | grep -i composer)",
+      "Read(//c/Users/Brad/AppData/**)",
+      "Read(//c/ProgramData/**)",
+      "Bash(php -r \"copy\\('https://getcomposer.org/installer', 'composer-setup.php'\\);\")",
+      "Bash(php composer-setup.php)",
+      "Bash(rm composer-setup.php)",
+      "Bash(./composer.phar --version)",
+      "Bash(php --ini)",
+      "Bash(curl -sS https://getcomposer.org/installer)",
+      "Bash(php)",
+      "Bash(php composer.phar --version)",
+      "Bash(chmod +x \"/c/Users/Brad/AppData/Local/Programs/PHP/current/composer\")",
+      "Bash(composer create-project *)",
+      "Bash(mkdir -p \"/c/Users/Brad/OneDrive/Documents/Repos/Compete/_laravel_tmp/bootstrap/cache\")",
+      "Bash(chmod 777 \"/c/Users/Brad/OneDrive/Documents/Repos/Compete/_laravel_tmp/bootstrap/cache\")",
+      "Bash(mkdir -p \"/c/Users/Brad/OneDrive/Documents/Repos/Compete/_laravel_tmp/storage/logs\")",
+      "Bash(chmod -R 777 \"/c/Users/Brad/OneDrive/Documents/Repos/Compete/_laravel_tmp/storage\")",
+      "Bash(composer run-script *)",
+      "Bash(shopt -s dotglob)",
+      "Bash(cp -r _laravel_tmp/* .)",
+      "Bash(rm -rf _laravel_tmp)",
+      "Read(//c/c/Users/Brad/OneDrive/Documents/Repos/**)",
+      "Bash(php artisan *)",
+      "Bash(composer require *)",
+      "Bash(npm install *)",
+      "PowerShell(attrib \"C:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\\\\bootstrap\\\\cache\" 2>&1)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8000/admin/login\" -UseBasicParsing -TimeoutSec 5 -MaximumRedirection 0 -ErrorAction SilentlyContinue | Select-Object StatusCode, @{N='Location';E={$_.Headers.Location}})",
+      "PowerShell(Get-Process -Name \"php\" -ErrorAction SilentlyContinue)",
+      "Bash(echo \"Server PID: $!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/admin/login)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/admin/competitions)",
+      "Bash(/c/Users/Brad/AppData/Local/Programs/PHP/current/php artisan *)",
+      "Bash(/c/Users/Brad/AppData/Local/Programs/PHP/current/php bootstrap/smoke_test.php)",
+      "Bash(/c/Users/Brad/AppData/Local/Programs/PHP/current/php -r ' *)",
+      "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;\" + $env:PATH; cd \"C:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; php artisan test --stop-on-failure 2>&1 | Select-Object -Last 30)",
+      "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;\" + $env:PATH; cd \"C:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; php artisan test --stop-on-failure 2>&1 | Select-Object -First 40)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",
+      "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\8.5.6\\nts\\x64"
+    ]
+  }
+}

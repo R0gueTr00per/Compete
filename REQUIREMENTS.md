@@ -54,6 +54,8 @@ There are different parts to a competition:
 
 #### a) Creation and Planning
 - Define a competition: name, date, start time, competitor check-in time, location and address, enrolment due date
+- When creating a new competition, the age bands, rank bands, weight classes, and events are **automatically copied from the most recent previous competition** as a starting point; the admin can modify them after creation
+- The competition edit screen shows all events in a tab, allowing the admin to view, reorder (drag-and-drop), add, and remove events without leaving the screen
 - Define pricing per competition:
   - First event: $38 (default)
   - Additional events: $12 each (default)
@@ -61,6 +63,7 @@ There are different parts to a competition:
 - Define event types available in this competition (e.g. Kata, Tile Breaking, Yakusuko, Semi Contact, Point Sparring, Continuous Sparring, Sumo)
 - For each event type, define its divisions (see Division Structure below)
 - Set the running order of events and their location (e.g. Mat 3)
+- Each competition event has a short code, defaulting to the first letter of the event type name followed by a two-digit counter (e.g. K01 for the first Kata event, K02 for a second); the code is editable by the admin
 
 #### b) Division Structure
 
@@ -82,17 +85,32 @@ Divisions vary by event type. Each division is a combination of relevant filters
 The admin reserves the right to merge or cancel any division on the day if necessary.
 
 #### c) Managing Enrolments
-- Competitors can tick/select multiple events when enrolling; the system calculates the total fee ($38 + $12 × additional events)
+- Competitors can tick/select multiple events when enrolling; the system calculates the total fee ($38 + $12 × additional events, including each additional division entry within the same event)
+- When selecting an event, the competitor must choose their division(s) from a list filtered to divisions that match their age, weight (where applicable), and rank — plus any division marked as Open (no band restrictions); the competitor's own profile data drives the filtering
+- A competitor may enrol in **more than one division** for the same event type (e.g. both the 40+ age division and the Open division); each division entry counts as a separate event for fee purposes
 - For Yakusuko (partner events), the competitor must nominate their partner; the system validates that the nominated partner has also enrolled and paid — enrolment is not complete until both partners are enrolled
 - Add/Remove participants; save and display removed participants with an option to re-add them, recording a reason for removal
 - If a participant has not checked in, exclude them from the event but show them in a separate section so they can be re-added if needed
+- **Admin can enter an enrolment on behalf of a competitor** (e.g. phone/paper enrolments); the admin selects the competitor and events from the admin panel, and the system applies the same fee calculation and division assignment logic as a self-service enrolment
+- **Admin can edit an existing enrolment**: add or remove events the competitor is enrolled in, and change the division assigned to any event; fee is recalculated automatically when events are added or removed
+- The admin enrolments list defaults to the competition happening today (or the next upcoming open/running competition); the admin can change the competition filter manually
 
 #### d) Managing Competitor Check-ins on the Day
-- Mark participants as checked-in; this status displays on each event list
-- Weight confirmation on check-in for Sumo and Semi Contact events
+- The check-in screen defaults to the competition whose date matches today; if none, defaults to the next upcoming open/running competition
+- A competitor is checked in **once** for the competition (not separately for each event they entered); check-in is recorded at the enrolment level
+- Weight confirmation is recorded once per enrolment check-in (not separately per event); the confirmed weight is automatically applied to every event in that enrolment that requires a weight check, and division re-assignment is triggered for each of those events
+- If the confirmed weight at check-in differs from the profile weight and would place the competitor in a different division, a warning is shown and the admin is prompted to update the division (to the correct weight-based division or an open division)
+- Checked-in status displays on each event list
 
 #### e) Modifying Defined Events
 - Combine, cancel, change mat, add or remove competitors from an event
+- When creating or editing a competition, the admin sees all events and their divisions in a single screen without navigating away; events support inline add/edit/delete, drag-to-reorder running order, status filter, location filter, and search by event type name
+- Divisions for each event are accessible and editable inline from the competition edit screen (not requiring navigation to a separate competition-event page)
+- Events can be assigned to a location (e.g. Mat 1, Mat 2, Mat 3); multiple events can be bulk-assigned to a location at once; the event list can be grouped by location
+- Each competition event references a global event type (Kata, Tile Breaking, Yakusuko, etc.); the admin can manage the global list of event types (name, scoring method, division filter, judge count, etc.); event types cannot be deleted if they have been used in any competition
+- Global event type settings (scoring method, judge count, target score, division filter) act as **defaults** — each competition event can override these values for that specific competition without affecting other competitions or the global default
+- The admin can define the division filter for each event type, selecting from: Age + Rank + Sex, Age + Sex, Weight + Sex, Age + Rank (no sex split), or Age only (no sex or rank split)
+- For each competition event, the admin can manage its divisions directly from the competition edit screen
 
 #### f) Entering Scores / Results
 
@@ -117,7 +135,10 @@ Scoring format varies by event type:
 - Results are displayed for each event once the event has been run (1st, 2nd, 3rd placements and scores where applicable)
 - A full set of results for the competition is visible once the competition is complete
 
-#### h) Reporting
+#### h) Admin Dashboard
+- The admin home page shows all active competitions (status: open, running) with quick-action buttons to jump directly to that competition's enrolments and check-in screens
+
+#### i) Reporting
 - Each competition can produce a PDF document of all results
 
 #### i) Notifications
@@ -128,6 +149,7 @@ Scoring format varies by event type:
 ## Non-Functional Requirements
 - All data changes must be audited (who changed what and when)
 - Authentication must be secure; passwords stored hashed
+- After 5 consecutive failed login attempts, an account is locked for 1 hour; the lockout applies account-wide (not per IP) and covers both the competitor portal and admin panel login; the lockout clears automatically after 1 hour or on the next successful login
 - The application must be usable on mobile devices (responsive design) for day-of check-in and scoring workflows
 - PDF generation must be server-side
 
