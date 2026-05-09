@@ -2,20 +2,34 @@
 
 namespace App\Filament\Portal\Pages\Auth;
 
+use Filament\Http\Responses\Auth\Contracts\RegistrationResponse;
 use Filament\Pages\Auth\Register as BaseRegister;
 use Illuminate\Database\Eloquent\Model;
 
 class Register extends BaseRegister
 {
-    protected function handleRegistration(array $data): Model
+    public function register(): ?RegistrationResponse
     {
+        try {
+            $this->rateLimit(2);
+        } catch (\Illuminate\Http\Exceptions\ThrottleRequestsException $exception) {
+            $this->getRateLimitedNotification($exception)?->send();
+            return null;
+        }
+
+        $data           = $this->form->getState();
         $data['status'] = 'pending';
 
-        return $this->getUserModel()::create($data);
+        $this->wrapInDatabaseTransaction(fn () => $this->handleRegistration($data));
+
+        // Do not auto-login — pending users cannot access the portal until approved
+        $this->redirect(route('filament.portal.auth.login') . '?registered=1', navigate: true);
+
+        return null;
     }
 
-    protected function getRedirectUrl(): string
+    protected function handleRegistration(array $data): Model
     {
-        return route('filament.portal.auth.login') . '?registered=1';
+        return $this->getUserModel()::create($data);
     }
 }

@@ -75,21 +75,72 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->authGuard('web')
             ->renderHook(
+                'panels::head.end',
+                fn () => new \Illuminate\Support\HtmlString('<style>
+                    .fi-page-header > div { flex-direction: column !important; align-items: flex-start !important; gap: 0.75rem !important; }
+                    .fi-page-header > div > div:last-child { margin-left: 0 !important; flex-wrap: wrap; }
+                </style>')
+            )
+            ->renderHook(
                 'panels::body.end',
-                fn () => new \Illuminate\Support\HtmlString('<script>
-                    document.addEventListener("alpine:initialized", function () {
-                        var BREAKPOINT = 1280;
-                        function syncSidebar() {
-                            if (window.innerWidth < BREAKPOINT) {
-                                Alpine.store("sidebar").close();
-                            } else {
-                                Alpine.store("sidebar").open();
+                function () {
+                    $timeoutMinutes = config('compete.inactivity_timeout', 30);
+                    $logoutUrl      = route('filament.admin.auth.logout');
+
+                    return new \Illuminate\Support\HtmlString('<script>
+                        document.addEventListener("alpine:initialized", function () {
+                            // Sidebar auto-collapse on resize
+                            var BREAKPOINT = 1280;
+                            function syncSidebar() {
+                                if (window.innerWidth < BREAKPOINT) {
+                                    Alpine.store("sidebar").close();
+                                } else {
+                                    Alpine.store("sidebar").open();
+                                }
                             }
-                        }
-                        window.addEventListener("resize", syncSidebar);
-                        syncSidebar();
-                    });
-                </script>')
+                            window.addEventListener("resize", syncSidebar);
+                            syncSidebar();
+                        });
+
+                        // Inactivity session timeout
+                        (function () {
+                            var TIMEOUT_MS = ' . ($timeoutMinutes * 60 * 1000) . ';
+                            var WARN_MS    = TIMEOUT_MS - 120000; // warn 2 min before
+                            var LOGOUT_URL = ' . json_encode($logoutUrl) . ';
+                            if (TIMEOUT_MS <= 0) return;
+
+                            var lastActivity = Date.now();
+                            var warned       = false;
+
+                            var events = ["mousemove","mousedown","keydown","touchstart","scroll","click"];
+                            events.forEach(function (e) {
+                                document.addEventListener(e, function () {
+                                    lastActivity = Date.now();
+                                    warned       = false;
+                                }, { passive: true });
+                            });
+
+                            setInterval(function () {
+                                var idle = Date.now() - lastActivity;
+
+                                if (idle >= TIMEOUT_MS) {
+                                    window.location.href = LOGOUT_URL;
+                                    return;
+                                }
+
+                                if (idle >= WARN_MS && ! warned) {
+                                    warned = true;
+                                    var remaining = Math.ceil((TIMEOUT_MS - idle) / 60000);
+                                    if (window.Filament && Filament.notifications) {
+                                        window.dispatchEvent(new CustomEvent("filament-notifications.notify", {
+                                            detail: { type: "warning", title: "Session expiring soon", body: "You will be logged out in " + remaining + " minute(s) due to inactivity." }
+                                        }));
+                                    }
+                                }
+                            }, 15000);
+                        })();
+                    </script>');
+                }
             );
     }
 }

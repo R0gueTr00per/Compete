@@ -51,6 +51,8 @@ class Login extends BaseLogin
                 $freshUser->unlock();
             }
 
+            $freshUser?->update(['last_login_at' => now()]);
+
             if ($freshUser && $freshUser->isPending()) {
                 auth()->logout();
                 throw ValidationException::withMessages([

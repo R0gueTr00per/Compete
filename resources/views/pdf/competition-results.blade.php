@@ -27,7 +27,7 @@
 
 @foreach ($competition->competitionEvents->sortBy('running_order') as $compEvent)
   @if ($compEvent->divisions->isEmpty()) @continue @endif
-  <h2>{{ $compEvent->event_code }} — {{ $compEvent->eventType->name }}
+  <h2>{{ $compEvent->event_code }} — {{ $compEvent->name }}
     @if ($compEvent->location_label) ({{ $compEvent->location_label }}) @endif
   </h2>
 
@@ -43,9 +43,9 @@
           <th style="width:8%">Place</th>
           <th>Competitor</th>
           <th>Dojo</th>
-          @if (in_array($compEvent->eventType->scoring_method, ['judges_total', 'judges_average']))
+          @if (in_array($compEvent->effectiveScoringMethod(), ['judges_total', 'judges_average']))
             <th style="width:18%">Score</th>
-          @elseif ($compEvent->eventType->scoring_method === 'first_to_n')
+          @elseif ($compEvent->effectiveScoringMethod() === 'first_to_n')
             <th style="width:12%">Points</th>
           @else
             <th style="width:12%">Result</th>
@@ -58,7 +58,7 @@
             $result  = $ee->result;
             $profile = $ee->enrolment->competitor?->competitorProfile;
             $enrol   = $ee->enrolment;
-            $name    = $profile ? "{$profile->surname}, {$profile->first_name}" : ($enrol->competitor?->name ?? '?');
+            $name    = $profile ? "{$profile->first_name} {$profile->surname}" : ($enrol->competitor?->name ?? '?');
             $dojo    = $enrol->dojo_type === 'guest'
               ? ($enrol->guest_style ?? 'Guest')
               : ($enrol->dojo_name ?? '—');
@@ -73,9 +73,9 @@
             <td>{{ $name }}@if($result?->disqualified) (DQ)@endif</td>
             <td>{{ $dojo }}</td>
             <td>
-              @if (in_array($compEvent->eventType->scoring_method, ['judges_total', 'judges_average']))
+              @if (in_array($compEvent->effectiveScoringMethod(), ['judges_total', 'judges_average']))
                 {{ $result?->total_score !== null ? number_format($result->total_score, 2) : '—' }}
-              @elseif ($compEvent->eventType->scoring_method === 'first_to_n')
+              @elseif ($compEvent->effectiveScoringMethod() === 'first_to_n')
                 {{ $result?->total_score !== null ? (int)$result->total_score : '—' }}
               @else
                 {{ $result?->win_loss ? ucfirst($result->win_loss) : '—' }}

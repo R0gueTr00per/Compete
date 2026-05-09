@@ -127,8 +127,8 @@ class EnrolmentService
         $partnerEe->update(['yakusuko_complete' => true]);
 
         // Notify both competitors
-        $ee->load(['enrolment.competitor', 'competitionEvent.eventType', 'competitionEvent.competition']);
-        $partnerEe->load(['enrolment.competitor', 'competitionEvent.eventType']);
+        $ee->load(['enrolment.competitor', 'competitionEvent.competition']);
+        $partnerEe->load(['enrolment.competitor', 'competitionEvent']);
 
         $competition = $ee->competitionEvent->competition;
         $event       = $ee->competitionEvent;

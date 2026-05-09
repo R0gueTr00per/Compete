@@ -6,6 +6,7 @@ use App\Filament\Admin\Resources\CompetitionResource;
 use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\Division;
+use App\Services\DivisionGenerationService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -13,13 +14,14 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRelatedRecords;
-use Filament\Tables\Actions\Action as TableAction;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Actions\CreateAction;
 use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class ManageCompetitionEvents extends ManageRelatedRecords
@@ -51,11 +53,85 @@ class ManageCompetitionEvents extends ManageRelatedRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('config')
-                ->label('Configuration')
-                ->icon('heroicon-o-cog-6-tooth')
-                ->color('gray')
-                ->url(fn () => CompetitionResource::getUrl('config', ['record' => $this->getRecord()])),
+            Action::make('generateDivisions')
+                ->label('Generate Divisions')
+                ->icon('heroicon-o-sparkles')
+                ->color('primary')
+                ->requiresConfirmation()
+                ->modalHeading('Generate Divisions')
+                ->modalDescription(function () {
+                    $competition = $this->getRecord();
+                    $hasBands    = $competition->ageBands()->exists()
+                        || $competition->weightClasses()->exists();
+
+                    if (! $hasBands) {
+                        return 'No age bands or weight classes are configured for this competition. '
+                            . 'Add them in the Competition Edit screen first, then generate divisions.';
+                    }
+
+                    $events    = $competition->competitionEvents()->where('status', 'scheduled')->count();
+                    $existing  = $competition->allDivisions()->count();
+                    $locked    = $competition->allDivisions()
+                        ->whereHas('activeEnrolmentEvents')->count();
+
+                    return "This will create all band combinations for {$events} event type(s). "
+                        . ($existing > 0
+                            ? "{$existing} existing division(s) will be cleared"
+                              . ($locked > 0 ? " ({$locked} with enrolments will be kept)" : '')
+                              . '. '
+                            : '')
+                        . 'Divisions are generated from the competition\'s age bands, rank bands, '
+                        . 'and weight classes. You can delete or combine any unwanted divisions afterward.';
+                })
+                ->modalSubmitActionLabel('Generate')
+                ->action(function () {
+                    $competition = $this->getRecord();
+
+                    if (! $competition->ageBands()->exists() && ! $competition->weightClasses()->exists()) {
+                        Notification::make()
+                            ->warning()
+                            ->title('No bands configured')
+                            ->body('Add age bands, rank bands, and weight classes in the Competition Edit screen first.')
+                            ->send();
+                        return;
+                    }
+
+                    $count = app(DivisionGenerationService::class)->generateForCompetition($competition);
+
+                    Notification::make()
+                        ->success()
+                        ->title("{$count} division(s) generated.")
+                        ->send();
+                }),
+
+            Action::make('deleteAllDivisions')
+                ->label('Delete all divisions')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Delete all divisions')
+                ->modalDescription(function () {
+                    $competition = $this->getRecord();
+                    $total       = $competition->allDivisions()->count();
+                    $locked      = $competition->allDivisions()->whereHas('activeEnrolmentEvents')->count();
+                    if ($locked > 0) {
+                        return "Cannot delete — {$locked} division(s) have active enrolments. Remove enrolments first.";
+                    }
+                    return "This will permanently delete all {$total} division(s) for this competition. This cannot be undone.";
+                })
+                ->modalSubmitActionLabel('Delete all')
+                ->action(function () {
+                    $competition = $this->getRecord();
+                    $locked      = $competition->allDivisions()->whereHas('activeEnrolmentEvents')->count();
+                    if ($locked > 0) {
+                        Notification::make()->danger()->title("Cannot delete — {$locked} division(s) have active enrolments.")->send();
+                        return;
+                    }
+                    $eventIds = $competition->competitionEvents()->pluck('id');
+                    $count    = Division::whereIn('competition_event_id', $eventIds)->count();
+                    Division::whereIn('competition_event_id', $eventIds)->delete();
+                    Notification::make()->success()->title("{$count} division(s) deleted.")->send();
+                }),
 
             Action::make('copyFromPrevious')
                 ->label('Copy from previous competition')
@@ -75,8 +151,57 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                         return;
                     }
 
-                    $this->getRecord()->allDivisions()->delete();
+                    if ($this->getRecord()->enrolments()->exists()) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Cannot replace event structure — this competition already has enrolments. Remove all enrolments first.')
+                            ->send();
+                        return;
+                    }
+
+                    // HasManyThrough::delete() is a no-op — use a direct query instead
+                    $eventIds = $this->getRecord()->competitionEvents()->pluck('id');
+                    Division::whereIn('competition_event_id', $eventIds)->delete();
                     $this->getRecord()->competitionEvents()->delete();
+
+                    // Copy locations from previous competition if current has none
+                    if (empty($this->getRecord()->locations) && ! empty($previous->locations)) {
+                        $this->getRecord()->update(['locations' => $previous->locations]);
+                    }
+
+                    // Copy bands from previous if the current competition has none yet
+                    if ($this->getRecord()->ageBands()->doesntExist()) {
+                        foreach ($previous->ageBands as $band) {
+                            $this->getRecord()->ageBands()->create([
+                                'label'      => $band->label,
+                                'min_age'    => $band->min_age,
+                                'max_age'    => $band->max_age,
+                                'sort_order' => $band->sort_order,
+                            ]);
+                        }
+                    }
+
+                    if ($this->getRecord()->rankBands()->doesntExist()) {
+                        foreach ($previous->rankBands as $band) {
+                            $this->getRecord()->rankBands()->create([
+                                'label'       => $band->label,
+                                'description' => $band->description,
+                                'rank_min'    => $band->rank_min,
+                                'rank_max'    => $band->rank_max,
+                                'sort_order'  => $band->sort_order,
+                            ]);
+                        }
+                    }
+
+                    if ($this->getRecord()->weightClasses()->doesntExist()) {
+                        foreach ($previous->weightClasses as $band) {
+                            $this->getRecord()->weightClasses()->create([
+                                'label'      => $band->label,
+                                'max_kg'     => $band->max_kg,
+                                'sort_order' => $band->sort_order,
+                            ]);
+                        }
+                    }
 
                     $ageBandMap     = $this->getRecord()->ageBands()->pluck('id', 'label');
                     $rankBandMap    = $this->getRecord()->rankBands()->pluck('id', 'label');
@@ -84,13 +209,16 @@ class ManageCompetitionEvents extends ManageRelatedRecords
 
                     foreach ($previous->competitionEvents()->with('divisions.ageBand', 'divisions.rankBand', 'divisions.weightClass')->get() as $prevEvent) {
                         $newEvent = CompetitionEvent::create([
-                            'competition_id'  => $this->getRecord()->id,
-                            'event_type_id'   => $prevEvent->event_type_id,
-                            'scoring_method'  => $prevEvent->scoring_method,
-                            'division_filter' => $prevEvent->division_filter,
-                            'judge_count'     => $prevEvent->judge_count,
-                            'target_score'    => $prevEvent->target_score,
-                            'status'          => 'scheduled',
+                            'competition_id'       => $this->getRecord()->id,
+                            'name'                 => $prevEvent->name,
+                            'scoring_method'       => $prevEvent->scoring_method,
+                            'tournament_format'    => $prevEvent->tournament_format,
+                            'division_filter'      => $prevEvent->division_filter,
+                            'judge_count'          => $prevEvent->judge_count,
+                            'target_score'         => $prevEvent->target_score,
+                            'requires_partner'     => $prevEvent->requires_partner,
+                            'requires_weight_check' => $prevEvent->requires_weight_check,
+                            'status'               => 'scheduled',
                         ]);
 
                         foreach ($prevEvent->divisions as $div) {
@@ -140,9 +268,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 Select::make('competition_event_id')
                     ->label('Event type')
                     ->options(fn () => $this->getRecord()->competitionEvents()
-                        ->with('eventType')
-                        ->get()
-                        ->pluck('eventType.name', 'id')
+                        ->pluck('name', 'id')
                     )
                     ->required()
                     ->searchable()
@@ -174,7 +300,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
 
                 Select::make('weight_class_id')
                     ->label('Weight class')
-                    ->options(fn () => $this->getRecord()->weightClasses()->pluck('label', 'id'))
+                    ->options(fn () => $this->getRecord()->weightClasses()->get()->pluck('full_label', 'id'))
                     ->nullable()
                     ->searchable(),
             ]),
@@ -192,7 +318,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                     ->searchable()
                     ->weight('bold'),
 
-                TextColumn::make('competitionEvent.eventType.name')
+                TextColumn::make('competitionEvent.name')
                     ->label('Event type')
                     ->sortable()
                     ->searchable(),
@@ -201,26 +327,12 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                     ->label('Division')
                     ->sortable()
                     ->searchable(),
-
-                TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (string $state) => match ($state) {
-                        'pending'   => 'gray',
-                        'assigned'  => 'info',
-                        'running'   => 'warning',
-                        'complete'  => 'success',
-                        'cancelled' => 'danger',
-                        default     => 'gray',
-                    }),
             ])
-            ->groups([
-                Group::make('competitionEvent.eventType.name')
+            ->defaultGroup(
+                Group::make('competitionEvent.name')
                     ->label('Event type')
-                    ->collapsible()
-                    ->titlePrefixedWithLabel(false),
-            ])
-            ->defaultGroup('competitionEvent.eventType.name')
-            ->defaultSort('code')
+                    ->titlePrefixedWithLabel(false)
+            )
             ->defaultPaginationPageOption('all')
             ->emptyStateIcon('heroicon-o-squares-plus')
             ->emptyStateHeading('No divisions yet')
@@ -231,23 +343,36 @@ class ManageCompetitionEvents extends ManageRelatedRecords
             ])
             ->actions([
                 EditAction::make(),
-                TableAction::make('cancel')
-                    ->label('Cancel')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->modalDescription('This division will be marked as cancelled and hidden from scoring. You can reinstate it later.')
-                    ->visible(fn (Division $record) => ! in_array($record->status, ['cancelled', 'complete']))
-                    ->action(fn (Division $record) => $record->update(['status' => 'cancelled'])),
-                TableAction::make('reinstate')
-                    ->label('Reinstate')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('gray')
-                    ->visible(fn (Division $record) => $record->status === 'cancelled')
-                    ->action(fn (Division $record) => $record->update([
-                        'status' => $record->location_label ? 'assigned' : 'pending',
-                    ])),
                 DeleteAction::make(),
+            ])
+            ->bulkActions([
+                BulkAction::make('combine')
+                    ->label('Combine into one division')
+                    ->icon('heroicon-o-arrows-pointing-in')
+                    ->requiresConfirmation()
+                    ->modalDescription('Competitors from all selected divisions will be moved into the first selected division. The others will be marked as Combined.')
+                    ->deselectRecordsAfterCompletion()
+                    ->action(function (Collection $records) {
+                        if ($records->count() < 2) {
+                            Notification::make()->title('Select at least 2 divisions to combine.')->warning()->send();
+                            return;
+                        }
+
+                        $primary = $records->first();
+                        $others  = $records->slice(1);
+
+                        foreach ($others as $division) {
+                            $division->activeEnrolmentEvents()->update(['division_id' => $primary->id]);
+                            $division->update([
+                                'status'           => 'combined',
+                                'combined_into_id' => $primary->id,
+                            ]);
+                        }
+
+                        $primary->update(['label' => $primary->label . ' (Combined)']);
+
+                        Notification::make()->title('Divisions combined.')->success()->send();
+                    }),
             ]);
     }
 }

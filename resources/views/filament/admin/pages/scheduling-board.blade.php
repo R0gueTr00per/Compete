@@ -12,9 +12,10 @@
         </div>
     @else
         <div
-            class="flex gap-4 overflow-x-auto pb-6"
+            class="flex gap-4 overflow-x-auto pb-6 px-1 py-1"
             x-data="schedulingBoard(@this)"
             x-init="init()"
+            @keydown.escape.window="selectedLocation = null"
         >
             {{-- Unassigned column --}}
             <div class="flex-shrink-0 w-72">
@@ -23,6 +24,12 @@
                     <span class="rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
                         ({{ count($divisionsByColumn['__unassigned__'] ?? []) }})
                     </span>
+                </div>
+
+                {{-- Hint shown when a location is selected --}}
+                <div x-show="selectedLocation" x-cloak
+                     class="mb-2 rounded-md bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700 px-2 py-1.5 text-xs text-primary-700 dark:text-primary-300">
+                    Double-click a division to assign it to <strong x-text="selectedLocation"></strong>. Press Esc to deselect.
                 </div>
 
                 {{-- Event type filter --}}
@@ -47,10 +54,14 @@
                 >
                     @foreach($divisionsByColumn['__unassigned__'] ?? [] as $div)
                         @php
-                            $eventTypeId = $div->competitionEvent->eventType->id ?? null;
-                            $hidden = $filterEventType && $eventTypeId != $filterEventType;
+                            $hidden = $filterEventType && $div->competition_event_id != $filterEventType;
                         @endphp
-                        <div @if($hidden) style="display:none" @endif>
+                        <div
+                            data-id="{{ $div->id }}"
+                            @if($hidden) style="display:none" @endif
+                            @dblclick="assignToSelected({{ $div->id }})"
+                            :class="selectedLocation ? 'cursor-copy' : ''"
+                        >
                             @include('filament.admin.partials.scheduling-card', ['div' => $div])
                         </div>
                     @endforeach
@@ -61,13 +72,21 @@
             @foreach($columns as $col)
                 <div class="flex-shrink-0 w-72">
                     <div class="mb-2 flex items-center gap-2">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">{{ $col }}</span>
+                        <button
+                            type="button"
+                            @click="selectLocation('{{ addslashes($col) }}')"
+                            :class="selectedLocation === '{{ addslashes($col) }}'
+                                ? 'text-primary-600 dark:text-primary-400 ring-2 ring-primary-500 rounded px-1 -mx-1'
+                                : 'text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'"
+                            class="text-xs font-semibold uppercase tracking-wider transition-colors"
+                        >{{ $col }}</button>
                         <span class="rounded-full bg-primary-100 dark:bg-primary-900/40 px-2 py-0.5 text-xs text-primary-700 dark:text-primary-300">
                             ({{ count($divisionsByColumn[$col] ?? []) }})
                         </span>
                     </div>
                     <div
-                        class="sortable-col rounded-lg bg-gray-50 dark:bg-gray-800/50 p-2"
+                        class="sortable-col rounded-lg bg-gray-50 dark:bg-gray-800/50 p-2 transition-shadow"
+                        :class="selectedLocation === '{{ addslashes($col) }}' ? 'ring-2 ring-primary-400 dark:ring-primary-600' : ''"
                         style="min-height: 300px; padding-bottom: 80px;"
                         data-location="{{ $col }}"
                     >
@@ -85,6 +104,16 @@
         function schedulingBoard(wire) {
             return {
                 sortables: [],
+                selectedLocation: null,
+
+                selectLocation(location) {
+                    this.selectedLocation = this.selectedLocation === location ? null : location;
+                },
+
+                assignToSelected(divisionId) {
+                    if (!this.selectedLocation) return;
+                    wire.moveDivision(divisionId, this.selectedLocation, 9999);
+                },
 
                 init() {
                     this.initSortables();
@@ -108,9 +137,12 @@
                             filter: '[data-scored]',
                             preventOnFilter: true,
                             onEnd: (evt) => {
-                                const divisionId = parseInt(evt.item.dataset.id);
-                                const location   = evt.to.dataset.location;
-                                const newIndex   = evt.newIndex;
+                                const id = evt.item.dataset.id
+                                    ?? evt.item.querySelector('[data-id]')?.dataset.id;
+                                const divisionId = parseInt(id);
+                                if (! divisionId) return;
+                                const location = evt.to.dataset.location;
+                                const newIndex = evt.newIndex;
                                 wire.moveDivision(divisionId, location, newIndex);
                             },
                         });
@@ -122,12 +154,8 @@
     </script>
 
     <style>
-        .sortable-ghost {
-            opacity: 0.4;
-        }
-        .sortable-drag {
-            opacity: 0.9;
-            transform: rotate(2deg);
-        }
+        .sortable-ghost { opacity: 0.4; }
+        .sortable-drag  { opacity: 0.9; transform: rotate(2deg); }
+        [x-cloak]       { display: none !important; }
     </style>
 </x-filament-panels::page>

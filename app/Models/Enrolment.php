@@ -18,6 +18,8 @@ class Enrolment extends Model
         'enrolled_at',
         'is_late',
         'fee_calculated',
+        'payment_status',
+        'payment_amount',
         'status',
         'checked_in',
         'checked_in_at',
@@ -38,10 +40,16 @@ class Enrolment extends Model
             'enrolled_at'    => 'datetime',
             'is_late'        => 'boolean',
             'fee_calculated' => 'decimal:2',
+            'payment_amount' => 'decimal:2',
             'checked_in'     => 'boolean',
             'checked_in_at'  => 'datetime',
             'weight_kg'      => 'decimal:2',
         ];
+    }
+
+    public function isPaymentOutstanding(): bool
+    {
+        return $this->payment_status !== 'received';
     }
 
     public function getDisplayRankAttribute(): string

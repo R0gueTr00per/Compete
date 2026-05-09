@@ -6,6 +6,7 @@ use App\Filament\Admin\Resources\CompetitionResource;
 use App\Models\Competition;
 use App\Models\Division;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 
@@ -42,17 +43,42 @@ class ManageCompetitionSchedule extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('unassignEmpty')
+                ->label('Unassign empty divisions')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Unassign empty divisions')
+                ->modalDescription('All assigned divisions with no enrolments will have their location cleared and status reset to pending.')
+                ->modalSubmitActionLabel('Yes, unassign them')
+                ->action(function () {
+                    $competition = $this->getRecord();
+
+                    $count = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
+                        ->whereDoesntHave('activeEnrolmentEvents')
+                        ->whereNotIn('status', ['cancelled', 'combined'])
+                        ->where(fn ($q) => $q->whereNotNull('location_label')->orWhere('status', 'assigned'))
+                        ->count();
+
+                    if ($count === 0) {
+                        Notification::make()->title('No empty assigned divisions found.')->warning()->send();
+                        return;
+                    }
+
+                    Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
+                        ->whereDoesntHave('activeEnrolmentEvents')
+                        ->whereNotIn('status', ['cancelled', 'combined'])
+                        ->where(fn ($q) => $q->whereNotNull('location_label')->orWhere('status', 'assigned'))
+                        ->update(['location_label' => null, 'status' => 'pending']);
+
+                    Notification::make()->success()->title("{$count} empty division(s) unassigned.")->send();
+                }),
+
             Action::make('events')
                 ->label('Events')
                 ->icon('heroicon-o-rectangle-stack')
                 ->color('gray')
                 ->url(fn () => CompetitionResource::getUrl('events', ['record' => $this->getRecord()])),
-
-            Action::make('config')
-                ->label('Configuration')
-                ->icon('heroicon-o-cog-6-tooth')
-                ->color('gray')
-                ->url(fn () => CompetitionResource::getUrl('config', ['record' => $this->getRecord()])),
 
             Action::make('back')
                 ->label('Back to competition')
@@ -72,7 +98,11 @@ class ManageCompetitionSchedule extends Page
             ->toArray();
 
         $divisions = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
-            ->with('competitionEvent.eventType')
+            ->with('competitionEvent')
+            ->withCount([
+                'activeEnrolmentEvents',
+                'activeEnrolmentEvents as checked_in_count' => fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('checked_in', true)),
+            ])
             ->orderBy('running_order')
             ->orderBy('code')
             ->get();
@@ -93,10 +123,7 @@ class ManageCompetitionSchedule extends Page
         usort($grouped['__unassigned__'], fn ($a, $b) => strcmp($a->code, $b->code));
 
         $eventTypes = $competition->competitionEvents()
-            ->with('eventType')
-            ->get()
-            ->pluck('eventType.name', 'eventType.id')
-            ->unique()
+            ->pluck('name', 'id')
             ->sort()
             ->toArray();
 

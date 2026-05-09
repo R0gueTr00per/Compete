@@ -17,7 +17,7 @@ use Filament\Tables\Table;
 class WeightClassesRelationManager extends RelationManager
 {
     protected static string $relationship = 'weightClasses';
-    protected static ?string $title = 'Weight Classes (Sumo)';
+    protected static ?string $title = 'Weight Classes';
 
     public function form(Form $form): Form
     {
@@ -46,8 +46,7 @@ class WeightClassesRelationManager extends RelationManager
             ->recordTitleAttribute('label')
             ->columns([
                 TextColumn::make('sort_order')->label('#')->sortable(),
-                TextColumn::make('label'),
-                TextColumn::make('max_kg')->label('Max kg')->default('Open'),
+                TextColumn::make('full_label')->label('Name'),
             ])
             ->defaultSort('sort_order')
             ->reorderable('sort_order')

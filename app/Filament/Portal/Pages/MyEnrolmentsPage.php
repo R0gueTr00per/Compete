@@ -18,10 +18,9 @@ class MyEnrolmentsPage extends Page
         return Enrolment::where('competitor_id', auth()->id())
             ->with([
                 'competition',
-                'activeEvents.competitionEvent.eventType',
-                'activeEvents.division',
+                'activeEvents.competitionEvent',
                 'activeEvents.result.judgeScores',
-                'activeEvents' => fn ($q) => $q->where('removed', false),
+                'activeEvents.division.activeEnrolmentEvents.enrolment.competitor.competitorProfile',
             ])
             ->orderByDesc('enrolled_at')
             ->get();

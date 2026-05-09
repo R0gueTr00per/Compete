@@ -34,37 +34,57 @@ class CheckInService
     }
 
     /**
-     * Record confirmed weight once for an enrolment and apply it to every event
-     * in that enrolment that requires a weight check, re-assigning divisions.
-     * Returns enrolment events whose division changed (for warning display).
-     *
-     * @return \Illuminate\Support\Collection<EnrolmentEvent>  Events where division changed
+     * Save the confirmed weight, immediately assign new divisions, and return
+     * what changed so the caller can prompt the user to accept or revert.
+     * Each entry: ['ee_id', 'event_name', 'original_division_id', 'original_label', 'new_label']
      */
-    public function confirmWeightForEnrolment(Enrolment $enrolment, float $weightKg): \Illuminate\Support\Collection
+    public function applyWeightWithDivisions(Enrolment $enrolment, float $weightKg): \Illuminate\Support\Collection
     {
-        $changed = collect();
+        $changes = collect();
 
         $weightEvents = $enrolment->activeEvents()
-            ->with(['competitionEvent.eventType', 'enrolment.competitor.competitorProfile'])
+            ->with(['competitionEvent', 'division'])
             ->get()
-            ->filter(fn ($ee) => $ee->competitionEvent->eventType->requires_weight_check);
+            ->filter(fn ($ee) => $ee->competitionEvent->requires_weight_check);
 
         foreach ($weightEvents as $ee) {
-            $previousDivisionId = $ee->division_id;
+            $originalDivisionId    = $ee->division_id;
+            $originalLabel         = $ee->division?->full_label ?? 'Unassigned';
 
             $ee->update(['weight_confirmed_kg' => $weightKg]);
 
-            $division = $this->divisions->assignDivision($ee->fresh(['competitionEvent.eventType', 'enrolment.competitor.competitorProfile']));
+            $newDivision = $this->divisions->assignDivision(
+                $ee->fresh(['competitionEvent', 'enrolment.competitor.competitorProfile'])
+            );
 
-            if ($division) {
-                $ee->update(['division_id' => $division->id]);
-            }
+            $ee->update(['division_id' => $newDivision?->id]);
 
-            if ($division?->id !== $previousDivisionId) {
-                $changed->push($ee->fresh('division'));
+            if ($newDivision?->id !== $originalDivisionId) {
+                $changes->push([
+                    'ee_id'                => $ee->id,
+                    'event_name'           => $ee->competitionEvent->name,
+                    'original_division_id' => $originalDivisionId,
+                    'original_label'       => $originalLabel,
+                    'new_label'            => $newDivision?->full_label ?? 'Unassigned',
+                ]);
             }
         }
 
-        return $changed;
+        return $changes;
+    }
+
+    public function revertDivisionChanges(array $changes): void
+    {
+        foreach ($changes as $change) {
+            EnrolmentEvent::find($change['ee_id'])
+                ?->update(['division_id' => $change['original_division_id']]);
+        }
+    }
+
+    public function revertWeight(Enrolment $enrolment): void
+    {
+        $enrolment->activeEvents()
+            ->whereHas('competitionEvent', fn ($q) => $q->where('requires_weight_check', true))
+            ->update(['weight_confirmed_kg' => null]);
     }
 }

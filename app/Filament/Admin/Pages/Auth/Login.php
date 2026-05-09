@@ -26,12 +26,13 @@ class Login extends BaseLogin
 
         $response = parent::authenticate();
 
-        // Successful login — clear lockout state
+        // Successful login — clear lockout state and stamp last_login_at
         if ($response !== null) {
             Cache::forget('login_failures:' . $email);
             if ($user && $user->locked_until?->isPast()) {
                 $user->unlock();
             }
+            $user?->update(['last_login_at' => now()]);
         }
 
         return $response;

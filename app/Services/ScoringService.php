@@ -74,16 +74,31 @@ class ScoringService
         $method = $division->competitionEvent->effectiveScoringMethod();
 
         if (in_array($method, ['judges_total', 'judges_average', 'first_to_n'])) {
-            // Rank by total_score descending; null scores go last
+            // Primary: total_score DESC; secondary: tiebreaker_score DESC (null = not yet run)
             $ranked = $results
-                ->sortByDesc(fn ($r) => $r->total_score ?? -999)
+                ->sortByDesc(fn ($r) => [
+                    $r->total_score      ?? -999,
+                    $r->tiebreaker_score ?? -999,
+                ])
                 ->values();
 
-            $place = 1;
-            foreach ($ranked as $result) {
+            // Assign placements, giving tied competitors the same placement number
+            $place    = 1;
+            $prevScore = null;
+            $prevTb    = null;
+            $prevPlace = 1;
+            foreach ($ranked as $i => $result) {
                 if (! $result->placement_overridden) {
-                    $result->update(['placement' => $place]);
+                    $sameAsPrev = $i > 0
+                        && (float) ($result->total_score ?? -999) === (float) ($prevScore ?? -999)
+                        && (float) ($result->tiebreaker_score ?? -999) === (float) ($prevTb ?? -999);
+
+                    $assignedPlace = $sameAsPrev ? $prevPlace : $place;
+                    $result->update(['placement' => $assignedPlace]);
+                    $prevPlace = $assignedPlace;
                 }
+                $prevScore = $result->total_score;
+                $prevTb    = $result->tiebreaker_score;
                 $place++;
             }
         } elseif ($method === 'win_loss') {
@@ -101,6 +116,28 @@ class ScoringService
                 $place++;
             }
         }
+    }
+
+    public function saveTiebreakerScore(Result $result, float $score): void
+    {
+        DB::transaction(function () use ($result, $score) {
+            $result->update(['tiebreaker_score' => $score]);
+
+            if ($result->division_id) {
+                $this->autoRankDivision(Division::find($result->division_id));
+            }
+        });
+    }
+
+    public function clearTiebreakerScore(Result $result): void
+    {
+        DB::transaction(function () use ($result) {
+            $result->update(['tiebreaker_score' => null]);
+
+            if ($result->division_id) {
+                $this->autoRankDivision(Division::find($result->division_id));
+            }
+        });
     }
 
     public function overridePlacement(Result $result, int $placement): void

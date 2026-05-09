@@ -35,7 +35,7 @@
             <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
                 <div>
                     <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Name</dt>
-                    <dd class="mt-0.5 font-medium text-gray-900 dark:text-white">{{ $profile->surname }}, {{ $profile->first_name }}</dd>
+                    <dd class="mt-0.5 font-medium text-gray-900 dark:text-white">{{ $profile->first_name }} {{ $profile->surname }}</dd>
                 </div>
                 <div>
                     <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Date of birth</dt>
@@ -76,7 +76,10 @@
             </div>
 
             @foreach ($enrolments as $enrolment)
-                @php $isDraft = $enrolment->competition->status === 'draft'; @endphp
+                @php
+                    $isDraft   = $enrolment->competition->status === 'draft';
+                    $isRunning = $enrolment->competition->status === 'running';
+                @endphp
                 <x-filament::section class="mb-4">
                     <x-slot name="heading">
                         {{ $enrolment->competition->name }}
@@ -84,6 +87,18 @@
                             <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">Draft</span>
                         @endif
                     </x-slot>
+                    @if ($isRunning)
+                        <x-slot name="headerEnd">
+                            <x-filament::button
+                                href="{{ route('filament.portal.pages.schedule-page') }}?competition_id={{ $enrolment->competition->id }}"
+                                tag="a"
+                                color="warning"
+                                size="sm"
+                                icon="heroicon-o-calendar-days">
+                                View Schedule
+                            </x-filament::button>
+                        </x-slot>
+                    @endif
                     <x-slot name="description">
                         {{ $enrolment->competition->competition_date->format('d M Y') }}
                         @if ($enrolment->competition->location_name)
@@ -119,7 +134,7 @@
                                 <div>
                                     <p class="font-medium text-sm text-gray-900 dark:text-white">
                                         {{ $ee->competitionEvent->event_code }}
-                                        — {{ $ee->competitionEvent->eventType->name }}
+                                        — {{ $ee->competitionEvent->name }}
                                         @if ($ee->competitionEvent->location_label)
                                             <span class="text-gray-400 font-normal">({{ $ee->competitionEvent->location_label }})</span>
                                         @endif
@@ -129,7 +144,7 @@
                                     @else
                                         <p class="text-xs text-gray-400 mt-0.5">Division to be confirmed</p>
                                     @endif
-                                    @if ($ee->competitionEvent->eventType->requires_partner)
+                                    @if ($ee->competitionEvent->requires_partner)
                                         <p class="text-xs mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">
                                             Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending partner enrolment' }}
                                         </p>
@@ -168,6 +183,7 @@
                             </div>
                         @endforeach
                     </div>
+                    <p class="mt-3 text-xs text-gray-400 italic">Organisers reserve the right to merge or cancel any event on the day.</p>
                 </x-filament::section>
             @endforeach
         @endif

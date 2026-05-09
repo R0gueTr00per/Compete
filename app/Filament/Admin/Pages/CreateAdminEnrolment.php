@@ -4,6 +4,8 @@ namespace App\Filament\Admin\Pages;
 
 use App\Models\Competition;
 use App\Models\CompetitorProfile;
+use App\Models\Division;
+use App\Models\Dojo;
 use App\Models\User;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
@@ -52,8 +54,8 @@ class CreateAdminEnrolment extends Page implements HasForms
     public ?int    $experience_years   = null;
     public ?int    $experience_months  = null;
     public ?float  $weight_kg          = null;
-    public array   $selected_event_ids = [];
-    public array   $selected_divisions = [];
+    public array   $selected_entries    = [];
+    public bool    $details_confirmed   = false;
 
     public function mount(): void
     {
@@ -76,6 +78,7 @@ class CreateAdminEnrolment extends Page implements HasForms
         return $form->schema([
             Section::make('Competition & Competitor')
                 ->columns(2)
+                ->disabled(fn () => $this->details_confirmed)
                 ->schema([
                     Select::make('competition_id')
                         ->label('Competition')
@@ -87,9 +90,9 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->required()
                         ->live()
                         ->afterStateUpdated(function () {
-                            $this->selected_event_ids = [];
-                            $this->selected_divisions = [];
-                            $this->competitor_id      = null;
+                            $this->selected_entries  = [];
+                            $this->competitor_id     = null;
+                            $this->details_confirmed = false;
                         })
                         ->columnSpanFull(),
 
@@ -97,10 +100,11 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->label('Create a new competitor account')
                         ->live()
                         ->afterStateUpdated(function () {
-                            $this->competitor_id = null;
-                            $this->new_name = $this->new_email = null;
-                            $this->new_surname = $this->new_first_name = null;
-                            $this->new_dob = $this->new_gender = null;
+                            $this->competitor_id     = null;
+                            $this->new_name          = $this->new_email = null;
+                            $this->new_surname       = $this->new_first_name = null;
+                            $this->new_dob           = $this->new_gender = null;
+                            $this->details_confirmed = false;
                         })
                         ->columnSpanFull(),
 
@@ -122,16 +126,17 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->live()
                         ->visible(fn () => ! $this->create_new_user)
                         ->afterStateUpdated(function () {
-                            $this->selected_event_ids = [];
-                            $this->selected_divisions = [];
-                            $this->dojo_type          = null;
-                            $this->rank_type          = null;
+                            $this->selected_entries  = [];
+                            $this->dojo_type         = null;
+                            $this->rank_type         = null;
+                            $this->details_confirmed = false;
                         })
                         ->columnSpanFull(),
                 ]),
 
             Section::make('New competitor details')
                 ->visible(fn () => $this->create_new_user)
+                ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
                     TextInput::make('new_surname')
@@ -148,7 +153,9 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->label('Email address')
                         ->email()
                         ->required()
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->unique('users', 'email')
+                        ->validationMessages(['unique' => 'A competitor already exists with this email.']),
 
                     Select::make('new_gender')
                         ->label('Gender')
@@ -164,6 +171,7 @@ class CreateAdminEnrolment extends Page implements HasForms
             Section::make('Competition entry details')
                 ->description('Rank, weight, and dojo for this competition.')
                 ->visible(fn () => $this->competition_id && ($this->competitor_id || ($this->create_new_user && $this->new_email)))
+                ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
                     Radio::make('dojo_type')
@@ -172,12 +180,18 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->required()
                         ->inline()
                         ->live()
+                        ->afterStateUpdated(function () {
+                            $this->details_confirmed = false;
+                            $this->selected_entries  = [];
+                        })
                         ->columnSpanFull(),
 
-                    TextInput::make('dojo_name')
-                        ->label('LFP Dojo name')
-                        ->maxLength(100)
-                        ->visible(fn () => $this->dojo_type === 'lfp'),
+                    Select::make('dojo_name')
+                        ->label('LFP Dojo')
+                        ->options(fn () => Dojo::active()->orderBy('name')->pluck('name', 'name'))
+                        ->searchable()
+                        ->visible(fn () => $this->dojo_type === 'lfp')
+                        ->requiredIf('dojo_type', 'lfp'),
 
                     TextInput::make('guest_style')
                         ->label('Martial arts style')
@@ -194,6 +208,10 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->required()
                         ->inline()
                         ->live()
+                        ->afterStateUpdated(function () {
+                            $this->details_confirmed = false;
+                            $this->selected_entries  = [];
+                        })
                         ->columnSpanFull(),
 
                     TextInput::make('rank_kyu')
@@ -235,12 +253,11 @@ class CreateAdminEnrolment extends Page implements HasForms
                 ]),
 
             Section::make('Events')
-                ->visible(fn () => $this->competition_id && $this->dojo_type && $this->rank_type
-                    && ($this->competitor_id || ($this->create_new_user && $this->new_email)))
+                ->visible(fn () => $this->details_confirmed)
                 ->schema(fn () => $this->buildEventSchema()),
 
             Section::make('Fee summary')
-                ->visible(fn () => count($this->selected_event_ids) > 0)
+                ->visible(fn () => count($this->selected_entries) > 0)
                 ->schema([
                     Placeholder::make('fee_summary')
                         ->label('')
@@ -284,7 +301,7 @@ class CreateAdminEnrolment extends Page implements HasForms
 
     private function buildEventSchema(): array
     {
-        if (! $this->competition_id || ! $this->competitor_id) {
+        if (! $this->competition_id || (! $this->competitor_id && ! $this->create_new_user)) {
             return [];
         }
 
@@ -294,77 +311,68 @@ class CreateAdminEnrolment extends Page implements HasForms
         }
 
         $events = $competition->competitionEvents()
-            ->with('eventType')
             ->where('status', 'scheduled')
             ->orderBy('running_order')
             ->get();
 
-        $existingEnrolment = $competition->enrolments()
-            ->where('competitor_id', $this->competitor_id)
-            ->with('activeEvents')
-            ->first();
+        $existingEnrolment = $this->competitor_id
+            ? $competition->enrolments()
+                ->where('competitor_id', $this->competitor_id)
+                ->with('activeEvents.division')
+                ->first()
+            : null;
 
-        $alreadyEnrolledEventIds = $existingEnrolment
-            ? $existingEnrolment->activeEvents->pluck('competition_event_id')->toArray()
-            : [];
-
-        $components = [
-            CheckboxList::make('selected_event_ids')
-                ->label('Select events to enrol in')
-                ->options(
-                    $events->mapWithKeys(fn ($e) => [
-                        $e->id => $e->event_code . ' — ' . $e->eventType->name
-                            . ($e->location_label ? " ({$e->location_label})" : ''),
-                    ])->toArray()
-                )
-                ->disableOptionWhen(fn (string $value) => in_array((int) $value, $alreadyEnrolledEventIds))
-                ->live()
-                ->afterStateUpdated(function () {
-                    $this->selected_divisions = array_filter(
-                        $this->selected_divisions,
-                        fn ($k) => in_array($k, $this->selected_event_ids),
-                        ARRAY_FILTER_USE_KEY
-                    );
-                })
-                ->helperText($alreadyEnrolledEventIds ? 'Greyed-out events are already enrolled.' : null),
-        ];
+        $disabledKeys = [];
+        if ($existingEnrolment) {
+            foreach ($existingEnrolment->activeEvents as $ee) {
+                $disabledKeys[] = $ee->division_id
+                    ? "d{$ee->division_id}"
+                    : "e{$ee->competition_event_id}";
+            }
+        }
 
         $ctx             = $this->buildCtx();
         $divisionService = app(DivisionAssignmentService::class);
+        $options         = [];
 
-        foreach ($this->selected_event_ids as $eventId) {
-            $event = $events->firstWhere('id', $eventId);
-            if (! $event) {
-                continue;
+        foreach ($events as $event) {
+            $eligible = $ctx ? $divisionService->getEligibleDivisions($event, $ctx) : collect();
+
+            foreach ($eligible as $division) {
+                $options["d{$division->id}"] = "{$event->event_code} — {$event->name}: {$division->label}";
             }
-
-            $eligible = $ctx
-                ? $divisionService->getEligibleDivisions($event, $ctx)
-                : collect();
-
-            if ($eligible->isEmpty()) {
-                $components[] = Placeholder::make("division_info_{$eventId}")
-                    ->label("{$event->event_code} — {$event->eventType->name} — Division")
-                    ->content('No divisions configured yet.');
-                continue;
-            }
-
-            $components[] = CheckboxList::make("selected_divisions.{$eventId}")
-                ->label("{$event->event_code} — {$event->eventType->name} — Division(s)")
-                ->options(
-                    $eligible->mapWithKeys(fn ($d) => [
-                        $d->id => $d->label,
-                    ])->toArray()
-                )
-                ->minItems(1);
         }
 
-        return $components;
+        if (empty($options)) {
+            return [
+                Placeholder::make('no_eligible_divisions')
+                    ->label('')
+                    ->content('No eligible divisions were found for this competitor\'s rank, age, and weight. Press Back to adjust the entry details.'),
+            ];
+        }
+
+        $availableKeys = array_diff(array_keys($options), $disabledKeys);
+        if (empty($availableKeys)) {
+            return [
+                Placeholder::make('all_enrolled')
+                    ->label('')
+                    ->content('This competitor is already enrolled in all eligible divisions for this competition.'),
+            ];
+        }
+
+        return [
+            CheckboxList::make('selected_entries')
+                ->label('Select divisions to enter')
+                ->options($options)
+                ->disableOptionWhen(fn (string $value) => in_array($value, $disabledKeys))
+                ->live()
+                ->helperText($disabledKeys ? 'Greyed-out entries are already enrolled.' : null),
+        ];
     }
 
     private function feeSummary(): string
     {
-        if (! $this->competition_id || count($this->selected_event_ids) === 0) {
+        if (! $this->competition_id || empty($this->selected_entries)) {
             return '';
         }
 
@@ -373,19 +381,17 @@ class CreateAdminEnrolment extends Page implements HasForms
             return '';
         }
 
-        $existingCount = $competition->enrolments()
-            ->where('competitor_id', $this->competitor_id)
-            ->withCount('activeEvents')
-            ->first()?->active_events_count ?? 0;
+        $existingCount = $this->competitor_id
+            ? ($competition->enrolments()
+                ->where('competitor_id', $this->competitor_id)
+                ->withCount('activeEvents')
+                ->first()?->active_events_count ?? 0)
+            : 0;
 
-        $newCount = 0;
-        foreach ($this->selected_event_ids as $eid) {
-            $newCount += max(1, count((array) ($this->selected_divisions[$eid] ?? [])));
-        }
-
-        $isLate = $competition->isLateEnrolment();
-        $total  = $existingCount + $newCount;
-        $fee    = app(EnrolmentService::class)->calculateFee($competition, $total, $isLate);
+        $newCount = count($this->selected_entries);
+        $isLate   = $competition->isLateEnrolment();
+        $total    = $existingCount + $newCount;
+        $fee      = app(EnrolmentService::class)->calculateFee($competition, $total, $isLate);
 
         $lines = ["**{$newCount} event entr" . ($newCount === 1 ? 'y' : 'ies') . "** added."];
         if ($isLate) {
@@ -396,9 +402,69 @@ class CreateAdminEnrolment extends Page implements HasForms
         return implode("\n\n", $lines);
     }
 
+    public function isReadyToSubmit(): bool
+    {
+        if (! $this->details_confirmed) return false;
+        if (! $this->competition_id || ! $this->dojo_type || ! $this->rank_type) return false;
+        if ($this->rank_type === 'kyu' && ! $this->rank_kyu) return false;
+        if ($this->rank_type === 'dan' && ! $this->rank_dan) return false;
+        if (empty($this->selected_entries)) return false;
+        if ($this->create_new_user) {
+            return (bool) ($this->new_email && $this->new_surname && $this->new_first_name && $this->new_dob && $this->new_gender);
+        }
+        return (bool) $this->competitor_id;
+    }
+
+    public function nextHint(): void
+    {
+        if (! $this->competition_id) {
+            Notification::make()->title('Select a competition to continue.')->info()->send();
+            return;
+        }
+        if (! $this->competitor_id && ! $this->create_new_user) {
+            Notification::make()->title('Select or create a competitor to continue.')->info()->send();
+            return;
+        }
+        if ($this->create_new_user && (! $this->new_email || ! $this->new_surname || ! $this->new_first_name || ! $this->new_dob || ! $this->new_gender)) {
+            Notification::make()->title('Complete the new competitor details to continue.')->info()->send();
+            return;
+        }
+        if (! $this->dojo_type) {
+            Notification::make()->title('Select a membership type (LFP or Guest) to continue.')->info()->send();
+            return;
+        }
+        if (! $this->rank_type) {
+            Notification::make()->title('Select a rank type to continue.')->info()->send();
+            return;
+        }
+        if ($this->rank_type === 'kyu' && ! $this->rank_kyu) {
+            Notification::make()->title('Enter the Kyu grade to continue.')->info()->send();
+            return;
+        }
+        if ($this->rank_type === 'dan' && ! $this->rank_dan) {
+            Notification::make()->title('Enter the Dan grade to continue.')->info()->send();
+            return;
+        }
+
+        // All entry details complete — reveal the events section
+        if (! $this->details_confirmed) {
+            $this->details_confirmed = true;
+            $this->selected_entries  = [];
+            return;
+        }
+
+        Notification::make()->title('Select at least one division to enter.')->info()->send();
+    }
+
+    public function goBack(): void
+    {
+        $this->details_confirmed = false;
+        $this->selected_entries  = [];
+    }
+
     public function submit(): void
     {
-        if (! $this->competition_id || count($this->selected_event_ids) === 0) {
+        if (! $this->competition_id || empty($this->selected_entries)) {
             Notification::make()->title('Please select a competition and at least one event.')->warning()->send();
             return;
         }
@@ -453,25 +519,22 @@ class CreateAdminEnrolment extends Page implements HasForms
             return;
         }
 
-        // Enforce division selection where divisions are configured
-        $ctx             = $this->buildCtx();
-        $divisionService = app(DivisionAssignmentService::class);
-        $events          = $competition->competitionEvents()->with('eventType')->get();
+        // Parse flat division entries into event + division maps
+        $divisionsByEvent = [];
 
-        foreach ($this->selected_event_ids as $eventId) {
-            $event    = $events->firstWhere('id', $eventId);
-            $eligible = $ctx ? $divisionService->getEligibleDivisions($event, $ctx) : collect();
-
-            if ($eligible->isNotEmpty()) {
-                $chosen = array_filter((array) ($this->selected_divisions[$eventId] ?? []));
-                if (empty($chosen)) {
-                    Notification::make()
-                        ->title('Please select a division for: ' . $event->event_code . ' — ' . $event->eventType->name)
-                        ->warning()
-                        ->send();
-                    return;
-                }
+        foreach ($this->selected_entries as $key) {
+            $divisionId = (int) substr($key, 1);
+            $division   = Division::find($divisionId);
+            if ($division) {
+                $divisionsByEvent[$division->competition_event_id][] = $divisionId;
             }
+        }
+
+        $competitionEventIds = array_keys($divisionsByEvent);
+
+        if (empty($competitionEventIds)) {
+            Notification::make()->title('Please select at least one event.')->warning()->send();
+            return;
         }
 
         $entryDetails = [
@@ -489,14 +552,14 @@ class CreateAdminEnrolment extends Page implements HasForms
         app(EnrolmentService::class)->enrol(
             $competitor,
             $competition,
-            $this->selected_event_ids,
-            $this->selected_divisions,
+            $competitionEventIds,
+            $divisionsByEvent,
             $entryDetails
         );
 
         Notification::make()->title('Enrolment created successfully.')->success()->send();
 
-        $this->reset(['selected_event_ids', 'selected_divisions', 'competitor_id',
+        $this->reset(['selected_entries', 'details_confirmed', 'competitor_id',
             'create_new_user', 'new_name', 'new_email', 'new_surname', 'new_first_name', 'new_dob', 'new_gender',
             'dojo_type', 'dojo_name', 'guest_style', 'rank_type', 'rank_kyu', 'rank_dan',
             'experience_years', 'experience_months', 'weight_kg']);

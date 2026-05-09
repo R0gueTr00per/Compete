@@ -12,6 +12,22 @@ class CreateCompetition extends CreateRecord
 {
     protected static string $resource = CompetitionResource::class;
 
+    protected function beforeCreate(): void
+    {
+        $locations = collect(array_values($this->data['locations'] ?? []))
+            ->map(fn ($v) => strtolower(trim((string) (is_array($v) ? ($v['location'] ?? array_values($v)[0] ?? '') : $v))))
+            ->filter();
+
+        if ($locations->count() !== $locations->unique()->count()) {
+            Notification::make()
+                ->danger()
+                ->title('Duplicate location')
+                ->body('Each location must have a unique name.')
+                ->send();
+            $this->halt();
+        }
+    }
+
     protected function afterCreate(): void
     {
         $latest = Competition::where('id', '!=', $this->record->id)

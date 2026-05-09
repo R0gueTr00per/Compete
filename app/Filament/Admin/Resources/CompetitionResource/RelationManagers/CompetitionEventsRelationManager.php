@@ -2,12 +2,11 @@
 
 namespace App\Filament\Admin\Resources\CompetitionResource\RelationManagers;
 
-use App\Models\EventType;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
-use Filament\Forms\Set;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Actions\CreateAction;
 use Filament\Tables\Actions\DeleteAction;
@@ -24,34 +23,38 @@ class CompetitionEventsRelationManager extends RelationManager
     {
         return $form->schema([
             Section::make()->columns(2)->schema([
-                Select::make('event_type_id')
-                    ->label('Event type')
-                    ->options(EventType::orderBy('name')->pluck('name', 'id'))
+                TextInput::make('name')
+                    ->label('Event type name')
                     ->required()
-                    ->searchable()
-                    ->live()
-                    ->afterStateUpdated(function (Set $set, ?string $state) {
-                        $et = EventType::find($state);
-                        if ($et) {
-                            $set('scoring_method', $et->scoring_method);
-                            $set('judge_count', $et->judge_count);
-                            $set('target_score', $et->default_target_score);
-                        }
-                    })
+                    ->maxLength(100)
+                    ->columnSpanFull(),
+
+                Select::make('tournament_format')
+                    ->label('Tournament format')
+                    ->options([
+                        'once_off'           => 'Single performance (all perform, ranked by score)',
+                        'round_robin'        => 'Round robin',
+                        'single_elimination' => 'Single elimination bracket',
+                        'double_elimination' => 'Double elimination bracket',
+                    ])
+                    ->default('once_off')
+                    ->required()
                     ->columnSpanFull(),
 
                 Select::make('scoring_method')
+                    ->label('Scoring method')
                     ->options([
                         'judges_total'   => 'Judges scores total',
                         'judges_average' => 'Judges scores averaged',
                         'first_to_n'     => 'First to N points',
                         'win_loss'       => 'Win / Loss',
                     ])
-                    ->nullable(),
+                    ->required(),
 
                 TextInput::make('judge_count')
                     ->label('Number of judges')
                     ->numeric()
+                    ->default(0)
                     ->nullable(),
 
                 TextInput::make('target_score')
@@ -65,27 +68,40 @@ class CompetitionEventsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->recordTitleAttribute('id')
+            ->recordTitleAttribute('name')
             ->columns([
-                TextColumn::make('eventType.name')
+                TextColumn::make('name')
                     ->label('Event type')
                     ->sortable()
                     ->searchable(),
 
-                TextColumn::make('scoring_method')
-                    ->label('Scoring')
-                    ->formatStateUsing(function (?string $state, $record) {
-                        $method = $state ?? $record->eventType?->scoring_method;
-                        return match ($method) {
-                            'judges_total'   => 'Judges total',
-                            'judges_average' => 'Judges avg',
-                            'first_to_n'     => 'First to N',
-                            'win_loss'       => 'Win / Loss',
-                            default          => $method ?? '—',
-                        };
+                TextColumn::make('tournament_format')
+                    ->label('Format')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => match ($state) {
+                        'round_robin'        => 'Round robin',
+                        'single_elimination' => 'Single elim',
+                        'double_elimination' => 'Double elim',
+                        default              => 'Single perf',
+                    })
+                    ->color(fn (?string $state) => match ($state) {
+                        'round_robin'        => 'info',
+                        'single_elimination' => 'warning',
+                        'double_elimination' => 'danger',
+                        default              => 'gray',
                     }),
 
+                TextColumn::make('scoring_method')
+                    ->label('Scoring')
+                    ->formatStateUsing(fn (?string $state) => match ($state) {
+                        'judges_total'   => 'Judges total',
+                        'judges_average' => 'Judges avg',
+                        'first_to_n'     => 'First to N',
+                        'win_loss'       => 'Win / Loss',
+                        default          => $state ?? '—',
+                    }),
             ])
+            ->paginated(false)
             ->headerActions([CreateAction::make()])
             ->actions([
                 EditAction::make()

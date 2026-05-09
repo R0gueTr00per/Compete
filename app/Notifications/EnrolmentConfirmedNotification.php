@@ -23,9 +23,9 @@ class EnrolmentConfirmedNotification extends Notification implements ShouldQueue
     {
         $competition = $this->enrolment->competition;
         $events = $this->enrolment->activeEvents()
-            ->with('competitionEvent.eventType')
+            ->with('competitionEvent')
             ->get()
-            ->map(fn ($ee) => $ee->competitionEvent->eventType->name)
+            ->map(fn ($ee) => $ee->competitionEvent->name)
             ->join(', ');
 
         $message = (new MailMessage)

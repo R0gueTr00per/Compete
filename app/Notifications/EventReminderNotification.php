@@ -26,9 +26,9 @@ class EventReminderNotification extends Notification implements ShouldQueue
     {
         $date = \Carbon\Carbon::parse($this->competition->competition_date)->format('l, d F Y');
         $events = $this->enrolment->activeEvents()
-            ->with('competitionEvent.eventType', 'division')
+            ->with('competitionEvent', 'division')
             ->get()
-            ->map(fn ($ee) => $ee->competitionEvent->eventType->name
+            ->map(fn ($ee) => $ee->competitionEvent->name
                 . ($ee->division ? " ({$ee->division->label})" : ''))
             ->join(', ');
 

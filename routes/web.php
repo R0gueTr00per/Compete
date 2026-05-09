@@ -2,11 +2,14 @@
 
 use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicScheduleController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return redirect('/portal');
 });
+
+Route::get('/schedule/{competition}', [PublicScheduleController::class, 'show'])->name('public.schedule');
 
 // Social OAuth routes
 Route::get('auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->name('socialite.redirect');

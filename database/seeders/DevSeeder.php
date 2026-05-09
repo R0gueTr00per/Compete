@@ -11,7 +11,7 @@ class DevSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([RoleSeeder::class, EventTypeSeeder::class, SampleDataSeeder::class]);
+        $this->call([RoleSeeder::class, SampleDataSeeder::class]);
 
         $sysAdmin = User::updateOrCreate(
             ['email' => 'sysadmin@example.com'],

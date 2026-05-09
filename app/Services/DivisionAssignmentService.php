@@ -7,7 +7,6 @@ use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\Division;
 use App\Models\EnrolmentEvent;
-use App\Models\EventType;
 use App\Models\RankBand;
 use App\Models\WeightClass;
 
@@ -41,8 +40,8 @@ class DivisionAssignmentService
     {
         $assigned = 0;
 
-        foreach ($competition->competitionEvents()->with('eventType')->get() as $event) {
-            $prefix  = $this->eventPrefix($event->eventType->name);
+        foreach ($competition->competitionEvents()->get() as $event) {
+            $prefix  = $this->eventPrefix($event->name);
             $counter = Division::where('competition_event_id', $event->id)->whereNotNull('code')->count();
 
             Division::where('competition_event_id', $event->id)
@@ -249,6 +248,11 @@ class DivisionAssignmentService
     {
         $source->load(['ageBands', 'rankBands', 'weightClasses', 'competitionEvents.divisions']);
 
+        // Copy locations JSON to target if it has none
+        if (! empty($source->locations) && empty($target->locations)) {
+            $target->update(['locations' => $source->locations]);
+        }
+
         // Copy age bands, track old → new ID mapping
         $ageBandMap = [];
         foreach ($source->ageBands->sortBy('sort_order') as $band) {
@@ -274,14 +278,17 @@ class DivisionAssignmentService
         $eventMap = [];
         foreach ($source->competitionEvents->sortBy('running_order') as $event) {
             $new = $target->competitionEvents()->create([
-                'event_type_id'   => $event->event_type_id,
-                'running_order'   => $event->running_order,
-                'location_label'  => $event->location_label,
-                'target_score'    => $event->target_score,
-                'scoring_method'  => $event->scoring_method,
-                'division_filter' => $event->division_filter,
-                'judge_count'     => $event->judge_count,
-                'status'          => 'scheduled',
+                'name'                 => $event->name,
+                'running_order'        => $event->running_order,
+                'location_label'       => $event->location_label,
+                'target_score'         => $event->target_score,
+                'scoring_method'       => $event->scoring_method,
+                'tournament_format'    => $event->tournament_format,
+                'division_filter'      => $event->division_filter,
+                'judge_count'          => $event->judge_count,
+                'requires_partner'     => $event->requires_partner,
+                'requires_weight_check' => $event->requires_weight_check,
+                'status'               => 'scheduled',
             ]);
             $eventMap[$event->id] = $new->id;
         }
@@ -303,6 +310,7 @@ class DivisionAssignmentService
                     'sex'                  => $division->sex,
                     'label'                => $division->label,
                     'running_order'        => $division->running_order,
+                    'location_label'       => $division->location_label,
                     'target_score'         => $division->target_score,
                     'status'               => 'pending',
                 ]);
@@ -316,7 +324,7 @@ class DivisionAssignmentService
      */
     public function assignDivision(EnrolmentEvent $ee): ?Division
     {
-        $compEvent = $ee->competitionEvent->load('eventType');
+        $compEvent = $ee->competitionEvent;
         $filter    = $compEvent->effectiveDivisionFilter();
         $profile   = $ee->enrolment->competitor->competitorProfile;
 
@@ -616,7 +624,6 @@ class DivisionAssignmentService
      */
     public function getEligibleDivisions(CompetitionEvent $compEvent, $ctx): \Illuminate\Database\Eloquent\Collection
     {
-        $compEvent->loadMissing('eventType');
         $filter = $compEvent->effectiveDivisionFilter();
 
         $base = Division::where('competition_event_id', $compEvent->id)
@@ -632,98 +639,132 @@ class DivisionAssignmentService
         $weight = $ctx->weight_kg;
 
         if (in_array($filter, ['age_rank_sex', 'age_sex', 'weight_sex', 'age_weight_sex'])) {
-            // Include sex-specific divisions OR Mixed (sex = null) divisions
-            $query = (clone $base)->where(fn ($q) => $q->where('sex', $sex)->orWhereNull('sex'));
+            if ($sex !== null) {
+                // Include sex-specific divisions OR Mixed (sex = null) divisions
+                $query = (clone $base)->where(fn ($q) => $q->where('sex', $sex)->orWhereNull('sex'));
+            } else {
+                // Unknown gender — show all divisions regardless of sex
+                $query = clone $base;
+            }
         } else {
             // age_rank / age_only / age_weight — no sex split, divisions have sex = null
             $query = (clone $base)->whereNull('sex');
         }
 
         if ($filter === 'age_rank_sex') {
-            $query->where(function ($q) use ($age, $rank) {
-                $q->where(function ($q2) use ($age) {
-                    $q2->whereNull('age_band_id')
-                        ->orWhereHas('ageBand', fn ($q3) => $q3
-                            ->where(fn ($q4) => $q4->whereNull('min_age')->orWhere('min_age', '<=', $age))
-                            ->where(fn ($q4) => $q4->whereNull('max_age')->orWhere('max_age', '>=', $age))
+            if ($age !== null) {
+                $query->where(function ($q) use ($age) {
+                    $q->whereNull('age_band_id')
+                        ->orWhereHas('ageBand', fn ($q2) => $q2
+                            ->where(fn ($q3) => $q3->whereNull('min_age')->orWhere('min_age', '<=', $age))
+                            ->where(fn ($q3) => $q3->whereNull('max_age')->orWhere('max_age', '>=', $age))
                         );
                 });
-                $q->where(function ($q2) use ($rank) {
-                    $q2->whereNull('rank_band_id');
-                    if ($rank !== null) {
-                        $q2->orWhereHas('rankBand', fn ($q3) => $q3
-                            ->where(fn ($q4) => $q4->whereNull('rank_min')->orWhere('rank_min', '<=', $rank))
-                            ->where(fn ($q4) => $q4->whereNull('rank_max')->orWhere('rank_max', '>=', $rank))
-                        );
-                    }
-                });
-            });
-        } elseif ($filter === 'age_sex') {
-            $query->where(function ($q) use ($age) {
-                $q->whereNull('age_band_id')
-                    ->orWhereHas('ageBand', fn ($q2) => $q2
-                        ->where(fn ($q3) => $q3->whereNull('min_age')->orWhere('min_age', '<=', $age))
-                        ->where(fn ($q3) => $q3->whereNull('max_age')->orWhere('max_age', '>=', $age))
-                    );
-            });
-        } elseif ($filter === 'weight_sex') {
-            $query->where(function ($q) use ($weight) {
-                $q->whereNull('weight_class_id');
-                if ($weight) {
-                    $q->orWhereHas('weightClass', fn ($q2) => $q2
-                        ->where(fn ($q3) => $q3->whereNull('max_kg')->orWhere('max_kg', '>=', $weight))
+            }
+            $query->where(function ($q) use ($rank) {
+                $q->whereNull('rank_band_id');
+                if ($rank !== null) {
+                    $q->orWhereHas('rankBand', fn ($q2) => $q2
+                        ->where(fn ($q3) => $q3->whereNull('rank_min')->orWhere('rank_min', '<=', $rank))
+                        ->where(fn ($q3) => $q3->whereNull('rank_max')->orWhere('rank_max', '>=', $rank))
                     );
                 }
-            })
-            ->leftJoin('weight_classes', 'divisions.weight_class_id', '=', 'weight_classes.id')
-            ->orderByRaw('CASE WHEN weight_classes.max_kg IS NULL THEN 999999 ELSE weight_classes.max_kg END')
-            ->select('divisions.*');
-        } elseif ($filter === 'age_rank') {
-            $query->where(function ($q) use ($age, $rank) {
-                $q->where(function ($q2) use ($age) {
-                    $q2->whereNull('age_band_id')
-                        ->orWhereHas('ageBand', fn ($q3) => $q3
-                            ->where(fn ($q4) => $q4->whereNull('min_age')->orWhere('min_age', '<=', $age))
-                            ->where(fn ($q4) => $q4->whereNull('max_age')->orWhere('max_age', '>=', $age))
+            });
+        } elseif ($filter === 'age_sex') {
+            if ($age !== null) {
+                $query->where(function ($q) use ($age) {
+                    $q->whereNull('age_band_id')
+                        ->orWhereHas('ageBand', fn ($q2) => $q2
+                            ->where(fn ($q3) => $q3->whereNull('min_age')->orWhere('min_age', '<=', $age))
+                            ->where(fn ($q3) => $q3->whereNull('max_age')->orWhere('max_age', '>=', $age))
                         );
                 });
-                $q->where(function ($q2) use ($rank) {
-                    $q2->whereNull('rank_band_id');
-                    if ($rank !== null) {
-                        $q2->orWhereHas('rankBand', fn ($q3) => $q3
-                            ->where(fn ($q4) => $q4->whereNull('rank_min')->orWhere('rank_min', '<=', $rank))
-                            ->where(fn ($q4) => $q4->whereNull('rank_max')->orWhere('rank_max', '>=', $rank))
-                        );
+            }
+        } elseif ($filter === 'weight_sex') {
+            if ($weight !== null) {
+                $bestMaxKg = $this->bestFitMaxKg($compEvent->competition_id, $weight);
+                $query->where(function ($q) use ($bestMaxKg) {
+                    $q->whereNull('weight_class_id');
+                    if ($bestMaxKg !== null) {
+                        $q->orWhereHas('weightClass', fn ($q2) => $q2->where('max_kg', $bestMaxKg));
+                    } else {
+                        $q->orWhereHas('weightClass', fn ($q2) => $q2->whereNull('max_kg'));
                     }
                 });
+            }
+            // When weight is null, show all weight classes (no filter applied)
+            $query->leftJoin('weight_classes', 'divisions.weight_class_id', '=', 'weight_classes.id')
+                ->orderByRaw('CASE WHEN weight_classes.max_kg IS NULL THEN 999999 ELSE weight_classes.max_kg END')
+                ->select('divisions.*');
+        } elseif ($filter === 'age_rank') {
+            if ($age !== null) {
+                $query->where(function ($q) use ($age) {
+                    $q->whereNull('age_band_id')
+                        ->orWhereHas('ageBand', fn ($q2) => $q2
+                            ->where(fn ($q3) => $q3->whereNull('min_age')->orWhere('min_age', '<=', $age))
+                            ->where(fn ($q3) => $q3->whereNull('max_age')->orWhere('max_age', '>=', $age))
+                        );
+                });
+            }
+            $query->where(function ($q) use ($rank) {
+                $q->whereNull('rank_band_id');
+                if ($rank !== null) {
+                    $q->orWhereHas('rankBand', fn ($q2) => $q2
+                        ->where(fn ($q3) => $q3->whereNull('rank_min')->orWhere('rank_min', '<=', $rank))
+                        ->where(fn ($q3) => $q3->whereNull('rank_max')->orWhere('rank_max', '>=', $rank))
+                    );
+                }
             });
         } elseif ($filter === 'age_only') {
-            $query->where(function ($q) use ($age) {
-                $q->whereNull('age_band_id')
-                    ->orWhereHas('ageBand', fn ($q2) => $q2
-                        ->where(fn ($q3) => $q3->whereNull('min_age')->orWhere('min_age', '<=', $age))
-                        ->where(fn ($q3) => $q3->whereNull('max_age')->orWhere('max_age', '>=', $age))
-                    );
-            });
-        } elseif (in_array($filter, ['age_weight', 'age_weight_sex'])) {
-            $query->where(function ($q) use ($age) {
-                $q->whereNull('age_band_id')
-                    ->orWhereHas('ageBand', fn ($q2) => $q2
-                        ->where(fn ($q3) => $q3->whereNull('min_age')->orWhere('min_age', '<=', $age))
-                        ->where(fn ($q3) => $q3->whereNull('max_age')->orWhere('max_age', '>=', $age))
-                    );
-            });
-            if ($weight) {
-                $query->where(function ($q) use ($weight) {
-                    $q->whereNull('weight_class_id')
-                        ->orWhereHas('weightClass', fn ($q2) => $q2
-                            ->where(fn ($q3) => $q3->whereNull('max_kg')->orWhere('max_kg', '>=', $weight))
+            if ($age !== null) {
+                $query->where(function ($q) use ($age) {
+                    $q->whereNull('age_band_id')
+                        ->orWhereHas('ageBand', fn ($q2) => $q2
+                            ->where(fn ($q3) => $q3->whereNull('min_age')->orWhere('min_age', '<=', $age))
+                            ->where(fn ($q3) => $q3->whereNull('max_age')->orWhere('max_age', '>=', $age))
                         );
+                });
+            }
+        } elseif (in_array($filter, ['age_weight', 'age_weight_sex'])) {
+            if ($age !== null) {
+                $query->where(function ($q) use ($age) {
+                    $q->whereNull('age_band_id')
+                        ->orWhereHas('ageBand', fn ($q2) => $q2
+                            ->where(fn ($q3) => $q3->whereNull('min_age')->orWhere('min_age', '<=', $age))
+                            ->where(fn ($q3) => $q3->whereNull('max_age')->orWhere('max_age', '>=', $age))
+                        );
+                });
+            }
+            if ($weight !== null) {
+                $bestMaxKg = $this->bestFitMaxKg($compEvent->competition_id, $weight);
+                $query->where(function ($q) use ($bestMaxKg) {
+                    $q->whereNull('weight_class_id');
+                    if ($bestMaxKg !== null) {
+                        $q->orWhereHas('weightClass', fn ($q2) => $q2->where('max_kg', $bestMaxKg));
+                    } else {
+                        $q->orWhereHas('weightClass', fn ($q2) => $q2->whereNull('max_kg'));
+                    }
                 });
             }
         }
 
         return $query->orderBy('label')->get();
+    }
+
+    /**
+     * Find the minimum max_kg weight class that can accommodate the given weight.
+     * Returns null if no capped class fits (person falls into the "over" / unlimited class).
+     */
+    private function bestFitMaxKg(int $competitionId, ?float $weight): ?float
+    {
+        if (! $weight) {
+            return null;
+        }
+
+        return \App\Models\WeightClass::where('competition_id', $competitionId)
+            ->whereNotNull('max_kg')
+            ->where('max_kg', '>=', $weight)
+            ->min('max_kg');
     }
 
     /**

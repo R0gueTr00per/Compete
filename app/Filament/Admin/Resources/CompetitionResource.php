@@ -6,6 +6,11 @@ use App\Filament\Admin\Actions\HistoryTableAction;
 use App\Filament\Admin\Resources\CompetitionResource\Pages;
 use App\Filament\Admin\Resources\CompetitionResource\RelationManagers;
 use App\Models\Competition;
+use App\Models\Division;
+use App\Models\Enrolment;
+use App\Models\EnrolmentEvent;
+use App\Models\JudgeScore;
+use App\Models\Result;
 use App\Services\DivisionAssignmentService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
@@ -55,15 +60,15 @@ class CompetitionResource extends Resource
                     DatePicker::make('competition_date')
                         ->required(),
 
+                    DatePicker::make('enrolment_due_date')
+                        ->nullable(),
+
                     TimePicker::make('start_time')
                         ->required()
                         ->seconds(false),
 
                     TimePicker::make('checkin_time')
                         ->seconds(false)
-                        ->nullable(),
-
-                    DatePicker::make('enrolment_due_date')
                         ->nullable(),
 
                     TextInput::make('location_name')
@@ -157,10 +162,6 @@ class CompetitionResource extends Resource
                     ->counts('enrolments')
                     ->sortable(),
 
-                TextColumn::make('enrolment_due_date')
-                    ->label('Due date')
-                    ->date('d M Y')
-                    ->sortable(),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -174,11 +175,6 @@ class CompetitionResource extends Resource
             ])
             ->actions([
                 EditAction::make(),
-                Action::make('config')
-                    ->label('Configuration')
-                    ->icon('heroicon-o-cog-6-tooth')
-                    ->color('gray')
-                    ->url(fn (Competition $record) => static::getUrl('config', ['record' => $record])),
                 Action::make('events')
                     ->label('Events')
                     ->icon('heroicon-o-rectangle-stack')
@@ -214,6 +210,34 @@ class CompetitionResource extends Resource
                         ->requiresConfirmation()
                         ->visible(fn (Competition $record) => $record->status === 'open')
                         ->action(fn (Competition $record) => $record->update(['status' => 'closed'])),
+                    Action::make('startRunning')
+                        ->label('Start competition')
+                        ->icon('heroicon-o-play')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalDescription(function (Competition $record) {
+                            $completedDivisions = $record->allDivisions()
+                                ->where('divisions.status', 'complete')
+                                ->count();
+
+                            $base = 'This will mark the competition as running. Check-in and scoring will become active. Late check-ins will still be accepted.';
+
+                            if ($completedDivisions > 0) {
+                                $base .= " Warning: {$completedDivisions} division(s) are already marked as complete.";
+                            }
+
+                            return $base;
+                        })
+                        ->visible(fn (Competition $record) => in_array($record->status, ['closed', 'open']))
+                        ->action(fn (Competition $record) => $record->update(['status' => 'running'])),
+                    Action::make('markComplete')
+                        ->label('Mark complete')
+                        ->icon('heroicon-o-flag')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalDescription('Mark this competition as complete. Results will become visible to competitors.')
+                        ->visible(fn (Competition $record) => $record->status === 'running')
+                        ->action(fn (Competition $record) => $record->update(['status' => 'complete'])),
                     Action::make('duplicate')
                         ->label('Duplicate competition')
                         ->icon('heroicon-o-document-duplicate')
@@ -274,6 +298,86 @@ class CompetitionResource extends Resource
                             ]);
                         }),
                     HistoryTableAction::make(),
+                    Action::make('purge')
+                        ->label('Delete competition')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->visible(fn () => auth()->user()?->hasRole('system_admin'))
+                        ->modalHeading('Permanently delete competition')
+                        ->modalDescription(function (Competition $record) {
+                            $enrolmentCount    = $record->enrolments()->count();
+                            $eventIds          = $record->competitionEvents()->pluck('id');
+                            $enrolmentEventIds = EnrolmentEvent::whereIn(
+                                'enrolment_id', $record->enrolments()->select('id')
+                            )->pluck('id');
+                            $resultCount       = Result::whereIn('enrolment_event_id', $enrolmentEventIds)->count();
+                            $divisionCount     = Division::whereIn('competition_event_id', $eventIds)->count();
+
+                            $warning = $enrolmentCount > 0
+                                ? "<p style='margin-top:.75rem;padding:.6rem .8rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:.375rem;color:#991b1b'>"
+                                  . "<strong>Warning:</strong> This competition has <strong>{$enrolmentCount} enrolment(s)</strong>"
+                                  . ($resultCount > 0 ? " and <strong>{$resultCount} result record(s)</strong>" : '')
+                                  . ". If fees have been collected, you should reconcile payments before deleting."
+                                  . "</p>"
+                                : '';
+
+                            return new \Illuminate\Support\HtmlString(
+                                "<p>Permanently deleting <strong>{$record->name}</strong> will destroy:</p>"
+                                . "<ul style='margin-top:.5rem;padding-left:1.25rem;list-style:disc'>"
+                                . "<li><strong>{$enrolmentCount}</strong> enrolment(s) and all enrolment event records</li>"
+                                . "<li><strong>{$resultCount}</strong> result(s) and judge score records</li>"
+                                . "<li><strong>{$divisionCount}</strong> division(s) across all events</li>"
+                                . "<li>All age bands, rank bands, and weight classes</li>"
+                                . "</ul>"
+                                . $warning
+                                . "<p style='margin-top:.75rem'>This <strong>cannot be undone</strong>. Type the competition name below to confirm.</p>"
+                            );
+                        })
+                        ->modalSubmitActionLabel('Delete permanently')
+                        ->form(fn (Competition $record) => [
+                            \Filament\Forms\Components\TextInput::make('confirm_name')
+                                ->label("Type \"{$record->name}\" to confirm")
+                                ->required()
+                                ->placeholder($record->name)
+                                ->rules([
+                                    function () use ($record) {
+                                        return function (string $attribute, $value, \Closure $fail) use ($record) {
+                                            if ($value !== $record->name) {
+                                                $fail("That doesn't match — type \"{$record->name}\" exactly.");
+                                            }
+                                        };
+                                    },
+                                ]),
+                        ])
+                        ->action(function (Competition $record, array $data) {
+                            $name        = $record->name;
+                            $eventIds    = $record->competitionEvents()->pluck('id');
+                            $enrolmentIds = $record->enrolments()->pluck('id');
+                            $enrolEventIds = EnrolmentEvent::whereIn('enrolment_id', $enrolmentIds)->pluck('id');
+                            $resultIds   = Result::whereIn('enrolment_event_id', $enrolEventIds)->pluck('id');
+
+                            JudgeScore::whereIn('result_id', $resultIds)->delete();
+                            Result::whereIn('id', $resultIds)->delete();
+
+                            // Null self-referential partner links before deleting enrolment events
+                            EnrolmentEvent::whereIn('id', $enrolEventIds)
+                                ->update(['partner_enrolment_event_id' => null]);
+                            EnrolmentEvent::whereIn('id', $enrolEventIds)->delete();
+                            Enrolment::whereIn('id', $enrolmentIds)->delete();
+
+                            Division::whereIn('competition_event_id', $eventIds)->delete();
+                            $record->competitionEvents()->delete();
+                            $record->ageBands()->delete();
+                            $record->rankBands()->delete();
+                            $record->weightClasses()->delete();
+
+                            $record->forceDelete();
+
+                            Notification::make()
+                                ->success()
+                                ->title("\"{$name}\" permanently deleted.")
+                                ->send();
+                        }),
                 ]),
             ])
             ->defaultSort('competition_date', 'desc');

@@ -6,6 +6,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -27,8 +28,13 @@ class ProfilePage extends Page implements HasForms
 
     public function mount(): void
     {
-        $profile = auth()->user()->competitorProfile;
-        $this->form->fill($profile ? $profile->toArray() : []);
+        $user    = auth()->user();
+        $profile = $user->competitorProfile;
+
+        $this->form->fill(array_merge(
+            $profile ? $profile->toArray() : [],
+            ['timezone' => $user->timezone ?? 'Australia/Sydney'],
+        ));
     }
 
     public function form(Form $form): Form
@@ -36,10 +42,21 @@ class ProfilePage extends Page implements HasForms
         return $form
             ->schema([
                 Section::make('Account')
+                    ->columns(2)
                     ->schema([
                         Placeholder::make('email')
                             ->label('Login email')
                             ->content(fn () => auth()->user()->email),
+
+                        Select::make('timezone')
+                            ->label('Timezone')
+                            ->options(function () {
+                                $zones = \DateTimeZone::listIdentifiers();
+                                return array_combine($zones, $zones);
+                            })
+                            ->default('Australia/Sydney')
+                            ->searchable()
+                            ->required(),
                     ]),
 
                 Section::make('Personal Details')
@@ -81,15 +98,20 @@ class ProfilePage extends Page implements HasForms
     public function save(): void
     {
         $data = $this->form->getState();
-        $data['profile_complete'] = true;
 
-        if (! $this->isUnder15($data['date_of_birth'] ?? null)) {
-            $data['height_cm'] = null;
+        auth()->user()->update(['timezone' => $data['timezone'] ?? 'Australia/Sydney']);
+
+        $profileData                     = $data;
+        $profileData['profile_complete'] = true;
+        unset($profileData['timezone']);
+
+        if (! $this->isUnder15($profileData['date_of_birth'] ?? null)) {
+            $profileData['height_cm'] = null;
         }
 
         auth()->user()->competitorProfile()->updateOrCreate(
             ['user_id' => auth()->id()],
-            $data
+            $profileData
         );
 
         Notification::make()->title('Profile saved')->success()->send();

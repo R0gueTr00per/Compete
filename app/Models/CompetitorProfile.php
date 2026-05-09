@@ -43,9 +43,9 @@ class CompetitorProfile extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function getAgeAttribute(): int
+    public function getAgeAttribute(): ?int
     {
-        return $this->date_of_birth->age;
+        return $this->date_of_birth?->age;
     }
 
 }

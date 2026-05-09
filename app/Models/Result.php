@@ -18,6 +18,7 @@ class Result extends Model
         'placement',
         'placement_overridden',
         'total_score',
+        'tiebreaker_score',
         'win_loss',
         'disqualified',
     ];
@@ -26,8 +27,9 @@ class Result extends Model
     {
         return [
             'placement_overridden' => 'boolean',
-            'disqualified' => 'boolean',
-            'total_score' => 'decimal:3',
+            'disqualified'         => 'boolean',
+            'total_score'          => 'decimal:3',
+            'tiebreaker_score'     => 'decimal:3',
         ];
     }
 

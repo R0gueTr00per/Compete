@@ -48,11 +48,6 @@ class UserResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('competitorProfile.surname')
-                    ->label('Surname')
-                    ->searchable()
-                    ->sortable(),
-
                 TextColumn::make('roles.name')
                     ->label('Role')
                     ->badge()
@@ -84,6 +79,12 @@ class UserResource extends Resource
                     })
                     ->badge()
                     ->color('gray'),
+
+                TextColumn::make('last_login_at')
+                    ->label('Last login')
+                    ->dateTime('d M Y H:i')
+                    ->sortable()
+                    ->placeholder('Never'),
 
                 TextColumn::make('created_at')
                     ->label('Registered')
@@ -132,8 +133,26 @@ class UserResource extends Resource
                         ->icon('heroicon-o-no-symbol')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->visible(fn (User $record) => $record->status === 'active')
+                        ->visible(fn (User $record) =>
+                            $record->status === 'active'
+                            && auth()->user()?->hasRole('system_admin')
+                            && auth()->id() !== $record->id
+                        )
                         ->action(function (User $record) {
+                            if ($record->hasRole('system_admin')) {
+                                $remaining = User::role('system_admin')
+                                    ->where('status', 'active')
+                                    ->count();
+
+                                if ($remaining <= 1) {
+                                    Notification::make()
+                                        ->title('Cannot deactivate the last system admin.')
+                                        ->danger()
+                                        ->send();
+                                    return;
+                                }
+                            }
+
                             $record->update(['status' => 'inactive']);
                             Notification::make()->title('User deactivated.')->success()->send();
                         }),
@@ -167,6 +186,23 @@ class UserResource extends Resource
                             'role' => $record->roles->first()?->name,
                         ])
                         ->action(function (User $record, array $data) {
+                            $isLeavingSysAdmin = $record->hasRole('system_admin')
+                                && $data['role'] !== 'system_admin';
+
+                            if ($isLeavingSysAdmin) {
+                                $remaining = User::role('system_admin')
+                                    ->where('status', 'active')
+                                    ->count();
+
+                                if ($remaining <= 1) {
+                                    Notification::make()
+                                        ->title('Cannot remove the last system admin.')
+                                        ->danger()
+                                        ->send();
+                                    return;
+                                }
+                            }
+
                             $record->syncRoles([$data['role']]);
                             Notification::make()->title('Role updated.')->success()->send();
                         })

@@ -85,7 +85,13 @@
       "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;$env:PATH\"; cd \"c:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; $log = Get-Content storage\\\\logs\\\\laravel.log -Raw; $entries = $log -split '\\(?=\\\\[\\\\d{4}-\\\\d{2}-\\\\d{2}\\)'; $entries | Select-Object -Last 4 | ForEach-Object { $_.Substring\\(0, [Math]::Min\\(500, $_.Length\\)\\); \"---\" })",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\" -Directory)",
       "Bash(Select-Object Name)",
-      "PowerShell(& \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current\\\\php.exe\" --version 2>&1)"
+      "PowerShell(& \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current\\\\php.exe\" --version 2>&1)",
+      "Bash(xargs grep -l \"CreateCompetition\\\\|CreateCompetitionForm\")",
+      "Bash(xargs grep -l \"ManageCompetitionEvents\\\\|my-enrolments\")",
+      "Bash(xargs cat)",
+      "Bash(C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current\\\\php.exe artisan *)",
+      "Bash(\"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current\\\\php.exe\" artisan *)",
+      "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;\" + $env:PATH; cd \"c:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; php artisan db:seed --class=LFPCompetitionSeeder 2>&1)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

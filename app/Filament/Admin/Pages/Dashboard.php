@@ -11,7 +11,7 @@ class Dashboard extends BaseDashboard
 
     public function getActiveCompetitions()
     {
-        return Competition::whereIn('status', ['open', 'running'])
+        return Competition::whereNotIn('status', ['complete'])
             ->withCount('enrolments')
             ->orderBy('competition_date')
             ->get();

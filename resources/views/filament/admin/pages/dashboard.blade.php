@@ -41,7 +41,7 @@
                             size="sm"
                             color="gray"
                             tag="a"
-                            href="{{ route('filament.admin.resources.enrolments.index', ['tableFilters[competition][value]' => $competition->id]) }}"
+                            href="{{ route('filament.admin.resources.enrolments.index') }}?competition_id={{ $competition->id }}"
                         >
                             Enrolments
                         </x-filament::button>
@@ -53,6 +53,15 @@
                             href="{{ route('filament.admin.pages.check-in') }}?competition_id={{ $competition->id }}"
                         >
                             Check-in
+                        </x-filament::button>
+
+                        <x-filament::button
+                            size="sm"
+                            color="info"
+                            tag="a"
+                            href="{{ route('filament.admin.resources.competitions.schedule', $competition) }}"
+                        >
+                            Scheduling
                         </x-filament::button>
 
                         <x-filament::button

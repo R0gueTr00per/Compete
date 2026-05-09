@@ -14,16 +14,27 @@ class CompetitionEvent extends Model
 
     protected $fillable = [
         'competition_id',
-        'event_type_id',
+        'name',
         'event_code',
         'running_order',
         'location_label',
-        'target_score',
         'scoring_method',
+        'tournament_format',
         'judge_count',
+        'target_score',
         'division_filter',
+        'requires_partner',
+        'requires_weight_check',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'requires_partner'      => 'boolean',
+            'requires_weight_check' => 'boolean',
+        ];
+    }
 
     protected static function booted(): void
     {
@@ -36,14 +47,8 @@ class CompetitionEvent extends Model
 
     private static function generateCode(self $event): string
     {
-        // Load event type name to get the prefix letter
-        $typeName = $event->eventType?->name
-            ?? \App\Models\EventType::find($event->event_type_id)?->name
-            ?? 'E';
+        $prefix = strtoupper(mb_substr($event->name ?? 'E', 0, 1));
 
-        $prefix = strtoupper(mb_substr($typeName, 0, 1));
-
-        // Count existing events with the same prefix in this competition
         $count = static::where('competition_id', $event->competition_id)
             ->where('event_code', 'like', $prefix . '%')
             ->count();
@@ -61,11 +66,6 @@ class CompetitionEvent extends Model
         return $this->belongsTo(Competition::class);
     }
 
-    public function eventType(): BelongsTo
-    {
-        return $this->belongsTo(EventType::class);
-    }
-
     public function divisions(): HasMany
     {
         return $this->hasMany(Division::class);
@@ -78,21 +78,31 @@ class CompetitionEvent extends Model
 
     public function effectiveTargetScore(): ?int
     {
-        return $this->target_score ?? $this->eventType->default_target_score;
+        return $this->target_score;
     }
 
     public function effectiveScoringMethod(): string
     {
-        return $this->scoring_method ?? $this->eventType->scoring_method;
+        return $this->scoring_method ?? 'judges_total';
+    }
+
+    public function effectiveTournamentFormat(): string
+    {
+        return $this->tournament_format ?? 'once_off';
     }
 
     public function effectiveJudgeCount(): int
     {
-        return $this->judge_count ?? $this->eventType->judge_count ?? 0;
+        return $this->judge_count ?? 0;
     }
 
     public function effectiveDivisionFilter(): string
     {
-        return $this->division_filter ?? $this->eventType->division_filter;
+        return $this->division_filter ?? 'age_rank_sex';
+    }
+
+    public function isTournament(): bool
+    {
+        return in_array($this->effectiveTournamentFormat(), ['round_robin', 'single_elimination', 'double_elimination']);
     }
 }

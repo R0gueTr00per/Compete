@@ -9,7 +9,6 @@ class PdfReportService
     public function generateCompetitionResults(Competition $competition): string
     {
         $competition->load([
-            'competitionEvents.eventType',
             'competitionEvents.divisions.enrolmentEvents.enrolment.competitor.competitorProfile',
             'competitionEvents.divisions.enrolmentEvents.result.judgeScores',
         ]);

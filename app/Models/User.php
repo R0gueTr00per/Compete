@@ -21,6 +21,8 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         'name',
         'email',
         'status',
+        'timezone',
+        'last_login_at',
         'password',
         'email_verified_at',
         'locked_until',
@@ -36,6 +38,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'locked_until'      => 'datetime',
+            'last_login_at'     => 'datetime',
             'password'          => 'hashed',
         ];
     }

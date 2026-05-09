@@ -33,7 +33,7 @@ class YakusukoPartnerEnrolledNotification extends Notification implements Should
             ->line("Your Yakusuko partner **{$this->partner->name}** has enrolled for the same event.")
             ->line("**Competition:** {$this->competition->name}")
             ->line("**Date:** " . $this->competition->competition_date->format('l, d F Y'))
-            ->line("**Event:** {$this->event->event_code} — {$this->event->eventType->name}")
+            ->line("**Event:** {$this->event->event_code} — {$this->event->name}")
             ->line("Both of you are now confirmed as Yakusuko partners for this event.")
             ->action('View my enrolments', url('/portal'))
             ->line("See you at the competition!");

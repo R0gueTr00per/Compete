@@ -5,7 +5,6 @@ namespace App\Filament\Admin\Resources;
 use App\Filament\Admin\Resources\CompetitionEventResource\Pages;
 use App\Filament\Admin\Resources\CompetitionEventResource\RelationManagers;
 use App\Models\CompetitionEvent;
-use App\Models\EventType;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -23,11 +22,7 @@ class CompetitionEventResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Select::make('event_type_id')
-                ->label('Event type')
-                ->options(EventType::pluck('name', 'id'))
-                ->required()
-                ->disabled(),
+            TextInput::make('name')->label('Event type name')->disabled(),
 
             TextInput::make('running_order')->numeric()->nullable(),
             TextInput::make('location_label')->maxLength(50)->nullable(),
@@ -47,7 +42,7 @@ class CompetitionEventResource extends Resource
     public static function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('eventType.name'),
+            TextColumn::make('name'),
             TextColumn::make('status')->badge(),
         ]);
     }

@@ -19,7 +19,7 @@ class Dashboard extends BaseDashboard
         return Enrolment::where('competitor_id', auth()->id())
             ->with([
                 'competition',
-                'activeEvents.competitionEvent.eventType',
+                'activeEvents.competitionEvent',
                 'activeEvents.division',
                 'activeEvents.result',
             ])

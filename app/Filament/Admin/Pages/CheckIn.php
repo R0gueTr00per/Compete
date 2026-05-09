@@ -7,6 +7,7 @@ use App\Models\Enrolment;
 use App\Services\CheckInService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Livewire\Attributes\Url;
 
 class CheckIn extends Page
 {
@@ -16,13 +17,19 @@ class CheckIn extends Page
     protected static ?string $navigationLabel = 'Check-in';
     protected static string $view = 'filament.admin.pages.check-in';
 
+    #[Url]
     public ?int $competition_id = null;
     public string $search = '';
-    public array $weights = []; // enrolment_event_id => weight string
+    public array $weights = [];
+    public array $paymentAmounts = [];
+    public array $pendingWeightConfirm = [];
 
     public function mount(): void
     {
-        // Prefer a competition happening today, then fall back to next upcoming
+        if ($this->competition_id) {
+            return;
+        }
+
         $today = now()->toDateString();
 
         $competition = Competition::whereIn('status', ['open', 'running'])
@@ -54,7 +61,7 @@ class CheckIn extends Page
         $query = Enrolment::where('competition_id', $this->competition_id)
             ->with([
                 'competitor.competitorProfile',
-                'activeEvents.competitionEvent.eventType',
+                'activeEvents.competitionEvent',
                 'activeEvents.division',
             ])
             ->whereHas('activeEvents');
@@ -75,20 +82,20 @@ class CheckIn extends Page
 
     public function checkIn(int $enrolmentId): void
     {
-        $enrolment = Enrolment::with('activeEvents.competitionEvent.eventType')->find($enrolmentId);
+        $enrolment = Enrolment::with('activeEvents.competitionEvent')->find($enrolmentId);
         if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
             return;
         }
 
         // Block check-in if any weight-check event has no confirmed weight
         $missingWeight = $enrolment->activeEvents->filter(
-            fn ($ee) => $ee->competitionEvent->eventType->requires_weight_check
+            fn ($ee) => $ee->competitionEvent->requires_weight_check
                 && ! $ee->weight_confirmed_kg
         );
 
         if ($missingWeight->isNotEmpty()) {
             $eventNames = $missingWeight
-                ->map(fn ($ee) => $ee->competitionEvent->eventType->name)
+                ->map(fn ($ee) => $ee->competitionEvent->name)
                 ->join(', ');
             Notification::make()
                 ->title('Weight required before check-in')
@@ -100,6 +107,26 @@ class CheckIn extends Page
 
         app(CheckInService::class)->checkIn($enrolment);
         Notification::make()->title('Checked in.')->success()->send();
+    }
+
+    public function recordPayment(int $enrolmentId): void
+    {
+        $enrolment = Enrolment::find($enrolmentId);
+        if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
+            return;
+        }
+
+        $amount = isset($this->paymentAmounts[$enrolmentId])
+            ? (float) $this->paymentAmounts[$enrolmentId]
+            : null;
+
+        $enrolment->update([
+            'payment_status' => 'received',
+            'payment_amount' => $amount ?? $enrolment->fee_calculated,
+        ]);
+
+        unset($this->paymentAmounts[$enrolmentId]);
+        Notification::make()->title('Payment recorded.')->success()->send();
     }
 
     public function undoCheckIn(int $enrolmentId): void
@@ -122,27 +149,55 @@ class CheckIn extends Page
             return;
         }
 
-        $enrolment = Enrolment::with('activeEvents.competitionEvent.eventType')->find($enrolmentId);
+        $enrolment = Enrolment::with(['activeEvents.competitionEvent', 'activeEvents.division'])->find($enrolmentId);
         if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
             return;
         }
 
-        $changed = app(CheckInService::class)->confirmWeightForEnrolment($enrolment, $weight);
+        $changes = app(CheckInService::class)->applyWeightWithDivisions($enrolment, $weight);
 
-        unset($this->weights[$enrolmentId]);
-
-        if ($changed->isNotEmpty()) {
-            $names = $changed->map(fn ($ee) => $ee->competitionEvent->eventType->name
-                . ' → ' . ($ee->division?->full_label ?? 'unassigned')
-            )->join(', ');
-
-            Notification::make()
-                ->title('Weight confirmed — division updated')
-                ->body("Division changed for: {$names}")
-                ->warning()
-                ->send();
+        if ($changes->isNotEmpty()) {
+            // Division changed — show confirmation panel (change already in DB)
+            $this->pendingWeightConfirm[$enrolmentId] = [
+                'weight_kg' => $weight,
+                'changes'   => $changes->toArray(),
+            ];
         } else {
+            unset($this->weights[$enrolmentId]);
             Notification::make()->title('Weight confirmed.')->success()->send();
         }
+    }
+
+    public function acceptDivisionChange(int $enrolmentId): void
+    {
+        // Division already updated in DB — just dismiss the confirmation panel
+        unset($this->pendingWeightConfirm[$enrolmentId], $this->weights[$enrolmentId]);
+        Notification::make()->title('Weight confirmed — division updated.')->success()->send();
+    }
+
+    public function ignoreDivisionChange(int $enrolmentId): void
+    {
+        $pending = $this->pendingWeightConfirm[$enrolmentId] ?? null;
+        if ($pending) {
+            app(CheckInService::class)->revertDivisionChanges($pending['changes']);
+        }
+        unset($this->pendingWeightConfirm[$enrolmentId], $this->weights[$enrolmentId]);
+        Notification::make()->title('Weight confirmed — original division kept.')->success()->send();
+    }
+
+    public function cancelWeightChange(int $enrolmentId): void
+    {
+        $pending  = $this->pendingWeightConfirm[$enrolmentId] ?? null;
+        $enrolment = Enrolment::find($enrolmentId);
+
+        if ($enrolment && $enrolment->competition_id === $this->competition_id) {
+            $svc = app(CheckInService::class);
+            if ($pending) {
+                $svc->revertDivisionChanges($pending['changes']);
+            }
+            $svc->revertWeight($enrolment);
+        }
+
+        unset($this->pendingWeightConfirm[$enrolmentId]);
     }
 }
