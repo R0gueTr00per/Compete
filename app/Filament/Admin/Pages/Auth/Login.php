@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Pages\Auth;
 
 use App\Models\User;
 use Filament\Http\Responses\Auth\Contracts\LoginResponse;
+use Filament\Notifications\Notification;
 use Filament\Pages\Auth\Login as BaseLogin;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -11,6 +12,20 @@ use Illuminate\Validation\ValidationException;
 
 class Login extends BaseLogin
 {
+    public function mount(): void
+    {
+        parent::mount();
+
+        if (request()->query('reason') === 'session_expired') {
+            Notification::make()
+                ->title('Session expired')
+                ->body('Your session has expired. Please log in again.')
+                ->warning()
+                ->persistent()
+                ->send();
+        }
+    }
+
     public function authenticate(): ?LoginResponse
     {
         $data  = $this->form->getState();

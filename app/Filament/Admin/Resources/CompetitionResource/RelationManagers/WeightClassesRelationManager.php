@@ -52,6 +52,7 @@ class WeightClassesRelationManager extends RelationManager
             ->reorderable('sort_order')
             ->headerActions([
                 CreateAction::make()
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
                     ->before(function (array $data, $action) {
                         if ($error = $this->duplicateError($data)) {
                             Notification::make()->danger()->title('Duplicate weight class')->body($error)->send();
@@ -61,18 +62,16 @@ class WeightClassesRelationManager extends RelationManager
             ])
             ->actions([
                 EditAction::make()
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
                     ->before(function (array $data, $record, $action) {
                         if ($error = $this->duplicateError($data, $record->id)) {
                             Notification::make()->danger()->title('Duplicate weight class')->body($error)->send();
                             $action->halt();
                         }
-                    })
-                    ->requiresConfirmation(fn ($record) => Division::where('weight_class_id', $record->id)->exists())
-                    ->modalHeading('Edit weight class')
-                    ->modalDescription(fn ($record) => Division::where('weight_class_id', $record->id)->count() . ' division(s) use this weight class and will be deleted when you save. You can regenerate divisions afterwards.')
-                    ->after(fn ($record) => Division::where('weight_class_id', $record->id)->delete()),
+                    }),
 
                 DeleteAction::make()
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
                     ->before(fn ($record) => Division::where('weight_class_id', $record->id)->delete())
                     ->modalDescription(function ($record) {
                         $count = Division::where('weight_class_id', $record->id)->count();

@@ -80,6 +80,7 @@ class PortalPanelProvider extends PanelProvider
                 function () {
                     $timeoutMinutes = config('compete.inactivity_timeout', 30);
                     $logoutUrl      = route('filament.portal.auth.logout');
+                    $loginUrl       = '/portal/login?reason=session_expired';
 
                     return new \Illuminate\Support\HtmlString('<script>
                         document.addEventListener("alpine:initialized", function () {
@@ -96,11 +97,17 @@ class PortalPanelProvider extends PanelProvider
                             syncSidebar();
                         });
 
+                        // Redirect to login with session-expired notice when Livewire detects page expiry.
+                        window.addEventListener("livewire:page-expired", function () {
+                            window.location.href = ' . json_encode($loginUrl) . ';
+                        });
+
                         // Inactivity session timeout
                         (function () {
                             var TIMEOUT_MS = ' . ($timeoutMinutes * 60 * 1000) . ';
                             var WARN_MS    = TIMEOUT_MS - 120000;
                             var LOGOUT_URL = ' . json_encode($logoutUrl) . ';
+                            var LOGIN_URL  = ' . json_encode($loginUrl) . ';
                             if (TIMEOUT_MS <= 0) return;
 
                             var lastActivity = Date.now();
@@ -118,7 +125,15 @@ class PortalPanelProvider extends PanelProvider
                                 var idle = Date.now() - lastActivity;
 
                                 if (idle >= TIMEOUT_MS) {
-                                    window.location.href = LOGOUT_URL;
+                                    // POST to the logout endpoint, then redirect to login with a session-expired notice.
+                                    var csrf = document.querySelector("meta[name=\'csrf-token\']");
+                                    fetch(LOGOUT_URL, {
+                                        method: "POST",
+                                        headers: { "X-CSRF-TOKEN": csrf ? csrf.getAttribute("content") : "" },
+                                        credentials: "same-origin"
+                                    }).catch(function () {}).finally(function () {
+                                        window.location.href = LOGIN_URL;
+                                    });
                                     return;
                                 }
 

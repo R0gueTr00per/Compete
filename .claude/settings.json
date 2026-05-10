@@ -39,11 +39,23 @@
       "Bash(/c/Users/Brad/AppData/Local/Programs/PHP/current/php bootstrap/smoke_test.php)",
       "Bash(/c/Users/Brad/AppData/Local/Programs/PHP/current/php -r ' *)",
       "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;\" + $env:PATH; cd \"C:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; php artisan test --stop-on-failure 2>&1 | Select-Object -Last 30)",
-      "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;\" + $env:PATH; cd \"C:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; php artisan test --stop-on-failure 2>&1 | Select-Object -First 40)"
+      "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;\" + $env:PATH; cd \"C:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; php artisan test --stop-on-failure 2>&1 | Select-Object -First 40)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\" -Recurse -Filter \"uvx.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "PowerShell(winget list uv 2>&1)",
+      "Bash(xargs grep -l \"respond\\\\|Authenticate\\\\|verifyPath\\\\|expectedToken\")",
+      "Bash(grep -B5 '\"php\": \">=8.4' c:/Users/Brad/OneDrive/Documents/Repos/Compete/composer.lock | head -30 *)",
+      "Read(//c/Users/Brad/OneDrive/Documents/ReposCompete/**)",
+      "PowerShell(php -v)",
+      "Read(//c/Users/Brad/AppData/Local/Programs/PHP/8.3.31/nts/x64/**)",
+      "Read(//c/Users/Brad/**)",
+      "Read(//c//**)",
+      "PowerShell(Get-Command composer.bat -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command composer.phar -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",
-      "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\8.5.6\\nts\\x64"
+      "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\8.5.6\\nts\\x64",
+      "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\8.3.31\\nts\\x64"
     ]
   }
 }

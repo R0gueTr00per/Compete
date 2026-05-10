@@ -19,5 +19,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('compete:send-reminders')->dailyAt('07:00');
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // When the CSRF token has expired (session timeout), redirect to the appropriate
+        // login page instead of showing a 419 error page. Livewire AJAX requests are
+        // excluded — those get the 419 so the livewire:page-expired JS event can fire.
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
+            if ($request->hasHeader('X-Livewire') || $request->expectsJson()) {
+                return null;
+            }
+            $loginUrl = str_starts_with($request->path(), 'portal')
+                ? '/portal/login?reason=session_expired'
+                : '/admin/login?reason=session_expired';
+            return redirect($loginUrl);
+        });
     })->create();

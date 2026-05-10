@@ -49,7 +49,8 @@ class RoundRobinMatch extends Model
 
     public function isBye(): bool
     {
-        return $this->away_enrolment_event_id === null;
+        // A true BYE has been auto-won; away=null with home_result=null means still waiting for opponent.
+        return $this->away_enrolment_event_id === null && $this->home_result !== null;
     }
 
     public function winnerId(): ?int

@@ -13,6 +13,10 @@ class AppServiceProvider extends ServiceProvider
             \Filament\Http\Responses\Auth\Contracts\LoginResponse::class,
             \App\Http\Responses\LoginResponse::class,
         );
+
+        if (class_exists(\Laravel\Telescope\TelescopeApplicationServiceProvider::class)) {
+            $this->app->register(TelescopeServiceProvider::class);
+        }
     }
 
     public function boot(): void

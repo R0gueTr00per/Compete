@@ -84,8 +84,8 @@ class Scoring extends Page
         )
         ->with(['competitionEvent'])
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
-        ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
-        ->orderByRaw("CASE status WHEN 'running' THEN 0 WHEN 'assigned' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END")
+        ->whereIn('status', ['pending', 'assigned', 'running', 'complete', 'cancelled'])
+        ->orderByRaw("CASE status WHEN 'running' THEN 0 WHEN 'assigned' THEN 1 WHEN 'pending' THEN 2 WHEN 'complete' THEN 3 WHEN 'cancelled' THEN 4 ELSE 5 END")
         ->orderBy('code');
 
         return $query->get()->map(function (Division $div) {
@@ -248,7 +248,7 @@ class Scoring extends Page
 
     public function isTournament(): bool
     {
-        return in_array($this->getTournamentFormat(), ['round_robin', 'single_elimination', 'double_elimination']);
+        return in_array($this->getTournamentFormat(), ['round_robin', 'single_elimination', 'double_elimination', 'repechage']);
     }
 
     public function isRoundRobin(): bool
@@ -309,6 +309,17 @@ class Scoring extends Page
         $match = RoundRobinMatch::find($matchId);
         if (! $match || $match->division_id !== $this->division_id) return;
 
+        // For repechage format, clearing any WB result invalidates the repechage bracket
+        // (finalists may change), so delete the whole repechage bracket now.
+        if ($match->bracket === 'winners') {
+            $div = Division::with('competitionEvent')->find($match->division_id);
+            if ($div?->competitionEvent->effectiveTournamentFormat() === 'repechage') {
+                RoundRobinMatch::where('division_id', $this->division_id)
+                    ->where('bracket', 'repechage')
+                    ->delete();
+            }
+        }
+
         // Remove any matches created by this result's advancement
         $winner = $match->winnerId();
         if ($winner) {
@@ -365,12 +376,54 @@ class Scoring extends Page
 
         $format = $this->getTournamentFormat();
 
-        if ($format === 'double_elimination') {
+        if ($format === 'round_robin') {
+            $allEeIds = EnrolmentEvent::where('division_id', $this->division_id)
+                ->where('removed', false)
+                ->pluck('id');
+
+            if ($matches->isEmpty()) return;
+
+            $winCounts = $allEeIds->mapWithKeys(fn ($id) => [$id => 0])->toArray();
+            foreach ($matches as $m) {
+                $winnerId = $m->winnerId();
+                if ($winnerId && isset($winCounts[$winnerId])) {
+                    $winCounts[$winnerId]++;
+                }
+            }
+
+            arsort($winCounts);
+
+            $rank        = 1;
+            $prevWins    = null;
+            $countAtRank = 0;
+            foreach ($winCounts as $eeId => $wins) {
+                if ($prevWins !== null && $wins < $prevWins) {
+                    $rank += $countAtRank;
+                    $countAtRank = 0;
+                }
+                $this->setBracketPlacement((int) $eeId, $rank, $service);
+                $prevWins = $wins;
+                $countAtRank++;
+            }
+            return;
+        } elseif ($format === 'double_elimination') {
             $gf = $matches->firstWhere('bracket', 'grand_final');
             if ($gf?->winnerId()) {
                 $this->setBracketPlacement($gf->winnerId(), 1, $service);
                 if ($gf->loserId()) $this->setBracketPlacement($gf->loserId(), 2, $service);
             }
+        } elseif ($format === 'repechage') {
+            // WB final determines 1st/2nd; repechage bracket winner gets 3rd.
+            $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
+            $wbFinal      = $matches->where('bracket', 'winners')->where('round', $wbFinalRound)->first();
+            if ($wbFinal?->winnerId()) {
+                $this->setBracketPlacement($wbFinal->winnerId(), 1, $service);
+                if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service);
+            }
+            $repMatches   = $matches->where('bracket', 'repechage');
+            $maxRepRound  = $repMatches->max('round');
+            $repFinal     = $repMatches->where('round', $maxRepRound)->first();
+            if ($repFinal?->winnerId()) $this->setBracketPlacement($repFinal->winnerId(), 3, $service);
         } else {
             // Single elimination — highest WB round determines 1st/2nd
             $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
@@ -418,7 +471,7 @@ class Scoring extends Page
             }
         }
 
-        $map = ['winners' => [], 'losers' => [], 'grand_final' => []];
+        $map = ['winners' => [], 'losers' => [], 'repechage' => [], 'grand_final' => []];
         foreach ($all as $m) {
             $map[$m->bracket][$m->round][] = (object) [
                 'id'          => $m->id,
@@ -426,7 +479,9 @@ class Scoring extends Page
                 'home_id'     => $m->home_enrolment_event_id,
                 'away_id'     => $m->away_enrolment_event_id,
                 'home_name'   => isset($eeNames[$m->home_enrolment_event_id]) ? $eeNames[$m->home_enrolment_event_id] : '—',
-                'away_name'   => $m->away_enrolment_event_id ? ($eeNames[$m->away_enrolment_event_id] ?? '—') : 'BYE',
+                'away_name'   => $m->away_enrolment_event_id
+                    ? ($eeNames[$m->away_enrolment_event_id] ?? '—')
+                    : ($m->home_result === null ? 'Waiting...' : 'BYE'),
                 'home_result' => $m->home_result,
                 'is_bye'      => $m->isBye(),
                 'is_pending'  => $m->isPending() && ! $m->isBye(),

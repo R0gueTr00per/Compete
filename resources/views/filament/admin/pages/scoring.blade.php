@@ -48,14 +48,16 @@
                     $div      = $item->division;
                     $selected = $this->division_id === $div->id;
                     $rowClass = match ($div->status) {
-                        'complete' => 'bg-success-50 border-success-300 dark:bg-success-900/20 dark:border-success-700',
-                        'running'  => 'bg-warning-50 border-warning-300 dark:bg-warning-900/20 dark:border-warning-700',
-                        default    => 'bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-700',
+                        'complete'  => 'bg-success-50 border-success-300 dark:bg-success-900/20 dark:border-success-700',
+                        'running'   => 'bg-warning-50 border-warning-300 dark:bg-warning-900/20 dark:border-warning-700',
+                        'cancelled' => 'bg-danger-50 border-danger-300 dark:bg-danger-900/20 dark:border-danger-700',
+                        default     => 'bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-700',
                     };
                     $textClass = match ($div->status) {
-                        'complete' => 'text-success-800 dark:text-success-300',
-                        'running'  => 'text-warning-800 dark:text-warning-300',
-                        default    => 'text-gray-900 dark:text-white',
+                        'complete'  => 'text-success-800 dark:text-success-300',
+                        'running'   => 'text-warning-800 dark:text-warning-300',
+                        'cancelled' => 'text-danger-700 dark:text-danger-400',
+                        default     => 'text-gray-900 dark:text-white',
                     };
                 @endphp
                 <div
@@ -84,6 +86,8 @@
                             <x-heroicon-m-check-circle class="w-5 h-5 text-success-500" />
                         @elseif ($div->status === 'running')
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-800 dark:bg-warning-900 dark:text-warning-200">Running</span>
+                        @elseif ($div->status === 'cancelled')
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-danger-100 text-danger-800 dark:bg-danger-900 dark:text-danger-200">Cancelled</span>
                         @else
                             <x-heroicon-m-chevron-right class="w-4 h-4 text-gray-400 {{ $selected ? 'rotate-90' : '' }}" />
                         @endif
@@ -92,6 +96,11 @@
 
                 {{-- Inline scoring panel --}}
                 @if ($selected)
+                    @if ($div->status === 'cancelled')
+                        <div class="ml-4 mb-2 rounded-lg border border-danger-200 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 px-4 py-3">
+                            <p class="text-sm font-medium text-danger-800 dark:text-danger-300">This division has been cancelled.</p>
+                        </div>
+                    @else
                     @php
                         $rows   = $this->getCompetitorRows();
                         $method = $this->getScoringMethod();
@@ -194,7 +203,7 @@
                                     <div class="text-center py-4">
                                         <p class="text-sm text-gray-500 mb-1">{{ $rows->count() }} competitors checked in.</p>
                                         <p class="text-xs text-gray-400 mb-3">
-                                            {{ $format === 'double_elimination' ? 'Double elimination bracket' : 'Single elimination bracket' }}
+                                            {{ match($format) { 'double_elimination' => 'Double elimination bracket', 'round_robin' => 'Round robin', 'repechage' => 'Single elimination with repechage', default => 'Single elimination bracket' } }}
                                         </p>
                                         <x-filament::button color="primary" wire:click="generateBracket">
                                             Generate bracket
@@ -204,7 +213,7 @@
                                     {{-- Bracket header --}}
                                     <div class="flex items-center justify-between mb-3">
                                         <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            {{ $format === 'double_elimination' ? 'Double elimination' : 'Single elimination' }} bracket
+                                            {{ match($format) { 'double_elimination' => 'Double elimination', 'round_robin' => 'Round robin', 'repechage' => 'Repechage', default => 'Single elimination' } }} bracket
                                         </p>
                                         <x-filament::button size="xs" color="gray"
                                             wire:click="resetBracket"
@@ -217,6 +226,7 @@
                                         $sections = [
                                             'winners'     => 'Winners bracket',
                                             'losers'      => 'Losers bracket',
+                                            'repechage'   => 'Repechage bracket',
                                             'grand_final' => 'Grand Final',
                                         ];
                                     @endphp
@@ -225,7 +235,7 @@
                                         @php $rounds = $bracketData[$bracketKey] ?? []; @endphp
                                         @if (empty($rounds)) @continue @endif
 
-                                        @if ($format === 'double_elimination' || $bracketKey === 'grand_final')
+                                        @if ($format === 'double_elimination' || $format === 'repechage' || $bracketKey === 'grand_final')
                                             <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mt-4 mb-1">{{ $bracketLabel }}</p>
                                         @endif
 
@@ -294,7 +304,7 @@
                                                             @if (! $pending && $match->winner_id)
                                                                 <p class="text-xs text-success-600 dark:text-success-400 mt-1">
                                                                     🏆 {{ $homeWon ? $match->home_name : $match->away_name }} advances
-                                                                    @if ($bracketKey === 'losers' || $bracketKey === 'grand_final')
+                                                                    @if ($bracketKey === 'losers' || $bracketKey === 'grand_final' || $bracketKey === 'repechage')
                                                                         @if ($match->loser_id) · {{ $homeWon ? $match->away_name : $match->home_name }} eliminated @endif
                                                                     @endif
                                                                 </p>
@@ -305,6 +315,105 @@
                                             </div>
                                         @endforeach
                                     @endforeach
+
+                                    {{-- Bracket results summary --}}
+                                    @php
+                                        $allMatches = collect($bracketData)->flatten(2);
+                                        $pendingCount = $allMatches->filter(fn($m) => $m->is_pending)->count();
+                                        $isComplete   = $pendingCount === 0
+                                            && $allMatches->filter(fn($m) => ! $m->is_bye && $m->winner_id)->isNotEmpty();
+                                        $bracketPlacements  = [];
+                                        $onlyTwoCompetitors = false;
+
+                                        if ($isComplete) {
+                                            $wbRounds     = $bracketData['winners'] ?? [];
+                                            $wbFinalRound = ! empty($wbRounds) ? max(array_keys($wbRounds)) : null;
+                                            $onlyTwoCompetitors = ($wbFinalRound === 1);
+
+                                            if ($format === 'double_elimination') {
+                                                $gf = collect($bracketData['grand_final'] ?? [])->flatten(1)->first();
+                                                if ($gf && $gf->winner_id) {
+                                                    $bracketPlacements[1] = $gf->winner_id === $gf->home_id ? $gf->home_name : $gf->away_name;
+                                                    if ($gf->loser_id)
+                                                        $bracketPlacements[2] = $gf->loser_id === $gf->home_id ? $gf->home_name : $gf->away_name;
+                                                }
+                                            } elseif ($format === 'repechage' && $wbFinalRound) {
+                                                $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
+                                                if ($wbFinal && $wbFinal->winner_id) {
+                                                    $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    if ($wbFinal->loser_id)
+                                                        $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                }
+                                                $repRounds = $bracketData['repechage'] ?? [];
+                                                if (! empty($repRounds)) {
+                                                    $maxRepRound = max(array_keys($repRounds));
+                                                    $repFinal    = ($repRounds[$maxRepRound] ?? [])[0] ?? null;
+                                                    if ($repFinal && $repFinal->winner_id)
+                                                        $bracketPlacements[3] = $repFinal->winner_id === $repFinal->home_id ? $repFinal->home_name : $repFinal->away_name;
+                                                }
+                                            } elseif ($format === 'round_robin') {
+                                                $onlyTwoCompetitors = false;
+                                                $rrWinCounts = [];
+                                                $rrNameMap   = [];
+                                                foreach (collect($wbRounds)->flatten(1) as $rrM) {
+                                                    if ($rrM->home_id) $rrNameMap[$rrM->home_id] = $rrM->home_name;
+                                                    if ($rrM->away_id) $rrNameMap[$rrM->away_id] = $rrM->away_name;
+                                                    if ($rrM->winner_id) {
+                                                        $rrWinCounts[$rrM->winner_id] = ($rrWinCounts[$rrM->winner_id] ?? 0) + 1;
+                                                    }
+                                                }
+                                                foreach (array_keys($rrNameMap) as $rrEeId) {
+                                                    if (! isset($rrWinCounts[$rrEeId])) $rrWinCounts[$rrEeId] = 0;
+                                                }
+                                                arsort($rrWinCounts);
+                                                $rrRank = 1; $rrPrevWins = null; $rrCnt = 0; $rrRankNames = [];
+                                                foreach ($rrWinCounts as $rrEeId => $rrWins) {
+                                                    if ($rrPrevWins !== null && $rrWins < $rrPrevWins) {
+                                                        $rrRank += $rrCnt;
+                                                        $rrCnt = 0;
+                                                    }
+                                                    $rrRankNames[$rrRank][] = $rrNameMap[$rrEeId] ?? '?';
+                                                    $rrPrevWins = $rrWins; $rrCnt++;
+                                                }
+                                                foreach ([1, 2, 3] as $rrP) {
+                                                    if (isset($rrRankNames[$rrP]))
+                                                        $bracketPlacements[$rrP] = implode(' / ', $rrRankNames[$rrP]);
+                                                }
+                                            } elseif ($wbFinalRound) {
+                                                $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
+                                                if ($wbFinal && $wbFinal->winner_id) {
+                                                    $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    if ($wbFinal->loser_id)
+                                                        $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                }
+
+                                                if ($wbFinalRound > 1) {
+                                                    $thirdNames = [];
+                                                    foreach ($wbRounds[$wbFinalRound - 1] ?? [] as $semi) {
+                                                        if ($semi->loser_id && ! $semi->is_bye)
+                                                            $thirdNames[] = $semi->loser_id === $semi->home_id ? $semi->home_name : $semi->away_name;
+                                                    }
+                                                    if (! empty($thirdNames))
+                                                        $bracketPlacements[3] = implode(' / ', $thirdNames);
+                                                }
+                                            }
+                                        }
+                                    @endphp
+
+                                    @if ($isComplete && ! empty($bracketPlacements))
+                                        <div class="mt-4 rounded-lg border border-success-300 dark:border-success-700 bg-success-50 dark:bg-success-900/20 px-4 py-3">
+                                            <p class="text-xs font-semibold uppercase tracking-wider text-success-700 dark:text-success-400 mb-2">Results</p>
+                                            @if (isset($bracketPlacements[1]))
+                                                <p class="text-sm font-semibold text-gray-900 dark:text-white">🥇 {{ $bracketPlacements[1] }}</p>
+                                            @endif
+                                            @if (! $onlyTwoCompetitors && isset($bracketPlacements[2]))
+                                                <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">🥈 {{ $bracketPlacements[2] }}</p>
+                                            @endif
+                                            @if (! $onlyTwoCompetitors && isset($bracketPlacements[3]))
+                                                <p class="text-sm text-gray-700 dark:text-gray-300 mt-1">🥉 {{ $bracketPlacements[3] }}</p>
+                                            @endif
+                                        </div>
+                                    @endif
                                 @endif
                             @else
                                 {{-- Standard scoring (judges / win-loss / first-to-n) --}}
@@ -544,6 +653,7 @@
                             </div>
                         @endif
                     </div>
+                    @endif {{-- end non-cancelled panel --}}
                 @endif
             @endforeach
         </div>

@@ -75,6 +75,7 @@ class RankBandsRelationManager extends RelationManager
             ->reorderable('sort_order')
             ->headerActions([
                 CreateAction::make()
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
                     ->before(function (array $data, $action) {
                         if ($error = $this->overlapError($data)) {
                             Notification::make()->danger()->title('Overlapping rank range')->body($error)->send();
@@ -84,18 +85,16 @@ class RankBandsRelationManager extends RelationManager
             ])
             ->actions([
                 EditAction::make()
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
                     ->before(function (array $data, $record, $action) {
                         if ($error = $this->overlapError($data, $record->id)) {
                             Notification::make()->danger()->title('Overlapping rank range')->body($error)->send();
                             $action->halt();
                         }
-                    })
-                    ->requiresConfirmation(fn ($record) => Division::where('rank_band_id', $record->id)->exists())
-                    ->modalHeading('Edit rank band')
-                    ->modalDescription(fn ($record) => Division::where('rank_band_id', $record->id)->count() . ' division(s) use this rank band and will be deleted when you save. You can regenerate divisions afterwards.')
-                    ->after(fn ($record) => Division::where('rank_band_id', $record->id)->delete()),
+                    }),
 
                 DeleteAction::make()
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
                     ->before(fn ($record) => Division::where('rank_band_id', $record->id)->delete())
                     ->modalDescription(function ($record) {
                         $count = Division::where('rank_band_id', $record->id)->count();

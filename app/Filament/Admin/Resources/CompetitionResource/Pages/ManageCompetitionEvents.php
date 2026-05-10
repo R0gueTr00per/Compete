@@ -57,6 +57,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 ->label('Generate Divisions')
                 ->icon('heroicon-o-sparkles')
                 ->color('primary')
+                ->hidden(fn () => $this->getRecord()->status !== 'draft')
                 ->requiresConfirmation()
                 ->modalHeading('Generate Divisions')
                 ->modalDescription(function () {
@@ -108,6 +109,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 ->label('Delete all divisions')
                 ->icon('heroicon-o-trash')
                 ->color('danger')
+                ->hidden(fn () => $this->getRecord()->status !== 'draft')
                 ->requiresConfirmation()
                 ->modalHeading('Delete all divisions')
                 ->modalDescription(function () {
@@ -137,6 +139,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 ->label('Copy from previous competition')
                 ->icon('heroicon-o-document-duplicate')
                 ->color('gray')
+                ->hidden(fn () => $this->getRecord()->status !== 'draft')
                 ->requiresConfirmation()
                 ->modalHeading('Copy from previous competition')
                 ->modalDescription('This will DELETE all existing event types and divisions for this competition, then copy them from the most recent previous competition. This cannot be undone.')
@@ -339,14 +342,18 @@ class ManageCompetitionEvents extends ManageRelatedRecords
             ->emptyStateDescription('Divisions are copied automatically when a competition is created. Use "Copy from previous competition" to reset them.')
             ->filters([])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->hidden(fn () => $this->getRecord()->status !== 'draft'),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->hidden(fn () => $this->getRecord()->status !== 'draft'),
+                DeleteAction::make()
+                    ->hidden(fn () => $this->getRecord()->status !== 'draft'),
             ])
             ->bulkActions([
                 BulkAction::make('combine')
+                    ->hidden(fn () => $this->getRecord()->status !== 'draft')
                     ->label('Combine into one division')
                     ->icon('heroicon-o-arrows-pointing-in')
                     ->requiresConfirmation()

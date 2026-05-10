@@ -36,6 +36,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         'round_robin'        => 'Round robin',
                         'single_elimination' => 'Single elimination bracket',
                         'double_elimination' => 'Double elimination bracket',
+                        'repechage'          => 'Single elimination with repechage',
                     ])
                     ->default('once_off')
                     ->required()
@@ -82,35 +83,38 @@ class CompetitionEventsRelationManager extends RelationManager
                         'round_robin'        => 'Round robin',
                         'single_elimination' => 'Single elim',
                         'double_elimination' => 'Double elim',
+                        'repechage'          => 'Repechage',
                         default              => 'Single perf',
                     })
                     ->color(fn (?string $state) => match ($state) {
                         'round_robin'        => 'info',
                         'single_elimination' => 'warning',
                         'double_elimination' => 'danger',
+                        'repechage'          => 'primary',
                         default              => 'gray',
                     }),
 
                 TextColumn::make('scoring_method')
                     ->label('Scoring')
-                    ->formatStateUsing(fn (?string $state) => match ($state) {
-                        'judges_total'   => 'Judges total',
-                        'judges_average' => 'Judges avg',
-                        'first_to_n'     => 'First to N',
+                    ->formatStateUsing(fn (?string $state, $record) => match ($state) {
+                        'judges_total'   => 'Judges total (' . ($record->judge_count ?? 0) . ')',
+                        'judges_average' => 'Judges avg (' . ($record->judge_count ?? 0) . ')',
+                        'first_to_n'     => 'First to N (' . ($record->target_score ?? '?') . ')',
                         'win_loss'       => 'Win / Loss',
                         default          => $state ?? '—',
                     }),
             ])
             ->paginated(false)
-            ->headerActions([CreateAction::make()])
+            ->headerActions([
+                CreateAction::make()
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft'),
+            ])
             ->actions([
                 EditAction::make()
-                    ->requiresConfirmation(fn ($record) => $record->divisions()->exists())
-                    ->modalHeading('Edit event type')
-                    ->modalDescription(fn ($record) => $record->divisions()->count() . ' division(s) belong to this event type and will be deleted when you save. You can regenerate divisions afterwards.')
-                    ->after(fn ($record) => $record->divisions()->delete()),
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft'),
 
                 DeleteAction::make()
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
                     ->before(fn ($record) => $record->divisions()->delete())
                     ->modalDescription(function ($record) {
                         $count = $record->divisions()->count();

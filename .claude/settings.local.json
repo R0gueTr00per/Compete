@@ -91,7 +91,24 @@
       "Bash(xargs cat)",
       "Bash(C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current\\\\php.exe artisan *)",
       "Bash(\"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current\\\\php.exe\" artisan *)",
-      "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;\" + $env:PATH; cd \"c:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; php artisan db:seed --class=LFPCompetitionSeeder 2>&1)"
+      "PowerShell($env:PATH = \"C:\\\\Users\\\\Brad\\\\AppData\\\\Local\\\\Programs\\\\PHP\\\\current;\" + $env:PATH; cd \"c:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\"; php artisan db:seed --class=LFPCompetitionSeeder 2>&1)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(npx --version)",
+      "Bash(npx -y @sooperset/mcp-atlassian --help)",
+      "Bash(npx -y mcp-atlassian --help)",
+      "Bash(npm search *)",
+      "Bash(uvx --version)",
+      "Bash(uv --version)",
+      "Bash(npx -y @teolin/mcp-atlassian --help)",
+      "mcp__jira__jira_auth_status",
+      "Bash(pip --version)",
+      "Bash(curl -s -X POST https://competeapp.atlassian.net/rest/api/3/issue -H 'Authorization: Basic __CMDSUB_OUTPUT__')",
+      "Bash(jq --version)",
+      "Bash(grep -r \"version\\\\|v\\\\\\\\..*config.*version\" resources/views/ --include=\"*.blade.php\")",
+      "Bash(uvx mcp-atlassian *)",
+      "PowerShell(uvx mcp-atlassian --help 2>&1)",
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.local\\\\bin\\\\uvx.exe\", \"$env:APPDATA\\\\uv\\\\bin\\\\uvx.exe\", \"C:\\\\Users\\\\Brad\\\\.local\\\\bin\\\\uvx.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

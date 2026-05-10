@@ -26,6 +26,15 @@ class Login extends BaseLogin
                 ->persistent()
                 ->send();
         }
+
+        if (request()->query('reason') === 'session_expired') {
+            Notification::make()
+                ->title('Session expired')
+                ->body('Your session has expired. Please log in again.')
+                ->warning()
+                ->persistent()
+                ->send();
+        }
     }
 
     public function authenticate(): ?LoginResponse
