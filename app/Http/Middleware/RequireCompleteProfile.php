@@ -13,7 +13,7 @@ class RequireCompleteProfile
         $user = $request->user();
 
         if ($user
-            && ! $user->hasRole(['admin', 'system_admin', 'contributor'])
+            && ! $user->hasRole(['competition_administrator', 'system_admin', 'competition_official'])
             && ! $user->competitorProfile?->profile_complete
         ) {
             if (! $request->routeIs('profile.complete', 'profile.complete.store', 'logout')) {

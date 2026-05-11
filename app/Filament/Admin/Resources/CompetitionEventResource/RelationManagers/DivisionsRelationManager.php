@@ -31,7 +31,6 @@ class DivisionsRelationManager extends RelationManager
                     'scheduled' => 'Scheduled',
                     'running'   => 'Running',
                     'complete'  => 'Complete',
-                    'cancelled' => 'Cancelled',
                     'combined'  => 'Combined',
                 ])
                 ->required(),
@@ -53,7 +52,6 @@ class DivisionsRelationManager extends RelationManager
                         'scheduled' => 'gray',
                         'running'   => 'info',
                         'complete'  => 'success',
-                        'cancelled' => 'danger',
                         'combined'  => 'warning',
                     }),
                 TextColumn::make('enrolment_events_count')
@@ -66,19 +64,11 @@ class DivisionsRelationManager extends RelationManager
                         'scheduled' => 'Scheduled',
                         'running'   => 'Running',
                         'complete'  => 'Complete',
-                        'cancelled' => 'Cancelled',
                         'combined'  => 'Combined',
                     ]),
             ])
             ->actions([
                 EditAction::make(),
-                Action::make('cancel')
-                    ->label('Cancel')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->visible(fn (Division $record) => ! in_array($record->status, ['cancelled', 'combined']))
-                    ->action(fn (Division $record) => $record->update(['status' => 'cancelled'])),
             ])
             ->bulkActions([
                 BulkAction::make('combine')

@@ -88,7 +88,7 @@ class RoundRobinTestSeeder extends Seeder
                     'status'             => 'active',
                 ]
             );
-            $user->syncRoles(['competitor']);
+            $user->syncRoles(['user']);
 
             CompetitorProfile::updateOrCreate(
                 ['user_id' => $user->id],

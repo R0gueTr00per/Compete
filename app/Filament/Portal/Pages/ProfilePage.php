@@ -13,8 +13,6 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Illuminate\Support\Carbon;
-
 class ProfilePage extends Page implements HasForms
 {
     use InteractsWithForms;
@@ -82,14 +80,6 @@ class ProfilePage extends Page implements HasForms
                         TextInput::make('phone')
                             ->tel()
                             ->maxLength(30),
-
-                        TextInput::make('height_cm')
-                            ->numeric()
-                            ->suffix('cm')
-                            ->visible(fn () => $this->isUnder15())
-                            ->helperText('Required for competitors under 15.')
-                            ->minValue(50)
-                            ->maxValue(250),
                     ]),
             ])
             ->statePath('data');
@@ -105,10 +95,6 @@ class ProfilePage extends Page implements HasForms
         $profileData['profile_complete'] = true;
         unset($profileData['timezone']);
 
-        if (! $this->isUnder15($profileData['date_of_birth'] ?? null)) {
-            $profileData['height_cm'] = null;
-        }
-
         auth()->user()->competitorProfile()->updateOrCreate(
             ['user_id' => auth()->id()],
             $profileData
@@ -117,15 +103,6 @@ class ProfilePage extends Page implements HasForms
         Notification::make()->title('Profile saved')->success()->send();
 
         $this->redirect(route('filament.portal.pages.dashboard'));
-    }
-
-    private function isUnder15(?string $dob = null): bool
-    {
-        $dobValue = $dob ?? ($this->data['date_of_birth'] ?? null);
-        if (! $dobValue) {
-            return false;
-        }
-        return Carbon::parse($dobValue)->age < 15;
     }
 
     protected function getFormActions(): array

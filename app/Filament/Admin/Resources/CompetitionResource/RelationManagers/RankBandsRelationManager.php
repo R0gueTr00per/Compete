@@ -40,7 +40,7 @@ class RankBandsRelationManager extends RelationManager
                 ->content('Rank scale: 9th kyu = −9, 1st kyu = −1, experience = 0, 1st dan = 1, 10th dan = 10. Leave blank for open/no restriction.')
                 ->columnSpanFull(),
 
-            Grid::make(3)->schema([
+            Grid::make(2)->schema([
                 TextInput::make('rank_min')
                     ->label('Rank min')
                     ->numeric()
@@ -52,10 +52,6 @@ class RankBandsRelationManager extends RelationManager
                     ->numeric()
                     ->nullable()
                     ->placeholder('e.g. −1'),
-
-                TextInput::make('sort_order')
-                    ->numeric()
-                    ->default(0),
             ]),
         ]);
     }
@@ -65,7 +61,6 @@ class RankBandsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('label')
             ->columns([
-                TextColumn::make('sort_order')->label('#')->sortable(),
                 TextColumn::make('label'),
                 TextColumn::make('rank_min')->label('Min rank')->default('—'),
                 TextColumn::make('rank_max')->label('Max rank')->default('—'),
@@ -76,6 +71,10 @@ class RankBandsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['sort_order'] = (RankBand::where('competition_id', $this->getOwnerRecord()->id)->max('sort_order') ?? 0) + 1;
+                        return $data;
+                    })
                     ->before(function (array $data, $action) {
                         if ($error = $this->overlapError($data)) {
                             Notification::make()->danger()->title('Overlapping rank range')->body($error)->send();
@@ -107,13 +106,20 @@ class RankBandsRelationManager extends RelationManager
 
     private function overlapError(array $data, ?int $excludeId = null): ?string
     {
-        $newMin = isset($data['rank_min']) && $data['rank_min'] !== '' ? (int) $data['rank_min'] : -99;
-        $newMax = isset($data['rank_max']) && $data['rank_max'] !== '' ? (int) $data['rank_max'] : 99;
+        $rankMax = isset($data['rank_max']) && $data['rank_max'] !== '' ? (int) $data['rank_max'] : null;
+
+        // Open-ended (no max rank) entries are allowed to overlap — skip validation.
+        if ($rankMax === null) {
+            return null;
+        }
+
+        $rankMin = isset($data['rank_min']) && $data['rank_min'] !== '' ? (int) $data['rank_min'] : -99;
 
         $overlap = RankBand::where('competition_id', $this->getOwnerRecord()->id)
             ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
-            ->whereRaw('COALESCE(rank_min, -99) <= ?', [$newMax])
-            ->whereRaw('COALESCE(rank_max, 99) >= ?', [$newMin])
+            ->whereNotNull('rank_max')
+            ->whereRaw('COALESCE(rank_min, -99) <= ?', [$rankMax])
+            ->whereRaw('rank_max >= ?', [$rankMin])
             ->first();
 
         return $overlap ? "Rank range overlaps with \"{$overlap->label}\"." : null;

@@ -38,7 +38,7 @@ class PortalPanelProvider extends PanelProvider
                     ->label('Admin Panel')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->url('/admin')
-                    ->visible(fn () => auth()->user()?->hasRole(['admin', 'system_admin', 'contributor'])),
+                    ->visible(fn () => auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official'])),
 
                 MenuItem::make()
                     ->label('My Profile')

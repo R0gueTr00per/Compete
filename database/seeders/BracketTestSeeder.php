@@ -131,13 +131,12 @@ class BracketTestSeeder extends Seeder
             $user = User::updateOrCreate(
                 ['email' => $email],
                 [
-                    'name'              => $data['first_name'] . ' ' . $data['surname'],
                     'password'          => Hash::make('password'),
                     'email_verified_at' => now(),
                     'status'            => 'active',
                 ]
             );
-            $user->syncRoles(['competitor']);
+            $user->syncRoles(['user']);
 
             CompetitorProfile::updateOrCreate(
                 ['user_id' => $user->id],

@@ -38,12 +38,12 @@ class CompetitionResource extends Resource
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->hasRole(['admin', 'system_admin']);
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin']);
     }
 
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
     {
-        return auth()->user()?->hasRole(['admin', 'system_admin']);
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin']);
     }
 
     public static function form(Form $form): Form
@@ -194,7 +194,7 @@ class CompetitionResource extends Resource
                         ->modalDescription(function (Competition $record) {
                             $unscheduled = $record->allDivisions()
                                 ->whereNull('divisions.location_label')
-                                ->where('divisions.status', '!=', 'cancelled')
+                                ->whereNotIn('divisions.status', ['combined'])
                                 ->count();
                             if ($unscheduled > 0) {
                                 return "{$unscheduled} division(s) have not been assigned to a location. Are you sure you want to open for enrolment anyway?";

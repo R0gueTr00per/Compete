@@ -50,21 +50,24 @@
                     $rowClass = match ($div->status) {
                         'complete'  => 'bg-success-50 border-success-300 dark:bg-success-900/20 dark:border-success-700',
                         'running'   => 'bg-warning-50 border-warning-300 dark:bg-warning-900/20 dark:border-warning-700',
-                        'cancelled' => 'bg-danger-50 border-danger-300 dark:bg-danger-900/20 dark:border-danger-700',
                         default     => 'bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-700',
                     };
                     $textClass = match ($div->status) {
                         'complete'  => 'text-success-800 dark:text-success-300',
                         'running'   => 'text-warning-800 dark:text-warning-300',
-                        'cancelled' => 'text-danger-700 dark:text-danger-400',
                         default     => 'text-gray-900 dark:text-white',
                     };
                 @endphp
                 <div
-                    wire:click="selectDivision({{ $div->id }})"
-                    class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-all
+                    wire:key="division-{{ $div->id }}"
+                    @if (! $this->division_id) wire:click="selectDivision({{ $div->id }})" @endif
+                    class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all
                         {{ $rowClass }}
-                        {{ $selected ? 'ring-2 ring-primary-500' : 'hover:border-primary-300 dark:hover:border-primary-600' }}"
+                        {{ $selected
+                            ? 'ring-2 ring-primary-500 cursor-default'
+                            : ($this->division_id
+                                ? 'opacity-50 cursor-not-allowed'
+                                : 'cursor-pointer hover:border-primary-300 dark:hover:border-primary-600') }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="font-mono text-sm font-bold shrink-0 {{ $textClass }}">{{ $div->code }}</span>
@@ -86,8 +89,6 @@
                             <x-heroicon-m-check-circle class="w-5 h-5 text-success-500" />
                         @elseif ($div->status === 'running')
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-800 dark:bg-warning-900 dark:text-warning-200">Running</span>
-                        @elseif ($div->status === 'cancelled')
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-danger-100 text-danger-800 dark:bg-danger-900 dark:text-danger-200">Cancelled</span>
                         @else
                             <x-heroicon-m-chevron-right class="w-4 h-4 text-gray-400 {{ $selected ? 'rotate-90' : '' }}" />
                         @endif
@@ -96,11 +97,6 @@
 
                 {{-- Inline scoring panel --}}
                 @if ($selected)
-                    @if ($div->status === 'cancelled')
-                        <div class="ml-4 mb-2 rounded-lg border border-danger-200 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 px-4 py-3">
-                            <p class="text-sm font-medium text-danger-800 dark:text-danger-300">This division has been cancelled.</p>
-                        </div>
-                    @else
                     @php
                         $rows   = $this->getCompetitorRows();
                         $method = $this->getScoringMethod();
@@ -131,7 +127,6 @@
                             @php
                                 $rollcall = $this->getRollcallRows();
                                 $active   = $rollcall->where('absent', false);
-                                $absent   = $rollcall->where('absent', true);
                             @endphp
                             @if ($rollcall->isEmpty())
                                 <p class="text-center text-sm text-gray-400 py-4">No checked-in competitors in this division.</p>
@@ -154,23 +149,6 @@
                                     @endforeach
                                 </ul>
 
-                                @if ($absent->isNotEmpty())
-                                    <div class="mt-3 border-t border-gray-100 dark:border-gray-800 pt-3">
-                                        <p class="text-xs font-semibold uppercase tracking-wider text-danger-500 mb-2">Previously marked absent</p>
-                                        <ul class="space-y-1.5">
-                                            @foreach ($absent as $rc)
-                                                <li class="flex items-center gap-3">
-                                                    <x-heroicon-m-x-circle class="w-5 h-5 text-danger-400 shrink-0" />
-                                                    <span class="text-sm text-gray-400 line-through">{{ $rc->name }}</span>
-                                                    <button wire:click="undoRollcallRemoval({{ $rc->ee_id }})"
-                                                        class="ml-auto text-xs text-primary-500 hover:text-primary-700 font-medium">
-                                                        Undo
-                                                    </button>
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                @endif
 
                                 <div class="mt-4 flex justify-end">
                                     <x-filament::button color="primary" wire:click="toggleRollcall" icon="heroicon-m-arrow-right" icon-position="after">
@@ -181,14 +159,6 @@
 
                         @else
                             {{-- Step 2: Scoring --}}
-                            <div class="mb-3">
-                                <button wire:click="toggleRollcall"
-                                    class="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                                    <x-heroicon-m-arrow-left class="w-3 h-3" />
-                                    Back to rollcall
-                                </button>
-                            </div>
-
                             @if ($rows->isEmpty())
                                 <p class="text-center text-sm text-gray-400 py-4">No checked-in competitors in this division.</p>
                             @elseif ($this->isTournament())
@@ -196,14 +166,17 @@
                                 @php
                                     $bracketData = $this->getBracketData();
                                     $format      = $this->getTournamentFormat();
-                                    $hasBracket  = collect($bracketData)->flatten(2)->isNotEmpty();
+                                    $hasBracket  = $this->bracketExists;
                                 @endphp
+
+                                {{-- wire:key changes when bracketExists flips, forcing full replacement instead of morphing --}}
+                                <div wire:key="bracket-{{ $this->division_id }}-{{ $hasBracket ? 'has' : 'empty' }}">
 
                                 @if (! $hasBracket)
                                     <div class="text-center py-4">
                                         <p class="text-sm text-gray-500 mb-1">{{ $rows->count() }} competitors checked in.</p>
                                         <p class="text-xs text-gray-400 mb-3">
-                                            {{ match($format) { 'double_elimination' => 'Double elimination bracket', 'round_robin' => 'Round robin', 'repechage' => 'Single elimination with repechage', default => 'Single elimination bracket' } }}
+                                            {{ match($format) { 'double_elimination' => 'Double elimination bracket', 'round_robin' => 'Round robin', 'repechage' => 'Single elimination with repechage', 'se_3rd_place' => 'Single elimination with 3rd place playoff', default => 'Single elimination bracket' } }}
                                         </p>
                                         <x-filament::button color="primary" wire:click="generateBracket">
                                             Generate bracket
@@ -213,45 +186,92 @@
                                     {{-- Bracket header --}}
                                     <div class="flex items-center justify-between mb-3">
                                         <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            {{ match($format) { 'double_elimination' => 'Double elimination', 'round_robin' => 'Round robin', 'repechage' => 'Repechage', default => 'Single elimination' } }} bracket
+                                            {{ match($format) { 'double_elimination' => 'Double elimination', 'round_robin' => 'Round robin', 'repechage' => 'Repechage', 'se_3rd_place' => 'SE + 3rd place playoff', default => 'Single elimination' } }} bracket
                                         </p>
-                                        <x-filament::button size="xs" color="gray"
-                                            wire:click="resetBracket"
-                                            wire:confirm="Delete all bracket results and start over?">
-                                            Reset bracket
-                                        </x-filament::button>
+                                        <div x-data="{ confirming: false }" class="flex items-center gap-1">
+                                            <x-filament::button size="xs" color="gray"
+                                                x-show="! confirming"
+                                                @click="confirming = true">
+                                                Reset bracket
+                                            </x-filament::button>
+                                            <template x-if="confirming">
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400">Are you sure?</span>
+                                                    <x-filament::button size="xs" color="danger"
+                                                        @click="confirming = false; $wire.resetBracket()">
+                                                        Yes, reset
+                                                    </x-filament::button>
+                                                    <x-filament::button size="xs" color="gray"
+                                                        @click="confirming = false">
+                                                        Cancel
+                                                    </x-filament::button>
+                                                </div>
+                                            </template>
+                                        </div>
                                     </div>
 
                                     @php
-                                        $sections = [
-                                            'winners'     => 'Winners bracket',
-                                            'losers'      => 'Losers bracket',
-                                            'repechage'   => 'Repechage bracket',
-                                            'grand_final' => 'Grand Final',
-                                        ];
+                                        $wbAll      = $bracketData['winners'] ?? [];
+                                        $maxWbRound = ! empty($wbAll) ? max(array_keys($wbAll)) : 0;
+
+                                        if ($format === 'se_3rd_place') {
+                                            // Interleave: early WB rounds → 3rd place → WB final
+                                            $displaySections = [];
+                                            foreach ($wbAll as $r => $matches) {
+                                                if ($r < $maxWbRound) {
+                                                    $displaySections[] = ['label' => null, 'rounds' => [$r => $matches], 'key' => 'winners'];
+                                                }
+                                            }
+                                            $repAll = $bracketData['repechage'] ?? [];
+                                            if (! empty($repAll)) {
+                                                $displaySections[] = ['label' => '3rd Place Playoff', 'rounds' => $repAll, 'key' => 'repechage'];
+                                            }
+                                            if ($maxWbRound && isset($wbAll[$maxWbRound])) {
+                                                $displaySections[] = ['label' => 'Final', 'rounds' => [$maxWbRound => $wbAll[$maxWbRound]], 'key' => 'winners'];
+                                            }
+                                        } else {
+                                            $sectionDefs = [
+                                                'winners'     => ['label' => in_array($format, ['double_elimination', 'repechage']) ? 'Winners bracket' : null, 'key' => 'winners'],
+                                                'losers'      => ['label' => 'Losers bracket',    'key' => 'losers'],
+                                                'repechage'   => ['label' => 'Repechage bracket', 'key' => 'repechage'],
+                                                'grand_final' => ['label' => 'Grand Final',       'key' => 'grand_final'],
+                                            ];
+                                            $displaySections = [];
+                                            foreach ($sectionDefs as $bk => $meta) {
+                                                $bkRounds = $bracketData[$bk] ?? [];
+                                                if (! empty($bkRounds)) {
+                                                    $displaySections[] = ['label' => $meta['label'], 'rounds' => $bkRounds, 'key' => $bk];
+                                                }
+                                            }
+                                        }
                                     @endphp
 
-                                    @foreach ($sections as $bracketKey => $bracketLabel)
-                                        @php $rounds = $bracketData[$bracketKey] ?? []; @endphp
-                                        @if (empty($rounds)) @continue @endif
+                                    @foreach ($displaySections as $displaySection)
+                                        @php
+                                            $displayBracketKey = $displaySection['key'];
+                                            $rounds            = $displaySection['rounds'];
+                                            $sectionLabel      = $displaySection['label'];
+                                        @endphp
 
-                                        @if ($format === 'double_elimination' || $format === 'repechage' || $bracketKey === 'grand_final')
-                                            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mt-4 mb-1">{{ $bracketLabel }}</p>
+                                        @if ($sectionLabel)
+                                            <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mt-4 mb-1">{{ $sectionLabel }}</p>
                                         @endif
 
                                         @foreach ($rounds as $roundNum => $matches)
+                                            @php $visibleMatches = collect($matches)->filter(fn($m) => ! $m->is_bye); @endphp
+                                            @if ($visibleMatches->isEmpty()) @continue @endif
                                             <div class="mb-3">
-                                                @if (count($rounds) > 1 || $bracketKey !== 'grand_final')
+                                                {{-- Show round label when: multiple rounds in section, OR no section label and not grand_final --}}
+                                                @if (count($rounds) > 1 || ($sectionLabel === null && $displayBracketKey !== 'grand_final'))
                                                     <p class="text-xs text-gray-400 mb-1.5">
-                                                        @if ($bracketKey === 'grand_final') Grand Final
+                                                        @if ($displayBracketKey === 'grand_final') Grand Final
                                                         @else Round {{ $roundNum }}
                                                         @endif
                                                     </p>
                                                 @endif
 
                                                 <div class="space-y-1.5">
-                                                    @foreach ($matches as $match)
-                                                        @if ($match->is_bye) @continue @endif
+                                                    @foreach ($visibleMatches as $match)
 
                                                         @php
                                                             $pending   = $match->is_pending;
@@ -265,19 +285,17 @@
                                                                 {{-- Home competitor --}}
                                                                 <span class="flex-1 font-medium truncate
                                                                     {{ $homeWon ? 'text-success-700 dark:text-success-400' : ($awayWon ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white') }}">
-                                                                    {{ $match->home_name }}
+                                                                    @if ($homeWon)🏆 @endif{{ $match->home_name }}
                                                                 </span>
 
                                                                 {{-- vs / result --}}
                                                                 @if ($pending)
                                                                     <div class="flex gap-1 shrink-0">
-                                                                        @if ($match->home_id)
+                                                                        @if ($match->home_id && $match->away_id)
                                                                             <x-filament::button size="xs" color="success"
                                                                                 wire:click="recordBracketWinner({{ $match->id }}, {{ $match->home_id }})">
                                                                                 ← Wins
                                                                             </x-filament::button>
-                                                                        @endif
-                                                                        @if ($match->away_id)
                                                                             <x-filament::button size="xs" color="success"
                                                                                 wire:click="recordBracketWinner({{ $match->id }}, {{ $match->away_id }})">
                                                                                 Wins →
@@ -285,30 +303,18 @@
                                                                         @endif
                                                                     </div>
                                                                 @else
-                                                                    <div class="flex items-center gap-1 shrink-0">
-                                                                        <x-heroicon-m-trophy class="w-3.5 h-3.5 text-warning-500" />
-                                                                        <button wire:click="clearBracketResult({{ $match->id }})"
-                                                                            class="text-gray-300 hover:text-danger-400 transition-colors ml-1" title="Clear result">
-                                                                            <x-heroicon-m-x-mark class="w-3 h-3" />
-                                                                        </button>
-                                                                    </div>
+                                                                    <button wire:click="clearBracketResult({{ $match->id }})"
+                                                                        class="text-gray-300 hover:text-danger-400 transition-colors shrink-0" title="Clear result">
+                                                                        <x-heroicon-m-x-mark class="w-3 h-3" />
+                                                                    </button>
                                                                 @endif
 
                                                                 {{-- Away competitor --}}
                                                                 <span class="flex-1 text-right font-medium truncate
                                                                     {{ $awayWon ? 'text-success-700 dark:text-success-400' : ($homeWon ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white') }}">
-                                                                    {{ $match->away_name }}
+                                                                    {{ $match->away_name }}@if ($awayWon) 🏆@endif
                                                                 </span>
                                                             </div>
-
-                                                            @if (! $pending && $match->winner_id)
-                                                                <p class="text-xs text-success-600 dark:text-success-400 mt-1">
-                                                                    🏆 {{ $homeWon ? $match->home_name : $match->away_name }} advances
-                                                                    @if ($bracketKey === 'losers' || $bracketKey === 'grand_final' || $bracketKey === 'repechage')
-                                                                        @if ($match->loser_id) · {{ $homeWon ? $match->away_name : $match->home_name }} eliminated @endif
-                                                                    @endif
-                                                                </p>
-                                                            @endif
                                                         </div>
                                                     @endforeach
                                                 </div>
@@ -350,6 +356,27 @@
                                                     $repFinal    = ($repRounds[$maxRepRound] ?? [])[0] ?? null;
                                                     if ($repFinal && $repFinal->winner_id)
                                                         $bracketPlacements[3] = $repFinal->winner_id === $repFinal->home_id ? $repFinal->home_name : $repFinal->away_name;
+                                                }
+                                            } elseif ($format === 'se_3rd_place' && $wbFinalRound) {
+                                                $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
+                                                if ($wbFinal && $wbFinal->winner_id) {
+                                                    $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    if ($wbFinal->loser_id)
+                                                        $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                }
+                                                $repRounds = $bracketData['repechage'] ?? [];
+                                                if (! empty($repRounds)) {
+                                                    $thirdFinal = ($repRounds[max(array_keys($repRounds))] ?? [])[0] ?? null;
+                                                    if ($thirdFinal && $thirdFinal->winner_id)
+                                                        $bracketPlacements[3] = $thirdFinal->winner_id === $thirdFinal->home_id ? $thirdFinal->home_name : $thirdFinal->away_name;
+                                                } elseif ($wbFinalRound > 1) {
+                                                    $thirdNames = [];
+                                                    foreach ($wbRounds[$wbFinalRound - 1] ?? [] as $semi) {
+                                                        if ($semi->loser_id && ! $semi->is_bye)
+                                                            $thirdNames[] = $semi->loser_id === $semi->home_id ? $semi->home_name : $semi->away_name;
+                                                    }
+                                                    if (! empty($thirdNames))
+                                                        $bracketPlacements[3] = implode(' / ', $thirdNames);
                                                 }
                                             } elseif ($format === 'round_robin') {
                                                 $onlyTwoCompetitors = false;
@@ -415,6 +442,7 @@
                                         </div>
                                     @endif
                                 @endif
+                                </div>{{-- end wire:key bracket wrapper --}}
                             @else
                                 {{-- Standard scoring (judges / win-loss / first-to-n) --}}
                                 <div class="overflow-x-auto">
@@ -637,23 +665,50 @@
                             @endif
                         @endif
 
-                        {{-- Mark complete / Cancel --}}
-                        @if ($div->status !== 'complete' && $div->status !== 'cancelled')
+                        {{-- Panel footer --}}
+                        @if ($div->status !== 'complete')
                             <div class="mt-4 flex items-center justify-between gap-3">
-                                <x-filament::button color="danger" size="sm"
-                                    wire:click="cancelDivision"
-                                    wire:confirm="Cancel this division? It will be hidden from scoring and marked as cancelled.">
-                                    Cancel division
+                                <x-filament::button color="gray" size="sm" wire:click="deselectDivision">
+                                    Cancel
                                 </x-filament::button>
-                                <x-filament::button color="success" size="sm"
-                                    wire:click="markDivisionComplete"
-                                    wire:confirm="Mark this division as complete? This cannot be undone.">
-                                    Mark division complete
+                                <div class="flex items-center gap-2">
+                                    @if (! $this->rollcallMode)
+                                        <x-filament::button color="gray" size="sm" wire:click="toggleRollcall" icon="heroicon-m-arrow-left">
+                                            Back to rollcall
+                                        </x-filament::button>
+                                    @endif
+                                    @if ($this->isScoringComplete())
+                                        <div x-data="{ confirming: false }" class="flex items-center gap-1">
+                                            <x-filament::button color="success" size="sm"
+                                                x-show="! confirming"
+                                                @click="confirming = true">
+                                                Mark complete
+                                            </x-filament::button>
+                                            <template x-if="confirming">
+                                                <div class="flex items-center gap-1">
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400">Are you sure?</span>
+                                                    <x-filament::button size="sm" color="success"
+                                                        @click="confirming = false; $wire.markDivisionComplete()">
+                                                        Yes, mark complete
+                                                    </x-filament::button>
+                                                    <x-filament::button size="sm" color="gray"
+                                                        @click="confirming = false">
+                                                        Cancel
+                                                    </x-filament::button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <div class="mt-4">
+                                <x-filament::button color="gray" size="sm" wire:click="deselectDivision">
+                                    Close
                                 </x-filament::button>
                             </div>
                         @endif
                     </div>
-                    @endif {{-- end non-cancelled panel --}}
                 @endif
             @endforeach
         </div>

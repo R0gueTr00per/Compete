@@ -17,7 +17,6 @@ class CompetitorProfile extends Model
         'first_name',
         'date_of_birth',
         'gender',
-        'height_cm',
         'phone',
         'profile_complete',
     ];

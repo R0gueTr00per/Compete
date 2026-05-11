@@ -14,7 +14,6 @@ class ProductionSeeder extends Seeder
         $this->call(RoleSeeder::class);
 
         $email    = env('SEED_ADMIN_EMAIL');
-        $name     = env('SEED_ADMIN_NAME', 'System Admin');
         $password = env('SEED_ADMIN_PASSWORD');
 
         if (! $email || ! $password) {
@@ -25,7 +24,6 @@ class ProductionSeeder extends Seeder
         $admin = User::updateOrCreate(
             ['email' => $email],
             [
-                'name'               => $name,
                 'password'           => Hash::make($password),
                 'email_verified_at'  => now(),
                 'status'             => 'active',

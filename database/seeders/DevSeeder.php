@@ -15,21 +15,21 @@ class DevSeeder extends Seeder
 
         $sysAdmin = User::updateOrCreate(
             ['email' => 'sysadmin@example.com'],
-            ['name' => 'System Admin', 'password' => Hash::make('password'), 'email_verified_at' => now(), 'status' => 'active']
+            ['password' => Hash::make('password'), 'email_verified_at' => now(), 'status' => 'active']
         );
         $sysAdmin->syncRoles(['system_admin']);
 
         $admin = User::updateOrCreate(
             ['email' => 'admin@example.com'],
-            ['name' => 'Admin', 'password' => Hash::make('password'), 'email_verified_at' => now(), 'status' => 'active']
+            ['password' => Hash::make('password'), 'email_verified_at' => now(), 'status' => 'active']
         );
-        $admin->syncRoles(['admin']);
+        $admin->syncRoles(['competition_administrator']);
 
         $competitor = User::updateOrCreate(
             ['email' => 'competitor@example.com'],
-            ['name' => 'Test Competitor', 'password' => Hash::make('password'), 'email_verified_at' => now(), 'status' => 'active']
+            ['password' => Hash::make('password'), 'email_verified_at' => now(), 'status' => 'active']
         );
-        $competitor->syncRoles(['competitor']);
+        $competitor->syncRoles(['user']);
 
         CompetitorProfile::updateOrCreate(
             ['user_id' => $competitor->id],

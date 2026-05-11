@@ -32,18 +32,14 @@ class AgeBandsRelationManager extends RelationManager
                 ->numeric()
                 ->nullable()
                 ->minValue(0)
-                ->maxValue(120),
+                ->maxValue(99),
 
             TextInput::make('max_age')
                 ->label('Max age')
                 ->numeric()
                 ->nullable()
                 ->minValue(0)
-                ->maxValue(120),
-
-            TextInput::make('sort_order')
-                ->numeric()
-                ->default(0),
+                ->maxValue(99),
         ]);
     }
 
@@ -52,7 +48,6 @@ class AgeBandsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('label')
             ->columns([
-                TextColumn::make('sort_order')->label('#')->sortable(),
                 TextColumn::make('label'),
                 TextColumn::make('min_age')->label('Min'),
                 TextColumn::make('max_age')->label('Max'),
@@ -62,9 +57,13 @@ class AgeBandsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['sort_order'] = (AgeBand::where('competition_id', $this->getOwnerRecord()->id)->max('sort_order') ?? 0) + 1;
+                        return $data;
+                    })
                     ->before(function (array $data, $action) {
-                        if ($error = $this->overlapError($data)) {
-                            Notification::make()->danger()->title('Overlapping age range')->body($error)->send();
+                        if ($error = $this->validateAgeBand($data)) {
+                            Notification::make()->danger()->title('Invalid age range')->body($error)->send();
                             $action->halt();
                         }
                     }),
@@ -73,8 +72,8 @@ class AgeBandsRelationManager extends RelationManager
                 EditAction::make()
                     ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
                     ->before(function (array $data, $record, $action) {
-                        if ($error = $this->overlapError($data, $record->id)) {
-                            Notification::make()->danger()->title('Overlapping age range')->body($error)->send();
+                        if ($error = $this->validateAgeBand($data, $record->id)) {
+                            Notification::make()->danger()->title('Invalid age range')->body($error)->send();
                             $action->halt();
                         }
                     }),
@@ -91,17 +90,30 @@ class AgeBandsRelationManager extends RelationManager
             ]);
     }
 
-    private function overlapError(array $data, ?int $excludeId = null): ?string
+    private function validateAgeBand(array $data, ?int $excludeId = null): ?string
     {
-        $newMin = isset($data['min_age']) ? (int) $data['min_age'] : 0;
-        $newMax = isset($data['max_age']) ? (int) $data['max_age'] : 999;
+        $minAge = isset($data['min_age']) && $data['min_age'] !== '' ? (int) $data['min_age'] : null;
+        $maxAge = isset($data['max_age']) && $data['max_age'] !== '' ? (int) $data['max_age'] : null;
 
-        $overlap = AgeBand::where('competition_id', $this->getOwnerRecord()->id)
-            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
-            ->whereRaw('COALESCE(min_age, 0) <= ?', [$newMax])
-            ->whereRaw('COALESCE(max_age, 999) >= ?', [$newMin])
-            ->first();
+        if ($minAge !== null && $maxAge !== null && $minAge >= $maxAge) {
+            return 'Min age must be less than max age.';
+        }
 
-        return $overlap ? "Age range overlaps with \"{$overlap->label}\"." : null;
+        // Only check overlap when both bounds are provided; open-ended ranges are allowed to overlap.
+        if ($minAge !== null && $maxAge !== null) {
+            $overlap = AgeBand::where('competition_id', $this->getOwnerRecord()->id)
+                ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+                ->whereNotNull('min_age')
+                ->whereNotNull('max_age')
+                ->whereRaw('min_age <= ?', [$maxAge])
+                ->whereRaw('max_age >= ?', [$minAge])
+                ->first();
+
+            if ($overlap) {
+                return "Age range overlaps with \"{$overlap->label}\".";
+            }
+        }
+
+        return null;
     }
 }

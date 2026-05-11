@@ -56,7 +56,7 @@ class ManageCompetitionSchedule extends Page
 
                     $count = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
                         ->whereDoesntHave('activeEnrolmentEvents')
-                        ->whereNotIn('status', ['cancelled', 'combined'])
+                        ->whereNotIn('status', ['combined'])
                         ->where(fn ($q) => $q->whereNotNull('location_label')->orWhere('status', 'assigned'))
                         ->count();
 
@@ -67,7 +67,7 @@ class ManageCompetitionSchedule extends Page
 
                     Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
                         ->whereDoesntHave('activeEnrolmentEvents')
-                        ->whereNotIn('status', ['cancelled', 'combined'])
+                        ->whereNotIn('status', ['combined'])
                         ->where(fn ($q) => $q->whereNotNull('location_label')->orWhere('status', 'assigned'))
                         ->update(['location_label' => null, 'status' => 'pending']);
 
@@ -137,43 +137,37 @@ class ManageCompetitionSchedule extends Page
 
     public function moveDivision(int $divisionId, string $location, int $newIndex): void
     {
-        $competition = $this->getRecord();
-        $division    = Division::with('competitionEvent')->findOrFail($divisionId);
+        $this->moveDivisions([$divisionId], $location, $newIndex);
+    }
 
-        if ($division->competitionEvent->competition_id !== $competition->id) {
+    public function moveDivisions(array $divisionIds, string $location, int $newIndex): void
+    {
+        $competition   = $this->getRecord();
+        $locationLabel = $location === '__unassigned__' ? null : $location;
+
+        $moved = Division::with('competitionEvent')
+            ->whereIn('id', $divisionIds)
+            ->get()
+            ->filter(fn ($d) => $d->competitionEvent->competition_id === $competition->id);
+
+        if ($moved->isEmpty()) {
             return;
         }
 
-        $locationLabel = $location === '__unassigned__' ? null : $location;
-        $division->update(['location_label' => $locationLabel]);
+        $moved->each(fn ($d) => $d->update(['location_label' => $locationLabel]));
 
         $siblings = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
-            ->where('id', '!=', $divisionId)
+            ->whereNotIn('id', $divisionIds)
             ->when($locationLabel, fn ($q) => $q->where('location_label', $locationLabel))
             ->when(! $locationLabel, fn ($q) => $q->whereNull('location_label'))
             ->orderBy('running_order')
             ->orderBy('code')
             ->get();
 
-        $siblings->splice($newIndex, 0, [$division]);
+        $siblings->splice($newIndex, 0, $moved->values()->all());
         foreach ($siblings as $i => $sib) {
             $sib->updateQuietly(['running_order' => $i + 1]);
         }
     }
 
-    public function cancelDivision(int $divisionId): void
-    {
-        $division = Division::with('competitionEvent')->findOrFail($divisionId);
-        if ($division->competitionEvent->competition_id === $this->getRecord()->id) {
-            $division->update(['status' => 'cancelled', 'location_label' => null]);
-        }
-    }
-
-    public function reinstateDivision(int $divisionId): void
-    {
-        $division = Division::with('competitionEvent')->findOrFail($divisionId);
-        if ($division->competitionEvent->competition_id === $this->getRecord()->id) {
-            $division->update(['status' => 'pending']);
-        }
-    }
 }

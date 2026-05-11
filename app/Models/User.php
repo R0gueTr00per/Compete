@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasName;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,12 +14,11 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Activitylog\Traits\CausesActivity;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements MustVerifyEmail, FilamentUser
+class User extends Authenticatable implements MustVerifyEmail, FilamentUser, HasName
 {
     use HasFactory, Notifiable, HasRoles, CausesActivity;
 
     protected $fillable = [
-        'name',
         'email',
         'status',
         'timezone',
@@ -43,10 +43,23 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         ];
     }
 
+    public function getFilamentName(): string
+    {
+        $profile = $this->competitorProfile;
+        if ($profile) {
+            $name = trim($profile->first_name . ' ' . $profile->surname);
+            if ($name !== '') {
+                return $name;
+            }
+        }
+
+        return $this->email;
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         if ($panel->getId() === 'admin') {
-            return $this->hasRole(['admin', 'system_admin', 'contributor']);
+            return $this->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
         }
 
         // Portal: active competitors, plus admin roles (so they can view the competitor experience)

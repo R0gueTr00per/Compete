@@ -33,7 +33,6 @@ class CompetitionEventResource extends Resource
                     'scheduled' => 'Scheduled',
                     'running'   => 'Running',
                     'complete'  => 'Complete',
-                    'cancelled' => 'Cancelled',
                 ])
                 ->required(),
         ]);

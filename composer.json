@@ -64,7 +64,7 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": []
+            "dont-discover": ["laravel/pail", "laravel/sentinel"]
         }
     },
     "config": {

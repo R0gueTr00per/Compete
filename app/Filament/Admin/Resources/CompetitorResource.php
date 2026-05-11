@@ -25,6 +25,7 @@ class CompetitorResource extends Resource
     protected static ?string $navigationGroup = 'Competitors';
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationLabel = 'Competitors';
+    protected static bool $shouldRegisterNavigation = false;
     protected static ?string $recordTitleAttribute = 'surname';
 
     public static function form(Form $form): Form
@@ -54,11 +55,6 @@ class CompetitorResource extends Resource
                         ->tel()
                         ->maxLength(30),
 
-                    TextInput::make('height_cm')
-                        ->numeric()
-                        ->suffix('cm')
-                        ->minValue(50)
-                        ->maxValue(250),
                 ]),
         ]);
     }

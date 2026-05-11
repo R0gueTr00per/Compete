@@ -56,12 +56,12 @@ class Results extends Page
 
         return $competition->competitionEvents()
             ->with([
-                'divisions'                                          => fn ($q) => $q->whereNotIn('status', ['cancelled']),
+                'divisions'                                          => fn ($q) => $q->whereNotIn('status', ['combined']),
                 'divisions.enrolmentEvents'                          => fn ($q) => $q->where('removed', false),
                 'divisions.enrolmentEvents.enrolment.competitor.competitorProfile',
                 'divisions.enrolmentEvents.result.judgeScores',
             ])
-            ->whereNotIn('status', ['cancelled'])
+            ->whereNotIn('status', ['combined'])
             ->orderBy('running_order')
             ->get()
             ->filter(fn ($event) => $event->divisions

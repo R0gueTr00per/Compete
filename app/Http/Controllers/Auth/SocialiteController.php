@@ -64,13 +64,12 @@ class SocialiteController extends Controller
 
         // 3. Create new user with social account (password=null for social-only accounts)
         $user = User::create([
-            'name' => $socialUser->getName() ?? $socialUser->getNickname() ?? 'User',
             'email' => $socialUser->getEmail(),
             'password' => null,
             'email_verified_at' => now(),
         ]);
 
-        $user->assignRole('competitor');
+        $user->assignRole('user');
 
         $user->socialAccounts()->create([
             'provider' => $provider,

@@ -165,6 +165,9 @@ class BracketService
             if ($format === 'double_elimination') {
                 $this->checkGrandFinal($match->division_id);
             }
+            if ($format === 'se_3rd_place') {
+                $this->checkThirdPlace($match->division_id);
+            }
             return;
         }
 
@@ -180,6 +183,10 @@ class BracketService
 
         if ($format === 'repechage') {
             $this->checkRepechage($match->division_id);
+        }
+
+        if ($format === 'se_3rd_place') {
+            $this->checkThirdPlace($match->division_id);
         }
 
         // Chain BYE: if the next WB match can only ever receive one competitor
@@ -383,6 +390,55 @@ class BracketService
 
         foreach ($byeMatches as $m) {
             $this->advance($m->fresh(), 'repechage');
+        }
+    }
+
+    private function checkThirdPlace(int $divisionId): void
+    {
+        $r1Count    = RoundRobinMatch::where('division_id', $divisionId)->where('bracket', 'winners')->where('round', 1)->count();
+        $maxWbRound = $r1Count > 1 ? (int) ceil(log($r1Count, 2)) + 1 : 1;
+
+        if ($maxWbRound < 2) return;
+
+        $semiFinalRound = $maxWbRound - 1;
+
+        $semis = RoundRobinMatch::where('division_id', $divisionId)
+            ->where('bracket', 'winners')
+            ->where('round', $semiFinalRound)
+            ->orderBy('bracket_slot')
+            ->get();
+
+        // Only proceed if there are 2 real (non-bye) semi-finals — a bye semi produces
+        // no loser, so with only 1 real semi the lone loser gets 3rd via placement fallback.
+        $realSemis = $semis->filter(fn ($m) => $m->away_enrolment_event_id !== null);
+        if ($realSemis->count() < 2) return;
+
+        $semiLosers = $realSemis->map(fn ($m) => $m->loserId())->filter()->values();
+
+        if ($semiLosers->isEmpty()) return;
+
+        // Create or update the 3rd place match as each semi-final loser becomes known
+        $existing = RoundRobinMatch::where('division_id', $divisionId)
+            ->where('bracket', 'repechage')
+            ->where('bracket_slot', 1)
+            ->first();
+
+        if (! $existing) {
+            RoundRobinMatch::create([
+                'division_id'             => $divisionId,
+                'home_enrolment_event_id' => $semiLosers[0],
+                'away_enrolment_event_id' => $semiLosers->get(1),
+                'home_result'             => null,
+                'round'                   => 1,
+                'bracket'                 => 'repechage',
+                'bracket_slot'            => 1,
+            ]);
+        } elseif ($existing->away_enrolment_event_id === null && $semiLosers->count() >= 2) {
+            // Second semi-final just finished — fill in the away slot
+            $newLoser = $semiLosers->first(fn ($id) => $id !== $existing->home_enrolment_event_id);
+            if ($newLoser) {
+                $existing->update(['away_enrolment_event_id' => $newLoser]);
+            }
         }
     }
 

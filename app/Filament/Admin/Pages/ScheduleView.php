@@ -63,7 +63,7 @@ class ScheduleView extends Page
                 'activeEnrolmentEvents.enrolment.competitor.competitorProfile',
             ])
             ->withCount('activeEnrolmentEvents')
-            ->whereNotIn('status', ['combined', 'cancelled'])
+            ->whereNotIn('status', ['combined'])
             ->whereNotNull('location_label')
             ->orderBy('running_order')
             ->orderBy('code')

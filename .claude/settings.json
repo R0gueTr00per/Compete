@@ -50,7 +50,17 @@
       "Read(//c/Users/Brad/**)",
       "Read(//c//**)",
       "PowerShell(Get-Command composer.bat -ErrorAction SilentlyContinue)",
-      "PowerShell(Get-Command composer.phar -ErrorAction SilentlyContinue)"
+      "PowerShell(Get-Command composer.phar -ErrorAction SilentlyContinue)",
+      "PowerShell(\\(Get-Item \"c:\\\\Users\\\\Brad\\\\OneDrive\\\\Documents\\\\Repos\\\\Compete\\\\composer.lock\"\\).Length / 1KB | ForEach-Object { \"{0:N1} KB\" -f $_ })",
+      "mcp__jira__jira_get_issue",
+      "mcp__jira__jira_transition_issue",
+      "mcp__jira__jira_search",
+      "Bash(php -l app/Filament/Admin/Resources/UserResource.php)",
+      "Bash(php -l app/Filament/Admin/Resources/UserResource/Pages/CreateUser.php)",
+      "Bash(php -l app/Filament/Admin/Resources/UserResource/Pages/EditUser.php)",
+      "mcp__jira__jira_get_transitions",
+      "mcp__jira__jira_add_comment",
+      "Bash(php -l app/Http/Responses/LoginResponse.php)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

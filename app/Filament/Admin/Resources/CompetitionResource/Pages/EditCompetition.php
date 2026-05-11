@@ -91,7 +91,7 @@ class EditCompetition extends EditRecord
         if ($newStatus === 'open' && $this->record->status !== 'open') {
             $unscheduled = $this->record->allDivisions()
                 ->whereNull('divisions.location_label')
-                ->where('divisions.status', '!=', 'cancelled')
+                ->whereNotIn('divisions.status', ['combined'])
                 ->count();
 
             if ($unscheduled > 0) {

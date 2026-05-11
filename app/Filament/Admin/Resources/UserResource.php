@@ -4,6 +4,9 @@ namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\UserResource\Pages;
 use App\Models\User;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
@@ -11,6 +14,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -27,12 +31,103 @@ class UserResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(['system_admin', 'admin']);
+        return auth()->user()?->hasRole(['system_admin', 'competition_administrator']);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasRole('system_admin');
     }
 
     public static function form(Form $form): Form
     {
-        return $form->schema([]);
+        return $form->schema([
+            Section::make('Account')
+                ->columns(2)
+                ->schema([
+                    TextInput::make('email')
+                        ->email()
+                        ->required()
+                        ->unique(ignoreRecord: true)
+                        ->maxLength(255),
+
+                    Select::make('status')
+                        ->options([
+                            'active'   => 'Active',
+                            'pending'  => 'Pending approval',
+                            'inactive' => 'Inactive',
+                        ])
+                        ->required()
+                        ->default('active'),
+                ]),
+
+            Section::make('Password')
+                ->hiddenOn('edit')
+                ->schema([
+                    TextInput::make('password')
+                        ->password()
+                        ->required()
+                        ->minLength(8)
+                        ->confirmed()
+                        ->dehydrated(fn ($state) => filled($state))
+                        ->dehydrateStateUsing(fn ($state) => Hash::make($state)),
+
+                    TextInput::make('password_confirmation')
+                        ->password()
+                        ->required()
+                        ->label('Confirm password')
+                        ->dehydrated(false),
+                ]),
+
+            Section::make('Role')
+                ->hiddenOn('edit')
+                ->schema([
+                    Radio::make('role')
+                        ->options([
+                            'user'                      => 'User',
+                            'competition_official'      => 'Competition Official',
+                            'competition_administrator' => 'Competition Administrator',
+                            'system_admin'              => 'System Administrator',
+                        ])
+                        ->descriptions([
+                            'user'                      => 'Can enrol in competitions and view their own results.',
+                            'competition_official'      => 'Can manage scheduling, check-in, and scoring.',
+                            'competition_administrator' => 'Full access to competitions, events, and divisions.',
+                            'system_admin'              => 'Full access including user management and system settings.',
+                        ])
+                        ->required()
+                        ->default('user'),
+                ]),
+
+            Section::make('Profile')
+                ->columns(2)
+                ->schema([
+                    TextInput::make('profile_first_name')
+                        ->label('First name')
+                        ->required()
+                        ->maxLength(100),
+
+                    TextInput::make('profile_surname')
+                        ->label('Surname')
+                        ->required()
+                        ->maxLength(100),
+
+                    DatePicker::make('profile_date_of_birth')
+                        ->label('Date of birth')
+                        ->required(),
+
+                    Radio::make('profile_gender')
+                        ->label('Gender')
+                        ->options(['M' => 'Male', 'F' => 'Female'])
+                        ->required()
+                        ->inline(),
+
+                    TextInput::make('profile_phone')
+                        ->label('Phone')
+                        ->tel()
+                        ->maxLength(30),
+                ]),
+        ]);
     }
 
     public static function table(Table $table): Table
@@ -40,9 +135,11 @@ class UserResource extends Resource
         return $table
             ->modifyQueryUsing(fn ($query) => $query->with(['socialAccounts', 'roles', 'competitorProfile']))
             ->columns([
-                TextColumn::make('name')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('full_name')
+                    ->label('Name')
+                    ->getStateUsing(fn (User $record) => trim($record->competitorProfile?->first_name . ' ' . $record->competitorProfile?->surname) ?: null)
+                    ->placeholder('—')
+                    ->searchable(query: fn ($query, $search) => $query->whereHas('competitorProfile', fn ($q) => $q->where('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"))),
 
                 TextColumn::make('email')
                     ->searchable()
@@ -51,12 +148,19 @@ class UserResource extends Resource
                 TextColumn::make('roles.name')
                     ->label('Role')
                     ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'system_admin'              => 'System Administrator',
+                        'competition_administrator' => 'Competition Administrator',
+                        'competition_official'      => 'Competition Official',
+                        'user'                      => 'User',
+                        default                     => $state,
+                    })
                     ->color(fn (string $state) => match ($state) {
-                        'system_admin' => 'danger',
-                        'admin'        => 'warning',
-                        'contributor'  => 'info',
-                        'competitor'   => 'gray',
-                        default        => 'gray',
+                        'system_admin'              => 'danger',
+                        'competition_administrator' => 'warning',
+                        'competition_official'      => 'info',
+                        'user'                      => 'gray',
+                        default                     => 'gray',
                     }),
 
                 TextColumn::make('status')
@@ -66,6 +170,16 @@ class UserResource extends Resource
                         'pending'  => 'warning',
                         'inactive' => 'danger',
                         default    => 'gray',
+                    }),
+
+                TextColumn::make('profile_status')
+                    ->label('Profile')
+                    ->getStateUsing(fn (User $record) => $record->competitorProfile?->profile_complete ? 'Complete' : ($record->competitorProfile ? 'Incomplete' : 'None'))
+                    ->badge()
+                    ->color(fn (string $state) => match ($state) {
+                        'Complete'   => 'success',
+                        'Incomplete' => 'warning',
+                        'None'       => 'gray',
                     }),
 
                 TextColumn::make('auth_type')
@@ -103,10 +217,10 @@ class UserResource extends Resource
                 SelectFilter::make('role')
                     ->label('Role')
                     ->options([
-                        'competitor'   => 'Competitor',
-                        'contributor'  => 'Contributor',
-                        'admin'        => 'Admin',
-                        'system_admin' => 'System Admin',
+                        'user'                      => 'User',
+                        'competition_official'      => 'Competition Official',
+                        'competition_administrator' => 'Competition Administrator',
+                        'system_admin'              => 'System Administrator',
                     ])
                     ->query(fn ($query, $data) => $data['value']
                         ? $query->role($data['value'])
@@ -115,6 +229,8 @@ class UserResource extends Resource
             ])
             ->actions([
                 ActionGroup::make([
+                    EditAction::make(),
+
                     Action::make('approve')
                         ->label('Approve')
                         ->icon('heroicon-o-check-circle')
@@ -122,8 +238,8 @@ class UserResource extends Resource
                         ->visible(fn (User $record) => $record->status === 'pending')
                         ->action(function (User $record) {
                             $record->update(['status' => 'active']);
-                            if (! $record->hasAnyRole(['admin', 'system_admin', 'contributor'])) {
-                                $record->assignRole('competitor');
+                            if (! $record->hasAnyRole(['competition_administrator', 'system_admin', 'competition_official'])) {
+                                $record->assignRole('user');
                             }
                             Notification::make()->title('User approved.')->success()->send();
                         }),
@@ -172,13 +288,19 @@ class UserResource extends Resource
                         ->icon('heroicon-o-shield-check')
                         ->color('warning')
                         ->form([
-                            Select::make('role')
+                            Radio::make('role')
                                 ->label('Role')
                                 ->options([
-                                    'competitor'   => 'Competitor',
-                                    'contributor'  => 'Contributor',
-                                    'admin'        => 'Admin',
-                                    'system_admin' => 'System Admin',
+                                    'user'                      => 'User',
+                                    'competition_official'      => 'Competition Official',
+                                    'competition_administrator' => 'Competition Administrator',
+                                    'system_admin'              => 'System Administrator',
+                                ])
+                                ->descriptions([
+                                    'user'                      => 'Can enrol in competitions and view their own results.',
+                                    'competition_official'      => 'Can manage scheduling, check-in, and scoring.',
+                                    'competition_administrator' => 'Full access to competitions, events, and divisions.',
+                                    'system_admin'              => 'Full access including user management and system settings.',
                                 ])
                                 ->required(),
                         ])
@@ -238,7 +360,9 @@ class UserResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListUsers::route('/'),
+            'index'  => Pages\ListUsers::route('/'),
+            'create' => Pages\CreateUser::route('/create'),
+            'edit'   => Pages\EditUser::route('/{record}/edit'),
         ];
     }
 }

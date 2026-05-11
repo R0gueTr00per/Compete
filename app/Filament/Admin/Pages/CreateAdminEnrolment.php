@@ -112,7 +112,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->label('Select existing competitor')
                         ->options(
                             User::with('competitorProfile')
-                                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['competitor']))
+                                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['user']))
                                 ->orWhereDoesntHave('roles')
                                 ->get()
                                 ->mapWithKeys(fn ($u) => [
@@ -493,7 +493,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                 'email_verified_at' => now(),
                 'status'            => 'active',
             ]);
-            $newUser->assignRole('competitor');
+            $newUser->assignRole('user');
 
             CompetitorProfile::create([
                 'user_id'          => $newUser->id,

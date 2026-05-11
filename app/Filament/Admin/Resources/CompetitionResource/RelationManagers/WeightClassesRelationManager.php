@@ -33,10 +33,6 @@ class WeightClassesRelationManager extends RelationManager
                 ->nullable()
                 ->suffix('kg')
                 ->helperText('Leave blank for the open/heavyweight class.'),
-
-            TextInput::make('sort_order')
-                ->numeric()
-                ->default(0),
         ]);
     }
 
@@ -45,7 +41,6 @@ class WeightClassesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('label')
             ->columns([
-                TextColumn::make('sort_order')->label('#')->sortable(),
                 TextColumn::make('full_label')->label('Name'),
             ])
             ->defaultSort('sort_order')
@@ -53,6 +48,10 @@ class WeightClassesRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $data['sort_order'] = (WeightClass::where('competition_id', $this->getOwnerRecord()->id)->max('sort_order') ?? 0) + 1;
+                        return $data;
+                    })
                     ->before(function (array $data, $action) {
                         if ($error = $this->duplicateError($data)) {
                             Notification::make()->danger()->title('Duplicate weight class')->body($error)->send();

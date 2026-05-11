@@ -103,6 +103,6 @@ class CompetitionEvent extends Model
 
     public function isTournament(): bool
     {
-        return in_array($this->effectiveTournamentFormat(), ['round_robin', 'single_elimination', 'double_elimination', 'repechage']);
+        return in_array($this->effectiveTournamentFormat(), ['round_robin', 'single_elimination', 'double_elimination', 'repechage', 'se_3rd_place']);
     }
 }

@@ -70,7 +70,7 @@ class TestEnrolmentSeeder extends Seeder
         $this->command->info('Cleared existing enrolments.');
 
         // All competitors with complete profiles
-        $competitors = User::role('competitor')
+        $competitors = User::role('user')
             ->whereHas('competitorProfile', fn ($q) => $q->where('profile_complete', true))
             ->with('competitorProfile')
             ->get();

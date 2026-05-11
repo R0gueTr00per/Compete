@@ -51,12 +51,12 @@ class Division extends Model
             // Status transitions driven by location assignment
             if ($division->isDirty('location_label')) {
                 if ($division->location_label) {
-                    if (in_array($division->status, ['pending', 'cancelled'])) {
+                    if ($division->status === 'pending') {
                         $division->status = 'assigned';
                     }
                 } else {
                     if ($division->status === 'assigned') {
-                        $division->status = 'cancelled';
+                        $division->status = 'pending';
                     }
                 }
             }

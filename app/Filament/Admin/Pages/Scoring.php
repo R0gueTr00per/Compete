@@ -37,6 +37,7 @@ class Scoring extends Page
     public array $tiebreakerJudgeInputs = [];
     public array $rollcallPresent       = [];
     public bool  $rollcallMode          = false;
+    public bool  $bracketExists         = false;
 
     public function mount(): void
     {
@@ -84,8 +85,8 @@ class Scoring extends Page
         )
         ->with(['competitionEvent'])
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
-        ->whereIn('status', ['pending', 'assigned', 'running', 'complete', 'cancelled'])
-        ->orderByRaw("CASE status WHEN 'running' THEN 0 WHEN 'assigned' THEN 1 WHEN 'pending' THEN 2 WHEN 'complete' THEN 3 WHEN 'cancelled' THEN 4 ELSE 5 END")
+        ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
+        ->orderByRaw("CASE status WHEN 'running' THEN 0 WHEN 'assigned' THEN 1 WHEN 'pending' THEN 2 WHEN 'complete' THEN 3 ELSE 4 END")
         ->orderBy('code');
 
         return $query->get()->map(function (Division $div) {
@@ -103,12 +104,28 @@ class Scoring extends Page
 
     public function selectDivision(int $divisionId): void
     {
-        $this->division_id      = ($this->division_id === $divisionId) ? null : $divisionId;
+        if ($this->division_id !== null) {
+            return;
+        }
+
+        $this->division_id      = $divisionId;
         $this->judgeScores      = [];
         $this->pointsInput      = [];
         $this->placementInput   = [];
         $this->rollcallPresent  = [];
         $this->rollcallMode     = true;
+        $this->bracketExists    = RoundRobinMatch::where('division_id', $divisionId)->exists();
+    }
+
+    public function deselectDivision(): void
+    {
+        $this->division_id      = null;
+        $this->judgeScores      = [];
+        $this->pointsInput      = [];
+        $this->placementInput   = [];
+        $this->rollcallPresent  = [];
+        $this->rollcallMode     = true;
+        $this->bracketExists    = false;
     }
 
     public function toggleRollcallPresent(int $eeId): void
@@ -248,12 +265,41 @@ class Scoring extends Page
 
     public function isTournament(): bool
     {
-        return in_array($this->getTournamentFormat(), ['round_robin', 'single_elimination', 'double_elimination', 'repechage']);
+        return in_array($this->getTournamentFormat(), ['round_robin', 'single_elimination', 'double_elimination', 'repechage', 'se_3rd_place']);
     }
 
     public function isRoundRobin(): bool
     {
         return $this->getTournamentFormat() === 'round_robin';
+    }
+
+    public function isScoringComplete(): bool
+    {
+        if (! $this->division_id || $this->rollcallMode) return false;
+
+        if ($this->isTournament()) {
+            if (! $this->bracketExists) return false;
+            $pending = RoundRobinMatch::where('division_id', $this->division_id)
+                ->whereNotNull('away_enrolment_event_id')
+                ->whereNull('home_result')
+                ->count();
+            return $pending === 0
+                && RoundRobinMatch::where('division_id', $this->division_id)
+                    ->whereNotNull('home_result')
+                    ->exists();
+        }
+
+        $method = $this->getScoringMethod();
+        $rows   = $this->getCompetitorRows();
+
+        if ($rows->isEmpty()) return false;
+
+        return $rows->every(fn ($row) => $row->result->disqualified || match ($method) {
+            'judges_total', 'judges_average' => $row->result->total_score !== null,
+            'win_loss'                       => $row->result->win_loss !== null,
+            'first_to_n'                     => $row->result->total_score !== null,
+            default                          => true,
+        });
     }
 
     public function getTournamentFormat(): ?string
@@ -287,6 +333,7 @@ class Scoring extends Page
 
         app(BracketService::class)->generate($this->getSelectedDivision(), $competitors);
 
+        $this->bracketExists = true;
         Notification::make()->success()->title("Bracket generated for {$n} competitors.")->send();
     }
 
@@ -309,54 +356,84 @@ class Scoring extends Page
         $match = RoundRobinMatch::find($matchId);
         if (! $match || $match->division_id !== $this->division_id) return;
 
-        // For repechage format, clearing any WB result invalidates the repechage bracket
-        // (finalists may change), so delete the whole repechage bracket now.
+        $format = $this->getTournamentFormat();
+        $winner = $match->winnerId();
+        $loser  = $match->loserId();
+
         if ($match->bracket === 'winners') {
-            $div = Division::with('competitionEvent')->find($match->division_id);
-            if ($div?->competitionEvent->effectiveTournamentFormat() === 'repechage') {
+            // Clearing any WB result invalidates the repechage / 3rd-place bracket
+            if (in_array($format, ['repechage', 'se_3rd_place'])) {
                 RoundRobinMatch::where('division_id', $this->division_id)
                     ->where('bracket', 'repechage')
                     ->delete();
             }
-        }
 
-        // Remove any matches created by this result's advancement
-        $winner = $match->winnerId();
-        if ($winner) {
-            $nextSlot  = (int) ceil($match->bracket_slot / 2);
-            $nextRound = $match->round + 1;
+            if ($winner) {
+                // Remove winner from next WB match
+                $this->clearCompetitorFromSlot($winner, $match->round + 1, 'winners', (int) ceil($match->bracket_slot / 2));
 
-            // Clear the winner from the next match
-            $next = RoundRobinMatch::where('division_id', $this->division_id)
-                ->where('round', $nextRound)
-                ->where('bracket', $match->bracket)
-                ->where('bracket_slot', $nextSlot)
-                ->first();
-
-            if ($next) {
-                if ($next->home_enrolment_event_id === $winner) {
-                    $next->update(['home_enrolment_event_id' => null]);
-                } elseif ($next->away_enrolment_event_id === $winner) {
-                    $next->update(['away_enrolment_event_id' => null]);
+                // DE: remove the loser from the LB slot they were sent to
+                if ($format === 'double_elimination' && $loser) {
+                    [$lbRound, $lbSlot] = $match->round === 1
+                        ? [1, (int) ceil($match->bracket_slot / 2)]
+                        : [2 * ($match->round - 1), $match->bracket_slot];
+                    $this->clearCompetitorFromSlot($loser, $lbRound, 'losers', $lbSlot);
                 }
-                // Delete the next match if both slots are now empty
-                $next->refresh();
-                if ($next->home_enrolment_event_id === null && $next->away_enrolment_event_id === null) {
-                    $next->delete();
-                }
+
+                // Delete any grand final referencing this winner
+                RoundRobinMatch::where('division_id', $this->division_id)
+                    ->where('bracket', 'grand_final')
+                    ->where(fn ($q) => $q->where('home_enrolment_event_id', $winner)
+                        ->orWhere('away_enrolment_event_id', $winner))
+                    ->delete();
             }
+        } elseif ($match->bracket === 'losers') {
+            if ($winner) {
+                // LB slot formula: odd rounds keep slot, even rounds merge (ceil)
+                $nextSlot = ($match->round % 2 === 1)
+                    ? $match->bracket_slot
+                    : (int) ceil($match->bracket_slot / 2);
+                $this->clearCompetitorFromSlot($winner, $match->round + 1, 'losers', $nextSlot);
 
-            // Delete any grand final that referenced this winner
-            RoundRobinMatch::where('division_id', $this->division_id)
-                ->where('bracket', 'grand_final')
-                ->where(fn ($q) => $q->where('home_enrolment_event_id', $winner)
-                    ->orWhere('away_enrolment_event_id', $winner))
-                ->delete();
+                RoundRobinMatch::where('division_id', $this->division_id)
+                    ->where('bracket', 'grand_final')
+                    ->where(fn ($q) => $q->where('home_enrolment_event_id', $winner)
+                        ->orWhere('away_enrolment_event_id', $winner))
+                    ->delete();
+            }
+        } elseif ($match->bracket === 'repechage') {
+            if ($winner) {
+                // Repechage is a mini SE bracket
+                $this->clearCompetitorFromSlot($winner, $match->round + 1, 'repechage', (int) ceil($match->bracket_slot / 2));
+            }
         }
+        // grand_final: no downstream — just clear the result below
 
         $match->update(['home_result' => null]);
         $this->applyBracketPlacements();
         Notification::make()->success()->title('Result cleared.')->send();
+    }
+
+    private function clearCompetitorFromSlot(int $eeId, int $round, string $bracket, int $slot): void
+    {
+        $match = RoundRobinMatch::where('division_id', $this->division_id)
+            ->where('round', $round)
+            ->where('bracket', $bracket)
+            ->where('bracket_slot', $slot)
+            ->first();
+
+        if (! $match) return;
+
+        if ($match->home_enrolment_event_id === $eeId) {
+            $match->update(['home_enrolment_event_id' => null]);
+        } elseif ($match->away_enrolment_event_id === $eeId) {
+            $match->update(['away_enrolment_event_id' => null]);
+        }
+
+        $match->refresh();
+        if ($match->home_enrolment_event_id === null && $match->away_enrolment_event_id === null) {
+            $match->delete();
+        }
     }
 
     public function resetBracket(): void
@@ -364,6 +441,7 @@ class Scoring extends Page
         if (! $this->division_id) return;
 
         RoundRobinMatch::where('division_id', $this->division_id)->delete();
+        $this->bracketExists = false;
         Notification::make()->success()->title('Bracket cleared.')->send();
     }
 
@@ -404,6 +482,23 @@ class Scoring extends Page
                 $this->setBracketPlacement((int) $eeId, $rank, $service);
                 $prevWins = $wins;
                 $countAtRank++;
+            }
+            return;
+        } elseif ($format === 'se_3rd_place') {
+            $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
+            $wbFinal      = $matches->where('bracket', 'winners')->where('round', $wbFinalRound)->first();
+            if ($wbFinal?->winnerId()) {
+                $this->setBracketPlacement($wbFinal->winnerId(), 1, $service);
+                if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service);
+            }
+            // 3rd: winner of 3rd-place match; fall back to lone semi-final loser if no match was created
+            $repFinal = $matches->where('bracket', 'repechage')->sortByDesc('round')->first();
+            if ($repFinal?->winnerId()) {
+                $this->setBracketPlacement($repFinal->winnerId(), 3, $service);
+            } elseif ($wbFinalRound >= 2) {
+                foreach ($matches->where('bracket', 'winners')->where('round', $wbFinalRound - 1) as $semi) {
+                    if ($semi->loserId()) $this->setBracketPlacement($semi->loserId(), 3, $service);
+                }
             }
             return;
         } elseif ($format === 'double_elimination') {
@@ -649,6 +744,14 @@ class Scoring extends Page
         if (! $this->division_id) return;
 
         if ($this->isTournament()) {
+            if (! $this->bracketExists) {
+                Notification::make()
+                    ->warning()
+                    ->title('Cannot complete — bracket has not been generated yet.')
+                    ->send();
+                return;
+            }
+
             // All non-bye bracket matches must have a result
             $pending = RoundRobinMatch::where('division_id', $this->division_id)
                 ->whereNotNull('away_enrolment_event_id')
@@ -689,21 +792,25 @@ class Scoring extends Page
                         ->send();
                     return;
                 }
+            } elseif ($method === 'first_to_n') {
+                $missing = $this->getCompetitorRows()
+                    ->filter(fn ($row) => ! $row->result->disqualified && $row->result->total_score === null)
+                    ->count();
+
+                if ($missing > 0) {
+                    Notification::make()
+                        ->warning()
+                        ->title("Cannot complete — {$missing} competitor(s) have no points recorded.")
+                        ->send();
+                    return;
+                }
             }
         }
 
         Division::find($this->division_id)?->update(['status' => 'complete']);
-        $this->division_id = null;
+        $this->division_id   = null;
+        $this->bracketExists = false;
         Notification::make()->title('Division marked complete.')->success()->send();
-    }
-
-    public function cancelDivision(): void
-    {
-        if (! $this->division_id) return;
-
-        Division::find($this->division_id)?->update(['status' => 'cancelled']);
-        $this->division_id = null;
-        Notification::make()->title('Division cancelled.')->warning()->send();
     }
 
     public function updatedCompetitionId(): void

@@ -7,6 +7,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Actions\CreateAction;
 use Filament\Tables\Actions\DeleteAction;
@@ -37,6 +38,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         'single_elimination' => 'Single elimination bracket',
                         'double_elimination' => 'Double elimination bracket',
                         'repechage'          => 'Single elimination with repechage',
+                        'se_3rd_place'       => 'Single elimination with 3rd place playoff',
                     ])
                     ->default('once_off')
                     ->required()
@@ -50,18 +52,21 @@ class CompetitionEventsRelationManager extends RelationManager
                         'first_to_n'     => 'First to N points',
                         'win_loss'       => 'Win / Loss',
                     ])
-                    ->required(),
+                    ->required()
+                    ->live(),
 
                 TextInput::make('judge_count')
                     ->label('Number of judges')
                     ->numeric()
                     ->default(0)
-                    ->nullable(),
+                    ->nullable()
+                    ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average'])),
 
                 TextInput::make('target_score')
                     ->label('Target score (first-to-N)')
                     ->numeric()
-                    ->nullable(),
+                    ->nullable()
+                    ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n'),
             ]),
         ]);
     }
@@ -84,6 +89,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         'single_elimination' => 'Single elim',
                         'double_elimination' => 'Double elim',
                         'repechage'          => 'Repechage',
+                        'se_3rd_place'       => 'SE + 3rd place',
                         default              => 'Single perf',
                     })
                     ->color(fn (?string $state) => match ($state) {
@@ -91,6 +97,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         'single_elimination' => 'warning',
                         'double_elimination' => 'danger',
                         'repechage'          => 'primary',
+                        'se_3rd_place'       => 'success',
                         default              => 'gray',
                     }),
 

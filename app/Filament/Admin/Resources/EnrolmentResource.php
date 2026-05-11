@@ -43,10 +43,10 @@ class EnrolmentResource extends Resource
             ->modifyQueryUsing(fn ($query) => $query->with('competitor.competitorProfile'))
             ->header(view('filament.admin.partials.enrolment-competition-header'))
             ->columns([
-                TextColumn::make('competitor.name')
+                TextColumn::make('competitor_name')
                     ->label('Competitor')
-                    ->searchable()
-                    ->sortable(),
+                    ->getStateUsing(fn (Enrolment $record) => trim($record->competitor?->competitorProfile?->first_name . ' ' . $record->competitor?->competitorProfile?->surname) ?: $record->competitor?->email)
+                    ->searchable(query: fn ($query, $search) => $query->whereHas('competitor.competitorProfile', fn ($q) => $q->where('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"))),
 
                 TextColumn::make('age')
                     ->label('Age')

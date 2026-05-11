@@ -8,8 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Add plain index first so MySQL still has a supporting index for the division_id FK
         Schema::table('round_robin_matches', function (Blueprint $table) {
-            // Drop unique constraint — competitors can appear in multiple rounds
+            $table->index('division_id', 'rrm_division_idx');
+        });
+
+        Schema::table('round_robin_matches', function (Blueprint $table) {
             $table->dropUnique('rrm_unique_pairing');
 
             // Make away nullable to support byes

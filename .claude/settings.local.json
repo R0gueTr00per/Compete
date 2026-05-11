@@ -108,7 +108,8 @@
       "Bash(grep -r \"version\\\\|v\\\\\\\\..*config.*version\" resources/views/ --include=\"*.blade.php\")",
       "Bash(uvx mcp-atlassian *)",
       "PowerShell(uvx mcp-atlassian --help 2>&1)",
-      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.local\\\\bin\\\\uvx.exe\", \"$env:APPDATA\\\\uv\\\\bin\\\\uvx.exe\", \"C:\\\\Users\\\\Brad\\\\.local\\\\bin\\\\uvx.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)"
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.local\\\\bin\\\\uvx.exe\", \"$env:APPDATA\\\\uv\\\\bin\\\\uvx.exe\", \"C:\\\\Users\\\\Brad\\\\.local\\\\bin\\\\uvx.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "Bash(xargs grep -l \"competitor\\\\|contributor\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"
