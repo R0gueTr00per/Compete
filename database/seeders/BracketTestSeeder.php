@@ -74,7 +74,7 @@ class BracketTestSeeder extends Seeder
                 'scoring_method'        => 'win_loss',
                 'division_filter'       => 'age_rank_sex',
                 'requires_partner'      => false,
-                'requires_weight_check' => false,
+
                 'judge_count'           => 0,
                 'status'                => 'running',
                 'running_order'         => 99,

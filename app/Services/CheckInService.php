@@ -84,7 +84,7 @@ class CheckInService
     public function revertWeight(Enrolment $enrolment): void
     {
         $enrolment->activeEvents()
-            ->whereHas('competitionEvent', fn ($q) => $q->where('requires_weight_check', true))
+            ->whereHas('competitionEvent', fn ($q) => $q->whereHas('divisions', fn ($q) => $q->whereNotNull('weight_class_id')))
             ->update(['weight_confirmed_kg' => null]);
     }
 }

@@ -84,13 +84,13 @@ class LfpRound1Seeder extends Seeder
         // --- Competition events ---
         $events = [];
         foreach ([
-            ['name' => 'Kata',                'event_code' => 'KA', 'order' => 1, 'location' => 'Mat 1', 'scoring_method' => 'judges_total', 'tournament_format' => 'once_off',           'division_filter' => 'age_rank',     'judge_count' => 3, 'target_score' => null, 'requires_partner' => false, 'requires_weight_check' => false],
-            ['name' => 'Tile Breaking',       'event_code' => 'TB', 'order' => 2, 'location' => 'Mat 1', 'scoring_method' => 'judges_total', 'tournament_format' => 'once_off',           'division_filter' => 'age_rank',     'judge_count' => 3, 'target_score' => null, 'requires_partner' => false, 'requires_weight_check' => false],
-            ['name' => 'Yakusuko',            'event_code' => 'YA', 'order' => 3, 'location' => 'Mat 2', 'scoring_method' => 'judges_total', 'tournament_format' => 'once_off',           'division_filter' => 'age_only',     'judge_count' => 3, 'target_score' => null, 'requires_partner' => true,  'requires_weight_check' => false],
-            ['name' => 'Semi Contact',        'event_code' => 'SC', 'order' => 4, 'location' => 'Mat 2', 'scoring_method' => 'win_loss',     'tournament_format' => 'single_elimination', 'division_filter' => 'age_sex',      'judge_count' => 0, 'target_score' => null, 'requires_partner' => false, 'requires_weight_check' => true],
-            ['name' => 'Point Sparring',      'event_code' => 'PS', 'order' => 5, 'location' => 'Mat 3', 'scoring_method' => 'first_to_n',   'tournament_format' => 'single_elimination', 'division_filter' => 'age_rank_sex', 'judge_count' => 0, 'target_score' => 5,    'requires_partner' => false, 'requires_weight_check' => false],
-            ['name' => 'Continuous Sparring', 'event_code' => 'CS', 'order' => 6, 'location' => 'Mat 3', 'scoring_method' => 'win_loss',     'tournament_format' => 'single_elimination', 'division_filter' => 'age_rank_sex', 'judge_count' => 0, 'target_score' => null, 'requires_partner' => false, 'requires_weight_check' => false],
-            ['name' => 'Sumo',                'event_code' => 'SW', 'order' => 7, 'location' => 'Mat 4', 'scoring_method' => 'win_loss',     'tournament_format' => 'single_elimination', 'division_filter' => 'weight_sex',   'judge_count' => 0, 'target_score' => null, 'requires_partner' => false, 'requires_weight_check' => true],
+            ['name' => 'Kata',                'event_code' => 'KA', 'order' => 1, 'location' => 'Mat 1', 'scoring_method' => 'judges_total', 'tournament_format' => 'once_off',           'division_filter' => 'age_rank',     'judge_count' => 3, 'target_score' => null, 'requires_partner' => false],
+            ['name' => 'Tile Breaking',       'event_code' => 'TB', 'order' => 2, 'location' => 'Mat 1', 'scoring_method' => 'judges_total', 'tournament_format' => 'once_off',           'division_filter' => 'age_rank',     'judge_count' => 3, 'target_score' => null, 'requires_partner' => false],
+            ['name' => 'Yakusuko',            'event_code' => 'YA', 'order' => 3, 'location' => 'Mat 2', 'scoring_method' => 'judges_total', 'tournament_format' => 'once_off',           'division_filter' => 'age_only',     'judge_count' => 3, 'target_score' => null, 'requires_partner' => true],
+            ['name' => 'Semi Contact',        'event_code' => 'SC', 'order' => 4, 'location' => 'Mat 2', 'scoring_method' => 'win_loss',     'tournament_format' => 'single_elimination', 'division_filter' => 'age_sex',      'judge_count' => 0, 'target_score' => null, 'requires_partner' => false],
+            ['name' => 'Point Sparring',      'event_code' => 'PS', 'order' => 5, 'location' => 'Mat 3', 'scoring_method' => 'first_to_n',   'tournament_format' => 'single_elimination', 'division_filter' => 'age_rank_sex', 'judge_count' => 0, 'target_score' => 5,    'requires_partner' => false],
+            ['name' => 'Continuous Sparring', 'event_code' => 'CS', 'order' => 6, 'location' => 'Mat 3', 'scoring_method' => 'win_loss',     'tournament_format' => 'single_elimination', 'division_filter' => 'age_rank_sex', 'judge_count' => 0, 'target_score' => null, 'requires_partner' => false],
+            ['name' => 'Sumo',                'event_code' => 'SW', 'order' => 7, 'location' => 'Mat 4', 'scoring_method' => 'win_loss',     'tournament_format' => 'single_elimination', 'division_filter' => 'weight_sex',   'judge_count' => 0, 'target_score' => null, 'requires_partner' => false],
         ] as $cfg) {
             $events[$cfg['name']] = CompetitionEvent::updateOrCreate(
                 ['competition_id' => $competition->id, 'name' => $cfg['name']],
@@ -104,7 +104,6 @@ class LfpRound1Seeder extends Seeder
                     'judge_count'           => $cfg['judge_count'],
                     'target_score'          => $cfg['target_score'],
                     'requires_partner'      => $cfg['requires_partner'],
-                    'requires_weight_check' => $cfg['requires_weight_check'],
                     'status'                => 'scheduled',
                 ]
             );

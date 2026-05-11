@@ -15,7 +15,7 @@ class EventTypeSeeder extends Seeder
                 'scoring_method' => 'judges_total',
                 'division_filter' => 'age_rank',
                 'requires_partner' => false,
-                'requires_weight_check' => false,
+
                 'default_target_score' => null,
                 'judge_count' => 3,
             ],
@@ -24,7 +24,7 @@ class EventTypeSeeder extends Seeder
                 'scoring_method' => 'judges_total',
                 'division_filter' => 'age_rank',
                 'requires_partner' => false,
-                'requires_weight_check' => false,
+
                 'default_target_score' => null,
                 'judge_count' => 3,
             ],
@@ -33,7 +33,7 @@ class EventTypeSeeder extends Seeder
                 'scoring_method' => 'judges_total',
                 'division_filter' => 'age_only',
                 'requires_partner' => true,
-                'requires_weight_check' => false,
+
                 'default_target_score' => null,
                 'judge_count' => 3,
             ],
@@ -42,7 +42,7 @@ class EventTypeSeeder extends Seeder
                 'scoring_method' => 'win_loss',
                 'division_filter' => 'age_sex',
                 'requires_partner' => false,
-                'requires_weight_check' => true,
+
                 'default_target_score' => null,
                 'judge_count' => 0,
             ],
@@ -51,7 +51,7 @@ class EventTypeSeeder extends Seeder
                 'scoring_method' => 'first_to_n',
                 'division_filter' => 'age_rank_sex',
                 'requires_partner' => false,
-                'requires_weight_check' => false,
+
                 'default_target_score' => 5,
                 'judge_count' => 0,
             ],
@@ -60,7 +60,7 @@ class EventTypeSeeder extends Seeder
                 'scoring_method' => 'win_loss',
                 'division_filter' => 'age_rank_sex',
                 'requires_partner' => false,
-                'requires_weight_check' => false,
+
                 'default_target_score' => null,
                 'judge_count' => 0,
             ],
@@ -69,7 +69,7 @@ class EventTypeSeeder extends Seeder
                 'scoring_method' => 'first_to_n',
                 'division_filter' => 'weight_sex',
                 'requires_partner' => false,
-                'requires_weight_check' => true,
+
                 'default_target_score' => 5,
                 'judge_count' => 0,
             ],

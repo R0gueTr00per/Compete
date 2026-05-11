@@ -9,12 +9,13 @@ use App\Filament\Admin\Resources\CompetitionResource\RelationManagers\RankBandsR
 use App\Filament\Admin\Resources\CompetitionResource\RelationManagers\WeightClassesRelationManager;
 use App\Models\Division;
 use Filament\Actions\Action;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class EditCompetition extends EditRecord
 {
     protected static string $resource = CompetitionResource::class;
+
+    public bool $confirmedStatusChange = false;
 
     public function getRelationManagers(): array
     {
@@ -88,23 +89,33 @@ class EditCompetition extends EditRecord
 
         $newStatus = $this->data['status'] ?? null;
 
-        if ($newStatus === 'open' && $this->record->status !== 'open') {
+        if ($newStatus === 'open' && $this->record->status !== 'open' && ! $this->confirmedStatusChange) {
             $unscheduled = $this->record->allDivisions()
                 ->whereNull('divisions.location_label')
                 ->whereNotIn('divisions.status', ['combined'])
                 ->count();
 
             if ($unscheduled > 0) {
-                Notification::make()
-                    ->warning()
-                    ->title('Unscheduled divisions')
-                    ->body("{$unscheduled} division(s) have not been assigned to a location. Assign them in the Scheduling screen before opening for enrolment.")
-                    ->persistent()
-                    ->send();
-
+                $this->mountAction('confirmOpenWithUnscheduled', ['count' => $unscheduled]);
                 $this->halt();
             }
         }
+
+        $this->confirmedStatusChange = false;
+    }
+
+    public function confirmOpenWithUnscheduledAction(): Action
+    {
+        return Action::make('confirmOpenWithUnscheduled')
+            ->modalHeading('Unscheduled divisions')
+            ->modalDescription(fn (array $arguments) =>
+                "{$arguments['count']} division(s) have not been assigned to a location. Open for enrolment anyway?"
+            )
+            ->modalSubmitActionLabel('Open anyway')
+            ->action(function () {
+                $this->confirmedStatusChange = true;
+                $this->save();
+            });
     }
 
     protected function getRedirectUrl(): string

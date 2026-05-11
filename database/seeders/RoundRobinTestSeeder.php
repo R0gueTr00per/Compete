@@ -45,7 +45,7 @@ class RoundRobinTestSeeder extends Seeder
                 'tournament_format'     => 'round_robin',
                 'division_filter'       => 'age_sex',
                 'requires_partner'      => false,
-                'requires_weight_check' => false,
+
                 'judge_count'           => 0,
             ]
         );

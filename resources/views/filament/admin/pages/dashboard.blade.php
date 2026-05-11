@@ -20,9 +20,20 @@
                     <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400 mb-4">
                         <p>{{ $competition->enrolments_count }} enrolment{{ $competition->enrolments_count !== 1 ? 's' : '' }}</p>
                         <p>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                {{ $competition->status === 'running' ? 'bg-info-100 text-info-800 dark:bg-info-900 dark:text-info-200' : 'bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-200' }}">
-                                {{ ucfirst($competition->status) }}
+                            @php
+                            $badgeClass = match ($competition->status) {
+                                'running'  => 'bg-info-100 text-info-800 dark:bg-info-900 dark:text-info-200',
+                                'check_in' => 'bg-warning-100 text-warning-800 dark:bg-warning-900 dark:text-warning-200',
+                                'open'     => 'bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-200',
+                                default    => 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                            };
+                            $statusLabel = match ($competition->status) {
+                                'check_in' => 'Check-in',
+                                default    => ucfirst($competition->status),
+                            };
+                        @endphp
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $badgeClass }}">
+                                {{ $statusLabel }}
                             </span>
                         </p>
                     </div>
@@ -72,6 +83,26 @@
                         >
                             Scoring
                         </x-filament::button>
+
+                        @php
+                            $nextLabel = match ($competition->status) {
+                                'draft'    => 'Open Enrolments',
+                                'open'     => 'Close Enrolments',
+                                'closed'   => 'Begin Check-ins',
+                                'check_in' => 'Start Competition',
+                                'running'  => 'Conclude Competition',
+                                default    => null,
+                            };
+                        @endphp
+                        @if ($nextLabel)
+                            <x-filament::button
+                                size="sm"
+                                color="primary"
+                                x-on:click="$wire.mountAction('advanceStatus', {competitionId: {{ $competition->id }}})"
+                            >
+                                {{ $nextLabel }}
+                            </x-filament::button>
+                        @endif
                     </div>
                 </x-filament::section>
             @endforeach

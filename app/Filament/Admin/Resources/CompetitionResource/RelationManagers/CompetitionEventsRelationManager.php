@@ -30,6 +30,20 @@ class CompetitionEventsRelationManager extends RelationManager
                     ->maxLength(100)
                     ->columnSpanFull(),
 
+                Select::make('division_filter')
+                    ->label('Division filter')
+                    ->options([
+                        'age_rank_sex'  => 'Age + rank + sex',
+                        'age_sex'       => 'Age + sex',
+                        'age_rank'      => 'Age + rank',
+                        'age_only'      => 'Age only',
+                        'weight_sex'    => 'Weight + sex',
+                        'age_weight'    => 'Age + weight',
+                        'age_weight_sex' => 'Age + weight + sex',
+                    ])
+                    ->required()
+                    ->columnSpanFull(),
+
                 Select::make('tournament_format')
                     ->label('Tournament format')
                     ->options([

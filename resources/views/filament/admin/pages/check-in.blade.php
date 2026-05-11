@@ -31,7 +31,7 @@
 
     @if (! $this->competition_id)
         <p class="text-center text-gray-400 py-12">Select a competition to begin check-in.</p>
-    @elseif (! in_array(\App\Models\Competition::find($this->competition_id)?->status, ['closed', 'running']))
+    @elseif (! in_array(($competition = \App\Models\Competition::find($this->competition_id))?->status, ['closed', 'check_in', 'running']))
         <p class="text-center text-gray-400 py-12">Check-in is not available yet — enrolments are still open or competition has not closed.</p>
     @else
         @php $enrolments = $this->getEnrolments(); @endphp
@@ -49,7 +49,7 @@
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">Not checked in ({{ $notCheckedIn->count() }})</h2>
                 <div class="space-y-3 mb-8">
                     @foreach ($notCheckedIn as $enrolment)
-                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null])
+                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null, 'competitionStatus' => $competition->status])
                     @endforeach
                 </div>
             @endif
@@ -58,7 +58,7 @@
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-success-600 mb-3">Checked in ({{ $checkedIn->count() }})</h2>
                 <div class="space-y-3 mb-8">
                     @foreach ($checkedIn as $enrolment)
-                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null])
+                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null, 'competitionStatus' => $competition->status])
                     @endforeach
                 </div>
             @endif
@@ -67,7 +67,7 @@
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-danger-600 mb-3">Withdrawn ({{ $withdrawn->count() }})</h2>
                 <div class="space-y-3 mb-8">
                     @foreach ($withdrawn as $enrolment)
-                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null])
+                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null, 'competitionStatus' => $competition->status])
                     @endforeach
                 </div>
             @endif

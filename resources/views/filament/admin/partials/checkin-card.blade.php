@@ -1,6 +1,7 @@
 @php
     $profile            = $enrolment->competitor?->competitorProfile;
     $fullName           = $profile ? "{$profile->first_name} {$profile->surname}" : $enrolment->competitor?->name;
+    $competitionStatus  = $competitionStatus ?? null;
     $checkedIn          = $enrolment->checked_in;
     $needsWeight        = $enrolment->activeEvents->contains(fn ($ee) => $ee->competitionEvent->requires_weight_check);
     $weightDone         = $enrolment->activeEvents
@@ -43,9 +44,11 @@
                         <x-heroicon-s-check-circle class="w-4 h-4" />
                         {{ $enrolment->checked_in_at?->format('H:i') }}
                     </span>
-                    <x-filament::button size="xs" color="gray" wire:click="undoCheckIn({{ $enrolment->id }})">
-                        Undo
-                    </x-filament::button>
+                    @if ($competitionStatus !== 'running')
+                        <x-filament::button size="xs" color="gray" wire:click="undoCheckIn({{ $enrolment->id }})">
+                            Undo
+                        </x-filament::button>
+                    @endif
                 </div>
             @else
                 <x-filament::button size="sm" color="success" wire:click="checkIn({{ $enrolment->id }})">

@@ -220,7 +220,6 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                             'judge_count'          => $prevEvent->judge_count,
                             'target_score'         => $prevEvent->target_score,
                             'requires_partner'     => $prevEvent->requires_partner,
-                            'requires_weight_check' => $prevEvent->requires_weight_check,
                             'status'               => 'scheduled',
                         ]);
 

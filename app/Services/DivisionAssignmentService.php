@@ -287,7 +287,6 @@ class DivisionAssignmentService
                 'division_filter'      => $event->division_filter,
                 'judge_count'          => $event->judge_count,
                 'requires_partner'     => $event->requires_partner,
-                'requires_weight_check' => $event->requires_weight_check,
                 'status'               => 'scheduled',
             ]);
             $eventMap[$event->id] = $new->id;

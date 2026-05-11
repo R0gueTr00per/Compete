@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,16 +25,23 @@ class CompetitionEvent extends Model
         'target_score',
         'division_filter',
         'requires_partner',
-        'requires_weight_check',
         'status',
     ];
 
     protected function casts(): array
     {
         return [
-            'requires_partner'      => 'boolean',
-            'requires_weight_check' => 'boolean',
+            'requires_partner' => 'boolean',
         ];
+    }
+
+    protected function requiresWeightCheck(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => isset($this->attributes['has_weight_divisions'])
+                ? (bool) $this->attributes['has_weight_divisions']
+                : $this->divisions()->whereNotNull('weight_class_id')->exists(),
+        )->shouldCache();
     }
 
     protected static function booted(): void

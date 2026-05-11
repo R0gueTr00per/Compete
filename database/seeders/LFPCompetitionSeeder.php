@@ -95,7 +95,7 @@ class LFPCompetitionSeeder extends Seeder
             'division_filter'       => 'age_rank',
             'judge_count'           => 3,
             'requires_partner'      => false,
-            'requires_weight_check' => false,
+
             'status'                => 'scheduled',
             'running_order'         => 1,
         ]);
@@ -109,7 +109,7 @@ class LFPCompetitionSeeder extends Seeder
             'division_filter'       => 'age_rank',
             'judge_count'           => 3,
             'requires_partner'      => false,
-            'requires_weight_check' => false,
+
             'status'                => 'scheduled',
             'running_order'         => 2,
         ]);
@@ -123,7 +123,7 @@ class LFPCompetitionSeeder extends Seeder
             'division_filter'       => 'age_only',
             'judge_count'           => 3,
             'requires_partner'      => true,
-            'requires_weight_check' => false,
+
             'status'                => 'scheduled',
             'running_order'         => 3,
         ]);
@@ -137,7 +137,7 @@ class LFPCompetitionSeeder extends Seeder
             'division_filter'       => 'age_sex',
             'judge_count'           => 0,
             'requires_partner'      => false,
-            'requires_weight_check' => true,
+
             'status'                => 'scheduled',
             'running_order'         => 4,
         ]);
@@ -151,7 +151,7 @@ class LFPCompetitionSeeder extends Seeder
             'division_filter'       => 'age_rank_sex',
             'judge_count'           => 0,
             'requires_partner'      => false,
-            'requires_weight_check' => false,
+
             'status'                => 'scheduled',
             'running_order'         => 5,
         ]);
@@ -165,7 +165,7 @@ class LFPCompetitionSeeder extends Seeder
             'division_filter'       => 'age_rank_sex',
             'judge_count'           => 0,
             'requires_partner'      => false,
-            'requires_weight_check' => false,
+
             'status'                => 'scheduled',
             'running_order'         => 6,
         ]);
@@ -179,7 +179,7 @@ class LFPCompetitionSeeder extends Seeder
             'division_filter'       => 'weight_sex',
             'judge_count'           => 0,
             'requires_partner'      => false,
-            'requires_weight_check' => true,
+
             'status'                => 'scheduled',
             'running_order'         => 7,
         ]);

@@ -32,10 +32,10 @@ class CheckIn extends Page
 
         $today = now()->toDateString();
 
-        $competition = Competition::whereIn('status', ['open', 'running'])
+        $competition = Competition::whereIn('status', ['check_in', 'running'])
             ->where('competition_date', $today)
             ->first()
-            ?? Competition::whereIn('status', ['open', 'running'])
+            ?? Competition::whereIn('status', ['check_in', 'running'])
                 ->orderBy('competition_date')
                 ->first();
 
@@ -46,7 +46,7 @@ class CheckIn extends Page
 
     public function getCompetitions(): array
     {
-        return Competition::whereIn('status', ['open', 'running', 'closed'])
+        return Competition::whereIn('status', ['check_in', 'running'])
             ->orderBy('competition_date', 'desc')
             ->pluck('name', 'id')
             ->toArray();
@@ -61,8 +61,10 @@ class CheckIn extends Page
         $query = Enrolment::where('competition_id', $this->competition_id)
             ->with([
                 'competitor.competitorProfile',
-                'activeEvents.competitionEvent',
                 'activeEvents.division',
+                'activeEvents.competitionEvent' => fn ($q) => $q->withExists([
+                    'divisions as has_weight_divisions' => fn ($q) => $q->whereNotNull('weight_class_id'),
+                ]),
             ])
             ->whereHas('activeEvents');
 
@@ -105,6 +107,15 @@ class CheckIn extends Page
             return;
         }
 
+        $competition = Competition::find($this->competition_id);
+        if ($competition?->status === 'running') {
+            Notification::make()
+                ->title('Competition has begun')
+                ->body('This competitor is being checked in late — some events they were enrolled in may have been missed.')
+                ->warning()
+                ->send();
+        }
+
         app(CheckInService::class)->checkIn($enrolment);
         Notification::make()->title('Checked in.')->success()->send();
     }
@@ -131,6 +142,12 @@ class CheckIn extends Page
 
     public function undoCheckIn(int $enrolmentId): void
     {
+        $competition = Competition::find($this->competition_id);
+        if ($competition?->status === 'running') {
+            Notification::make()->title('Cannot undo check-in — competition is running.')->danger()->send();
+            return;
+        }
+
         $enrolment = Enrolment::find($enrolmentId);
         if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
             return;
