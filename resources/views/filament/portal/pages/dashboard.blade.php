@@ -77,8 +77,8 @@
 
             @foreach ($enrolments as $enrolment)
                 @php
-                    $isDraft   = $enrolment->competition->status === 'draft';
-                    $isRunning = $enrolment->competition->status === 'running';
+                    $isDraft      = $enrolment->competition->status === 'draft';
+                    $showSchedule = ! $isDraft;
                 @endphp
                 <x-filament::section class="mb-4">
                     <x-slot name="heading">
@@ -87,7 +87,7 @@
                             <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">Draft</span>
                         @endif
                     </x-slot>
-                    @if ($isRunning)
+                    @if ($showSchedule)
                         <x-slot name="headerEnd">
                             <x-filament::button
                                 href="{{ route('filament.portal.pages.schedule-page') }}?competition_id={{ $enrolment->competition->id }}"

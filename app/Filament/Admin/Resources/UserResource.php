@@ -357,6 +357,13 @@ class UserResource extends Resource
             ->bulkActions([]);
     }
 
+    public static function getRelationManagers(): array
+    {
+        return [
+            UserResource\RelationManagers\EnrolmentsRelationManager::class,
+        ];
+    }
+
     public static function getPages(): array
     {
         return [

@@ -38,6 +38,7 @@ class Scoring extends Page
     public array $rollcallPresent       = [];
     public bool  $rollcallMode          = false;
     public bool  $bracketExists         = false;
+    public bool  $placementOverrideMode = false;
 
     public function mount(): void
     {
@@ -89,7 +90,7 @@ class Scoring extends Page
         ->orderByRaw("CASE status WHEN 'running' THEN 0 WHEN 'assigned' THEN 1 WHEN 'pending' THEN 2 WHEN 'complete' THEN 3 ELSE 4 END")
         ->orderBy('code');
 
-        return $query->get()->map(function (Division $div) {
+        return $query->get()->toBase()->map(function (Division $div) {
             $checkedInCount = EnrolmentEvent::where('division_id', $div->id)
                 ->where('removed', false)
                 ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
@@ -108,24 +109,26 @@ class Scoring extends Page
             return;
         }
 
-        $this->division_id      = $divisionId;
-        $this->judgeScores      = [];
-        $this->pointsInput      = [];
-        $this->placementInput   = [];
-        $this->rollcallPresent  = [];
-        $this->rollcallMode     = true;
-        $this->bracketExists    = RoundRobinMatch::where('division_id', $divisionId)->exists();
+        $this->division_id           = $divisionId;
+        $this->judgeScores           = [];
+        $this->pointsInput           = [];
+        $this->placementInput        = [];
+        $this->rollcallPresent       = [];
+        $this->rollcallMode          = true;
+        $this->placementOverrideMode = false;
+        $this->bracketExists         = RoundRobinMatch::where('division_id', $divisionId)->exists();
     }
 
     public function deselectDivision(): void
     {
-        $this->division_id      = null;
-        $this->judgeScores      = [];
-        $this->pointsInput      = [];
-        $this->placementInput   = [];
-        $this->rollcallPresent  = [];
-        $this->rollcallMode     = true;
-        $this->bracketExists    = false;
+        $this->division_id           = null;
+        $this->judgeScores           = [];
+        $this->pointsInput           = [];
+        $this->placementInput        = [];
+        $this->rollcallPresent       = [];
+        $this->rollcallMode          = true;
+        $this->placementOverrideMode = false;
+        $this->bracketExists         = false;
     }
 
     public function toggleRollcallPresent(int $eeId): void
@@ -194,7 +197,7 @@ class Scoring extends Page
             ->where('removed', true)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
             ->with(['enrolment.competitor.competitorProfile'])
-            ->get()
+            ->get()->toBase()
             ->map(fn ($ee) => (object) [
                 'ee_id'  => $ee->id,
                 'name'   => ($p = $ee->enrolment->competitor?->competitorProfile)
@@ -207,7 +210,7 @@ class Scoring extends Page
             ->where('removed', false)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
             ->with(['enrolment.competitor.competitorProfile'])
-            ->get()
+            ->get()->toBase()
             ->map(fn ($ee) => (object) [
                 'ee_id'  => $ee->id,
                 'name'   => ($p = $ee->enrolment->competitor?->competitorProfile)
@@ -230,6 +233,8 @@ class Scoring extends Page
     {
         if (! $this->division_id) return collect();
 
+        $division = $this->getSelectedDivision();
+
         return EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
@@ -237,8 +242,8 @@ class Scoring extends Page
                 'enrolment.competitor.competitorProfile',
                 'result.judgeScores',
             ])
-            ->get()
-            ->map(function (EnrolmentEvent $ee) {
+            ->get()->toBase()
+            ->map(function (EnrolmentEvent $ee) use ($division) {
                 $result = $ee->result
                     ?? app(ScoringService::class)->getOrCreateResult($ee);
 
@@ -246,6 +251,12 @@ class Scoring extends Page
                     $scores = [];
                     foreach ($result->judgeScores as $js) {
                         $scores[$js->judge_number] = (float) $js->score;
+                    }
+                    if (empty($scores) && $division?->competitionEvent?->default_score !== null) {
+                        $judgeCount = $division->competitionEvent->effectiveJudgeCount();
+                        for ($i = 1; $i <= $judgeCount; $i++) {
+                            $scores[$i] = (float) $division->competitionEvent->default_score;
+                        }
                     }
                     $this->judgeScores[$result->id] = $scores;
                 }
@@ -666,6 +677,18 @@ class Scoring extends Page
         Notification::make()->title('Override cleared — auto-ranked.')->success()->send();
     }
 
+    public function togglePlacementOverrideMode(): void
+    {
+        $this->placementOverrideMode = ! $this->placementOverrideMode;
+
+        if (! $this->placementOverrideMode) {
+            foreach ($this->getCompetitorRows() as $row) {
+                app(ScoringService::class)->clearPlacementOverride($row->result);
+            }
+            Notification::make()->title('Auto-ranking restored.')->success()->send();
+        }
+    }
+
     public function toggleDisqualify(int $resultId): void
     {
         $result = Result::find($resultId);
@@ -674,6 +697,54 @@ class Scoring extends Page
         app(ScoringService::class)->toggleDisqualify($result);
         $label = $result->fresh()->disqualified ? 'Disqualified.' : 'Disqualification removed.';
         Notification::make()->title($label)->warning()->send();
+    }
+
+    public function hasSavedScores(): bool
+    {
+        if (! $this->division_id) return false;
+
+        return Result::whereHas('enrolmentEvent', fn ($q) => $q->where('division_id', $this->division_id))
+            ->whereNotNull('total_score')
+            ->exists();
+    }
+
+    public function resetJudgeScores(): void
+    {
+        if (! $this->division_id) return;
+
+        $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+        Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
+            $result->judgeScores()->delete();
+            $result->update([
+                'total_score'           => null,
+                'tiebreaker_score'      => null,
+                'placement'             => null,
+                'placement_overridden'  => false,
+            ]);
+        });
+
+        $this->judgeScores           = [];
+        $this->tiebreakerJudgeInputs = [];
+        $this->placementOverrideMode = false;
+        Notification::make()->title('Scores cleared.')->success()->send();
+    }
+
+    public function cancelScoring(): void
+    {
+        if (! $this->division_id) return;
+
+        $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+        Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
+            $result->judgeScores()->delete();
+            $result->update([
+                'total_score'           => null,
+                'tiebreaker_score'      => null,
+                'placement'             => null,
+                'placement_overridden'  => false,
+            ]);
+        });
+
+        $this->deselectDivision();
     }
 
     public function getTiedGroups(): \Illuminate\Support\Collection

@@ -110,7 +110,19 @@
       "PowerShell(uvx mcp-atlassian --help 2>&1)",
       "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.local\\\\bin\\\\uvx.exe\", \"$env:APPDATA\\\\uv\\\\bin\\\\uvx.exe\", \"C:\\\\Users\\\\Brad\\\\.local\\\\bin\\\\uvx.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)",
       "Bash(xargs grep -l \"competitor\\\\|contributor\")",
-      "Bash(xargs grep -l \"CompetitionStatus\\\\|competition.*status\\\\|status.*transition\")"
+      "Bash(xargs grep -l \"CompetitionStatus\\\\|competition.*status\\\\|status.*transition\")",
+      "PowerShell(Get-ChildItem \"x:\\\\Repos\\\\Compete\\\\app\" -Recurse -Name | Where-Object { $_ -notmatch \"vendor\" } | head -80)",
+      "Bash(php -l \"app/Filament/Admin/Pages/Scoring.php\")",
+      "Bash(php -l \"app/Filament/Admin/Resources/UserResource.php\")",
+      "Bash(php -l \"app/Filament/Admin/Resources/UserResource/RelationManagers/EnrolmentsRelationManager.php\")",
+      "Bash(php -l \"app/Filament/Admin/Resources/CompetitionResource/Pages/ManageCompetitionEvents.php\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/Admin/Pages/Scoring.php\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/UserResource.php\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/UserResource/RelationManagers/EnrolmentsRelationManager.php\")",
+      "PowerShell(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/CompetitionEventResource.php\")",
+      "PowerShell(php -l \"x:/Repos/Compete/app/Models/CompetitionEvent.php\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/CompetitionResource/Pages/ManageCompetitionEvents.php\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

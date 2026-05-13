@@ -23,6 +23,7 @@ class CompetitionEvent extends Model
         'tournament_format',
         'judge_count',
         'target_score',
+        'default_score',
         'division_filter',
         'requires_partner',
         'status',

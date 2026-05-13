@@ -112,8 +112,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->label('Select existing competitor')
                         ->options(
                             User::with('competitorProfile')
-                                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['user']))
-                                ->orWhereDoesntHave('roles')
+                                ->where('status', 'active')
                                 ->get()
                                 ->mapWithKeys(fn ($u) => [
                                     $u->id => ($u->competitorProfile?->surname ?? '')

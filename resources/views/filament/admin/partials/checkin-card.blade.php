@@ -111,14 +111,12 @@
     {{-- Payment --}}
     @if ($paymentOutstanding)
         <div class="mb-3 p-3 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
-            <div class="flex items-center justify-between gap-3">
-                <div>
-                    <p class="text-xs font-semibold text-warning-800 dark:text-warning-200">
-                        💰 Payment outstanding — ${{ number_format($enrolment->fee_calculated, 2) }}
-                    </p>
-                </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <p class="text-xs font-semibold text-warning-800 dark:text-warning-200 flex-1 min-w-0">
+                    💰 Payment outstanding — ${{ number_format($enrolment->fee_calculated, 2) }}
+                </p>
                 <div class="flex items-center gap-2 shrink-0">
-                    <x-filament::input.wrapper class="w-24">
+                    <x-filament::input.wrapper class="w-20">
                         <x-filament::input
                             type="number"
                             step="0.01"

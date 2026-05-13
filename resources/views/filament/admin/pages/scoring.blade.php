@@ -15,9 +15,9 @@
 
             @php $locations = $this->getLocations(); @endphp
             @if (! empty($locations))
-                <x-filament::input.wrapper class="min-w-40">
+                <x-filament::input.wrapper class="min-w-40 dark:bg-gray-900">
                     <select wire:model.live="filter_location"
-                        class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
+                        class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0 dark:bg-gray-900">
                         <option value="">— All locations —</option>
                         @foreach ($locations as $loc)
                             <option value="{{ $loc }}">{{ $loc }}</option>
@@ -445,6 +445,37 @@
                                 </div>{{-- end wire:key bracket wrapper --}}
                             @else
                                 {{-- Standard scoring (judges / win-loss / first-to-n) --}}
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center gap-1">
+                                        @if (in_array($method, ['judges_total', 'judges_average']))
+                                            <div x-data="{ confirming: false }" class="flex items-center gap-1">
+                                                <x-filament::button size="xs" color="gray"
+                                                    x-show="! confirming"
+                                                    @click="confirming = true">
+                                                    Reset scores
+                                                </x-filament::button>
+                                                <template x-if="confirming">
+                                                    <div class="flex items-center gap-1">
+                                                        <span class="text-xs text-gray-500 dark:text-gray-400">Clear all scores?</span>
+                                                        <x-filament::button size="xs" color="danger"
+                                                            @click="confirming = false; $wire.resetJudgeScores()">
+                                                            Yes, reset
+                                                        </x-filament::button>
+                                                        <x-filament::button size="xs" color="gray"
+                                                            @click="confirming = false">
+                                                            No
+                                                        </x-filament::button>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <x-filament::button size="xs"
+                                        color="{{ $this->placementOverrideMode ? 'warning' : 'gray' }}"
+                                        wire:click="togglePlacementOverrideMode">
+                                        {{ $this->placementOverrideMode ? 'Auto (clear overrides)' : 'Override placements' }}
+                                    </x-filament::button>
+                                </div>
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-sm">
                                         <thead>
@@ -523,38 +554,36 @@
                                                     @endif
 
                                                     <td class="py-2 pr-4">
-                                                        @if ($result->placement)
-                                                            <span class="font-bold {{ $result->placement_overridden ? 'text-warning-600' : '' }}">
-                                                                @switch($result->placement)
-                                                                    @case(1) 🥇 @break
-                                                                    @case(2) 🥈 @break
-                                                                    @case(3) 🥉 @break
-                                                                    @default {{ $result->placement }}
-                                                                @endswitch
-                                                                @if ($result->placement_overridden)
-                                                                    <span class="text-xs font-normal">(ov)</span>
-                                                                @endif
-                                                            </span>
+                                                        @if ($this->placementOverrideMode)
+                                                            <select wire:model="placementInput.{{ $result->id }}"
+                                                                wire:change="overridePlacement({{ $result->id }})"
+                                                                class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white px-1 py-0.5 w-14">
+                                                                <option value="">—</option>
+                                                                @for ($p = 1; $p <= $rows->count(); $p++)
+                                                                    <option value="{{ $p }}" {{ ($result->placement == $p) ? 'selected' : '' }}>{{ $p }}</option>
+                                                                @endfor
+                                                            </select>
                                                         @else
-                                                            <span class="text-gray-400">—</span>
+                                                            @if ($result->placement)
+                                                                <span class="font-bold {{ $result->placement_overridden ? 'text-warning-600' : '' }}">
+                                                                    @switch($result->placement)
+                                                                        @case(1) 🥇 @break
+                                                                        @case(2) 🥈 @break
+                                                                        @case(3) 🥉 @break
+                                                                        @default {{ $result->placement }}
+                                                                    @endswitch
+                                                                    @if ($result->placement_overridden)
+                                                                        <span class="text-xs font-normal">(ov)</span>
+                                                                    @endif
+                                                                </span>
+                                                            @else
+                                                                <span class="text-gray-400">—</span>
+                                                            @endif
                                                         @endif
                                                     </td>
 
                                                     <td class="py-2">
                                                         <div class="flex flex-wrap gap-1">
-                                                            <x-filament::input type="number" min="1"
-                                                                wire:model="placementInput.{{ $result->id }}"
-                                                                class="w-12" placeholder="#" />
-                                                            <x-filament::button size="xs" color="warning"
-                                                                wire:click="overridePlacement({{ $result->id }})">
-                                                                Override
-                                                            </x-filament::button>
-                                                            @if ($result->placement_overridden)
-                                                                <x-filament::button size="xs" color="gray"
-                                                                    wire:click="clearOverride({{ $result->id }})">
-                                                                    Auto
-                                                                </x-filament::button>
-                                                            @endif
                                                             <x-filament::button size="xs"
                                                                 color="{{ $result->disqualified ? 'gray' : 'danger' }}"
                                                                 wire:click="toggleDisqualify({{ $result->id }})">
@@ -667,10 +696,34 @@
 
                         {{-- Panel footer --}}
                         @if ($div->status !== 'complete')
+                            @php $hasSavedScores = ! $this->rollcallMode && $this->hasSavedScores(); @endphp
                             <div class="mt-4 flex items-center justify-between gap-3">
-                                <x-filament::button color="gray" size="sm" wire:click="deselectDivision">
-                                    Cancel
-                                </x-filament::button>
+                                <div x-data="{ confirmingCancel: false }">
+                                    @if ($hasSavedScores)
+                                        <x-filament::button color="gray" size="sm"
+                                            x-show="! confirmingCancel"
+                                            @click="confirmingCancel = true">
+                                            Cancel
+                                        </x-filament::button>
+                                        <template x-if="confirmingCancel">
+                                            <div class="flex items-center gap-1 flex-wrap">
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">Clear all scores and exit?</span>
+                                                <x-filament::button size="sm" color="danger"
+                                                    @click="confirmingCancel = false; $wire.cancelScoring()">
+                                                    Yes, clear &amp; exit
+                                                </x-filament::button>
+                                                <x-filament::button size="sm" color="gray"
+                                                    @click="confirmingCancel = false">
+                                                    Keep scoring
+                                                </x-filament::button>
+                                            </div>
+                                        </template>
+                                    @else
+                                        <x-filament::button color="gray" size="sm" wire:click="deselectDivision">
+                                            Cancel
+                                        </x-filament::button>
+                                    @endif
+                                </div>
                                 <div class="flex items-center gap-2">
                                     @if (! $this->rollcallMode)
                                         <x-filament::button color="gray" size="sm" wire:click="toggleRollcall" icon="heroicon-m-arrow-left">

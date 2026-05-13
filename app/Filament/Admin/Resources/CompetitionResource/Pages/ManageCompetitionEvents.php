@@ -219,6 +219,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                             'division_filter'      => $prevEvent->division_filter,
                             'judge_count'          => $prevEvent->judge_count,
                             'target_score'         => $prevEvent->target_score,
+                            'default_score'        => $prevEvent->default_score,
                             'requires_partner'     => $prevEvent->requires_partner,
                             'status'               => 'scheduled',
                         ]);

@@ -76,6 +76,15 @@ class CompetitionEventsRelationManager extends RelationManager
                     ->nullable()
                     ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average'])),
 
+                TextInput::make('default_score')
+                    ->label('Default judge score')
+                    ->numeric()
+                    ->step(0.1)
+                    ->default(7.0)
+                    ->nullable()
+                    ->helperText('Pre-fills judge score inputs on the scoring screen.')
+                    ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average'])),
+
                 TextInput::make('target_score')
                     ->label('Target score (first-to-N)')
                     ->numeric()

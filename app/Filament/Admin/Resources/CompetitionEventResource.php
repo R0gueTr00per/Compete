@@ -27,6 +27,11 @@ class CompetitionEventResource extends Resource
             TextInput::make('running_order')->numeric()->nullable(),
             TextInput::make('location_label')->maxLength(50)->nullable(),
             TextInput::make('target_score')->numeric()->nullable(),
+            TextInput::make('default_score')
+                ->label('Default score (judges)')
+                ->numeric()
+                ->nullable()
+                ->helperText('Pre-fills judge score inputs on the scoring screen for judges_total / judges_average events.'),
 
             Select::make('status')
                 ->options([

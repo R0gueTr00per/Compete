@@ -30,16 +30,16 @@
                 <x-heroicon-m-check-circle class="h-4 w-4 text-success-500" />
             @else
                 @if($enrolled > 0)
-                    <span class="flex items-center gap-0.5 text-xs sched-text-meta tabular-nums">
+                    <span title="Enrolments" class="flex items-center gap-0.5 text-xs sched-text-meta tabular-nums">
                         {{ $enrolled }}<x-heroicon-m-user class="h-3 w-3 sched-text-meta" />
                     </span>
                 @endif
                 @if($checkedIn > 0)
-                    <span class="flex items-center gap-0.5 text-xs text-success-600 dark:text-success-400 tabular-nums">
+                    <span title="Checked in" class="flex items-center gap-0.5 text-xs text-success-600 dark:text-success-400 tabular-nums">
                         {{ $checkedIn }}<x-heroicon-m-check class="h-3 w-3 text-success-500" />
                     </span>
                 @elseif($noneShowed)
-                    <span class="flex items-center gap-0.5 text-xs text-warning-600 dark:text-warning-400 tabular-nums">
+                    <span title="Checked in" class="flex items-center gap-0.5 text-xs text-warning-600 dark:text-warning-400 tabular-nums">
                         0<x-heroicon-m-check class="h-3 w-3 text-warning-500" />
                     </span>
                 @endif
