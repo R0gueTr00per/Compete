@@ -10,17 +10,24 @@ return new class extends Migration
     {
         Schema::table('judge_scores', function (Blueprint $table) {
             $table->boolean('is_tiebreaker')->default(false)->after('judge_number');
-            $table->dropUnique(['result_id', 'judge_number']);
+            // Add new index first so the FK on result_id always has a covering index (required by MySQL)
             $table->unique(['result_id', 'judge_number', 'is_tiebreaker']);
+        });
+
+        Schema::table('judge_scores', function (Blueprint $table) {
+            $table->dropUnique(['result_id', 'judge_number']);
         });
     }
 
     public function down(): void
     {
         Schema::table('judge_scores', function (Blueprint $table) {
+            $table->unique(['result_id', 'judge_number']);
+        });
+
+        Schema::table('judge_scores', function (Blueprint $table) {
             $table->dropUnique(['result_id', 'judge_number', 'is_tiebreaker']);
             $table->dropColumn('is_tiebreaker');
-            $table->unique(['result_id', 'judge_number']);
         });
     }
 };
