@@ -26,7 +26,7 @@
                     <span class="text-xs text-gray-500">Age: <strong>{{ $profile->age }}</strong></span>
                 @endif
                 @if ($enrolment->weight_kg)
-                    <span class="text-xs text-gray-500">Enrolled weight: <strong>{{ $enrolment->weight_kg }} kg</strong></span>
+                    <span class="text-xs text-gray-500">Enrolled weight: <strong>{{ number_format($enrolment->weight_kg, 1) }} kg</strong></span>
                 @endif
                 @if ($dojoLabel)
                     <span class="text-xs text-gray-400">{{ $dojoLabel }}</span>
@@ -87,7 +87,7 @@
                 </div>
             @elseif ($weightDone)
                 @php $confirmedKg = $enrolment->activeEvents->firstWhere(fn($ee) => $ee->weight_confirmed_kg)?->weight_confirmed_kg; @endphp
-                <p class="text-xs text-success-600 font-medium">✓ Weight confirmed: {{ $confirmedKg }} kg</p>
+                <p class="text-xs text-success-600 font-medium">✓ Weight confirmed: {{ number_format($confirmedKg, 1) }} kg</p>
             @else
                 <p class="text-xs text-gray-500 mb-2">Check-in Weight</p>
                 <div class="flex items-center gap-2">

@@ -18,23 +18,25 @@ class ScoringService
         );
     }
 
-    public function submitJudgeScore(Result $result, int $judgeNumber, float $score): void
+    public function submitJudgeScore(Result $result, int $judgeNumber, float $score, bool $isTiebreaker = false): void
     {
-        DB::transaction(function () use ($result, $judgeNumber, $score) {
+        DB::transaction(function () use ($result, $judgeNumber, $score, $isTiebreaker) {
             JudgeScore::updateOrCreate(
-                ['result_id' => $result->id, 'judge_number' => $judgeNumber],
+                ['result_id' => $result->id, 'judge_number' => $judgeNumber, 'is_tiebreaker' => $isTiebreaker],
                 ['score' => $score]
             );
 
-            $scores  = $result->judgeScores()->get();
-            $method  = $result->enrolmentEvent->competitionEvent->effectiveScoringMethod();
-            $count   = $scores->count();
-            $sum     = $scores->sum('score');
-            $computed = ($method === 'judges_average' && $count > 0) ? round($sum / $count, 3) : $sum;
-            $result->update(['total_score' => $computed]);
+            if (! $isTiebreaker) {
+                $scores   = $result->judgeScores()->where('is_tiebreaker', false)->get();
+                $method   = $result->enrolmentEvent->competitionEvent->effectiveScoringMethod();
+                $count    = $scores->count();
+                $sum      = $scores->sum('score');
+                $computed = ($method === 'judges_average' && $count > 0) ? round($sum / $count, 3) : $sum;
+                $result->update(['total_score' => $computed]);
 
-            if ($result->division_id) {
-                $this->autoRankDivision(Division::find($result->division_id));
+                if ($result->division_id) {
+                    $this->autoRankDivision(Division::find($result->division_id));
+                }
             }
         });
     }
@@ -132,6 +134,7 @@ class ScoringService
     public function clearTiebreakerScore(Result $result): void
     {
         DB::transaction(function () use ($result) {
+            $result->judgeScores()->where('is_tiebreaker', true)->delete();
             $result->update(['tiebreaker_score' => null]);
 
             if ($result->division_id) {

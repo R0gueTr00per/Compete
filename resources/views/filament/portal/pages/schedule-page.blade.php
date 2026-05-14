@@ -39,7 +39,7 @@
                 <p class="text-center text-gray-400 py-12">No divisions scheduled yet.</p>
             </x-filament::section>
         @else
-            <div class="flex gap-4 overflow-x-auto pb-4 items-start">
+            <div class="flex gap-4 overflow-x-auto px-1 pt-1 pb-4 items-start">
                 @foreach ($locations as $location)
                     @if ($divisions->has($location))
                         <div class="flex-none w-64">
@@ -50,22 +50,17 @@
                             <div class="space-y-2">
                                 @foreach ($divisions[$location] as $div)
                                     @php
-                                        $isMyDiv = in_array($div->id, $myDivisionIds);
-                                        $bgStyle = match(true) {
-                                            $div->status === 'complete'              => 'background-color:#bbf7d0;border-color:#9ca3af;',
-                                            $div->active_enrolment_events_count >= 2 => 'background-color:#c7d2fe;border-color:#9ca3af;',
-                                            $div->location_label !== null           => 'background-color:#fde68a;border-color:#9ca3af;',
-                                            default                                 => 'background-color:#ffffff;border-color:#9ca3af;',
-                                        };
-                                        if ($isMyDiv) $bgStyle .= 'border-width:3px;border-color:#1e293b;';
+                                        $isMyDiv  = in_array($div->id, $myDivisionIds);
+                                        $cardClass = $div->status === 'complete'
+                                            ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700'
+                                            : 'bg-indigo-100 dark:bg-indigo-900/30 border-gray-200 dark:border-gray-600';
+                                        if ($isMyDiv) $cardClass .= ' ring-2 ring-gray-800 dark:ring-white';
                                     @endphp
-                                    <div class="rounded-md border px-3 py-2 shadow-sm cursor-pointer" style="{{ $bgStyle }}">
+                                    <div class="rounded-md border px-3 py-2 shadow-sm cursor-pointer {{ $cardClass }}">
                                         <div class="flex items-center justify-between gap-2">
-                                            <span class="font-mono text-xs font-bold text-gray-900">{{ $div->code }}</span>
-                                            @if ($div->active_enrolment_events_count > 0)
-                                                <span class="text-xs text-gray-500">{{ $div->active_enrolment_events_count }} <x-heroicon-m-user class="inline h-3 w-3 text-gray-400" /></span>
-                                            @elseif ($div->status === 'complete')
-                                                <x-heroicon-m-check-circle class="h-4 w-4 text-green-600" />
+                                            <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
+                                            @if ($div->status === 'complete')
+                                                <x-heroicon-m-check-circle class="h-4 w-4 text-green-600 dark:text-green-400" />
                                             @endif
                                         </div>
                                         <div class="text-xs text-gray-500 mt-0.5">{{ $div->competitionEvent->name }}</div>

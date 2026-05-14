@@ -102,7 +102,7 @@ class CompetitionEvent extends Model
 
     public function effectiveJudgeCount(): int
     {
-        return $this->judge_count ?? 0;
+        return $this->judge_count ?? 3;
     }
 
     public function effectiveDivisionFilter(): string

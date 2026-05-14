@@ -36,7 +36,10 @@ class Scoring extends Page
     public array $placementInput       = [];
     public array $tiebreakerJudgeInputs = [];
     public array $rollcallPresent       = [];
-    public bool  $rollcallMode          = false;
+    public array $bracketScoreInput     = [];
+    public array $savedResultIds              = [];
+    public array $completedRollcallDivisions = [];
+    public bool  $rollcallMode               = false;
     public bool  $bracketExists         = false;
     public bool  $placementOverrideMode = false;
 
@@ -87,18 +90,19 @@ class Scoring extends Page
         ->with(['competitionEvent'])
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
-        ->orderByRaw("CASE status WHEN 'running' THEN 0 WHEN 'assigned' THEN 1 WHEN 'pending' THEN 2 WHEN 'complete' THEN 3 ELSE 4 END")
         ->orderBy('code');
 
         return $query->get()->toBase()->map(function (Division $div) {
-            $checkedInCount = EnrolmentEvent::where('division_id', $div->id)
-                ->where('removed', false)
-                ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-                ->count();
+            $base = EnrolmentEvent::where('division_id', $div->id)
+                ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'));
+
+            $checkedInCount   = (clone $base)->count();
+            $competitorsCount = (clone $base)->where('removed', false)->count();
 
             return (object) [
-                'division'        => $div,
-                'checked_in_count' => $checkedInCount,
+                'division'          => $div,
+                'checked_in_count'  => $checkedInCount,
+                'competitors_count' => $competitorsCount,
             ];
         });
     }
@@ -109,23 +113,35 @@ class Scoring extends Page
             return;
         }
 
+        $division = Division::find($divisionId);
+
         $this->division_id           = $divisionId;
         $this->judgeScores           = [];
         $this->pointsInput           = [];
         $this->placementInput        = [];
         $this->rollcallPresent       = [];
-        $this->rollcallMode          = true;
+        $this->bracketScoreInput     = [];
         $this->placementOverrideMode = false;
         $this->bracketExists         = RoundRobinMatch::where('division_id', $divisionId)->exists();
+        // Completed divisions skip rollcall and show a read-only scoring view
+        $this->rollcallMode = $division?->status !== 'complete';
     }
 
     public function deselectDivision(): void
     {
+        if ($this->division_id) {
+            EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
+            $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
+        }
+
         $this->division_id           = null;
         $this->judgeScores           = [];
         $this->pointsInput           = [];
         $this->placementInput        = [];
+        $this->tiebreakerJudgeInputs = [];
         $this->rollcallPresent       = [];
+        $this->bracketScoreInput     = [];
+        $this->savedResultIds        = [];
         $this->rollcallMode          = true;
         $this->placementOverrideMode = false;
         $this->bracketExists         = false;
@@ -149,25 +165,43 @@ class Scoring extends Page
                 ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
                 ->pluck('id');
 
-            $svc = app(EnrolmentService::class);
-            foreach ($activeEeIds as $eeId) {
-                if (! in_array($eeId, $this->rollcallPresent)) {
-                    $ee = EnrolmentEvent::find($eeId);
-                    if ($ee) {
-                        $svc->removeParticipant($ee, auth()->user(), 'No-show at rollcall');
-                    }
-                }
+            $absentIds = $activeEeIds->diff($this->rollcallPresent);
+            if ($absentIds->isNotEmpty()) {
+                EnrolmentEvent::whereIn('id', $absentIds)->update(['removed' => true]);
             }
 
+            if (! in_array($this->division_id, $this->completedRollcallDivisions)) {
+                $this->completedRollcallDivisions[] = $this->division_id;
+            }
             $this->rollcallMode = false;
         } else {
-            // Going back to rollcall — pre-populate present list from still-active EEs
-            $this->rollcallPresent = EnrolmentEvent::where('division_id', $this->division_id)
-                ->where('removed', false)
-                ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-                ->pluck('id')
-                ->toArray();
-            $this->rollcallMode = true;
+            // Going back to rollcall — clear bracket, scores, absent flags, and ticks
+            $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
+            RoundRobinMatch::where('division_id', $this->division_id)->delete();
+
+            $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+            Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
+                $result->judgeScores()->delete();
+                $result->update([
+                    'total_score'          => null,
+                    'tiebreaker_score'     => null,
+                    'placement'            => null,
+                    'placement_overridden' => false,
+                    'win_loss'             => null,
+                ]);
+            });
+
+            EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
+
+            $this->judgeScores           = [];
+            $this->savedResultIds        = [];
+            $this->tiebreakerJudgeInputs = [];
+            $this->pointsInput           = [];
+            $this->placementInput        = [];
+            $this->bracketScoreInput     = [];
+            $this->bracketExists         = false;
+            $this->rollcallPresent       = [];
+            $this->rollcallMode          = true;
         }
     }
 
@@ -176,7 +210,7 @@ class Scoring extends Page
         $ee = EnrolmentEvent::find($enrolmentEventId);
         if (! $ee || $ee->division_id !== $this->division_id) return;
 
-        app(EnrolmentService::class)->removeParticipant($ee, auth()->user(), 'No-show at rollcall');
+        $ee->update(['removed' => true]);
         Notification::make()->title('Marked as absent.')->warning()->send();
     }
 
@@ -185,8 +219,23 @@ class Scoring extends Page
         $ee = EnrolmentEvent::find($enrolmentEventId);
         if (! $ee || $ee->division_id !== $this->division_id) return;
 
-        app(EnrolmentService::class)->readdParticipant($ee);
-        Notification::make()->title('Competitor reinstated.')->success()->send();
+        $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+        Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
+            $result->judgeScores()->delete();
+            $result->update([
+                'total_score'          => null,
+                'tiebreaker_score'     => null,
+                'placement'            => null,
+                'placement_overridden' => false,
+                'win_loss'             => null,
+            ]);
+        });
+        $this->judgeScores          = [];
+        $this->savedResultIds       = [];
+        $this->tiebreakerJudgeInputs = [];
+
+        $ee->update(['removed' => false]);
+        Notification::make()->title('Competitor added.')->success()->send();
     }
 
     public function getRollcallRows(): \Illuminate\Support\Collection
@@ -249,7 +298,7 @@ class Scoring extends Page
 
                 if (! isset($this->judgeScores[$result->id])) {
                     $scores = [];
-                    foreach ($result->judgeScores as $js) {
+                    foreach ($result->judgeScores->where('is_tiebreaker', false) as $js) {
                         $scores[$js->judge_number] = (float) $js->score;
                     }
                     if (empty($scores) && $division?->competitionEvent?->default_score !== null) {
@@ -259,6 +308,15 @@ class Scoring extends Page
                         }
                     }
                     $this->judgeScores[$result->id] = $scores;
+                }
+
+                if (! isset($this->tiebreakerJudgeInputs[$result->id])) {
+                    $tbScores = $result->judgeScores->where('is_tiebreaker', true);
+                    if ($tbScores->isNotEmpty()) {
+                        foreach ($tbScores as $js) {
+                            $this->tiebreakerJudgeInputs[$result->id][$js->judge_number] = (float) $js->score;
+                        }
+                    }
                 }
 
                 if (! isset($this->pointsInput[$result->id]) && $result->total_score !== null) {
@@ -362,6 +420,59 @@ class Scoring extends Page
         Notification::make()->success()->title('Result recorded.')->send();
     }
 
+    public function recordBracketScore(int $matchId): void
+    {
+        $match = RoundRobinMatch::find($matchId);
+        if (! $match || $match->division_id !== $this->division_id) return;
+        if (! $match->isPending()) return;
+
+        $homeScore = isset($this->bracketScoreInput[$matchId]['home']) && $this->bracketScoreInput[$matchId]['home'] !== ''
+            ? (float) $this->bracketScoreInput[$matchId]['home']
+            : null;
+        $awayScore = isset($this->bracketScoreInput[$matchId]['away']) && $this->bracketScoreInput[$matchId]['away'] !== ''
+            ? (float) $this->bracketScoreInput[$matchId]['away']
+            : null;
+
+        if ($homeScore === null || $awayScore === null) {
+            Notification::make()->title('Enter scores for both competitors.')->warning()->send();
+            return;
+        }
+
+        $scoringMethod = $this->getScoringMethod();
+        if ($scoringMethod === 'first_to_n') {
+            $target = $this->getTargetScore();
+            if ($target !== null) {
+                if ($homeScore > $target || $awayScore > $target) {
+                    Notification::make()->title("Score cannot exceed {$target}.")->warning()->send();
+                    return;
+                }
+                if ($homeScore == $target && $awayScore == $target) {
+                    Notification::make()->title("Both competitors cannot have {$target} points.")->warning()->send();
+                    return;
+                }
+                if ($homeScore != $target && $awayScore != $target) {
+                    Notification::make()->title("One competitor must have {$target} points.")->warning()->send();
+                    return;
+                }
+            }
+        }
+
+        if ($homeScore === $awayScore) {
+            Notification::make()->title('Scores are tied — a winner cannot be determined.')->warning()->send();
+            return;
+        }
+
+        $match->update(['home_score' => $homeScore, 'away_score' => $awayScore]);
+
+        $homeWins = $homeScore > $awayScore;
+        $match->update(['home_result' => $homeWins ? 'win' : 'loss']);
+
+        app(BracketService::class)->advance($match->fresh());
+        $this->applyBracketPlacements();
+
+        Notification::make()->success()->title('Score recorded.')->send();
+    }
+
     public function clearBracketResult(int $matchId): void
     {
         $match = RoundRobinMatch::find($matchId);
@@ -420,7 +531,7 @@ class Scoring extends Page
         }
         // grand_final: no downstream — just clear the result below
 
-        $match->update(['home_result' => null]);
+        $match->update(['home_result' => null, 'home_score' => null, 'away_score' => null]);
         $this->applyBracketPlacements();
         Notification::make()->success()->title('Result cleared.')->send();
     }
@@ -589,6 +700,8 @@ class Scoring extends Page
                     ? ($eeNames[$m->away_enrolment_event_id] ?? '—')
                     : ($m->home_result === null ? 'Waiting...' : 'BYE'),
                 'home_result' => $m->home_result,
+                'home_score'  => $m->home_score,
+                'away_score'  => $m->away_score,
                 'is_bye'      => $m->isBye(),
                 'is_pending'  => $m->isPending() && ! $m->isBye(),
                 'winner_id'   => $m->winnerId(),
@@ -621,7 +734,15 @@ class Scoring extends Page
         $div = $this->getSelectedDivision();
         if (! $div) return 3;
 
-        return $div->competitionEvent->effectiveJudgeCount() ?? 3;
+        return $div->competitionEvent->effectiveJudgeCount();
+    }
+
+    public function getTargetScore(): ?int
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return null;
+
+        return $div->competitionEvent->effectiveTargetScore();
     }
 
     public function saveJudgeScores(int $resultId): void
@@ -636,7 +757,16 @@ class Scoring extends Page
             }
         }
 
+        if (! in_array($resultId, $this->savedResultIds)) {
+            $this->savedResultIds[] = $resultId;
+        }
+
         Notification::make()->title('Scores saved.')->success()->send();
+    }
+
+    public function undoJudgeScores(int $resultId): void
+    {
+        $this->savedResultIds = array_values(array_diff($this->savedResultIds, [$resultId]));
     }
 
     public function saveWinLoss(int $resultId, string $value): void
@@ -664,7 +794,14 @@ class Scoring extends Page
 
         if (! $result || $placement < 1) return;
 
-        app(ScoringService::class)->overridePlacement($result, $placement);
+        $service = app(ScoringService::class);
+        $service->overridePlacement($result, $placement);
+
+        if ($result->fresh()->tiebreaker_score !== null) {
+            $service->clearTiebreakerScore($result);
+            unset($this->tiebreakerJudgeInputs[$resultId]);
+        }
+
         Notification::make()->title('Placement overridden.')->warning()->send();
     }
 
@@ -733,14 +870,17 @@ class Scoring extends Page
     {
         if (! $this->division_id) return;
 
+        EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
+
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
             $result->update([
-                'total_score'           => null,
-                'tiebreaker_score'      => null,
-                'placement'             => null,
-                'placement_overridden'  => false,
+                'total_score'          => null,
+                'tiebreaker_score'     => null,
+                'placement'            => null,
+                'placement_overridden' => false,
+                'win_loss'             => null,
             ]);
         });
 
@@ -754,13 +894,53 @@ class Scoring extends Page
             return collect();
         }
 
-        // Groups that need a tiebreaker: same total_score, no tiebreaker_score yet on any member
-        return $this->getCompetitorRows()
+        $rows = $this->getCompetitorRows();
+
+        // Tiebreaker only activates once ALL non-DQ competitors have had their score saved
+        $allSaved = $rows->every(fn ($row) => $row->result->disqualified || in_array($row->result->id, $this->savedResultIds));
+        if (! $allSaved) {
+            return collect();
+        }
+
+        $division     = $this->getSelectedDivision();
+        $defaultScore = $division?->competitionEvent->default_score;
+        $judgeCount   = $this->getJudgeCount();
+
+        // Build score groups sorted highest-first and track cumulative placement.
+        // A tied group only needs a tiebreaker if its starting position is within medal positions (≤ 3).
+        $scoreGroups = $rows
             ->filter(fn ($row) => $row->result->total_score !== null && ! $row->result->disqualified)
             ->groupBy(fn ($row) => (string) $row->result->total_score)
-            ->filter(fn ($group) => $group->count() > 1)
-            ->filter(fn ($group) => $group->every(fn ($row) => $row->result->tiebreaker_score === null))
-            ->values();
+            ->sortByDesc(fn ($group, $key) => (float) $key);
+
+        $cumulative  = 0;
+        $tiedGroups  = collect();
+
+        foreach ($scoreGroups as $group) {
+            $startingPosition = $cumulative + 1;
+
+            if ($group->count() > 1 && $startingPosition <= 3) {
+                if ($defaultScore !== null) {
+                    foreach ($group as $row) {
+                        $resultId = $row->result->id;
+                        if (! isset($this->tiebreakerJudgeInputs[$resultId])) {
+                            for ($j = 1; $j <= $judgeCount; $j++) {
+                                $this->tiebreakerJudgeInputs[$resultId][$j] = (float) $defaultScore;
+                            }
+                        }
+                    }
+                }
+
+                $tiedGroups->push((object) [
+                    'group'             => $group,
+                    'starting_position' => $startingPosition,
+                ]);
+            }
+
+            $cumulative += $group->count();
+        }
+
+        return $tiedGroups->values();
     }
 
     public function getStillTiedAfterTiebreaker(): \Illuminate\Support\Collection
@@ -770,8 +950,16 @@ class Scoring extends Page
             return collect();
         }
 
+        $rows = $this->getCompetitorRows();
+
+        // Tiebreaker only activates once ALL non-DQ competitors have had their score saved
+        $allSaved = $rows->every(fn ($row) => $row->result->disqualified || in_array($row->result->id, $this->savedResultIds));
+        if (! $allSaved) {
+            return collect();
+        }
+
         // Groups where all members have a tiebreaker_score but they're still equal
-        return $this->getCompetitorRows()
+        return $rows
             ->filter(fn ($row) => $row->result->tiebreaker_score !== null && ! $row->result->disqualified)
             ->groupBy(fn ($row) => (string) $row->result->total_score . '|' . (string) $row->result->tiebreaker_score)
             ->filter(fn ($group) => $group->count() > 1)
@@ -796,7 +984,13 @@ class Scoring extends Page
             ? round($scores->avg(), 3)
             : round($scores->sum(), 3);
 
-        app(ScoringService::class)->saveTiebreakerScore($result, $total);
+        $service = app(ScoringService::class);
+        foreach ($inputs as $judgeNum => $score) {
+            if ($score !== null && $score !== '') {
+                $service->submitJudgeScore($result, (int) $judgeNum, (float) $score, true);
+            }
+        }
+        $service->saveTiebreakerScore($result, $total);
         Notification::make()->title('Tiebreaker score saved.')->success()->send();
     }
 
@@ -808,6 +1002,27 @@ class Scoring extends Page
         unset($this->tiebreakerJudgeInputs[$resultId]);
         app(ScoringService::class)->clearTiebreakerScore($result);
         Notification::make()->title('Tiebreaker score cleared.')->success()->send();
+    }
+
+    public function reactivateDivision(): void
+    {
+        if (! $this->division_id) return;
+
+        Division::find($this->division_id)?->update(['status' => 'assigned']);
+
+        // Pre-populate savedResultIds so the tiebreaker gate works immediately
+        $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+        $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
+            ->whereNotNull('total_score')
+            ->pluck('id')
+            ->toArray();
+
+        // Keep the competitor count visible in the division list
+        if (! in_array($this->division_id, $this->completedRollcallDivisions)) {
+            $this->completedRollcallDivisions[] = $this->division_id;
+        }
+
+        Notification::make()->title('Division re-activated — scoring is now editable.')->warning()->send();
     }
 
     public function markDivisionComplete(): void

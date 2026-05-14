@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Edit",
       "WebFetch(domain:panthur.com.au)",
       "WebSearch",
       "WebFetch(domain:www.panthur.com.au)",
@@ -122,7 +123,24 @@
       "PowerShell(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/CompetitionEventResource.php\")",
       "PowerShell(php -l \"x:/Repos/Compete/app/Models/CompetitionEvent.php\")",
       "Bash(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/CompetitionResource/Pages/ManageCompetitionEvents.php\")",
-      "Bash(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php\")"
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/Admin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php\")",
+      "Bash(powershell -Command \"Get-Item 'x:\\\\Repos\\\\Compete\\\\public' -ErrorAction SilentlyContinue | Get-ChildItem | Select-Object Name\")",
+      "Bash(powershell -Command \"Get-Item 'x:\\\\Repos\\\\Compete\\\\public\\\\css' | Get-ChildItem | Select-Object Name\")",
+      "Bash(powershell -Command \"Select-String -Path 'x:\\\\Repos\\\\Compete\\\\tailwind.config.js' -Pattern 'darkMode|dark' -AllMatches\")",
+      "Bash(Get-ChildItem -Path \"X:\\\\Repos\\\\Compete\\\\resources\\\\js\" -Recurse -Include \"*.vue\", \"*.js\")",
+      "Bash(Select-Object -First 30)",
+      "PowerShell(Start-Process \"x:\\\\Repos\\\\Compete\\\\public\\\\hex-preview.html\")",
+      "Bash(php -l app/Filament/Admin/Pages/Scoring.php)",
+      "Bash(php -l app/Models/RoundRobinMatch.php)",
+      "Bash(start \"\" \"x:\\\\Repos\\\\Compete\\\\public\\\\hex-preview.html\")",
+      "PowerShell(if \\($env:JIRA_API_TOKEN\\) { \"Token found, length: $\\($env:JIRA_API_TOKEN.Length\\)\" } else { \"Token NOT found\" })",
+      "PowerShell(Get-ChildItem \"x:/Repos/Compete/vendor/filament\" -Force | ForEach-Object { $_.Name })",
+      "PowerShell($env:JIRA_API_TOKEN)",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\Admin\\\\Resources\" -Filter \"*.php\")",
+      "PowerShell(Get-ChildItem \"x:/Repos/Compete/vendor/filament/support/resources/views/components/input\" -Force | ForEach-Object { $_.FullName })",
+      "Bash(php -l \"app/Providers/Filament/AdminPanelProvider.php\")",
+      "Bash(php -l \"app/Providers/Filament/PortalPanelProvider.php\")",
+      "Bash(xargs grep -l \"division\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

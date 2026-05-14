@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compete — Hex Pattern Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+
+  .preview-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 100vh;
+  }
+  @media (max-width: 700px) { .preview-wrapper { grid-template-columns: 1fr; } }
+
+  /* ────────────────────────────────────────────────────
+     HEX BACKGROUNDS  (pure SVG pattern, no JS)
+
+     Flat-top hexagon, R = 70
+     Tile  = 3R × R√3  =  210 × 121.24
+     Each hex scaled to 0.95 of R so a 3–4 px gap shows
+     the background colour between tiles.
+
+     5 polygons per tile:
+       1 full  hex  at tile centre  (105, 60.62)
+       4 corner hexes at tile corners — SVG auto-clips them;
+         when tiled the four quarters combine into a full hex.
+  ──────────────────────────────────────────────────── */
+
+  .hex-bg-light {
+    background-color: #e8e9eb;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='210' height='121.24'%3E%3Cdefs%3E%3Cfilter id='s' x='-20%25' y='-20%25' width='140%25' height='140%25'%3E%3CfeDropShadow dx='0' dy='1' stdDeviation='1.5' flood-color='rgba(0,0,0,0.08)'/%3E%3C/filter%3E%3C/defs%3E%3Cg fill='white' stroke='%23d8d9db' stroke-width='0.75' filter='url(%23s)'%3E%3Cpolygon points='171.5,60.62 138.25,3.03 71.75,3.03 38.5,60.62 71.75,118.21 138.25,118.21'/%3E%3Cpolygon points='66.5,0 33.25,-57.59 -33.25,-57.59 -66.5,0 -33.25,57.59 33.25,57.59'/%3E%3Cpolygon points='276.5,0 243.25,-57.59 176.75,-57.59 143.5,0 176.75,57.59 243.25,57.59'/%3E%3Cpolygon points='66.5,121.24 33.25,63.65 -33.25,63.65 -66.5,121.24 -33.25,178.83 33.25,178.83'/%3E%3Cpolygon points='276.5,121.24 243.25,63.65 176.75,63.65 143.5,121.24 176.75,178.83 243.25,178.83'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  .hex-bg-dark {
+    background-color: #0c1626;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='210' height='121.24'%3E%3Cg fill='rgba(255,255,255,0.02)' stroke='rgba(255,255,255,0.07)' stroke-width='0.75'%3E%3Cpolygon points='171.5,60.62 138.25,3.03 71.75,3.03 38.5,60.62 71.75,118.21 138.25,118.21'/%3E%3Cpolygon points='66.5,0 33.25,-57.59 -33.25,-57.59 -66.5,0 -33.25,57.59 33.25,57.59'/%3E%3Cpolygon points='276.5,0 243.25,-57.59 176.75,-57.59 143.5,0 176.75,57.59 243.25,57.59'/%3E%3Cpolygon points='66.5,121.24 33.25,63.65 -33.25,63.65 -66.5,121.24 -33.25,178.83 33.25,178.83'/%3E%3Cpolygon points='276.5,121.24 243.25,63.65 176.75,63.65 143.5,121.24 176.75,178.83 243.25,178.83'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* ── panels ──────────────────────────────────────── */
+  .panel {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  .panel-label {
+    position: absolute;
+    top: 14px; left: 14px;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    opacity: 0.3; z-index: 10;
+  }
+  .hex-bg-light .panel-label { color: #111; }
+  .hex-bg-dark  .panel-label { color: #fff; }
+
+  .panel-content {
+    position: relative; z-index: 2;
+    padding: 50px 28px 28px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  /* ── shared UI chrome ────────────────────────────── */
+  .mock-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 52px; padding: 0 20px; border-radius: 10px;
+  }
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 800; font-size: 15px;
+  }
+  .logo-box {
+    width: 30px; height: 30px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 900; color: #fff;
+  }
+  .nav-links { display: flex; gap: 18px; font-size: 13px; }
+  .nav-links a { text-decoration: none; }
+
+  .card {
+    border-radius: 12px; padding: 20px;
+  }
+  .card-header    { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .card-title     { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .card-sub       { font-size: 12px; }
+  .badge          { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 99px; flex-shrink: 0; }
+  .divider        { border: none; border-top: 1px solid; }
+  .divider-spaced { border: none; border-top: 1px solid; margin-bottom: 14px; }
+  .stat-row       { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 14px 0; }
+  .stat           { border-radius: 8px; padding: 12px; border: 1px solid; }
+  .stat-num       { font-size: 22px; font-weight: 700; line-height: 1; }
+  .stat-lbl       { font-size: 11px; margin-top: 2px; }
+  .btn            { display: inline-block; font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 8px; background: #2563eb; color: #fff; }
+  .card-sub-spaced { margin-bottom: 12px; }
+  .heat-list      { display: flex; flex-direction: column; gap: 10px; }
+  .heat-row       { display: flex; align-items: center; justify-content: space-between; }
+
+  /* ── light tokens ────────────────────────────────── */
+  .mock-nav.L {
+    background: rgba(255,255,255,0.88);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .nav-logo.L { color: #111827; }
+  .logo-box.L { background: #1e3a5f; }
+  .nav-links.L a { color: #4b5563; }
+
+  .card.L {
+    background: rgba(255,255,255,0.84);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.03);
+  }
+  .card-title.L { color: #111827; }
+  .card-sub.L   { color: #6b7280; }
+  .badge.L      { background: #eff6ff; color: #1d4ed8; }
+  .stat.L       { background: #f9fafb; border-color: #e5e7eb; }
+  .stat-num.L   { color: #111827; }
+  .stat-lbl.L   { color: #9ca3af; }
+  .divider.L, .divider-spaced.L { border-color: #e5e7eb; }
+  .heat-name.L  { font-size: 13px; color: #374151; }
+  .heat-time.L  { font-size: 12px; color: #9ca3af; }
+
+  /* ── dark tokens ─────────────────────────────────── */
+  .mock-nav.D {
+    background: rgba(12,22,38,0.82);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .nav-logo.D { color: #f1f5f9; }
+  .logo-box.D { background: #0ea5e9; }
+  .nav-links.D a { color: #94a3b8; }
+
+  .card.D {
+    background: rgba(12,22,38,0.75);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .card-title.D { color: #f1f5f9; }
+  .card-sub.D   { color: #64748b; }
+  .badge.D      { background: rgba(14,165,233,0.14); color: #38bdf8; }
+  .stat.D       { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.07); }
+  .stat-num.D   { color: #f1f5f9; }
+  .stat-lbl.D   { color: #475569; }
+  .divider.D, .divider-spaced.D { border-color: rgba(255,255,255,0.08); }
+  .heat-name.D  { font-size: 13px; color: #94a3b8; }
+  .heat-time.D  { font-size: 12px; color: #475569; }
+</style>
+</head>
+<body>
+<div class="preview-wrapper">
+
+  <!-- ══ LIGHT ══════════════════════════════════════ -->
+  <div class="panel hex-bg-light">
+    <div class="panel-label">Light mode</div>
+    <div class="panel-content">
+
+      <div class="mock-nav L">
+        <div class="nav-logo L"><div class="logo-box L">C</div>Compete</div>
+        <div class="nav-links L">
+          <a href="#">Events</a>
+          <a href="#">Schedule</a>
+          <a href="#">Results</a>
+        </div>
+      </div>
+
+      <div class="card L">
+        <div class="card-header">
+          <div>
+            <div class="card-title L">Summer Championships 2026</div>
+            <div class="card-sub L">Sydney Aquatic Centre · 14–16 Feb</div>
+          </div>
+          <span class="badge L">Open</span>
+        </div>
+        <hr class="divider-spaced L">
+        <div class="stat-row">
+          <div class="stat L"><div class="stat-num L">142</div><div class="stat-lbl L">Athletes</div></div>
+          <div class="stat L"><div class="stat-num L">38</div><div class="stat-lbl L">Events</div></div>
+          <div class="stat L"><div class="stat-num L">6</div><div class="stat-lbl L">Clubs</div></div>
+        </div>
+        <span class="btn">View event</span>
+      </div>
+
+      <div class="card L">
+        <div class="card-title L">Upcoming heats</div>
+        <div class="card-sub L" class="card-sub-spaced">Today's schedule</div>
+        <div class="heat-list">
+          <div class="heat-row"><span class="heat-name L">50m Freestyle – Heat 1</span><span class="heat-time L">9:00 AM</span></div>
+          <hr class="divider L">
+          <div class="heat-row"><span class="heat-name L">100m Backstroke – Heat 2</span><span class="heat-time L">9:45 AM</span></div>
+          <hr class="divider L">
+          <div class="heat-row"><span class="heat-name L">200m Butterfly – Heat 1</span><span class="heat-time L">10:30 AM</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ DARK ═══════════════════════════════════════ -->
+  <div class="panel hex-bg-dark">
+    <div class="panel-label">Dark mode</div>
+    <div class="panel-content">
+
+      <div class="mock-nav D">
+        <div class="nav-logo D"><div class="logo-box D">C</div>Compete</div>
+        <div class="nav-links D">
+          <a href="#">Events</a>
+          <a href="#">Schedule</a>
+          <a href="#">Results</a>
+        </div>
+      </div>
+
+      <div class="card D">
+        <div class="card-header">
+          <div>
+            <div class="card-title D">Summer Championships 2026</div>
+            <div class="card-sub D">Sydney Aquatic Centre · 14–16 Feb</div>
+          </div>
+          <span class="badge D">Open</span>
+        </div>
+        <hr class="divider-spaced D">
+        <div class="stat-row">
+          <div class="stat D"><div class="stat-num D">142</div><div class="stat-lbl D">Athletes</div></div>
+          <div class="stat D"><div class="stat-num D">38</div><div class="stat-lbl D">Events</div></div>
+          <div class="stat D"><div class="stat-num D">6</div><div class="stat-lbl D">Clubs</div></div>
+        </div>
+        <span class="btn">View event</span>
+      </div>
+
+      <div class="card D">
+        <div class="card-title D">Upcoming heats</div>
+        <div class="card-sub D" class="card-sub-spaced">Today's schedule</div>
+        <div class="heat-list">
+          <div class="heat-row"><span class="heat-name D">50m Freestyle – Heat 1</span><span class="heat-time D">9:00 AM</span></div>
+          <hr class="divider D">
+          <div class="heat-row"><span class="heat-name D">100m Backstroke – Heat 2</span><span class="heat-time D">9:45 AM</span></div>
+          <hr class="divider D">
+          <div class="heat-row"><span class="heat-name D">200m Butterfly – Heat 1</span><span class="heat-time D">10:30 AM</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

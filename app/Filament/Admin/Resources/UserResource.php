@@ -139,10 +139,15 @@ class UserResource extends Resource
                     ->label('Name')
                     ->getStateUsing(fn (User $record) => trim($record->competitorProfile?->first_name . ' ' . $record->competitorProfile?->surname) ?: null)
                     ->placeholder('—')
-                    ->searchable(query: fn ($query, $search) => $query->whereHas('competitorProfile', fn ($q) => $q->where('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"))),
+                    ->searchable(query: fn ($query, $search) => $query->where(fn ($q) => $q
+                        ->whereHas('competitorProfile', fn ($q2) => $q2
+                            ->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('surname', 'like', "%{$search}%")
+                        )
+                        ->orWhere('email', 'like', "%{$search}%")
+                    )),
 
                 TextColumn::make('email')
-                    ->searchable()
                     ->sortable(),
 
                 TextColumn::make('roles.name')

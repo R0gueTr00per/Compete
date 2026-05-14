@@ -280,7 +280,7 @@ class BracketService
 
     private function generateRoundRobin(Division $division, Collection $sortedCompetitors): void
     {
-        $positions = $sortedCompetitors->values()->toArray();
+        $positions = $sortedCompetitors->values()->all();
 
         if (count($positions) % 2 !== 0) {
             $positions[] = null; // BYE placeholder so each round has even pairs

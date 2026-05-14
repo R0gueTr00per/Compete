@@ -12,6 +12,8 @@ class RoundRobinMatch extends Model
         'home_enrolment_event_id',
         'away_enrolment_event_id',
         'home_result',
+        'home_score',
+        'away_score',
         'round',
         'bracket',
         'bracket_slot',

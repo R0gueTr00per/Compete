@@ -11,11 +11,14 @@ class JudgeScore extends Model
 {
     use LogsActivity;
 
-    protected $fillable = ['result_id', 'judge_number', 'score'];
+    protected $fillable = ['result_id', 'judge_number', 'is_tiebreaker', 'score'];
 
     protected function casts(): array
     {
-        return ['score' => 'decimal:3'];
+        return [
+            'score'         => 'decimal:3',
+            'is_tiebreaker' => 'boolean',
+        ];
     }
 
     public function getActivitylogOptions(): LogOptions
