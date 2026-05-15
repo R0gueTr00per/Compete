@@ -178,7 +178,9 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(k\\) for k in d]\")",
       "Bash(php -l app/Providers/Filament/AdminPanelProvider.php)",
       "Bash(php -l app/Providers/Filament/PortalPanelProvider.php)",
-      "Bash(xargs grep -l \"theme\\\\|dark.*mode\\\\|sun\\\\|moon\")"
+      "Bash(xargs grep -l \"theme\\\\|dark.*mode\\\\|sun\\\\|moon\")",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\app\" -Directory -ErrorAction SilentlyContinue)",
+      "Bash(xargs grep -l \"Livewire\\\\|livewire\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"
