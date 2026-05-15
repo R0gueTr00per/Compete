@@ -15,7 +15,7 @@
     $paymentOutstanding = $enrolment->isPaymentOutstanding();
 @endphp
 
-<div class="rounded-xl border {{ $checkedIn ? 'border-success-200 dark:border-success-800' : 'border-gray-200 dark:border-gray-700' }} bg-white dark:bg-gray-900 shadow-sm p-4">
+<div class="rounded-xl border {{ $checkedIn ? 'border-success-200 dark:border-success-800' : 'border-gray-200 dark:border-slate-700' }} bg-white dark:bg-slate-900 shadow-sm p-4">
 
     {{-- Header row: name + check-in button --}}
     <div class="flex items-center justify-between gap-3 mb-3">
@@ -60,7 +60,7 @@
 
     {{-- Single weight input for the whole enrolment --}}
     @if ($needsWeight)
-        <div class="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
+        <div class="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
             @if ($pendingDivisionChange)
                 {{-- Division was changed automatically — confirm or revert --}}
                 <p class="text-xs font-semibold text-warning-700 dark:text-warning-300 mb-2">
@@ -143,7 +143,7 @@
     @endif
 
     {{-- Events list --}}
-    <div class="divide-y divide-gray-100 dark:divide-gray-800">
+    <div class="divide-y divide-gray-100 dark:divide-slate-800">
         @foreach ($enrolment->activeEvents->sortBy('division.code') as $ee)
             <div class="py-2">
                 <p class="text-sm text-gray-700 dark:text-gray-300">

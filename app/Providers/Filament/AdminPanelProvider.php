@@ -91,12 +91,93 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->renderHook(
                 'panels::head.end',
-                fn () => new \Illuminate\Support\HtmlString('<style>
+                fn () => new \Illuminate\Support\HtmlString(
+                    '<link rel="stylesheet" href="' . \Illuminate\Support\Facades\Vite::asset('resources/css/filament-app.css') . '">' .
+                    '<style>
+                    /* =====================================================
+                       COMPETE THEME — ADMIN PANEL
+                       To retheme: edit ONLY the values in :root and .dark
+                       ===================================================== */
+                    :root {
+                        --app-topbar:         #1e3a6e;
+                        --app-accent:         #e07828;
+                        --app-sidebar:        #f8fafc;
+                        --app-sidebar-border: #e2e8f0;
+                        --app-bg:             #f1f5f9;
+                        --app-card:           #ffffff;
+                        --app-card-header:    #f8fafc;
+                        --app-card-border:    #e5e7eb;
+                        --app-nav-active-bg:  #eff6ff;
+                        --app-nav-active-fg:  #1e3a6e;
+                        --app-nav-fg:         #64748b;
+                    }
+                    .dark {
+                        --app-sidebar:        #0f172a;
+                        --app-sidebar-border: rgba(255,255,255,0.06);
+                        --app-bg:             #1e293b;
+                        --app-card:           #0f172a;
+                        --app-card-header:    #0a1020;
+                        --app-card-border:    rgba(255,255,255,0.08);
+                        --app-nav-active-bg:  rgba(224,120,40,0.12);
+                        --app-nav-active-fg:  #e07828;
+                        --app-nav-fg:         #94a3b8;
+                    }
+
+                    /* Page header layout */
                     .fi-page-header > div { flex-direction: column !important; align-items: flex-start !important; gap: 0.75rem !important; }
                     .fi-page-header > div > div:last-child { margin-left: 0 !important; flex-wrap: wrap; }
                     @media (min-width: 640px) { .sm\:table-cell { display: table-cell; } }
                     @media (min-width: 768px) { .md\:table-cell { display: table-cell; } }
                     @media (min-width: 1024px) { .lg\:table-cell { display: table-cell; } }
+
+                    /* Topbar */
+                    .fi-topbar { background-color: var(--app-topbar) !important; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.25) !important; color: rgba(255,255,255,0.85) !important; }
+                    .fi-topbar nav { background-color: var(--app-topbar) !important; }
+                    .fi-topbar::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--app-accent); }
+                    .fi-topbar * { color: rgba(255,255,255,0.85) !important; }
+                    .fi-topbar *:hover { color: #ffffff !important; }
+                    .fi-topbar svg, .fi-topbar svg * { color: rgba(255,255,255,0.85) !important; fill: currentColor; }
+                    .fi-topbar .fi-breadcrumbs-item-separator { opacity: 0.4; }
+
+                    /* All dropdown/filter panels (topbar + page filters + schedule/user screens) */
+                    .fi-dropdown-panel { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; }
+                    .fi-dropdown-panel * { color: #374151 !important; }
+                    .fi-dropdown-panel svg, .fi-dropdown-panel svg * { color: #374151 !important; fill: currentColor !important; }
+                    .dark .fi-dropdown-panel { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; }
+                    .dark .fi-dropdown-panel * { color: #e2e8f0 !important; }
+                    .dark .fi-dropdown-panel svg, .dark .fi-dropdown-panel svg * { color: #e2e8f0 !important; fill: currentColor !important; }
+                    .fi-dropdown-panel *:hover { background-color: rgba(0,0,0,0.04) !important; color: #111827 !important; }
+                    .dark .fi-dropdown-panel *:hover { background-color: rgba(255,255,255,0.06) !important; color: #ffffff !important; }
+
+                    /* Sidebar */
+                    .fi-sidebar { background-color: var(--app-sidebar) !important; border-right-color: var(--app-sidebar-border) !important; }
+                    .fi-sidebar-header { background-color: var(--app-sidebar) !important; border-bottom-color: var(--app-sidebar-border) !important; }
+                    .fi-sidebar-group-label { color: #94a3b8 !important; }
+                    .dark .fi-sidebar-group-label { color: #475569 !important; }
+                    .fi-sidebar-item-button { color: var(--app-nav-fg) !important; border-right: 3px solid transparent !important; border-radius: 0 !important; }
+                    .fi-sidebar-item-button:hover { background-color: rgba(30,58,110,0.06) !important; }
+                    .dark .fi-sidebar-item-button:hover { background-color: rgba(255,255,255,0.05) !important; }
+                    .fi-sidebar-item-button.fi-active { background-color: var(--app-nav-active-bg) !important; color: var(--app-nav-active-fg) !important; font-weight: 600 !important; border-right-color: var(--app-accent) !important; }
+
+                    /* Main content + cards */
+                    .fi-main, body.fi-body { background-color: var(--app-bg) !important; }
+                    .fi-section, .fi-wi-stats-overview-stat, .fi-ta-ctn { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important; }
+                    .dark .fi-section, .dark .fi-wi-stats-overview-stat, .dark .fi-ta-ctn { box-shadow: none !important; }
+                    .fi-section-header, .fi-ta-header-cell { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
+                    .fi-modal-window { background-color: var(--app-card) !important; }
+
+                    /* Nav-confirm modal */
+                    #nav-confirm-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
+                    #nav-confirm-modal.is-open { display:flex; }
+                    .ncm-box { background:#fff; border-radius:0.75rem; padding:1.5rem; max-width:28rem; width:calc(100% - 2rem); box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+                    .ncm-header { display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem; }
+                    .ncm-icon { width:2.5rem; height:2.5rem; background:#fef2f2; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+                    .ncm-icon svg { width:1.25rem; height:1.25rem; color:#dc2626; }
+                    .ncm-title { font-size:1rem; font-weight:600; color:#111827; margin:0; }
+                    .ncm-body { font-size:0.875rem; color:#6b7280; margin:0 0 1.5rem; }
+                    .ncm-footer { display:flex; gap:0.75rem; justify-content:flex-end; }
+                    .ncm-btn-stay { padding:0.5rem 1rem; border:1px solid #d1d5db; border-radius:0.5rem; font-size:0.875rem; font-weight:500; color:#374151; background:#fff; cursor:pointer; }
+                    .ncm-btn-leave { padding:0.5rem 1rem; border:none; border-radius:0.5rem; font-size:0.875rem; font-weight:500; color:#fff; background:#dc2626; cursor:pointer; }
                 </style>')
             )
             ->renderHook(
@@ -178,18 +259,18 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 'panels::body.end',
                 fn () => new \Illuminate\Support\HtmlString('
-                    <div id="nav-confirm-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;" onclick="if(event.target===this)navConfirmStay()">
-                        <div style="background:#fff;border-radius:0.75rem;padding:1.5rem;max-width:28rem;width:calc(100% - 2rem);box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
-                                <div style="width:2.5rem;height:2.5rem;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                                    <svg style="width:1.25rem;height:1.25rem;color:#dc2626;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd"/></svg>
+                    <div id="nav-confirm-modal" onclick="if(event.target===this)navConfirmStay()">
+                        <div class="ncm-box">
+                            <div class="ncm-header">
+                                <div class="ncm-icon">
+                                    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd"/></svg>
                                 </div>
-                                <h2 style="font-size:1rem;font-weight:600;color:#111827;margin:0;">Unsaved changes</h2>
+                                <h2 class="ncm-title">Unsaved changes</h2>
                             </div>
-                            <p style="font-size:0.875rem;color:#6b7280;margin:0 0 1.5rem;">You have unsaved changes that will be lost if you leave this page.</p>
-                            <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
-                                <button onclick="navConfirmStay()" style="padding:0.5rem 1rem;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.875rem;font-weight:500;color:#374151;background:#fff;cursor:pointer;">Stay on page</button>
-                                <button onclick="navConfirmLeave()" style="padding:0.5rem 1rem;border:none;border-radius:0.5rem;font-size:0.875rem;font-weight:500;color:#fff;background:#dc2626;cursor:pointer;">Leave page</button>
+                            <p class="ncm-body">You have unsaved changes that will be lost if you leave this page.</p>
+                            <div class="ncm-footer">
+                                <button onclick="navConfirmStay()" class="ncm-btn-stay">Stay on page</button>
+                                <button onclick="navConfirmLeave()" class="ncm-btn-leave">Leave page</button>
                             </div>
                         </div>
                     </div>
@@ -207,13 +288,13 @@ class AdminPanelProvider extends PanelProvider
                         function showNavConfirm(href) {
                             pendingNavHref = href;
                             var m = document.getElementById("nav-confirm-modal");
-                            if (m) m.style.display = "flex";
+                            if (m) m.classList.add("is-open");
                         }
 
                         window.navConfirmStay = function () {
                             pendingNavHref = null;
                             var m = document.getElementById("nav-confirm-modal");
-                            if (m) m.style.display = "none";
+                            if (m) m.classList.remove("is-open");
                         };
 
                         window.navConfirmLeave = function () {
@@ -221,7 +302,7 @@ class AdminPanelProvider extends PanelProvider
                             pendingNavHref = null;
                             formDirty = false;
                             var m = document.getElementById("nav-confirm-modal");
-                            if (m) m.style.display = "none";
+                            if (m) m.classList.remove("is-open");
                             if (typeof Livewire !== "undefined" && typeof Livewire.navigate === "function") {
                                 Livewire.navigate(href);
                             } else {

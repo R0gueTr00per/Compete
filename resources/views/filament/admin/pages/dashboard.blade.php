@@ -6,7 +6,7 @@
             <p class="text-center text-gray-500 py-8">No active competitions. <a href="{{ route('filament.admin.resources.competitions.create') }}" class="text-primary-600 underline">Create one</a>.</p>
         </x-filament::section>
     @else
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div class="grid gap-4">
             @foreach ($competitions as $competition)
                 @php
                     $statusLabel = match ($competition->status) {

@@ -15,9 +15,9 @@
 
             @php $locations = $this->getLocations(); @endphp
             @if (! empty($locations))
-                <x-filament::input.wrapper class="min-w-40 dark:bg-gray-900">
+                <x-filament::input.wrapper class="min-w-40 dark:bg-slate-900">
                     <select wire:model.live="filter_location"
-                        class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0 dark:bg-gray-900">
+                        class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0 dark:bg-slate-900">
                         <option value="">— All locations —</option>
                         @foreach ($locations as $loc)
                             <option value="{{ $loc }}">{{ $loc }}</option>
@@ -50,7 +50,7 @@
                     $rowClass = match ($div->status) {
                         'complete'  => 'bg-success-50 border-success-300 dark:bg-success-900/20 dark:border-success-700',
                         'running'   => 'bg-warning-50 border-warning-300 dark:bg-warning-900/20 dark:border-warning-700',
-                        default     => 'bg-white border-gray-200 dark:bg-gray-900 dark:border-gray-700',
+                        default     => 'bg-white border-gray-200 shadow-sm dark:bg-slate-900 dark:border-slate-700',
                     };
                     $textClass = match ($div->status) {
                         'complete'  => 'text-success-800 dark:text-success-300',
@@ -155,7 +155,7 @@
                                 <p class="text-center text-sm text-gray-400 py-4">No checked-in competitors in this division.</p>
                             @else
                                 <p class="text-xs text-gray-400 mb-3">Tap each competitor to confirm they are present.</p>
-                                <ul class="divide-y divide-gray-100 dark:divide-gray-800">
+                                <ul class="divide-y divide-gray-100 dark:divide-slate-800">
                                     @foreach ($rollcall->where('absent', false) as $rc)
                                         @php $confirmed = in_array($rc->ee_id, $this->rollcallPresent); @endphp
                                         <li wire:click="toggleRollcallPresent({{ $rc->ee_id }})"
@@ -293,7 +293,7 @@
                                                             $awayWon   = $match->home_result === 'loss';
                                                         @endphp
                                                         <div class="rounded-lg border px-3 py-2 text-sm
-                                                            {{ ! $pending ? 'border-success-200 dark:border-success-800 bg-success-50 dark:bg-success-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900' }}">
+                                                            {{ ! $pending ? 'border-success-200 dark:border-success-800 bg-success-50 dark:bg-success-900/20' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900' }}">
 
                                                             {{-- Names row --}}
                                                             <div class="flex items-center gap-2">
@@ -328,13 +328,13 @@
                                                                                             $wire.set('bracketScoreInput.{{ $match->id }}.away', {{ $targetScore }});
                                                                                         }"
                                                                                 @endif
-                                                                                class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-1 px-1"
+                                                                                class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-1 px-1"
                                                                                 placeholder="0" />
                                                                             <span class="text-xs text-gray-400 shrink-0">—</span>
                                                                             <input type="number" step="any" min="0"
                                                                                 @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                 wire:model="bracketScoreInput.{{ $match->id }}.away"
-                                                                                class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-1 px-1"
+                                                                                class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-1 px-1"
                                                                                 placeholder="0" />
                                                                             <x-filament::button size="xs" color="success" class="shrink-0"
                                                                                 wire:click="recordBracketScore({{ $match->id }})">
@@ -502,7 +502,7 @@
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-sm">
                                         <thead>
-                                            <tr class="border-b border-gray-200 dark:border-gray-700 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                            <tr class="border-b border-gray-200 dark:border-slate-700 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                                                 <th class="pb-2 pr-4">Competitor</th>
                                                 @if (in_array($method, ['judges_total', 'judges_average']))
                                                     @for ($j = 1; $j <= $judges; $j++)
@@ -520,7 +520,7 @@
                                                 @endif
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                        <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
                                             @foreach ($rows as $row)
                                                 @php $result = $row->result; @endphp
                                                 <tr class="{{ $result->disqualified ? 'opacity-50' : '' }}">
@@ -551,8 +551,7 @@
                                                                 @else
                                                                     <input type="number" step="0.1" min="0" max="10"
                                                                         wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                        style="width:3.25rem"
-                                                                        class="text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-0.5 px-1 {{ $isSaved ? 'opacity-50' : '' }}"
+                                                                        class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1 {{ $isSaved ? 'opacity-50' : '' }}"
                                                                         placeholder="0.0"
                                                                         @if ($isSaved) disabled @endif />
                                                                 @endif
@@ -609,7 +608,7 @@
                                                         @if (! $isReadOnly && $this->placementOverrideMode)
                                                             <select wire:model="placementInput.{{ $result->id }}"
                                                                 wire:change="overridePlacement({{ $result->id }})"
-                                                                class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white px-1 py-0.5 w-14">
+                                                                class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white px-1 py-0.5 w-14">
                                                                 <option value="">—</option>
                                                                 @for ($p = 1; $p <= $rows->count(); $p++)
                                                                     <option value="{{ $p }}" {{ ($result->placement == $p) ? 'selected' : '' }}>{{ $p }}</option>
@@ -749,7 +748,7 @@
                                                                         @else
                                                                             <input type="number" step="0.1" min="0" max="10"
                                                                                 wire:model="tiebreakerJudgeInputs.{{ $result->id }}.{{ $j }}"
-                                                                                class="w-16 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                                class="w-16 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
                                                                                 placeholder="0.0"
                                                                                 @if ($tbSaved) disabled @endif />
                                                                         @endif

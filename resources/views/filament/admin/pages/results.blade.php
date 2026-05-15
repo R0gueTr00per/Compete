@@ -39,8 +39,8 @@
                                     if ($entries->isEmpty()) continue;
                                 @endphp
 
-                                <div class="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                                    <div class="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                                <div class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+                                    <div class="px-4 py-2 bg-gray-50 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700">
                                         <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                                             {{ $division->full_label }}
                                         </span>
@@ -52,7 +52,7 @@
                                     </div>
 
                                     <table class="w-full text-sm">
-                                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                        <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
                                             @foreach ($entries as $ee)
                                                 @php
                                                     $result  = $ee->result;

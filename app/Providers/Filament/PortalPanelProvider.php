@@ -83,9 +83,77 @@ class PortalPanelProvider extends PanelProvider
             ])
             ->renderHook(
                 'panels::head.end',
-                fn () => new \Illuminate\Support\HtmlString('<style>
+                fn () => new \Illuminate\Support\HtmlString(
+                    '<link rel="stylesheet" href="' . \Illuminate\Support\Facades\Vite::asset('resources/css/filament-app.css') . '">' .
+                    '<style>
+                    /* =====================================================
+                       COMPETE THEME — PORTAL PANEL
+                       To retheme: edit ONLY the values in :root and .dark
+                       ===================================================== */
+                    :root {
+                        --app-topbar:         #1e3a6e;
+                        --app-accent:         #3b82f6;
+                        --app-sidebar:        #f8fafc;
+                        --app-sidebar-border: #e2e8f0;
+                        --app-bg:             #f1f5f9;
+                        --app-card:           #ffffff;
+                        --app-card-header:    #f8fafc;
+                        --app-card-border:    #e5e7eb;
+                        --app-nav-active-bg:  #eff6ff;
+                        --app-nav-active-fg:  #1e3a6e;
+                        --app-nav-fg:         #64748b;
+                    }
+                    .dark {
+                        --app-sidebar:        #0f172a;
+                        --app-sidebar-border: rgba(255,255,255,0.06);
+                        --app-bg:             #1e293b;
+                        --app-card:           #0f172a;
+                        --app-card-header:    #0a1020;
+                        --app-card-border:    rgba(255,255,255,0.08);
+                        --app-nav-active-bg:  rgba(59,130,246,0.12);
+                        --app-nav-active-fg:  #3b82f6;
+                        --app-nav-fg:         #94a3b8;
+                    }
+
+                    /* Page header layout */
                     .fi-page-header > div { flex-direction: column !important; align-items: flex-start !important; gap: 0.75rem !important; }
                     .fi-page-header > div > div:last-child { margin-left: 0 !important; flex-wrap: wrap; }
+
+                    /* Topbar */
+                    .fi-topbar { background-color: var(--app-topbar) !important; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.25) !important; color: rgba(255,255,255,0.85) !important; }
+                    .fi-topbar nav { background-color: var(--app-topbar) !important; }
+                    .fi-topbar::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--app-accent); }
+                    .fi-topbar * { color: rgba(255,255,255,0.85) !important; }
+                    .fi-topbar *:hover { color: #ffffff !important; }
+                    .fi-topbar svg, .fi-topbar svg * { color: rgba(255,255,255,0.85) !important; fill: currentColor; }
+                    .fi-topbar .fi-breadcrumbs-item-separator { opacity: 0.4; }
+
+                    /* All dropdown/filter panels (topbar + page filters) */
+                    .fi-dropdown-panel { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; }
+                    .fi-dropdown-panel * { color: #374151 !important; }
+                    .fi-dropdown-panel svg, .fi-dropdown-panel svg * { color: #374151 !important; fill: currentColor !important; }
+                    .dark .fi-dropdown-panel { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; }
+                    .dark .fi-dropdown-panel * { color: #e2e8f0 !important; }
+                    .dark .fi-dropdown-panel svg, .dark .fi-dropdown-panel svg * { color: #e2e8f0 !important; fill: currentColor !important; }
+                    .fi-dropdown-panel *:hover { background-color: rgba(0,0,0,0.04) !important; color: #111827 !important; }
+                    .dark .fi-dropdown-panel *:hover { background-color: rgba(255,255,255,0.06) !important; color: #ffffff !important; }
+
+                    /* Sidebar */
+                    .fi-sidebar { background-color: var(--app-sidebar) !important; border-right-color: var(--app-sidebar-border) !important; }
+                    .fi-sidebar-header { background-color: var(--app-sidebar) !important; border-bottom-color: var(--app-sidebar-border) !important; }
+                    .fi-sidebar-group-label { color: #94a3b8 !important; }
+                    .dark .fi-sidebar-group-label { color: #475569 !important; }
+                    .fi-sidebar-item-button { color: var(--app-nav-fg) !important; border-right: 3px solid transparent !important; border-radius: 0 !important; }
+                    .fi-sidebar-item-button:hover { background-color: rgba(30,58,110,0.06) !important; }
+                    .dark .fi-sidebar-item-button:hover { background-color: rgba(255,255,255,0.05) !important; }
+                    .fi-sidebar-item-button.fi-active { background-color: var(--app-nav-active-bg) !important; color: var(--app-nav-active-fg) !important; font-weight: 600 !important; border-right-color: var(--app-accent) !important; }
+
+                    /* Main content + cards */
+                    .fi-main, body.fi-body { background-color: var(--app-bg) !important; }
+                    .fi-section, .fi-wi-stats-overview-stat, .fi-ta-ctn { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important; }
+                    .dark .fi-section, .dark .fi-wi-stats-overview-stat, .dark .fi-ta-ctn { box-shadow: none !important; }
+                    .fi-section-header, .fi-ta-header-cell { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
+                    .fi-modal-window { background-color: var(--app-card) !important; }
                 </style>')
             )
             ->renderHook(

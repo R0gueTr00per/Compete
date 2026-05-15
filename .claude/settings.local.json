@@ -166,7 +166,19 @@
       "Bash(xargs grep -l \"PanelProvider\\\\|PanelConfiguration\")",
       "Bash(xargs findstr /s \"PanelProvider\")",
       "Bash(dir \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\" /s /b *.php)",
-      "Bash(findstr -i \"admin\\\\|portal\")"
+      "Bash(findstr -i \"admin\\\\|portal\")",
+      "Bash(node -e \"const p = require\\('x:/Repos/Compete/package.json'\\); console.log\\('tailwindcss:', p.devDependencies?.tailwindcss || p.dependencies?.tailwindcss\\)\")",
+      "Bash(xargs grep -l \"dark\")",
+      "Bash(dir /s /b vendor\\\\filament\\\\filament\\\\resources\\\\views\\\\*.blade.php)",
+      "Bash(grep -r \"x-data\" vendor/filament/support/resources/views/layouts/app.blade.php)",
+      "Bash(find vendor/filament -name \"app.blade.php\" -path \"*/layouts/*\")",
+      "Bash(xargs grep -l \"x-data\\\\|dark\\\\|alpine\")",
+      "Bash(xargs grep -l \"fi-body\\\\|fi-main\\\\|dark-mode\\\\|darkMode\")",
+      "Bash(php -r ' *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(k\\) for k in d]\")",
+      "Bash(php -l app/Providers/Filament/AdminPanelProvider.php)",
+      "Bash(php -l app/Providers/Filament/PortalPanelProvider.php)",
+      "Bash(xargs grep -l \"theme\\\\|dark.*mode\\\\|sun\\\\|moon\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"
