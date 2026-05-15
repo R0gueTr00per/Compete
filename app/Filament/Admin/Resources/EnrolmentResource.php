@@ -46,16 +46,21 @@ class EnrolmentResource extends Resource
                 TextColumn::make('competitor_name')
                     ->label('Competitor')
                     ->getStateUsing(fn (Enrolment $record) => trim($record->competitor?->competitorProfile?->first_name . ' ' . $record->competitor?->competitorProfile?->surname) ?: $record->competitor?->email)
+                    ->description(fn (Enrolment $record) => $record->display_rank)
                     ->searchable(query: fn ($query, $search) => $query->whereHas('competitor.competitorProfile', fn ($q) => $q->where('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"))),
 
                 TextColumn::make('age')
                     ->label('Age')
                     ->state(fn (Enrolment $record) => $record->competitor?->competitorProfile?->age)
                     ->suffix(' yrs')
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 TextColumn::make('display_rank')
-                    ->label('Rank'),
+                    ->label('Rank')
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 TextColumn::make('weight_kg')
                     ->label('Weight')
@@ -64,18 +69,24 @@ class EnrolmentResource extends Resource
                 TextColumn::make('enrolled_at')
                     ->label('Enrolled')
                     ->dateTime('d M Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 IconColumn::make('is_late')
                     ->label('Late')
                     ->boolean()
                     ->trueColor('warning')
-                    ->falseColor('gray'),
+                    ->falseColor('gray')
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 TextColumn::make('fee_calculated')
                     ->label('Fee')
                     ->money('AUD')
-                    ->sortable(),
+                    ->sortable()
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 TextColumn::make('payment_status')
                     ->label('Payment')
@@ -103,7 +114,9 @@ class EnrolmentResource extends Resource
 
                 TextColumn::make('active_events_count')
                     ->label('Events')
-                    ->counts('activeEvents'),
+                    ->counts('activeEvents')
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
             ])
             ->filters([
                 SelectFilter::make('status')

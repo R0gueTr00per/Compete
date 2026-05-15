@@ -154,6 +154,7 @@ class UserResource extends Resource
                     ->label('Name')
                     ->getStateUsing(fn (User $record) => trim($record->competitorProfile?->first_name . ' ' . $record->competitorProfile?->surname) ?: null)
                     ->placeholder('—')
+                    ->description(fn (User $record) => $record->email)
                     ->searchable(query: fn ($query, $search) => $query->where(fn ($q) => $q
                         ->whereHas('competitorProfile', fn ($q2) => $q2
                             ->where('first_name', 'like', "%{$search}%")
@@ -163,7 +164,9 @@ class UserResource extends Resource
                     )),
 
                 TextColumn::make('email')
-                    ->sortable(),
+                    ->sortable()
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 TextColumn::make('roles.name')
                     ->label('Role')
@@ -200,7 +203,9 @@ class UserResource extends Resource
                         'Complete'   => 'success',
                         'Incomplete' => 'warning',
                         'None'       => 'gray',
-                    }),
+                    })
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 TextColumn::make('auth_type')
                     ->label('Auth')
@@ -212,18 +217,24 @@ class UserResource extends Resource
                         return implode(', ', $providers);
                     })
                     ->badge()
-                    ->color('gray'),
+                    ->color('gray')
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 TextColumn::make('last_login_at')
                     ->label('Last login')
                     ->dateTime('d M Y H:i')
                     ->sortable()
-                    ->placeholder('Never'),
+                    ->placeholder('Never')
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
                 TextColumn::make('created_at')
                     ->label('Registered')
                     ->date('d M Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([

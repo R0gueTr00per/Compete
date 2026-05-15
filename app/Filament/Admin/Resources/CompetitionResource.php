@@ -177,7 +177,9 @@ class CompetitionResource extends Resource
                 TextColumn::make('enrolments_count')
                     ->label('Enrolments')
                     ->counts('enrolments')
-                    ->sortable(),
+                    ->sortable()
+                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
+                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
 
             ])
             ->filters([
