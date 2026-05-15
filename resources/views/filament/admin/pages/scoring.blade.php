@@ -110,7 +110,7 @@
                             ->count();
                         $competitorCount = $rows->count();
                     @endphp
-                    <div class="mb-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-primary-50/50 dark:bg-primary-900/10 p-4">
+                    <div class="mb-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-white dark:bg-primary-900/10 p-4">
 
                         {{-- Panel header: step indicator (hidden for completed read-only view) --}}
                         @if (! $isReadOnly)
