@@ -4,7 +4,9 @@ namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\DojoResource\Pages;
 use App\Models\Dojo;
+use App\Models\User;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
@@ -48,6 +50,18 @@ class DojoResource extends Resource
                     ->label('Active (shown in competitor enrolment)')
                     ->default(true)
                     ->inline(false),
+
+                Select::make('instructor_id')
+                    ->label('Instructor')
+                    ->placeholder('None')
+                    ->nullable()
+                    ->searchable()
+                    ->options(
+                        User::whereHas('competitorProfile')
+                            ->get()
+                            ->mapWithKeys(fn (User $u) => [$u->id => $u->getFilamentName()])
+                            ->toArray()
+                    ),
             ]),
         ]);
     }

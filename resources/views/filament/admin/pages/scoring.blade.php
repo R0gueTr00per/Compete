@@ -116,7 +116,7 @@
 
                         {{-- Panel header: step indicator (hidden for completed read-only view) --}}
                         @if (! $isReadOnly)
-                        <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center justify-between mb-4">
                             <div class="flex items-center gap-2 text-xs font-medium">
                                 <span class="flex items-center gap-1.5 {{ $this->rollcallMode ? 'text-primary-700 dark:text-primary-300' : 'text-gray-400 dark:text-gray-600' }}">
                                     <span class="flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold
@@ -130,12 +130,21 @@
                                     Scoring
                                 </span>
                             </div>
-                            <span class="text-xs text-gray-500">
-                                {{ $totalCheckedIn }} checked in
-                                @if (! $this->rollcallMode && $competitorCount < $totalCheckedIn)
-                                    &middot; {{ $competitorCount }} competing
-                                @endif
-                            </span>
+                            @if (! $this->rollcallMode && ! $this->isTournament())
+                                <div class="flex items-center gap-1">
+                                    @if (in_array($this->getScoringMethod(), ['judges_total', 'judges_average']))
+                                        <x-filament::button size="xs" color="gray"
+                                            x-on:click="$dispatch('open-modal', { id: 'confirm-reset-scores' })">
+                                            Reset scores
+                                        </x-filament::button>
+                                    @endif
+                                    <x-filament::button size="xs"
+                                        color="{{ $this->placementOverrideMode ? 'warning' : 'gray' }}"
+                                        wire:click="togglePlacementOverrideMode">
+                                        {{ $this->placementOverrideMode ? 'Auto (clear overrides)' : 'Override placements' }}
+                                    </x-filament::button>
+                                </div>
+                            @endif
                         </div>
                         @endif
 
@@ -288,72 +297,71 @@
                                                         <div class="rounded-lg border px-3 py-2 text-sm
                                                             {{ ! $pending ? 'border-success-200 dark:border-success-800 bg-success-50 dark:bg-success-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900' }}">
 
+                                                            {{-- Names row --}}
                                                             <div class="flex items-center gap-2">
-                                                                {{-- Home competitor --}}
                                                                 <span class="flex-1 font-medium truncate
                                                                     {{ $homeWon ? 'text-success-700 dark:text-success-400' : ($awayWon ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white') }}">
                                                                     @if ($homeWon)🏆 @endif{{ $match->home_name }}
                                                                 </span>
-
-                                                                {{-- vs / result --}}
-                                                                @if ($pending)
-                                                                    @if ($isScored)
-                                                                        <div class="flex items-center gap-1.5 shrink-0">
-                                                                            @if ($match->home_id && $match->away_id)
-                                                                                <input type="number" step="any" min="0"
-                                                                                    @if ($targetScore) max="{{ $targetScore }}" @endif
-                                                                                    wire:model="bracketScoreInput.{{ $match->id }}.home"
-                                                                                    @if ($targetScore)
-                                                                                        x-on:change="const v = parseFloat($el.value); if (!isNaN(v) && v !== {{ $targetScore }}) $wire.set('bracketScoreInput.{{ $match->id }}.away', '{{ $targetScore }}')"
-                                                                                    @endif
-                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-0.5 px-1"
-                                                                                    placeholder="0" />
-                                                                                <span class="text-xs text-gray-400 shrink-0">vs</span>
-                                                                                <input type="number" step="any" min="0"
-                                                                                    @if ($targetScore) max="{{ $targetScore }}" @endif
-                                                                                    wire:model="bracketScoreInput.{{ $match->id }}.away"
-                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-0.5 px-1"
-                                                                                    placeholder="0" />
-                                                                                <x-filament::button size="xs" color="success"
-                                                                                    wire:click="recordBracketScore({{ $match->id }})">
-                                                                                    Save
-                                                                                </x-filament::button>
-                                                                            @endif
-                                                                        </div>
-                                                                    @else
-                                                                        <div class="flex gap-1 shrink-0">
-                                                                            @if ($match->home_id && $match->away_id)
-                                                                                <x-filament::button size="xs" color="success"
-                                                                                    wire:click="recordBracketWinner({{ $match->id }}, {{ $match->home_id }})">
-                                                                                    ← Wins
-                                                                                </x-filament::button>
-                                                                                <x-filament::button size="xs" color="success"
-                                                                                    wire:click="recordBracketWinner({{ $match->id }}, {{ $match->away_id }})">
-                                                                                    Wins →
-                                                                                </x-filament::button>
-                                                                            @endif
-                                                                        </div>
-                                                                    @endif
-                                                                @else
-                                                                    <div class="flex items-center gap-1 shrink-0">
-                                                                        @if ($isScored && $match->home_score !== null)
-                                                                            <span class="text-xs text-gray-500 dark:text-gray-400">
-                                                                                {{ (float)$match->home_score + 0 }} — {{ (float)$match->away_score + 0 }}
-                                                                            </span>
-                                                                        @endif
-                                                                        <button wire:click="clearBracketResult({{ $match->id }})"
-                                                                            class="text-gray-300 hover:text-danger-400 transition-colors" title="Clear result">
-                                                                            <x-heroicon-m-x-mark class="w-3 h-3" />
-                                                                        </button>
-                                                                    </div>
-                                                                @endif
-
-                                                                {{-- Away competitor --}}
+                                                                <span class="text-xs text-gray-400 shrink-0">vs</span>
                                                                 <span class="flex-1 text-right font-medium truncate
                                                                     {{ $awayWon ? 'text-success-700 dark:text-success-400' : ($homeWon ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white') }}">
                                                                     {{ $match->away_name }}@if ($awayWon) 🏆@endif
                                                                 </span>
                                                             </div>
+
+                                                            {{-- Controls row --}}
+                                                            @if ($pending)
+                                                                @if ($isScored)
+                                                                    @if ($match->home_id && $match->away_id)
+                                                                        <div class="mt-2 flex items-center justify-center gap-2 flex-nowrap">
+                                                                            <input type="number" step="any" min="0"
+                                                                                @if ($targetScore) max="{{ $targetScore }}" @endif
+                                                                                wire:model="bracketScoreInput.{{ $match->id }}.home"
+                                                                                @if ($targetScore)
+                                                                                    x-on:change="const v = parseFloat($el.value); if (!isNaN(v) && v !== {{ $targetScore }}) $wire.set('bracketScoreInput.{{ $match->id }}.away', '{{ $targetScore }}')"
+                                                                                @endif
+                                                                                class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-1 px-1"
+                                                                                placeholder="0" />
+                                                                            <span class="text-xs text-gray-400 shrink-0">—</span>
+                                                                            <input type="number" step="any" min="0"
+                                                                                @if ($targetScore) max="{{ $targetScore }}" @endif
+                                                                                wire:model="bracketScoreInput.{{ $match->id }}.away"
+                                                                                class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-1 px-1"
+                                                                                placeholder="0" />
+                                                                            <x-filament::button size="xs" color="success" class="shrink-0"
+                                                                                wire:click="recordBracketScore({{ $match->id }})">
+                                                                                Save
+                                                                            </x-filament::button>
+                                                                        </div>
+                                                                    @endif
+                                                                @else
+                                                                    @if ($match->home_id && $match->away_id)
+                                                                        <div class="mt-2 flex justify-center gap-2">
+                                                                            <x-filament::button size="xs" color="success"
+                                                                                wire:click="recordBracketWinner({{ $match->id }}, {{ $match->home_id }})">
+                                                                                ← Wins
+                                                                            </x-filament::button>
+                                                                            <x-filament::button size="xs" color="success"
+                                                                                wire:click="recordBracketWinner({{ $match->id }}, {{ $match->away_id }})">
+                                                                                Wins →
+                                                                            </x-filament::button>
+                                                                        </div>
+                                                                    @endif
+                                                                @endif
+                                                            @else
+                                                                <div class="mt-1 flex items-center justify-center gap-1">
+                                                                    @if ($isScored && $match->home_score !== null)
+                                                                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                                                                            {{ (float)$match->home_score + 0 }} — {{ (float)$match->away_score + 0 }}
+                                                                        </span>
+                                                                    @endif
+                                                                    <button wire:click="clearBracketResult({{ $match->id }})"
+                                                                        class="text-gray-300 hover:text-danger-400 transition-colors" title="Clear result">
+                                                                        <x-heroicon-m-x-mark class="w-3 h-3" />
+                                                                    </button>
+                                                                </div>
+                                                            @endif
                                                         </div>
                                                     @endforeach
                                                 </div>
@@ -484,23 +492,6 @@
                                 </div>{{-- end wire:key bracket wrapper --}}
                             @else
                                 {{-- Standard scoring (judges / win-loss / first-to-n) --}}
-                                @if (! $isReadOnly)
-                                    <div class="flex items-center justify-between mb-3">
-                                        <div class="flex items-center gap-1">
-                                            @if (in_array($method, ['judges_total', 'judges_average']))
-                                                <x-filament::button size="xs" color="gray"
-                                                    x-on:click="$dispatch('open-modal', { id: 'confirm-reset-scores' })">
-                                                    Reset scores
-                                                </x-filament::button>
-                                            @endif
-                                        </div>
-                                        <x-filament::button size="xs"
-                                            color="{{ $this->placementOverrideMode ? 'warning' : 'gray' }}"
-                                            wire:click="togglePlacementOverrideMode">
-                                            {{ $this->placementOverrideMode ? 'Auto (clear overrides)' : 'Override placements' }}
-                                        </x-filament::button>
-                                    </div>
-                                @endif
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-sm">
                                         <thead>
@@ -553,7 +544,8 @@
                                                                 @else
                                                                     <input type="number" step="0.1" min="0" max="10"
                                                                         wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                        class="w-16 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-0.5 px-1 {{ $isSaved ? 'opacity-50' : '' }}"
+                                                                        style="width:3.25rem"
+                                                                        class="text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm py-0.5 px-1 {{ $isSaved ? 'opacity-50' : '' }}"
                                                                         placeholder="0.0"
                                                                         @if ($isSaved) disabled @endif />
                                                                 @endif
@@ -563,19 +555,6 @@
                                                             <span class="font-semibold">
                                                                 {{ $liveTotal !== null ? number_format($liveTotal, 1) : '—' }}
                                                             </span>
-                                                            @if (! $isReadOnly)
-                                                                @if ($isSaved)
-                                                                    <x-filament::button size="xs" color="gray"
-                                                                        wire:click="undoJudgeScores({{ $result->id }})" class="ml-1">
-                                                                        Undo
-                                                                    </x-filament::button>
-                                                                @else
-                                                                    <x-filament::button size="xs" color="primary"
-                                                                        wire:click="saveJudgeScores({{ $result->id }})" class="ml-1">
-                                                                        Save
-                                                                    </x-filament::button>
-                                                                @endif
-                                                            @endif
                                                         </td>
 
                                                     @elseif ($method === 'win_loss')
@@ -651,6 +630,19 @@
                                                     @if (! $isReadOnly)
                                                         <td class="py-2">
                                                             <div class="flex flex-wrap gap-1">
+                                                                @if (in_array($method, ['judges_total', 'judges_average']))
+                                                                    @if ($isSaved)
+                                                                        <x-filament::button size="xs" color="gray"
+                                                                            wire:click="undoJudgeScores({{ $result->id }})">
+                                                                            Undo
+                                                                        </x-filament::button>
+                                                                    @else
+                                                                        <x-filament::button size="xs" color="primary"
+                                                                            wire:click="saveJudgeScores({{ $result->id }})">
+                                                                            Save
+                                                                        </x-filament::button>
+                                                                    @endif
+                                                                @endif
                                                                 <x-filament::button size="xs"
                                                                     color="{{ $result->disqualified ? 'gray' : 'danger' }}"
                                                                     wire:click="toggleDisqualify({{ $result->id }})">

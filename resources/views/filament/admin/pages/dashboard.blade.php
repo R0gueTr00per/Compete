@@ -34,6 +34,16 @@
                         'open'     => 'success',
                         default    => 'gray',
                     };
+
+                    // Button colours — highlight only when the action is relevant to the current/next status
+                    $enrolmentsColor = in_array($competition->status, ['open', 'closed']) ? 'success' : 'gray';
+                    $checkInColor    = match ($competition->status) {
+                        'check_in' => 'primary',
+                        'running'  => 'warning',
+                        default    => 'gray',
+                    };
+                    $schedulingColor = in_array($competition->status, ['closed', 'check_in']) ? 'info' : 'gray';
+                    $scoringColor    = $competition->status === 'running' ? 'warning' : 'gray';
                 @endphp
                 <x-filament::section>
                     <x-slot name="heading">
@@ -50,6 +60,14 @@
                             &mdash; {{ $competition->location_name }}
                         @endif
                         &bull; {{ $competition->enrolments_count }} enrolment{{ $competition->enrolments_count !== 1 ? 's' : '' }}
+                        @if (in_array($competition->status, ['check_in', 'running']))
+                            &bull; {{ $competition->checkins_count }} checked in
+                        @endif
+                        @if ($competition->status === 'running')
+                            &bull; {{ $competition->events_count }} event{{ $competition->events_count !== 1 ? 's' : '' }} ({{ $competition->completed_divisions_count }} completed)
+                        @elseif ($competition->events_count > 0)
+                            &bull; {{ $competition->events_count }} event{{ $competition->events_count !== 1 ? 's' : '' }}
+                        @endif
                     </x-slot>
 
                     <div class="flex flex-wrap gap-2">
@@ -63,18 +81,20 @@
                             </x-filament::button>
                         @endif
 
-                        <x-filament::button
-                            size="sm"
-                            color="gray"
-                            tag="a"
-                            href="{{ route('filament.admin.resources.competitions.edit', $competition) }}"
-                        >
-                            Edit competition
-                        </x-filament::button>
+                        @if ($competition->status === 'draft')
+                            <x-filament::button
+                                size="sm"
+                                color="gray"
+                                tag="a"
+                                href="{{ route('filament.admin.resources.competitions.edit', $competition) }}"
+                            >
+                                Edit competition
+                            </x-filament::button>
+                        @endif
 
                         <x-filament::button
                             size="sm"
-                            color="gray"
+                            :color="$enrolmentsColor"
                             tag="a"
                             href="{{ route('filament.admin.resources.enrolments.index') }}?competition_id={{ $competition->id }}"
                         >
@@ -83,7 +103,7 @@
 
                         <x-filament::button
                             size="sm"
-                            color="primary"
+                            :color="$checkInColor"
                             tag="a"
                             href="{{ route('filament.admin.pages.check-in') }}?competition_id={{ $competition->id }}"
                         >
@@ -92,7 +112,7 @@
 
                         <x-filament::button
                             size="sm"
-                            color="info"
+                            :color="$schedulingColor"
                             tag="a"
                             href="{{ route('filament.admin.resources.competitions.schedule', $competition) }}"
                         >
@@ -101,7 +121,7 @@
 
                         <x-filament::button
                             size="sm"
-                            color="warning"
+                            :color="$scoringColor"
                             tag="a"
                             href="{{ route('filament.admin.pages.scoring') }}?competition_id={{ $competition->id }}"
                         >

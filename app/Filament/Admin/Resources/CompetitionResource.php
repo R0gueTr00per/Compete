@@ -41,6 +41,11 @@ class CompetitionResource extends Resource
         return auth()->user()?->hasRole(['competition_administrator', 'system_admin']);
     }
 
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name'];
+    }
+
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
     {
         return auth()->user()?->hasRole(['competition_administrator', 'system_admin']);
@@ -187,84 +192,89 @@ class CompetitionResource extends Resource
                     ]),
             ])
             ->actions([
-                EditAction::make(),
-                Action::make('events')
-                    ->label('Events')
-                    ->icon('heroicon-o-rectangle-stack')
-                    ->color('info')
-                    ->url(fn (Competition $record) => static::getUrl('events', ['record' => $record])),
-                Action::make('schedule')
-                    ->label('Scheduling')
-                    ->icon('heroicon-o-calendar-days')
-                    ->color('warning')
-                    ->url(fn (Competition $record) => static::getUrl('schedule', ['record' => $record])),
-                Action::make('advance')
-                    ->label(fn (Competition $record) => match ($record->status) {
-                        'draft'    => 'Open Enrolments',
-                        'open'     => 'Close Enrolments',
-                        'closed'   => 'Begin Check-ins',
-                        'check_in' => 'Start Competition',
-                        'running'  => 'Conclude Competition',
-                        default    => 'Advance',
-                    })
-                    ->icon(fn (Competition $record) => match ($record->status) {
-                        'draft'    => 'heroicon-o-lock-open',
-                        'open'     => 'heroicon-o-lock-closed',
-                        'closed'   => 'heroicon-o-clipboard-document-check',
-                        'check_in' => 'heroicon-o-play',
-                        'running'  => 'heroicon-o-flag',
-                        default    => 'heroicon-o-arrow-right',
-                    })
-                    ->color(fn (Competition $record) => match ($record->status) {
-                        'draft'    => 'success',
-                        'open'     => 'warning',
-                        'closed'   => 'primary',
-                        'check_in' => 'info',
-                        'running'  => 'danger',
-                        default    => 'gray',
-                    })
-                    ->requiresConfirmation(fn (Competition $record) =>
-                        $record->status !== 'draft' ||
-                        $record->allDivisions()
-                            ->whereNull('divisions.location_label')
-                            ->whereNotIn('divisions.status', ['combined'])
-                            ->count() > 0
-                    )
-                    ->modalDescription(function (Competition $record) {
-                        return match ($record->status) {
-                            'draft' => (function () use ($record) {
-                                $unscheduled = $record->allDivisions()
-                                    ->whereNull('divisions.location_label')
-                                    ->whereNotIn('divisions.status', ['combined'])
-                                    ->count();
-                                return "{$unscheduled} division(s) have not been assigned to a location. Open for enrolment anyway?";
-                            })(),
-                            'open'     => 'Close enrolments for this competition?',
-                            'closed'   => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
-                            'check_in' => (function () use ($record) {
-                                $completedDivisions = $record->allDivisions()
-                                    ->where('divisions.status', 'complete')
-                                    ->count();
-                                $msg = 'This will start the competition. Undo check-in will be disabled and scoring will become active.';
-                                if ($completedDivisions > 0) {
-                                    $msg .= " Warning: {$completedDivisions} division(s) are already marked as complete.";
-                                }
-                                return $msg;
-                            })(),
-                            'running'  => 'Conclude this competition? Results will become visible to competitors.',
-                            default    => 'Are you sure?',
-                        };
-                    })
-                    ->visible(fn (Competition $record) => $record->status !== 'complete')
-                    ->action(fn (Competition $record) => $record->update(['status' => match ($record->status) {
-                        'draft'    => 'open',
-                        'open'     => 'closed',
-                        'closed'   => 'check_in',
-                        'check_in' => 'running',
-                        'running'  => 'complete',
-                        default    => $record->status,
-                    }])),
                 ActionGroup::make([
+                    EditAction::make(),
+                    Action::make('events')
+                        ->label('Events')
+                        ->icon('heroicon-o-rectangle-stack')
+                        ->color('info')
+                        ->url(fn (Competition $record) => static::getUrl('events', ['record' => $record])),
+                    Action::make('schedule')
+                        ->label('Scheduling')
+                        ->icon('heroicon-o-calendar-days')
+                        ->color('warning')
+                        ->url(fn (Competition $record) => static::getUrl('schedule', ['record' => $record])),
+                    Action::make('enrolments')
+                        ->label('Enrolments')
+                        ->icon('heroicon-o-clipboard-document-list')
+                        ->color('gray')
+                        ->url(fn (Competition $record) => route('filament.admin.resources.enrolments.index') . '?competition_id=' . $record->id),
+                    Action::make('advance')
+                        ->label(fn (Competition $record) => match ($record->status) {
+                            'draft'    => 'Open Enrolments',
+                            'open'     => 'Close Enrolments',
+                            'closed'   => 'Begin Check-ins',
+                            'check_in' => 'Start Competition',
+                            'running'  => 'Conclude Competition',
+                            default    => 'Advance',
+                        })
+                        ->icon(fn (Competition $record) => match ($record->status) {
+                            'draft'    => 'heroicon-o-lock-open',
+                            'open'     => 'heroicon-o-lock-closed',
+                            'closed'   => 'heroicon-o-clipboard-document-check',
+                            'check_in' => 'heroicon-o-play',
+                            'running'  => 'heroicon-o-flag',
+                            default    => 'heroicon-o-arrow-right',
+                        })
+                        ->color(fn (Competition $record) => match ($record->status) {
+                            'draft'    => 'success',
+                            'open'     => 'warning',
+                            'closed'   => 'primary',
+                            'check_in' => 'info',
+                            'running'  => 'danger',
+                            default    => 'gray',
+                        })
+                        ->requiresConfirmation(fn (Competition $record) =>
+                            $record->status !== 'draft' ||
+                            $record->allDivisions()
+                                ->whereNull('divisions.location_label')
+                                ->whereNotIn('divisions.status', ['combined'])
+                                ->count() > 0
+                        )
+                        ->modalDescription(function (Competition $record) {
+                            return match ($record->status) {
+                                'draft' => (function () use ($record) {
+                                    $unscheduled = $record->allDivisions()
+                                        ->whereNull('divisions.location_label')
+                                        ->whereNotIn('divisions.status', ['combined'])
+                                        ->count();
+                                    return "{$unscheduled} division(s) have not been assigned to a location. Open for enrolment anyway?";
+                                })(),
+                                'open'     => 'Close enrolments for this competition?',
+                                'closed'   => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
+                                'check_in' => (function () use ($record) {
+                                    $completedDivisions = $record->allDivisions()
+                                        ->where('divisions.status', 'complete')
+                                        ->count();
+                                    $msg = 'This will start the competition. Undo check-in will be disabled and scoring will become active.';
+                                    if ($completedDivisions > 0) {
+                                        $msg .= " Warning: {$completedDivisions} division(s) are already marked as complete.";
+                                    }
+                                    return $msg;
+                                })(),
+                                'running'  => 'Conclude this competition? Results will become visible to competitors.',
+                                default    => 'Are you sure?',
+                            };
+                        })
+                        ->visible(fn (Competition $record) => $record->status !== 'complete')
+                        ->action(fn (Competition $record) => $record->update(['status' => match ($record->status) {
+                            'draft'    => 'open',
+                            'open'     => 'closed',
+                            'closed'   => 'check_in',
+                            'check_in' => 'running',
+                            'running'  => 'complete',
+                            default    => $record->status,
+                        }])),
                     Action::make('duplicate')
                         ->label('Duplicate competition')
                         ->icon('heroicon-o-document-duplicate')

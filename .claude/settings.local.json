@@ -140,7 +140,9 @@
       "PowerShell(Get-ChildItem \"x:/Repos/Compete/vendor/filament/support/resources/views/components/input\" -Force | ForEach-Object { $_.FullName })",
       "Bash(php -l \"app/Providers/Filament/AdminPanelProvider.php\")",
       "Bash(php -l \"app/Providers/Filament/PortalPanelProvider.php\")",
-      "Bash(xargs grep -l \"division\")"
+      "Bash(xargs grep -l \"division\")",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

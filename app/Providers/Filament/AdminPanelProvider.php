@@ -7,6 +7,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
+use Filament\Navigation\NavigationItem;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -37,6 +38,7 @@ class AdminPanelProvider extends PanelProvider
                 'Competitions',
                 'Competitors',
                 'System',
+                'Competitor Portal',
             ])
             ->userMenuItems([
                 MenuItem::make()
@@ -74,22 +76,18 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->sidebarCollapsibleOnDesktop()
             ->authGuard('web')
-            ->renderHook(
-                'panels::sidebar.footer',
-                fn () => new \Illuminate\Support\HtmlString('
-                    <div class="px-3 pb-4 pt-2 border-t border-gray-200 dark:border-white/10">
-                        <p class="px-3 mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Competitor Portal</p>
-                        <a href="/portal" class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-                            <svg class="w-4 h-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
-                            My Dashboard
-                        </a>
-                        <a href="/portal/profile" class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-                            <svg class="w-4 h-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
-                            My Profile
-                        </a>
-                    </div>
-                ')
-            )
+            ->navigationItems([
+                NavigationItem::make('My Dashboard')
+                    ->url('/portal')
+                    ->icon('heroicon-o-home')
+                    ->group('Competitor Portal')
+                    ->sort(1),
+                NavigationItem::make('My Profile')
+                    ->url('/portal/profile')
+                    ->icon('heroicon-o-user-circle')
+                    ->group('Competitor Portal')
+                    ->sort(2),
+            ])
             ->renderHook(
                 'panels::head.end',
                 fn () => new \Illuminate\Support\HtmlString('<style>
@@ -172,6 +170,95 @@ class AdminPanelProvider extends PanelProvider
                         })();
                     </script>');
                 }
+            )
+            ->renderHook(
+                'panels::body.end',
+                fn () => new \Illuminate\Support\HtmlString('
+                    <div id="nav-confirm-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;" onclick="if(event.target===this)navConfirmStay()">
+                        <div style="background:#fff;border-radius:0.75rem;padding:1.5rem;max-width:28rem;width:calc(100% - 2rem);box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+                                <div style="width:2.5rem;height:2.5rem;background:#fef2f2;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                    <svg style="width:1.25rem;height:1.25rem;color:#dc2626;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd"/></svg>
+                                </div>
+                                <h2 style="font-size:1rem;font-weight:600;color:#111827;margin:0;">Unsaved changes</h2>
+                            </div>
+                            <p style="font-size:0.875rem;color:#6b7280;margin:0 0 1.5rem;">You have unsaved changes that will be lost if you leave this page.</p>
+                            <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+                                <button onclick="navConfirmStay()" style="padding:0.5rem 1rem;border:1px solid #d1d5db;border-radius:0.5rem;font-size:0.875rem;font-weight:500;color:#374151;background:#fff;cursor:pointer;">Stay on page</button>
+                                <button onclick="navConfirmLeave()" style="padding:0.5rem 1rem;border:none;border-radius:0.5rem;font-size:0.875rem;font-weight:500;color:#fff;background:#dc2626;cursor:pointer;">Leave page</button>
+                            </div>
+                        </div>
+                    </div>
+                    <script>
+                    (function () {
+                        var formDirty      = false;
+                        var onEditPage     = false;
+                        var pendingNavHref = null;
+
+                        function checkEditPage() {
+                            onEditPage = /\/(edit|create)(\?|\/|$)/.test(window.location.href);
+                            if (!onEditPage) formDirty = false;
+                        }
+
+                        function showNavConfirm(href) {
+                            pendingNavHref = href;
+                            var m = document.getElementById("nav-confirm-modal");
+                            if (m) m.style.display = "flex";
+                        }
+
+                        window.navConfirmStay = function () {
+                            pendingNavHref = null;
+                            var m = document.getElementById("nav-confirm-modal");
+                            if (m) m.style.display = "none";
+                        };
+
+                        window.navConfirmLeave = function () {
+                            var href = pendingNavHref;
+                            pendingNavHref = null;
+                            formDirty = false;
+                            var m = document.getElementById("nav-confirm-modal");
+                            if (m) m.style.display = "none";
+                            if (typeof Livewire !== "undefined" && typeof Livewire.navigate === "function") {
+                                Livewire.navigate(href);
+                            } else {
+                                window.location.href = href;
+                            }
+                        };
+
+                        document.addEventListener("input",  function () { if (onEditPage) formDirty = true; });
+                        document.addEventListener("change", function () { if (onEditPage) formDirty = true; });
+
+                        // Capture phase — fires before Livewire\'s wire:navigate bubble listener.
+                        document.addEventListener("click", function (e) {
+                            var btn = e.target.closest("button, a");
+                            if (!btn) return;
+                            var text = btn.textContent.trim();
+                            // Save / Cancel actions: clear dirty and allow normally.
+                            if (/^(cancel|save|create|update)/i.test(text)) {
+                                formDirty = false;
+                                return;
+                            }
+                            // Any other link while dirty: intercept and show custom dialog.
+                            if (formDirty && btn.tagName === "A") {
+                                var href = btn.getAttribute("href");
+                                if (href && href !== "#" && !href.startsWith("javascript:") && !href.startsWith("mailto:")) {
+                                    e.preventDefault();
+                                    e.stopImmediatePropagation();
+                                    showNavConfirm(href);
+                                }
+                            }
+                        }, true);
+
+                        // Full-page unloads (browser close, address bar, refresh).
+                        window.addEventListener("beforeunload", function (e) {
+                            if (formDirty) { e.preventDefault(); e.returnValue = ""; }
+                        });
+
+                        document.addEventListener("livewire:navigated", function () { checkEditPage(); });
+
+                        checkEditPage();
+                    })();
+                    </script>')
             );
     }
 }

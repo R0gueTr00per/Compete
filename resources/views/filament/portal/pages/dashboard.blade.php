@@ -1,7 +1,9 @@
 <x-filament-panels::page>
     @php
-        $profile    = $this->getProfile();
-        $enrolments = $this->getEnrolments();
+        $profile               = $this->getProfile();
+        $enrolments            = $this->getEnrolments();
+        $instructorDojos       = $this->getInstructorDojos();
+        $instructorCompetitions = $instructorDojos->isNotEmpty() ? $this->getInstructorCompetitions() : collect();
     @endphp
 
     {{-- Profile summary --}}
@@ -188,4 +190,65 @@
             @endforeach
         @endif
     </div>
+
+    {{-- Instructor view --}}
+    @if ($instructorDojos->isNotEmpty())
+        <div class="mt-6">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">
+                My Dojo{{ $instructorDojos->count() !== 1 ? 's' : '' }}
+            </h2>
+
+            @foreach ($instructorDojos as $dojo)
+                @php
+                    $dojoCompetitions = $instructorCompetitions->filter(
+                        fn ($c) => $c->enrolments->where('dojo_name', $dojo->name)->isNotEmpty()
+                    );
+                @endphp
+                <x-filament::section class="mb-4">
+                    <x-slot name="heading">{{ $dojo->name }}</x-slot>
+
+                    @if ($dojoCompetitions->isEmpty())
+                        <p class="text-sm text-gray-500 py-2">No active competitions with enrolments from this dojo.</p>
+                    @else
+                        @foreach ($dojoCompetitions as $competition)
+                            @php
+                                $dojoEnrolments = $competition->enrolments->where('dojo_name', $dojo->name)->sortBy(
+                                    fn ($e) => $e->competitor?->competitorProfile?->surname ?? ''
+                                );
+                            @endphp
+                            <div class="mb-4">
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                    {{ $competition->name }}
+                                    &mdash; {{ $competition->competition_date->format('d M Y') }}
+                                </p>
+                                <div class="divide-y divide-gray-100 dark:divide-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                    @foreach ($dojoEnrolments as $enrolment)
+                                        @php
+                                            $profile = $enrolment->competitor?->competitorProfile;
+                                            $name = $profile
+                                                ? trim($profile->first_name . ' ' . $profile->surname)
+                                                : $enrolment->competitor?->email ?? '—';
+                                        @endphp
+                                        <div class="px-4 py-3">
+                                            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $name }}</p>
+                                            <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                                                @foreach ($enrolment->activeEvents as $ee)
+                                                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                                                        {{ $ee->competitionEvent->event_code }} — {{ $ee->competitionEvent->name }}
+                                                        @if ($ee->division)
+                                                            <span class="text-gray-400">({{ $ee->division->full_label }})</span>
+                                                        @endif
+                                                    </span>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    @endif
+                </x-filament::section>
+            @endforeach
+        </div>
+    @endif
 </x-filament-panels::page>

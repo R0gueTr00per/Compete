@@ -105,4 +105,9 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     {
         return $this->hasMany(Enrolment::class, 'competitor_id');
     }
+
+    public function instructorOf(): HasMany
+    {
+        return $this->hasMany(\App\Models\Dojo::class, 'instructor_id');
+    }
 }

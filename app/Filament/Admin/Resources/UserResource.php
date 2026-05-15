@@ -39,6 +39,21 @@ class UserResource extends Resource
         return auth()->user()?->hasRole('system_admin');
     }
 
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['email', 'competitorProfile.first_name', 'competitorProfile.surname'];
+    }
+
+    public static function getGlobalSearchResultTitle(\Illuminate\Database\Eloquent\Model $record): string
+    {
+        return $record->getFilamentName();
+    }
+
+    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): array
+    {
+        return ['Email' => $record->email];
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([

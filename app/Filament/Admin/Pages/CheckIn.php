@@ -70,7 +70,7 @@ class CheckIn extends Page
 
         if ($this->search) {
             $query->whereHas('competitor', fn ($q) =>
-                $q->where('name', 'like', '%' . $this->search . '%')
+                $q->where('email', 'like', '%' . $this->search . '%')
                   ->orWhereHas('competitorProfile', fn ($q2) =>
                       $q2->where('surname', 'like', '%' . $this->search . '%')
                          ->orWhere('first_name', 'like', '%' . $this->search . '%')

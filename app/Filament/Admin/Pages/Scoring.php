@@ -123,8 +123,33 @@ class Scoring extends Page
         $this->bracketScoreInput     = [];
         $this->placementOverrideMode = false;
         $this->bracketExists         = RoundRobinMatch::where('division_id', $divisionId)->exists();
-        // Completed divisions skip rollcall and show a read-only scoring view
-        $this->rollcallMode = $division?->status !== 'complete';
+
+        if ($division?->status === 'complete') {
+            $this->rollcallMode = false;
+            return;
+        }
+
+        // If scoring was already in progress before the page refresh, skip back to the scoring view.
+        // Signals: bracket generated, any competitor marked absent, or any scores already saved.
+        $eeIds     = EnrolmentEvent::where('division_id', $divisionId)->pluck('id');
+        $hasAbsent = EnrolmentEvent::where('division_id', $divisionId)->where('removed', true)->exists();
+        $hasScores = $this->bracketExists
+            || Result::whereIn('enrolment_event_id', $eeIds)
+                ->where(fn ($q) => $q->whereNotNull('total_score')->orWhereNotNull('win_loss'))
+                ->exists();
+
+        if ($hasAbsent || $hasScores) {
+            $this->rollcallMode = false;
+            if (! in_array($divisionId, $this->completedRollcallDivisions)) {
+                $this->completedRollcallDivisions[] = $divisionId;
+            }
+            $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
+                ->whereNotNull('total_score')
+                ->pluck('id')
+                ->toArray();
+        } else {
+            $this->rollcallMode = true;
+        }
     }
 
     public function deselectDivision(): void
@@ -299,12 +324,12 @@ class Scoring extends Page
                 if (! isset($this->judgeScores[$result->id])) {
                     $scores = [];
                     foreach ($result->judgeScores->where('is_tiebreaker', false) as $js) {
-                        $scores[$js->judge_number] = (float) $js->score;
+                        $scores[$js->judge_number] = number_format((float) $js->score, 1);
                     }
                     if (empty($scores) && $division?->competitionEvent?->default_score !== null) {
                         $judgeCount = $division->competitionEvent->effectiveJudgeCount();
                         for ($i = 1; $i <= $judgeCount; $i++) {
-                            $scores[$i] = (float) $division->competitionEvent->default_score;
+                            $scores[$i] = number_format((float) $division->competitionEvent->default_score, 1);
                         }
                     }
                     $this->judgeScores[$result->id] = $scores;
