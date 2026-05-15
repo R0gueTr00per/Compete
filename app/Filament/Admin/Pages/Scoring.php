@@ -31,17 +31,18 @@ class Scoring extends Page
 
     public ?int $division_id = null;
 
-    public array $judgeScores           = [];
-    public array $pointsInput          = [];
-    public array $placementInput       = [];
-    public array $tiebreakerJudgeInputs = [];
-    public array $rollcallPresent       = [];
-    public array $bracketScoreInput     = [];
-    public array $savedResultIds              = [];
+    public array $judgeScores            = [];
+    public array $pointsInput            = [];
+    public array $placementInput         = [];
+    public array $tiebreakerJudgeInputs  = [];
+    public array $rollcallPresent        = [];
+    public array $bracketScoreInput      = [];
+    public array $savedResultIds         = [];
     public array $completedRollcallDivisions = [];
-    public bool  $rollcallMode               = false;
-    public bool  $bracketExists         = false;
-    public bool  $placementOverrideMode = false;
+    public bool  $rollcallMode           = false;
+    public bool  $panelOpen             = false;
+    public bool  $bracketExists          = false;
+    public bool  $placementOverrideMode  = false;
 
     public function mount(): void
     {
@@ -56,6 +57,8 @@ class Scoring extends Page
                 $this->competition_id = $comp->id;
             }
         }
+
+        $this->loadRollcallFromSession();
     }
 
     public function getCompetitions(): array
@@ -107,22 +110,57 @@ class Scoring extends Page
         });
     }
 
-    public function selectDivision(int $divisionId): void
+    private function rollcallSessionKey(): string
     {
-        if ($this->division_id !== null) {
-            return;
-        }
+        return 'scoring_rollcall_' . ($this->competition_id ?? 0);
+    }
 
-        $division = Division::find($divisionId);
+    private function saveRollcallToSession(): void
+    {
+        session([$this->rollcallSessionKey() => $this->rollcallPresent]);
+    }
 
-        $this->division_id           = $divisionId;
+    private function loadRollcallFromSession(): void
+    {
+        $this->rollcallPresent = session($this->rollcallSessionKey(), []);
+    }
+
+    private function clearRollcallFromSession(): void
+    {
+        session()->forget($this->rollcallSessionKey());
+    }
+
+    private function clearScoringMemory(): void
+    {
         $this->judgeScores           = [];
         $this->pointsInput           = [];
         $this->placementInput        = [];
-        $this->rollcallPresent       = [];
+        $this->tiebreakerJudgeInputs = [];
         $this->bracketScoreInput     = [];
+        $this->savedResultIds        = [];
+        $this->rollcallMode          = true;
         $this->placementOverrideMode = false;
-        $this->bracketExists         = RoundRobinMatch::where('division_id', $divisionId)->exists();
+        $this->bracketExists         = false;
+        $this->panelOpen             = false;
+        // rollcallPresent is intentionally NOT cleared here so ticks survive
+        // division switches. Only cancelScoring() resets it explicitly.
+    }
+
+    public function selectDivision(int $divisionId): void
+    {
+        // Same division clicked — toggle the panel open/closed (state preserved either way).
+        if ($this->division_id === $divisionId) {
+            $this->panelOpen = ! $this->panelOpen;
+            return;
+        }
+
+        // Different division — discard stale state and load fresh from DB.
+        $this->clearScoringMemory();
+        $this->division_id   = $divisionId;
+        $this->panelOpen     = true;
+        $this->bracketExists = RoundRobinMatch::where('division_id', $divisionId)->exists();
+
+        $division = Division::find($divisionId);
 
         if ($division?->status === 'complete') {
             $this->rollcallMode = false;
@@ -154,22 +192,8 @@ class Scoring extends Page
 
     public function deselectDivision(): void
     {
-        if ($this->division_id) {
-            EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
-            $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
-        }
-
-        $this->division_id           = null;
-        $this->judgeScores           = [];
-        $this->pointsInput           = [];
-        $this->placementInput        = [];
-        $this->tiebreakerJudgeInputs = [];
-        $this->rollcallPresent       = [];
-        $this->bracketScoreInput     = [];
-        $this->savedResultIds        = [];
-        $this->rollcallMode          = true;
-        $this->placementOverrideMode = false;
-        $this->bracketExists         = false;
+        $this->division_id = null;
+        $this->clearScoringMemory();
     }
 
     public function toggleRollcallPresent(int $eeId): void
@@ -179,6 +203,8 @@ class Scoring extends Page
         } else {
             $this->rollcallPresent[] = $eeId;
         }
+
+        $this->saveRollcallToSession();
     }
 
     public function toggleRollcall(): void
@@ -200,7 +226,8 @@ class Scoring extends Page
             }
             $this->rollcallMode = false;
         } else {
-            // Going back to rollcall — clear bracket, scores, absent flags, and ticks
+            // Going back to rollcall — clear scores and bracket, restore absent flags.
+            // rollcallPresent is intentionally preserved so previous ticks are still shown.
             $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
             RoundRobinMatch::where('division_id', $this->division_id)->delete();
 
@@ -225,7 +252,6 @@ class Scoring extends Page
             $this->placementInput        = [];
             $this->bracketScoreInput     = [];
             $this->bracketExists         = false;
-            $this->rollcallPresent       = [];
             $this->rollcallMode          = true;
         }
     }
@@ -895,6 +921,8 @@ class Scoring extends Page
     {
         if (! $this->division_id) return;
 
+        RoundRobinMatch::where('division_id', $this->division_id)->delete();
+
         EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
 
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
@@ -909,7 +937,12 @@ class Scoring extends Page
             ]);
         });
 
-        $this->deselectDivision();
+        $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
+        $cancelledEeIds = $eeIds->toArray();
+        $this->rollcallPresent = array_values(array_diff($this->rollcallPresent, $cancelledEeIds));
+        $this->saveRollcallToSession();
+        $this->division_id = null;
+        $this->clearScoringMemory();
     }
 
     public function getTiedGroups(): \Illuminate\Support\Collection
@@ -1119,8 +1152,8 @@ class Scoring extends Page
         }
 
         Division::find($this->division_id)?->update(['status' => 'complete']);
-        $this->division_id   = null;
-        $this->bracketExists = false;
+        $this->division_id = null;
+        $this->clearScoringMemory();
         Notification::make()->title('Division marked complete.')->success()->send();
     }
 
@@ -1128,14 +1161,14 @@ class Scoring extends Page
     {
         $this->filter_location = null;
         $this->division_id     = null;
-        $this->judgeScores     = [];
-        $this->pointsInput     = [];
+        $this->rollcallPresent = [];
+        $this->clearRollcallFromSession();
+        $this->clearScoringMemory();
     }
 
     public function updatedFilterLocation(): void
     {
         $this->division_id = null;
-        $this->judgeScores = [];
-        $this->pointsInput = [];
+        $this->clearScoringMemory();
     }
 }

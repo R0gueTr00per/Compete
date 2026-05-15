@@ -46,7 +46,7 @@
             @foreach ($divisionList as $item)
                 @php
                     $div      = $item->division;
-                    $selected = $this->division_id === $div->id;
+                    $selected = $this->division_id === $div->id && $this->panelOpen;
                     $rowClass = match ($div->status) {
                         'complete'  => 'bg-success-50 border-success-300 dark:bg-success-900/20 dark:border-success-700',
                         'running'   => 'bg-warning-50 border-warning-300 dark:bg-warning-900/20 dark:border-warning-700',
@@ -60,14 +60,12 @@
                 @endphp
                 <div
                     wire:key="division-{{ $div->id }}"
-                    @if (! $this->division_id) wire:click="selectDivision({{ $div->id }})" @endif
-                    class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all
+                    wire:click="selectDivision({{ $div->id }})"
+                    class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
                         {{ $rowClass }}
                         {{ $selected
-                            ? 'ring-2 ring-primary-500 cursor-default'
-                            : ($this->division_id
-                                ? 'opacity-50 cursor-not-allowed'
-                                : 'cursor-pointer hover:border-primary-300 dark:hover:border-primary-600') }}"
+                            ? 'ring-2 ring-primary-500 hover:ring-primary-600'
+                            : 'hover:border-primary-300 dark:hover:border-primary-600' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="font-mono text-sm font-bold shrink-0 {{ $textClass }}">{{ $div->code }}</span>
@@ -896,7 +894,7 @@
                                 <div>
                                     @if ($this->rollcallMode)
                                         <x-filament::button color="gray" size="sm"
-                                            wire:click="deselectDivision">
+                                            wire:click="cancelScoring">
                                             Cancel
                                         </x-filament::button>
                                     @else
