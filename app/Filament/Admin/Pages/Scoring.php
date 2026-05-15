@@ -380,7 +380,11 @@ class Scoring extends Page
                     'name'   => $this->resolveEeName($ee),
                 ];
             })
-            ->sortBy('name');
+            ->when(
+                $division?->status === 'complete',
+                fn ($c) => $c->sortBy(fn ($row) => [$row->result->placement ?? 999, $row->name]),
+                fn ($c) => $c->sortBy('name'),
+            );
     }
 
     public function isTournament(): bool
@@ -1152,8 +1156,6 @@ class Scoring extends Page
         }
 
         Division::find($this->division_id)?->update(['status' => 'complete']);
-        $this->division_id = null;
-        $this->clearScoringMemory();
         Notification::make()->title('Division marked complete.')->success()->send();
     }
 
