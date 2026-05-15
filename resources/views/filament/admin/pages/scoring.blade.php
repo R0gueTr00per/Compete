@@ -758,7 +758,18 @@
                                                                 <td class="py-2 pr-4">
                                                                     <span class="font-semibold">{{ $tbDisplay }}</span>
                                                                 </td>
-                                                                <td class="py-2 pr-4 text-gray-400">—</td>
+                                                                <td class="py-2 pr-4">
+                                                                    @if ($tbSaved && $result->placement)
+                                                                        @switch($result->placement)
+                                                                            @case(1) <span class="text-2xl leading-none">🥇</span> @break
+                                                                            @case(2) <span class="text-2xl leading-none">🥈</span> @break
+                                                                            @case(3) <span class="text-2xl leading-none">🥉</span> @break
+                                                                            @default {{ $result->placement }}
+                                                                        @endswitch
+                                                                    @else
+                                                                        <span class="text-gray-400">—</span>
+                                                                    @endif
+                                                                </td>
                                                                 @if (! $isReadOnly)
                                                                     <td class="py-2">
                                                                         @if ($tbSaved)

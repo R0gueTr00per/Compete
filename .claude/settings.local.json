@@ -142,7 +142,9 @@
       "Bash(php -l \"app/Providers/Filament/PortalPanelProvider.php\")",
       "Bash(xargs grep -l \"division\")",
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Force)",
-      "Bash(Select-Object Name, PSIsContainer)"
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Read(//x:/Repos/**)",
+      "Bash(xargs grep -l \"tiebreak\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"
