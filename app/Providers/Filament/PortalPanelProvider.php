@@ -31,6 +31,9 @@ class PortalPanelProvider extends PanelProvider
             ->passwordReset()
             ->emailVerification()
             ->brandName('Compete')
+            ->brandLogo(asset('images/logo-light.svg'))
+            ->darkModeBrandLogo(asset('images/logo-dark.svg'))
+            ->brandLogoHeight('2.5rem')
             ->colors([
                 'primary' => Color::Blue,
             ])

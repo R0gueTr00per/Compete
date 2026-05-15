@@ -165,8 +165,7 @@ class UserResource extends Resource
 
                 TextColumn::make('email')
                     ->sortable()
-                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
-                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('roles.name')
                     ->label('Role')
@@ -204,8 +203,7 @@ class UserResource extends Resource
                         'Incomplete' => 'warning',
                         'None'       => 'gray',
                     })
-                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
-                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('auth_type')
                     ->label('Auth')
@@ -218,23 +216,20 @@ class UserResource extends Resource
                     })
                     ->badge()
                     ->color('gray')
-                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
-                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('last_login_at')
                     ->label('Last login')
                     ->dateTime('d M Y H:i')
                     ->sortable()
                     ->placeholder('Never')
-                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
-                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('created_at')
                     ->label('Registered')
                     ->date('d M Y')
                     ->sortable()
-                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
-                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
+                    ->visibleFrom('sm'),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([

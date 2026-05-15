@@ -29,10 +29,11 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login(\App\Filament\Admin\Pages\Auth\Login::class)
             ->brandName('Compete')
-            ->brandLogo('https://www.lfp.com.au/img/logo.jpg')
-            ->brandLogoHeight('2rem')
+            ->brandLogo(asset('images/logo-light.svg'))
+            ->darkModeBrandLogo(asset('images/logo-dark.svg'))
+            ->brandLogoHeight('2.5rem')
             ->colors([
-                'primary' => Color::Red,
+                'primary' => Color::Orange,
             ])
             ->navigationGroups([
                 'Competitions',
@@ -93,6 +94,9 @@ class AdminPanelProvider extends PanelProvider
                 fn () => new \Illuminate\Support\HtmlString('<style>
                     .fi-page-header > div { flex-direction: column !important; align-items: flex-start !important; gap: 0.75rem !important; }
                     .fi-page-header > div > div:last-child { margin-left: 0 !important; flex-wrap: wrap; }
+                    @media (min-width: 640px) { .sm\:table-cell { display: table-cell; } }
+                    @media (min-width: 768px) { .md\:table-cell { display: table-cell; } }
+                    @media (min-width: 1024px) { .lg\:table-cell { display: table-cell; } }
                 </style>')
             )
             ->renderHook(

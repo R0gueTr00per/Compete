@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 242 60">
+  <!-- Shield background -->
+  <path d="M9,13 L55,13 L61,31 L32,58 L3,31 Z"
+        fill="#ffffff" fill-opacity="0.06"
+        stroke="#ffffff" stroke-width="1.8" stroke-opacity="0.3" stroke-linejoin="round"/>
+
+  <!-- Crown (gold) -->
+  <path d="M19,13 L19,6 L24,9.5 L32,2 L40,9.5 L45,6 L45,13 Z" fill="#c4952a"/>
+  <rect x="19" y="10" width="26" height="4" fill="#c4952a" rx="0.5"/>
+
+  <!-- Laurel left -->
+  <path d="M19,14 C15,12.5 11,16.5 13.5,20" stroke="#c4952a" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <path d="M13.5,20 C9.5,18.5 7.5,23 10.5,26.5" stroke="#c4952a" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <ellipse cx="14" cy="16" rx="3" ry="1.4" fill="#c4952a" transform="rotate(-38,14,16)"/>
+  <ellipse cx="10.5" cy="22.5" rx="3" ry="1.4" fill="#c4952a" transform="rotate(-22,10.5,22.5)"/>
+
+  <!-- Laurel right -->
+  <path d="M45,14 C49,12.5 53,16.5 50.5,20" stroke="#c4952a" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <path d="M50.5,20 C54.5,18.5 56.5,23 53.5,26.5" stroke="#c4952a" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <ellipse cx="50" cy="16" rx="3" ry="1.4" fill="#c4952a" transform="rotate(38,50,16)"/>
+  <ellipse cx="53.5" cy="22.5" rx="3" ry="1.4" fill="#c4952a" transform="rotate(22,53.5,22.5)"/>
+
+  <!-- Figure 1: Bright blue fighter (left) — high kick to the right -->
+  <circle cx="21" cy="22.5" r="3.5" fill="#5b9fd6"/>
+  <path d="M21,26 C20.5,30.5 19,34 18,38" stroke="#5b9fd6" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M19.5,32 L39,21" stroke="#5b9fd6" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M18,38 L15,48" stroke="#5b9fd6" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M21,29 L28,24" stroke="#5b9fd6" stroke-width="2" stroke-linecap="round"/>
+  <path d="M21,29 L14.5,26.5" stroke="#5b9fd6" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Figure 2: Orange fighter (right) — impact pose -->
+  <circle cx="43" cy="18.5" r="3.5" fill="#e07828"/>
+  <path d="M43,22 C44,26.5 45,29.5 46,34" stroke="#e07828" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M44.5,29 L30,38.5" stroke="#e07828" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M46,34 L49,44.5" stroke="#e07828" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M44,25 L50.5,20" stroke="#e07828" stroke-width="2" stroke-linecap="round"/>
+  <path d="M44,25 L37.5,27.5" stroke="#e07828" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- COMPETE -->
+  <text x="72" y="35"
+        font-family="'Segoe UI',Arial,Helvetica,sans-serif"
+        font-size="24" font-weight="800"
+        fill="#ffffff" letter-spacing="3.5">COMPETE</text>
+
+  <!-- TOURNAMENT MANAGEMENT -->
+  <text x="73" y="51"
+        font-family="'Segoe UI',Arial,Helvetica,sans-serif"
+        font-size="8.5" font-weight="600"
+        fill="#94a3b8" letter-spacing="2.5">TOURNAMENT MANAGEMENT</text>
+</svg>

@@ -178,8 +178,7 @@ class CompetitionResource extends Resource
                     ->label('Enrolments')
                     ->counts('enrolments')
                     ->sortable()
-                    ->extraHeaderAttributes(['class' => 'hidden sm:table-cell'])
-                    ->extraCellAttributes(['class' => 'hidden sm:table-cell']),
+                    ->visibleFrom('sm'),
 
             ])
             ->filters([

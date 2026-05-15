@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Compete Logo Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f1f5f9; }
+  h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 24px; }
+
+  /* ── LIGHT PANEL ── */
+  .panel-light {
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    display: flex;
+  }
+  .sidebar-light {
+    width: 260px;
+    background: #f8fafc;
+    border-right: 1px solid #e2e8f0;
+    padding: 16px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-light .brand {
+    padding: 4px 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 12px;
+  }
+  .sidebar-light .brand img { height: 40px; }
+  .sidebar-light .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; font-size: 13px; color: #64748b;
+    cursor: pointer;
+  }
+  .sidebar-light .nav-item.active {
+    background: #eff6ff; color: #1e3a6e; font-weight: 600;
+    border-right: 3px solid #e07828;
+  }
+  .sidebar-light .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-group { font-size: 10px; font-weight: 700; text-transform: uppercase;
+               letter-spacing: 1px; color: #94a3b8; padding: 14px 16px 4px; }
+  .main-light {
+    flex: 1; background: #f1f5f9; padding: 20px;
+  }
+  .topbar-light {
+    background: #ffffff; border-bottom: 1px solid #e2e8f0;
+    padding: 10px 20px; display: flex; align-items: center;
+    justify-content: space-between; margin: -20px -20px 20px;
+  }
+  .page-title { font-size: 18px; font-weight: 700; color: #1e293b; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #e07828, #c4952a);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 13px; }
+
+  /* ── DARK PANEL ── */
+  .panel-dark {
+    background: #1e293b;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    display: flex;
+  }
+  .sidebar-dark {
+    width: 260px;
+    background: #0f172a;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    padding: 16px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-dark .brand {
+    padding: 4px 16px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 12px;
+  }
+  .sidebar-dark .brand img { height: 40px; }
+  .sidebar-dark .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; font-size: 13px; color: #94a3b8;
+    cursor: pointer;
+  }
+  .sidebar-dark .nav-item.active {
+    background: rgba(224,120,40,0.12); color: #e07828; font-weight: 600;
+    border-right: 3px solid #e07828;
+  }
+  .sidebar-dark .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-dark .nav-group { font-size: 10px; font-weight: 700; text-transform: uppercase;
+               letter-spacing: 1px; color: #475569; padding: 14px 16px 4px; }
+  .main-dark {
+    flex: 1; background: #1e293b; padding: 20px;
+  }
+  .topbar-dark {
+    background: #0f172a; border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 10px 20px; display: flex; align-items: center;
+    justify-content: space-between; margin: -20px -20px 20px;
+  }
+  .page-title-dark { font-size: 18px; font-weight: 700; color: #f1f5f9; }
+  .card-light {
+    background: #ffffff; border-radius: 8px; padding: 16px;
+    margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .card-dark {
+    background: #0f172a; border-radius: 8px; padding: 16px;
+    margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06);
+  }
+  .card-label { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
+  .card-value-light { font-size: 22px; font-weight: 700; color: #1e293b; }
+  .card-value-dark { font-size: 22px; font-weight: 700; color: #f1f5f9; }
+  .card-accent { color: #e07828; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+           letter-spacing: 1px; margin-bottom: 8px; padding: 2px 8px; border-radius: 4px;
+           display: inline-block; }
+  .label-light { background: #dbeafe; color: #1e40af; }
+  .label-dark  { background: rgba(224,120,40,0.2); color: #e07828; }
+  .section { margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div style="padding:24px 24px 0; font-size:20px; font-weight:700; color:#1e293b;">
+  Logo Preview — Light &amp; Dark Mode
+  <span style="font-size:12px;font-weight:400;color:#64748b;margin-left:12px;">Compete Tournament Management</span>
+</div>
+
+<div class="grid">
+
+  <!-- LIGHT MODE -->
+  <div class="section">
+    <span class="label label-light">Light Mode</span>
+    <div class="panel-light">
+      <div class="sidebar-light">
+        <div class="brand">
+          <img src="/images/logo-light.svg" alt="Compete">
+        </div>
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z"/><path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z"/></svg>
+          Dashboard
+        </div>
+        <div class="nav-group">Competitions</div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0"/></svg>
+          Competitions
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+          Competitors
+        </div>
+        <div class="nav-group">System</div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Settings
+        </div>
+      </div>
+      <div class="main-light">
+        <div class="topbar-light">
+          <span class="page-title">Dashboard</span>
+          <div class="avatar">BG</div>
+        </div>
+        <div class="cards">
+          <div class="card-light">
+            <div class="card-label">Active Competitions</div>
+            <div class="card-value-light">12</div>
+          </div>
+          <div class="card-light">
+            <div class="card-label">Total Competitors</div>
+            <div class="card-value-light card-accent">348</div>
+          </div>
+        </div>
+        <div class="card-light" style="height:60px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;display:flex;align-items:center;">
+          <span style="color:#1e3a6e;font-size:13px;font-weight:600;">Next event: State Championships — June 8</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DARK MODE -->
+  <div class="section">
+    <span class="label label-dark">Dark Mode</span>
+    <div class="panel-dark">
+      <div class="sidebar-dark">
+        <div class="brand">
+          <img src="/images/logo-dark.svg" alt="Compete">
+        </div>
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z"/><path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z"/></svg>
+          Dashboard
+        </div>
+        <div class="sidebar-dark nav-group">Competitions</div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0"/></svg>
+          Competitions
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg>
+          Competitors
+        </div>
+        <div class="sidebar-dark nav-group">System</div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Settings
+        </div>
+      </div>
+      <div class="main-dark">
+        <div class="topbar-dark">
+          <span class="page-title-dark">Dashboard</span>
+          <div class="avatar">BG</div>
+        </div>
+        <div class="cards">
+          <div class="card-dark">
+            <div class="card-label">Active Competitions</div>
+            <div class="card-value-dark">12</div>
+          </div>
+          <div class="card-dark">
+            <div class="card-label">Total Competitors</div>
+            <div class="card-value-dark card-accent">348</div>
+          </div>
+        </div>
+        <div class="card-dark" style="height:60px;background:linear-gradient(135deg,rgba(224,120,40,0.12),rgba(196,149,42,0.08));border:1px solid rgba(224,120,40,0.25);display:flex;align-items:center;">
+          <span style="color:#e07828;font-size:13px;font-weight:600;">Next event: State Championships — June 8</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGO CLOSE-UPS -->
+  <div class="section" style="grid-column:1/-1;">
+    <span class="label label-light">Logo at different sizes</span>
+    <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;background:#fff;padding:20px;border-radius:8px;margin-top:8px;border:1px solid #e2e8f0;">
+      <img src="/images/logo-light.svg" style="height:60px;">
+      <img src="/images/logo-light.svg" style="height:40px;">
+      <img src="/images/logo-light.svg" style="height:28px;">
+    </div>
+    <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;background:#0f172a;padding:20px;border-radius:8px;margin-top:8px;">
+      <img src="/images/logo-dark.svg" style="height:60px;">
+      <img src="/images/logo-dark.svg" style="height:40px;">
+      <img src="/images/logo-dark.svg" style="height:28px;">
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
