@@ -666,10 +666,10 @@
                             @endif
                         @endif
 
-                        {{-- Sudden death tiebreaker (hidden when placement override mode is active, or scoring is complete) --}}
-                        @if (! $this->rollcallMode && ! $this->isRoundRobin() && ! $this->placementOverrideMode && ! $isReadOnly)
+                        {{-- Sudden death tiebreaker (hidden when placement override mode is active) --}}
+                        @if (! $this->rollcallMode && ! $this->isRoundRobin() && ! $this->placementOverrideMode)
                             @php $tiedGroups = $this->getTiedGroups(); @endphp
-                            @if ($tiedGroups->isNotEmpty())
+                            @if ($tiedGroups->isNotEmpty() && ! $isReadOnly)
                                 @php
                                     $ordinals = [1 => '1st', 2 => '2nd', 3 => '3rd'];
                                     if ($tiedGroups->count() === 1) {
