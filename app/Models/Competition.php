@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Division;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -51,9 +52,11 @@ class Competition extends Model
         return $this->hasMany(CompetitionLocation::class)->orderBy('sort_order');
     }
 
-    public function getLocationsAttribute(): array
+    protected function locations(): Attribute
     {
-        return $this->competitionLocations()->pluck('name')->toArray();
+        return Attribute::make(
+            get: fn () => $this->competitionLocations()->pluck('name')->toArray()
+        )->shouldCache();
     }
 
     public function competitionEvents(): HasMany

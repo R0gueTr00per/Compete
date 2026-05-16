@@ -299,33 +299,23 @@ class Scoring extends Page
     {
         if (! $this->division_id) return collect();
 
-        $absent = EnrolmentEvent::where('division_id', $this->division_id)
-            ->where('removed', true)
+        $rows = EnrolmentEvent::where('division_id', $this->division_id)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
             ->with(['enrolment.competitor.competitorProfile'])
-            ->get()->toBase()
-            ->map(fn ($ee) => (object) [
-                'ee_id'  => $ee->id,
-                'name'   => ($p = $ee->enrolment->competitor?->competitorProfile)
-                    ? $p->first_name . ' ' . $p->surname
-                    : ($ee->enrolment->competitor?->name ?? '(unknown)'),
-                'absent' => true,
-            ]);
+            ->get()->toBase();
 
-        $active = EnrolmentEvent::where('division_id', $this->division_id)
-            ->where('removed', false)
-            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-            ->with(['enrolment.competitor.competitorProfile'])
-            ->get()->toBase()
-            ->map(fn ($ee) => (object) [
-                'ee_id'  => $ee->id,
-                'name'   => ($p = $ee->enrolment->competitor?->competitorProfile)
-                    ? $p->first_name . ' ' . $p->surname
-                    : ($ee->enrolment->competitor?->name ?? '(unknown)'),
-                'absent' => false,
-            ]);
+        [$active, $absent] = $rows->partition(fn ($ee) => ! $ee->removed);
 
-        return $active->sortBy('name')->merge($absent->sortBy('name'));
+        $map = fn ($ee, bool $isAbsent) => (object) [
+            'ee_id'  => $ee->id,
+            'name'   => ($p = $ee->enrolment->competitor?->competitorProfile)
+                ? $p->first_name . ' ' . $p->surname
+                : ($ee->enrolment->competitor?->name ?? '(unknown)'),
+            'absent' => $isAbsent,
+        ];
+
+        return $active->map(fn ($ee) => $map($ee, false))->sortBy('name')
+            ->merge($absent->map(fn ($ee) => $map($ee, true))->sortBy('name'));
     }
 
     public function getSelectedDivision(): ?Division

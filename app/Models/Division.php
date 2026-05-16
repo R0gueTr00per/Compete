@@ -37,10 +37,23 @@ class Division extends Model
         static::saving(function (self $division) {
             // Auto-generate label from bands/sex whenever they change
             if ($division->isDirty(['age_band_id', 'rank_band_id', 'weight_class_id', 'sex'])) {
+                // Static caches avoid repeated DB hits when bulk-creating divisions in one request
+                static $ageBands = [], $rankBands = [], $weightClasses = [];
+
+                if ($division->age_band_id && ! isset($ageBands[$division->age_band_id])) {
+                    $ageBands[$division->age_band_id] = AgeBand::find($division->age_band_id);
+                }
+                if ($division->rank_band_id && ! isset($rankBands[$division->rank_band_id])) {
+                    $rankBands[$division->rank_band_id] = RankBand::find($division->rank_band_id);
+                }
+                if ($division->weight_class_id && ! isset($weightClasses[$division->weight_class_id])) {
+                    $weightClasses[$division->weight_class_id] = WeightClass::find($division->weight_class_id);
+                }
+
                 $parts = array_filter([
-                    $division->age_band_id    ? AgeBand::find($division->age_band_id)?->label    : null,
-                    $division->rank_band_id   ? RankBand::find($division->rank_band_id)?->label   : null,
-                    $division->weight_class_id ? WeightClass::find($division->weight_class_id)?->full_label : null,
+                    $division->age_band_id     ? $ageBands[$division->age_band_id]?->label           : null,
+                    $division->rank_band_id    ? $rankBands[$division->rank_band_id]?->label          : null,
+                    $division->weight_class_id ? $weightClasses[$division->weight_class_id]?->full_label : null,
                     match ($division->sex) { 'M' => 'Male', 'F' => 'Female', 'mixed' => 'Mixed', default => null },
                 ]);
                 if (! empty($parts)) {

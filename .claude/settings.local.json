@@ -189,7 +189,9 @@
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\Admin\\\\Pages\\\\Auth\" -ErrorAction SilentlyContinue)",
       "Bash(xargs grep -l \"class.*Result\")",
       "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\2026_05_06_120132_add_event_code_to_competition_events_table.php\")",
-      "Bash(Select-String -Pattern \"name|event_type\" -Context 2)"
+      "Bash(Select-String -Pattern \"name|event_type\" -Context 2)",
+      "mcp__jira__jira_create_issue",
+      "Bash(Get-Date -Format \"yyyy_MM_dd_HHmmss\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"
