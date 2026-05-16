@@ -47,7 +47,7 @@ class Login extends BaseLogin
             if ($user && $user->locked_until?->isPast()) {
                 $user->unlock();
             }
-            $user?->update(['last_login_at' => now()]);
+            $user?->forceFill(['last_login_at' => now()])->save();
         }
 
         return $response;

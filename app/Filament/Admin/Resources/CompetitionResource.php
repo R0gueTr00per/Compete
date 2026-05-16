@@ -354,7 +354,7 @@ class CompetitionResource extends Resource
                                 : '';
 
                             return new \Illuminate\Support\HtmlString(
-                                "<p>Permanently deleting <strong>{$record->name}</strong> will destroy:</p>"
+                                "<p>Permanently deleting <strong>" . e($record->name) . "</strong> will destroy:</p>"
                                 . "<ul style='margin-top:.5rem;padding-left:1.25rem;list-style:disc'>"
                                 . "<li><strong>{$enrolmentCount}</strong> enrolment(s) and all enrolment event records</li>"
                                 . "<li><strong>{$resultCount}</strong> result(s) and judge score records</li>"

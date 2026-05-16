@@ -15,12 +15,9 @@ class Result extends Model
     protected $fillable = [
         'division_id',
         'enrolment_event_id',
-        'placement',
-        'placement_overridden',
         'total_score',
         'tiebreaker_score',
         'win_loss',
-        'disqualified',
     ];
 
     protected function casts(): array

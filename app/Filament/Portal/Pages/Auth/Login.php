@@ -60,7 +60,7 @@ class Login extends BaseLogin
                 $freshUser->unlock();
             }
 
-            $freshUser?->update(['last_login_at' => now()]);
+            $freshUser?->forceFill(['last_login_at' => now()])->save();
 
             if ($freshUser && $freshUser->isPending()) {
                 auth()->logout();

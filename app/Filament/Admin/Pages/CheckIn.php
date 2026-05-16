@@ -17,6 +17,11 @@ class CheckIn extends Page
     protected static ?string $navigationLabel = 'Check-in';
     protected static string $view = 'filament.admin.pages.check-in';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+    }
+
     #[Url]
     public ?int $competition_id = null;
     public string $search = '';
@@ -131,10 +136,10 @@ class CheckIn extends Page
             ? (float) $this->paymentAmounts[$enrolmentId]
             : null;
 
-        $enrolment->update([
+        $enrolment->forceFill([
             'payment_status' => 'received',
             'payment_amount' => $amount ?? $enrolment->fee_calculated,
-        ]);
+        ])->save();
 
         unset($this->paymentAmounts[$enrolmentId]);
         Notification::make()->title('Payment recorded.')->success()->send();

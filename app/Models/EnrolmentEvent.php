@@ -19,10 +19,6 @@ class EnrolmentEvent extends Model
         'partner_enrolment_event_id',
         'yakusuko_complete',
         'weight_confirmed_kg',
-        'removed',
-        'removed_at',
-        'removed_by',
-        'removal_reason',
     ];
 
     protected function casts(): array

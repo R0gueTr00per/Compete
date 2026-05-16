@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\InvalidStateException;
 
 class SocialiteController extends Controller
 {
@@ -24,7 +25,12 @@ class SocialiteController extends Controller
     {
         abort_unless(in_array($provider, self::ALLOWED_PROVIDERS), 404);
 
-        $socialUser = Socialite::driver($provider)->user();
+        try {
+            $socialUser = Socialite::driver($provider)->user();
+        } catch (InvalidStateException) {
+            return redirect()->route('filament.portal.auth.login')
+                ->with('error', 'OAuth state mismatch — please try signing in again.');
+        }
 
         // 1. Look up existing social account
         $socialAccount = SocialAccount::where('provider', $provider)
@@ -62,12 +68,17 @@ class SocialiteController extends Controller
             }
         }
 
-        // 3. Create new user with social account (password=null for social-only accounts)
+        // 3. Create new user — only if the provider returned a verified email
+        if (! $socialUser->getEmail()) {
+            return redirect()->route('filament.portal.auth.login')
+                ->with('error', 'Your ' . ucfirst($provider) . ' account did not provide an email address. Please sign in with a different method.');
+        }
+
         $user = User::create([
-            'email' => $socialUser->getEmail(),
+            'email'    => $socialUser->getEmail(),
             'password' => null,
-            'email_verified_at' => now(),
         ]);
+        $user->forceFill(['email_verified_at' => now()])->save();
 
         $user->assignRole('user');
 

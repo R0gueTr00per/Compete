@@ -32,6 +32,21 @@ class EnrolmentResource extends Resource
     protected static ?string $navigationGroup = 'Competitions';
     protected static ?int $navigationSort = 2;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([]);
@@ -329,10 +344,10 @@ class EnrolmentResource extends Resource
                                 ->required(),
                         ])
                         ->action(function (Enrolment $record, array $data) {
-                            $record->update([
+                            $record->forceFill([
                                 'payment_status' => 'received',
                                 'payment_amount' => $data['payment_amount'],
-                            ]);
+                            ])->save();
                             Notification::make()->title('Payment recorded.')->success()->send();
                         })
                         ->visible(fn (Enrolment $record) => $record->payment_status !== 'received'),
@@ -343,10 +358,10 @@ class EnrolmentResource extends Resource
                         ->color('warning')
                         ->requiresConfirmation()
                         ->action(function (Enrolment $record) {
-                            $record->update([
+                            $record->forceFill([
                                 'payment_status' => 'outstanding',
                                 'payment_amount' => null,
-                            ]);
+                            ])->save();
                             Notification::make()->title('Payment marked outstanding.')->warning()->send();
                         })
                         ->visible(fn (Enrolment $record) => $record->payment_status === 'received'),

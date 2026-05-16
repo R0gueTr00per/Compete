@@ -13,6 +13,7 @@ use App\Services\EnrolmentService;
 use App\Services\ScoringService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 
 class Scoring extends Page
@@ -22,6 +23,11 @@ class Scoring extends Page
     protected static ?int    $navigationSort  = 4;
     protected static ?string $navigationLabel = 'Scoring';
     protected static string  $view            = 'filament.admin.pages.scoring';
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+    }
 
     #[Url]
     public ?int $competition_id = null;
@@ -91,23 +97,23 @@ class Scoring extends Page
               ->whereIn('status', ['scheduled', 'running', 'complete'])
         )
         ->with(['competitionEvent'])
+        ->withCount([
+            'enrolmentEvents as checked_in_count' => fn ($q) => $q->whereHas(
+                'enrolment', fn ($q2) => $q2->where('status', 'checked_in')
+            ),
+            'enrolmentEvents as competitors_count' => fn ($q) => $q->whereHas(
+                'enrolment', fn ($q2) => $q2->where('status', 'checked_in')
+            )->where('removed', false),
+        ])
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
         ->orderBy('code');
 
-        return $query->get()->toBase()->map(function (Division $div) {
-            $base = EnrolmentEvent::where('division_id', $div->id)
-                ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'));
-
-            $checkedInCount   = (clone $base)->count();
-            $competitorsCount = (clone $base)->where('removed', false)->count();
-
-            return (object) [
-                'division'          => $div,
-                'checked_in_count'  => $checkedInCount,
-                'competitors_count' => $competitorsCount,
-            ];
-        });
+        return $query->get()->toBase()->map(fn (Division $div) => (object) [
+            'division'          => $div,
+            'checked_in_count'  => $div->checked_in_count,
+            'competitors_count' => $div->competitors_count,
+        ]);
     }
 
     private function rollcallSessionKey(): string
@@ -234,13 +240,13 @@ class Scoring extends Page
             $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
             Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
                 $result->judgeScores()->delete();
-                $result->update([
+                $result->forceFill([
                     'total_score'          => null,
                     'tiebreaker_score'     => null,
                     'placement'            => null,
                     'placement_overridden' => false,
                     'win_loss'             => null,
-                ]);
+                ])->save();
             });
 
             EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
@@ -261,7 +267,7 @@ class Scoring extends Page
         $ee = EnrolmentEvent::find($enrolmentEventId);
         if (! $ee || $ee->division_id !== $this->division_id) return;
 
-        $ee->update(['removed' => true]);
+        $ee->forceFill(['removed' => true])->save();
         Notification::make()->title('Marked as absent.')->warning()->send();
     }
 
@@ -273,19 +279,19 @@ class Scoring extends Page
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
-            $result->update([
+            $result->forceFill([
                 'total_score'          => null,
                 'tiebreaker_score'     => null,
                 'placement'            => null,
                 'placement_overridden' => false,
                 'win_loss'             => null,
-            ]);
+            ])->save();
         });
         $this->judgeScores          = [];
         $this->savedResultIds       = [];
         $this->tiebreakerJudgeInputs = [];
 
-        $ee->update(['removed' => false]);
+        $ee->forceFill(['removed' => false])->save();
         Notification::make()->title('Competitor added.')->success()->send();
     }
 
@@ -329,6 +335,7 @@ class Scoring extends Page
         return Division::with('competitionEvent')->find($this->division_id);
     }
 
+    #[Computed]
     public function getCompetitorRows(): \Illuminate\Support\Collection
     {
         if (! $this->division_id) return collect();
@@ -720,7 +727,7 @@ class Scoring extends Page
         if (! $ee) return;
         $result = $ee->result ?? $service->getOrCreateResult($ee);
         if (! $result->placement_overridden) {
-            $result->update(['placement' => $placement]);
+            $result->forceFill(['placement' => $placement])->save();
         }
     }
 
@@ -893,11 +900,7 @@ class Scoring extends Page
 
     public function hasSavedScores(): bool
     {
-        if (! $this->division_id) return false;
-
-        return Result::whereHas('enrolmentEvent', fn ($q) => $q->where('division_id', $this->division_id))
-            ->whereNotNull('total_score')
-            ->exists();
+        return ! empty($this->savedResultIds);
     }
 
     public function resetJudgeScores(): void
@@ -907,12 +910,12 @@ class Scoring extends Page
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
-            $result->update([
-                'total_score'           => null,
-                'tiebreaker_score'      => null,
-                'placement'             => null,
-                'placement_overridden'  => false,
-            ]);
+            $result->forceFill([
+                'total_score'          => null,
+                'tiebreaker_score'     => null,
+                'placement'            => null,
+                'placement_overridden' => false,
+            ])->save();
         });
 
         $this->judgeScores           = [];
@@ -932,13 +935,13 @@ class Scoring extends Page
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
-            $result->update([
+            $result->forceFill([
                 'total_score'          => null,
                 'tiebreaker_score'     => null,
                 'placement'            => null,
                 'placement_overridden' => false,
                 'win_loss'             => null,
-            ]);
+            ])->save();
         });
 
         $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));

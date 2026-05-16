@@ -11,6 +11,11 @@ class Dashboard extends BaseDashboard
 {
     protected static string $view = 'filament.admin.pages.dashboard';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+    }
+
     public function getActiveCompetitions()
     {
         return Competition::whereNotIn('competitions.status', ['complete'])

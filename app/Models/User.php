@@ -22,10 +22,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         'email',
         'status',
         'timezone',
-        'last_login_at',
         'password',
-        'email_verified_at',
-        'locked_until',
     ];
 
     protected $hidden = [
@@ -83,12 +80,12 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
 
     public function lock(): void
     {
-        $this->update(['locked_until' => now()->addHour()]);
+        $this->forceFill(['locked_until' => now()->addHour()])->save();
     }
 
     public function unlock(): void
     {
-        $this->update(['locked_until' => null]);
+        $this->forceFill(['locked_until' => null])->save();
     }
 
     public function competitorProfile(): HasOne

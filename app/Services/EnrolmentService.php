@@ -36,21 +36,17 @@ class EnrolmentService
             $isLate = $competition->isLateEnrolment();
             $fee = $this->calculateFee($competition, count($competitionEventIds), $isLate);
 
-            $enrolmentData = array_merge([
-                'enrolled_at'    => now(),
-                'is_late'        => $isLate,
-                'fee_calculated' => $fee,
-                'status'         => 'pending',
-            ], array_filter($entryDetails, fn ($v) => $v !== null && $v !== ''));
+            $fillableDetails = array_filter($entryDetails, fn ($v) => $v !== null && $v !== '');
 
-            $enrolment = Enrolment::firstOrCreate(
-                ['competition_id' => $competition->id, 'competitor_id' => $competitor->id],
-                $enrolmentData
+            $enrolment = Enrolment::firstOrNew(
+                ['competition_id' => $competition->id, 'competitor_id' => $competitor->id]
             );
 
-            // Update entry details if enrolment already existed
-            if (! $enrolment->wasRecentlyCreated && ! empty($entryDetails)) {
-                $enrolment->update(array_filter($entryDetails, fn ($v) => $v !== null && $v !== ''));
+            if (! $enrolment->exists) {
+                $enrolment->fill(array_merge(['enrolled_at' => now(), 'is_late' => $isLate, 'status' => 'pending'], $fillableDetails));
+                $enrolment->forceFill(['fee_calculated' => $fee])->save();
+            } elseif (! empty($fillableDetails)) {
+                $enrolment->fill($fillableDetails)->save();
             }
 
             foreach ($competitionEventIds as $eventId) {
@@ -103,10 +99,10 @@ class EnrolmentService
 
             // Recalculate fee based on total active events
             $totalEvents = $enrolment->activeEvents()->count();
-            $enrolment->update([
+            $enrolment->forceFill([
                 'fee_calculated' => $this->calculateFee($competition, $totalEvents, $enrolment->is_late),
                 'is_late'        => $isLate,
-            ]);
+            ])->save();
 
             $competitor->notify(new EnrolmentConfirmedNotification($enrolment));
 
@@ -148,23 +144,22 @@ class EnrolmentService
     public function removeParticipant(EnrolmentEvent $ee, User $removedBy, string $reason): void
     {
         DB::transaction(function () use ($ee, $removedBy, $reason) {
-            $ee->update([
+            $ee->forceFill([
                 'removed'        => true,
                 'removed_at'     => now(),
                 'removed_by'     => $removedBy->id,
                 'removal_reason' => $reason,
-            ]);
+            ])->save();
 
-            // Recalculate fee for the enrolment
             $enrolment = $ee->enrolment;
             $totalEvents = $enrolment->activeEvents()->count();
-            $enrolment->update([
+            $enrolment->forceFill([
                 'fee_calculated' => $this->calculateFee(
                     $enrolment->competition,
                     $totalEvents,
                     $enrolment->is_late
                 ),
-            ]);
+            ])->save();
         });
     }
 
@@ -174,22 +169,22 @@ class EnrolmentService
     public function readdParticipant(EnrolmentEvent $ee): void
     {
         DB::transaction(function () use ($ee) {
-            $ee->update([
+            $ee->forceFill([
                 'removed'        => false,
                 'removed_at'     => null,
                 'removed_by'     => null,
                 'removal_reason' => null,
-            ]);
+            ])->save();
 
             $enrolment = $ee->enrolment;
             $totalEvents = $enrolment->activeEvents()->count();
-            $enrolment->update([
+            $enrolment->forceFill([
                 'fee_calculated' => $this->calculateFee(
                     $enrolment->competition,
                     $totalEvents,
                     $enrolment->is_late
                 ),
-            ]);
+            ])->save();
         });
     }
 

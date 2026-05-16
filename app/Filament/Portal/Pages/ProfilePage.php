@@ -91,9 +91,10 @@ class ProfilePage extends Page implements HasForms
 
         auth()->user()->update(['timezone' => $data['timezone'] ?? 'Australia/Sydney']);
 
-        $profileData                     = $data;
+        $profileData = array_intersect_key($data, array_flip([
+            'surname', 'first_name', 'date_of_birth', 'gender', 'phone',
+        ]));
         $profileData['profile_complete'] = true;
-        unset($profileData['timezone']);
 
         auth()->user()->competitorProfile()->updateOrCreate(
             ['user_id' => auth()->id()],

@@ -13,7 +13,7 @@ Route::get('/schedule/{competition}', [PublicScheduleController::class, 'show'])
 
 // Social OAuth routes
 Route::get('auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->name('socialite.redirect');
-Route::get('auth/{provider}/callback', [SocialiteController::class, 'callback'])->name('socialite.callback');
+Route::middleware('throttle:10,1')->get('auth/{provider}/callback', [SocialiteController::class, 'callback'])->name('socialite.callback');
 
 // Profile completion alias — named route used by RequireCompleteProfile middleware and SocialiteController
 Route::middleware(['auth'])->get('/portal/profile-setup', fn () => redirect()->route('filament.portal.pages.profile'))->name('profile.complete');

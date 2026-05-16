@@ -14,7 +14,7 @@ class ScoringService
     {
         return Result::firstOrCreate(
             ['enrolment_event_id' => $ee->id],
-            ['division_id' => $ee->division_id, 'disqualified' => false, 'placement_overridden' => false]
+            ['division_id' => $ee->division_id]
         );
     }
 
@@ -66,6 +66,7 @@ class ScoringService
     /**
      * Auto-rank all non-disqualified, non-overridden results in a division.
      * Overridden placements are kept but non-overridden ones are re-calculated.
+     * Placements are written in a single batched upsert to avoid N individual UPDATEs.
      */
     public function autoRankDivision(Division $division): void
     {
@@ -73,50 +74,43 @@ class ScoringService
             ->where('disqualified', false)
             ->get();
 
-        $method = $division->competitionEvent->effectiveScoringMethod();
+        $method  = $division->competitionEvent->effectiveScoringMethod();
+        $updates = [];
+        $now     = now();
 
         if (in_array($method, ['judges_total', 'judges_average', 'first_to_n'])) {
-            // Primary: total_score DESC; secondary: tiebreaker_score DESC (null = not yet run)
-            $ranked = $results
-                ->sortByDesc(fn ($r) => [
-                    $r->total_score      ?? -999,
-                    $r->tiebreaker_score ?? -999,
-                ])
-                ->values();
-
-            // Assign placements, giving tied competitors the same placement number
-            $place    = 1;
+            $ranked    = $results->sortByDesc(fn ($r) => [$r->total_score ?? PHP_INT_MIN, $r->tiebreaker_score ?? PHP_INT_MIN])->values();
+            $place     = 1;
             $prevScore = null;
             $prevTb    = null;
             $prevPlace = 1;
             foreach ($ranked as $i => $result) {
                 if (! $result->placement_overridden) {
-                    $sameAsPrev = $i > 0
-                        && (float) ($result->total_score ?? -999) === (float) ($prevScore ?? -999)
-                        && (float) ($result->tiebreaker_score ?? -999) === (float) ($prevTb ?? -999);
-
+                    $sameAsPrev    = $i > 0
+                        && (float) ($result->total_score ?? PHP_INT_MIN) === (float) ($prevScore ?? PHP_INT_MIN)
+                        && (float) ($result->tiebreaker_score ?? PHP_INT_MIN) === (float) ($prevTb ?? PHP_INT_MIN);
                     $assignedPlace = $sameAsPrev ? $prevPlace : $place;
-                    $result->update(['placement' => $assignedPlace]);
-                    $prevPlace = $assignedPlace;
+                    $updates[]     = ['id' => $result->id, 'placement' => $assignedPlace, 'updated_at' => $now];
+                    $prevPlace     = $assignedPlace;
                 }
                 $prevScore = $result->total_score;
                 $prevTb    = $result->tiebreaker_score;
                 $place++;
             }
         } elseif ($method === 'win_loss') {
-            // wins first, draws second, losses last
-            $order = ['win' => 0, 'draw' => 1, 'loss' => 2];
-            $ranked = $results
-                ->sortBy(fn ($r) => $order[$r->win_loss] ?? 99)
-                ->values();
-
-            $place = 1;
+            $order  = ['win' => 0, 'draw' => 1, 'loss' => 2];
+            $ranked = $results->sortBy(fn ($r) => $order[$r->win_loss] ?? 99)->values();
+            $place  = 1;
             foreach ($ranked as $result) {
                 if (! $result->placement_overridden) {
-                    $result->update(['placement' => $place]);
+                    $updates[] = ['id' => $result->id, 'placement' => $place, 'updated_at' => $now];
                 }
                 $place++;
             }
+        }
+
+        if (! empty($updates)) {
+            Result::upsert($updates, ['id'], ['placement', 'updated_at']);
         }
     }
 
@@ -145,12 +139,12 @@ class ScoringService
 
     public function overridePlacement(Result $result, int $placement): void
     {
-        $result->update(['placement' => $placement, 'placement_overridden' => true]);
+        $result->forceFill(['placement' => $placement, 'placement_overridden' => true])->save();
     }
 
     public function clearPlacementOverride(Result $result): void
     {
-        $result->update(['placement_overridden' => false]);
+        $result->forceFill(['placement_overridden' => false])->save();
 
         if ($result->division_id) {
             $this->autoRankDivision(Division::find($result->division_id));
@@ -159,7 +153,7 @@ class ScoringService
 
     public function toggleDisqualify(Result $result): void
     {
-        $result->update(['disqualified' => ! $result->disqualified, 'placement' => null]);
+        $result->forceFill(['disqualified' => ! $result->disqualified, 'placement' => null])->save();
 
         if ($result->division_id) {
             $this->autoRankDivision(Division::find($result->division_id));

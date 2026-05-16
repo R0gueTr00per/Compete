@@ -36,6 +36,11 @@ class CreateAdminEnrolment extends Page implements HasForms
     protected static string  $view            = 'filament.admin.pages.create-admin-enrolment';
     protected static ?string $slug            = 'create-enrolment';
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+    }
+
     public ?int    $competition_id     = null;
     public ?int    $competitor_id      = null;
     public bool    $create_new_user    = false;
@@ -486,12 +491,11 @@ class CreateAdminEnrolment extends Page implements HasForms
             }
 
             $newUser = User::create([
-                'name'              => $this->new_first_name . ' ' . $this->new_surname,
-                'email'             => $this->new_email,
-                'password'          => Hash::make(Str::random(32)),
-                'email_verified_at' => now(),
-                'status'            => 'active',
+                'email'    => $this->new_email,
+                'password' => Hash::make(Str::random(32)),
+                'status'   => 'active',
             ]);
+            $newUser->forceFill(['email_verified_at' => now()])->save();
             $newUser->assignRole('user');
 
             CompetitorProfile::create([
