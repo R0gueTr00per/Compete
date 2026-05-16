@@ -123,21 +123,15 @@ class CompetitionResource extends Resource
                         ->prefix('$'),
                 ]),
 
-            Section::make('Locations')
-                ->description('Define the mats / areas for this competition. These appear as columns in the scheduling board.')
+            Section::make('Structure')
+                ->visibleOn('create')
                 ->schema([
-                    Repeater::make('locations')
-                        ->label(false)
-                        ->simple(
-                            TextInput::make('location')
-                                ->placeholder('e.g. Mat 1')
-                                ->required()
-                                ->maxLength(50)
-                        )
-                        ->addActionLabel('Add location')
-                        ->reorderableWithButtons()
-                        ->reorderableWithDragAndDrop(false),
+                    Toggle::make('copy_previous_structure')
+                        ->label('Copy structure from most recent competition')
+                        ->helperText('Copies event types, age/rank/weight bands, and all divisions. Enrolments are not copied.')
+                        ->default(true),
                 ]),
+
         ]);
     }
 

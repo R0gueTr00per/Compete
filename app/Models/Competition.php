@@ -27,7 +27,6 @@ class Competition extends Model
         'fee_additional_event',
         'late_surcharge',
         'status',
-        'locations',
         'copied_from_id',
     ];
 
@@ -39,29 +38,22 @@ class Competition extends Model
             'fee_first_event'      => 'decimal:2',
             'fee_additional_event' => 'decimal:2',
             'late_surcharge'       => 'decimal:2',
-            'locations'            => 'array',
         ];
-    }
-
-    protected static function booted(): void
-    {
-        static::updated(function (self $competition) {
-            if (! $competition->wasChanged('locations')) {
-                return;
-            }
-
-            $active = collect($competition->locations ?? [])->filter()->values();
-
-            Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
-                ->whereNotNull('location_label')
-                ->whereNotIn('location_label', $active)
-                ->update(['location_label' => null, 'status' => 'pending']);
-        });
     }
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()->logFillable()->logOnlyDirty();
+    }
+
+    public function competitionLocations(): HasMany
+    {
+        return $this->hasMany(CompetitionLocation::class)->orderBy('sort_order');
+    }
+
+    public function getLocationsAttribute(): array
+    {
+        return $this->competitionLocations()->pluck('name')->toArray();
     }
 
     public function competitionEvents(): HasMany

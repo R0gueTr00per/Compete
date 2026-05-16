@@ -171,8 +171,10 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                     $this->getRecord()->competitionEvents()->delete();
 
                     // Copy locations from previous competition if current has none
-                    if (empty($this->getRecord()->locations) && ! empty($previous->locations)) {
-                        $this->getRecord()->update(['locations' => $previous->locations]);
+                    if ($this->getRecord()->competitionLocations()->doesntExist() && $previous->competitionLocations()->exists()) {
+                        foreach ($previous->competitionLocations()->get() as $loc) {
+                            $this->getRecord()->competitionLocations()->create(['name' => $loc->name, 'sort_order' => $loc->sort_order]);
+                        }
                     }
 
                     // Copy bands from previous if the current competition has none yet

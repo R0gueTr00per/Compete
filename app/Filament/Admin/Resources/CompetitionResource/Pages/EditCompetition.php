@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources\CompetitionResource\Pages;
 use App\Filament\Admin\Resources\CompetitionResource;
 use App\Filament\Admin\Resources\CompetitionResource\RelationManagers\AgeBandsRelationManager;
 use App\Filament\Admin\Resources\CompetitionResource\RelationManagers\CompetitionEventsRelationManager;
+use App\Filament\Admin\Resources\CompetitionResource\RelationManagers\LocationsRelationManager;
 use App\Filament\Admin\Resources\CompetitionResource\RelationManagers\RankBandsRelationManager;
 use App\Filament\Admin\Resources\CompetitionResource\RelationManagers\WeightClassesRelationManager;
 use App\Models\Division;
@@ -24,6 +25,7 @@ class EditCompetition extends EditRecord
             AgeBandsRelationManager::class,
             RankBandsRelationManager::class,
             WeightClassesRelationManager::class,
+            LocationsRelationManager::class,
         ];
     }
 
@@ -73,20 +75,6 @@ class EditCompetition extends EditRecord
 
     protected function beforeSave(): void
     {
-        $locations = collect(array_values($this->data['locations'] ?? []))
-            ->map(fn ($v) => strtolower(trim((string) (is_array($v) ? ($v['location'] ?? array_values($v)[0] ?? '') : $v))))
-            ->filter();
-
-        if ($locations->count() !== $locations->unique()->count()) {
-            Notification::make()
-                ->danger()
-                ->title('Duplicate location')
-                ->body('Each location must have a unique name.')
-                ->send();
-            $this->halt();
-            return;
-        }
-
         $newStatus = $this->data['status'] ?? null;
 
         if ($newStatus === 'open' && $this->record->status !== 'open' && ! $this->confirmedStatusChange) {

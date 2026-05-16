@@ -12,6 +12,15 @@ class CreateCompetition extends CreateRecord
 {
     protected static string $resource = CompetitionResource::class;
 
+    private bool $shouldCopyStructure = true;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $this->shouldCopyStructure = (bool) ($data['copy_previous_structure'] ?? true);
+        unset($data['copy_previous_structure']);
+        return $data;
+    }
+
     protected function beforeCreate(): void
     {
         $locations = collect(array_values($this->data['locations'] ?? []))
@@ -30,6 +39,10 @@ class CreateCompetition extends CreateRecord
 
     protected function afterCreate(): void
     {
+        if (! $this->shouldCopyStructure) {
+            return;
+        }
+
         $latest = Competition::where('id', '!=', $this->record->id)
             ->orderByDesc('competition_date')
             ->first();

@@ -9,6 +9,7 @@ use App\Models\Division;
 use App\Models\EnrolmentEvent;
 use App\Models\RankBand;
 use App\Models\WeightClass;
+use Illuminate\Support\Facades\DB;
 
 class DivisionAssignmentService
 {
@@ -248,73 +249,85 @@ class DivisionAssignmentService
     {
         $source->load(['ageBands', 'rankBands', 'weightClasses', 'competitionEvents.divisions']);
 
-        // Copy locations JSON to target if it has none
-        if (! empty($source->locations) && empty($target->locations)) {
-            $target->update(['locations' => $source->locations]);
-        }
-
-        // Copy age bands, track old → new ID mapping
-        $ageBandMap = [];
-        foreach ($source->ageBands->sortBy('sort_order') as $band) {
-            $new = $target->ageBands()->create($band->only(['label', 'min_age', 'max_age', 'sort_order']));
-            $ageBandMap[$band->id] = $new->id;
-        }
-
-        // Copy rank bands, track old → new ID mapping
-        $rankBandMap = [];
-        foreach ($source->rankBands->sortBy('sort_order') as $band) {
-            $new = $target->rankBands()->create($band->only(['label', 'description', 'sort_order', 'rank_min', 'rank_max']));
-            $rankBandMap[$band->id] = $new->id;
-        }
-
-        // Copy weight classes, track old → new ID mapping
-        $weightClassMap = [];
-        foreach ($source->weightClasses->sortBy('sort_order') as $wc) {
-            $new = $target->weightClasses()->create($wc->only(['label', 'max_kg', 'sort_order']));
-            $weightClassMap[$wc->id] = $new->id;
-        }
-
-        // Copy competition events, track old → new event ID mapping
-        $eventMap = [];
-        foreach ($source->competitionEvents->sortBy('running_order') as $event) {
-            $new = $target->competitionEvents()->create([
-                'name'                 => $event->name,
-                'running_order'        => $event->running_order,
-                'location_label'       => $event->location_label,
-                'target_score'         => $event->target_score,
-                'scoring_method'       => $event->scoring_method,
-                'tournament_format'    => $event->tournament_format,
-                'division_filter'      => $event->division_filter,
-                'judge_count'          => $event->judge_count,
-                'requires_partner'     => $event->requires_partner,
-                'status'               => 'scheduled',
-            ]);
-            $eventMap[$event->id] = $new->id;
-        }
-
-        // Copy divisions with remapped IDs
-        foreach ($source->competitionEvents as $sourceEvent) {
-            $newEventId = $eventMap[$sourceEvent->id] ?? null;
-            if (! $newEventId) {
-                continue;
+        DB::transaction(function () use ($source, $target) {
+            // Copy locations to target if it has none
+            if ($source->competitionLocations()->exists() && $target->competitionLocations()->doesntExist()) {
+                foreach ($source->competitionLocations()->get() as $loc) {
+                    $target->competitionLocations()->create(['name' => $loc->name, 'sort_order' => $loc->sort_order]);
+                }
             }
 
-            foreach ($sourceEvent->divisions as $division) {
-                Division::create([
-                    'competition_event_id' => $newEventId,
-                    'code'                 => $division->code,
-                    'age_band_id'          => $division->age_band_id ? ($ageBandMap[$division->age_band_id] ?? null) : null,
-                    'rank_band_id'         => $division->rank_band_id ? ($rankBandMap[$division->rank_band_id] ?? null) : null,
-                    'weight_class_id'      => $division->weight_class_id ? ($weightClassMap[$division->weight_class_id] ?? null) : null,
-                    'sex'                  => $division->sex,
-                    'label'                => $division->label,
-                    'running_order'        => $division->running_order,
-                    'location_label'       => $division->location_label,
-                    'target_score'         => $division->target_score,
-                    'status'               => 'pending',
+            // Copy age bands, track old → new ID mapping
+            $ageBandMap = [];
+            foreach ($source->ageBands->sortBy('sort_order') as $band) {
+                $new = $target->ageBands()->create($band->only(['label', 'min_age', 'max_age', 'sort_order']));
+                $ageBandMap[$band->id] = $new->id;
+            }
+
+            // Copy rank bands, track old → new ID mapping
+            $rankBandMap = [];
+            foreach ($source->rankBands->sortBy('sort_order') as $band) {
+                $new = $target->rankBands()->create($band->only(['label', 'description', 'sort_order', 'rank_min', 'rank_max']));
+                $rankBandMap[$band->id] = $new->id;
+            }
+
+            // Copy weight classes, track old → new ID mapping
+            $weightClassMap = [];
+            foreach ($source->weightClasses->sortBy('sort_order') as $wc) {
+                $new = $target->weightClasses()->create($wc->only(['label', 'max_kg', 'sort_order']));
+                $weightClassMap[$wc->id] = $new->id;
+            }
+
+            // Copy competition events, track old → new event ID mapping
+            $eventMap = [];
+            foreach ($source->competitionEvents->sortBy('running_order') as $event) {
+                $new = $target->competitionEvents()->create([
+                    'name'                 => $event->name,
+                    'running_order'        => $event->running_order,
+                    'location_label'       => $event->location_label,
+                    'target_score'         => $event->target_score,
+                    'scoring_method'       => $event->scoring_method,
+                    'tournament_format'    => $event->tournament_format,
+                    'division_filter'      => $event->division_filter,
+                    'judge_count'          => $event->judge_count,
+                    'requires_partner'     => $event->requires_partner,
+                    'status'               => 'scheduled',
                 ]);
+                $eventMap[$event->id] = $new->id;
             }
-        }
+
+            // Collect all division rows and bulk-insert to avoid per-row model overhead
+            $now = now();
+            $rows = [];
+            foreach ($source->competitionEvents as $sourceEvent) {
+                $newEventId = $eventMap[$sourceEvent->id] ?? null;
+                if (! $newEventId) {
+                    continue;
+                }
+
+                foreach ($sourceEvent->divisions as $division) {
+                    $rows[] = [
+                        'competition_event_id' => $newEventId,
+                        'code'                 => $division->code,
+                        'age_band_id'          => $division->age_band_id ? ($ageBandMap[$division->age_band_id] ?? null) : null,
+                        'rank_band_id'         => $division->rank_band_id ? ($rankBandMap[$division->rank_band_id] ?? null) : null,
+                        'weight_class_id'      => $division->weight_class_id ? ($weightClassMap[$division->weight_class_id] ?? null) : null,
+                        'sex'                  => $division->sex,
+                        'label'                => $division->label,
+                        'running_order'        => $division->running_order,
+                        'location_label'       => $division->location_label,
+                        'target_score'         => $division->target_score,
+                        'status'               => 'pending',
+                        'created_at'           => $now,
+                        'updated_at'           => $now,
+                    ];
+                }
+            }
+
+            foreach (array_chunk($rows, 100) as $chunk) {
+                DB::table('divisions')->insert($chunk);
+            }
+        });
     }
 
     /**
