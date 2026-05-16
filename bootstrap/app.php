@@ -26,9 +26,6 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->hasHeader('X-Livewire') || $request->expectsJson()) {
                 return null;
             }
-            $loginUrl = str_starts_with($request->path(), 'portal')
-                ? '/portal/login?reason=session_expired'
-                : '/admin/login?reason=session_expired';
-            return redirect($loginUrl);
+            return redirect(route('filament.portal.auth.login', ['reason' => 'session_expired']));
         });
     })->create();

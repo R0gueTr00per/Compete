@@ -38,7 +38,7 @@ class CreateAdminEnrolment extends Page implements HasForms
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
     }
 
     public ?int    $competition_id     = null;

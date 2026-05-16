@@ -184,7 +184,9 @@
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Recurse -ErrorAction SilentlyContinue)",
       "Bash(Select-Object FullName)",
       "mcp__jira__jira_update_issue",
-      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Name)"
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Name)",
+      "Bash(del \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\Admin\\\\Pages\\\\Auth\\\\Login.php\")",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\Admin\\\\Pages\\\\Auth\" -ErrorAction SilentlyContinue)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

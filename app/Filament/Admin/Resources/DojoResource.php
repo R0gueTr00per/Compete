@@ -29,7 +29,7 @@ class DojoResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(['system_admin', 'competition_administrator']);
+        return auth()->user()?->hasRole(['system_admin', 'competition_administrator']) ?? false;
     }
 
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool

@@ -27,7 +27,6 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->id('admin')
             ->path('admin')
-            ->login(\App\Filament\Admin\Pages\Auth\Login::class)
             ->brandName('Compete')
             ->brandLogo(asset('images/logo-light.svg'))
             ->darkModeBrandLogo(asset('images/logo-dark.svg'))
@@ -73,7 +72,7 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->authMiddleware([
-                Authenticate::class,
+                \App\Http\Middleware\AdminPanelAuthenticate::class,
             ])
             ->sidebarCollapsibleOnDesktop()
             ->authGuard('web')
@@ -185,7 +184,7 @@ class AdminPanelProvider extends PanelProvider
                 function () {
                     $timeoutMinutes = config('compete.inactivity_timeout', 30);
                     $logoutUrl      = route('filament.admin.auth.logout');
-                    $loginUrl       = '/admin/login?reason=session_expired';
+                    $loginUrl       = route('filament.portal.auth.login', ['reason' => 'session_expired']);
 
                     return new \Illuminate\Support\HtmlString('<script>
                         document.addEventListener("alpine:initialized", function () {

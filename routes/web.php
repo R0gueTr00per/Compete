@@ -11,6 +11,10 @@ Route::get('/', function () {
 
 Route::get('/schedule/{competition}', [PublicScheduleController::class, 'show'])->name('public.schedule');
 
+// Admin panel has no login page — redirect any /admin/login requests to portal
+Route::get('admin/login', fn () => redirect()->route('filament.portal.auth.login'))
+    ->name('filament.admin.auth.login');
+
 // Social OAuth routes
 Route::get('auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->name('socialite.redirect');
 Route::middleware('throttle:10,1')->get('auth/{provider}/callback', [SocialiteController::class, 'callback'])->name('socialite.callback');

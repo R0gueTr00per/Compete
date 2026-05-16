@@ -26,7 +26,7 @@ class Scoring extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
     }
 
     #[Url]

@@ -31,12 +31,12 @@ class UserResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(['system_admin', 'competition_administrator']);
+        return auth()->user()?->hasRole(['system_admin', 'competition_administrator']) ?? false;
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->hasRole('system_admin');
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function getGloballySearchableAttributes(): array

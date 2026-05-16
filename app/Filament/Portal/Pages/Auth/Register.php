@@ -2,6 +2,7 @@
 
 namespace App\Filament\Portal\Pages\Auth;
 
+use Filament\Actions\Action;
 use Filament\Http\Responses\Auth\Contracts\RegistrationResponse;
 use Filament\Pages\Auth\Register as BaseRegister;
 use Illuminate\Database\Eloquent\Model;
@@ -31,5 +32,17 @@ class Register extends BaseRegister
     protected function handleRegistration(array $data): Model
     {
         return $this->getUserModel()::create($data);
+    }
+
+    protected function getFormActions(): array
+    {
+        return [
+            $this->getRegisterFormAction(),
+            Action::make('cancel')
+                ->label(__('Cancel'))
+                ->url(route('filament.portal.auth.login'))
+                ->color('gray')
+                ->outlined(),
+        ];
     }
 }

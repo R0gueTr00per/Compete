@@ -38,7 +38,7 @@ class CompetitionResource extends Resource
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin']);
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin']) ?? false;
     }
 
     public static function getGloballySearchableAttributes(): array
@@ -48,7 +48,7 @@ class CompetitionResource extends Resource
 
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
     {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin']);
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin']) ?? false;
     }
 
     public static function form(Form $form): Form

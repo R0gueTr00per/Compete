@@ -34,7 +34,7 @@ class EnrolmentResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
     }
 
     public static function canCreate(): bool
