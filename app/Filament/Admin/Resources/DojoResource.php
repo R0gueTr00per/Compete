@@ -71,8 +71,13 @@ class DojoResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')->sortable()->searchable(),
+                TextColumn::make('instructor_name')
+                    ->label('Instructor')
+                    ->placeholder('—')
+                    ->getStateUsing(fn (Dojo $record) => $record->instructor?->getFilamentName()),
                 IconColumn::make('is_active')->label('Active')->boolean(),
             ])
+            ->modifyQueryUsing(fn ($query) => $query->with('instructor.competitorProfile'))
             ->defaultSort('name')
             ->defaultGroup(
                 Group::make('is_active')

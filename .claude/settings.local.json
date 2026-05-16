@@ -183,7 +183,8 @@
       "Bash(xargs grep -l \"Livewire\\\\|livewire\")",
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Recurse -ErrorAction SilentlyContinue)",
       "Bash(Select-Object FullName)",
-      "mcp__jira__jira_update_issue"
+      "mcp__jira__jira_update_issue",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Name)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"
