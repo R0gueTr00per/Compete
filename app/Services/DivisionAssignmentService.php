@@ -177,11 +177,11 @@ class DivisionAssignmentService
         foreach ($ageBands as $age) {
             foreach ($rankBands as $rank) {
                 $result[] = [
-                    'age_band_id'    => $age->id,
-                    'rank_band_id'   => $rank->id,
+                    'age_band_id'     => $age->id,
+                    'rank_band_id'    => $rank->id,
                     'weight_class_id' => null,
-                    'sex'            => null,
-                    'label'          => "{$age->label} / {$rank->label}",
+                    'sex'             => 'mixed',
+                    'label'           => "{$age->label} / {$rank->label} / Mixed",
                 ];
             }
         }
@@ -193,11 +193,11 @@ class DivisionAssignmentService
         $result = [];
         foreach ($ageBands as $age) {
             $result[] = [
-                'age_band_id'    => $age->id,
-                'rank_band_id'   => null,
+                'age_band_id'     => $age->id,
+                'rank_band_id'    => null,
                 'weight_class_id' => null,
-                'sex'            => null,
-                'label'          => $age->label,
+                'sex'             => 'mixed',
+                'label'           => "{$age->label} / Mixed",
             ];
         }
         return $result;
@@ -212,8 +212,8 @@ class DivisionAssignmentService
                     'age_band_id'     => $age->id,
                     'rank_band_id'    => null,
                     'weight_class_id' => $wc->id,
-                    'sex'             => null,
-                    'label'           => "{$age->label} / {$wc->label}",
+                    'sex'             => 'mixed',
+                    'label'           => "{$age->label} / {$wc->label} / Mixed",
                 ];
             }
         }
@@ -371,8 +371,8 @@ class DivisionAssignmentService
         $age  = $ctx->age;
         $rank = $this->normalizeRank($ctx);
 
-        // Try sex-specific divisions first, then fall back to Mixed (sex = null)
-        foreach ([$sex, null] as $trySex) {
+        // Try sex-specific divisions first, then fall back to Mixed
+        foreach ([$sex, 'mixed'] as $trySex) {
             $base = Division::where('competition_event_id', $eventId)
                 ->where('sex', $trySex)
                 ->whereIn('status', ['pending', 'assigned']);
@@ -420,8 +420,8 @@ class DivisionAssignmentService
     {
         $age = $ctx->age;
 
-        // Try sex-specific divisions first, then fall back to Mixed (sex = null)
-        foreach ([$sex, null] as $trySex) {
+        // Try sex-specific divisions first, then fall back to Mixed
+        foreach ([$sex, 'mixed'] as $trySex) {
             $base = Division::where('competition_event_id', $eventId)
                 ->where('sex', $trySex)
                 ->whereIn('status', ['pending', 'assigned']);
@@ -480,7 +480,7 @@ class DivisionAssignmentService
         $rank = $this->normalizeRank($ctx);
 
         $base = Division::where('competition_event_id', $eventId)
-            ->whereNull('sex')
+            ->where('sex', 'mixed')
             ->whereIn('status', ['pending', 'assigned']);
 
         if ($rank !== null) {
@@ -518,7 +518,7 @@ class DivisionAssignmentService
         $age = $ctx->age;
 
         $base = Division::where('competition_event_id', $eventId)
-            ->whereNull('sex')
+            ->where('sex', 'mixed')
             ->whereIn('status', ['pending', 'assigned']);
 
         $match = (clone $base)
@@ -540,7 +540,7 @@ class DivisionAssignmentService
         $weight = $ctx->weight_kg;
 
         $base = Division::where('competition_event_id', $eventId)
-            ->whereNull('sex')
+            ->where('sex', 'mixed')
             ->whereIn('status', ['pending', 'assigned']);
 
         if ($weight) {
@@ -577,7 +577,7 @@ class DivisionAssignmentService
         $age    = $ctx->age;
         $weight = $ctx->weight_kg;
 
-        foreach ([$sex, null] as $trySex) {
+        foreach ([$sex, 'mixed'] as $trySex) {
             $base = Division::where('competition_event_id', $eventId)
                 ->where('sex', $trySex)
                 ->whereIn('status', ['pending', 'assigned']);
@@ -646,8 +646,8 @@ class DivisionAssignmentService
                 $query = clone $base;
             }
         } else {
-            // age_rank / age_only / age_weight — no sex split, divisions have sex = null
-            $query = (clone $base)->whereNull('sex');
+            // age_rank / age_only / age_weight — no sex split, divisions are mixed
+            $query = (clone $base)->where('sex', 'mixed');
         }
 
         if ($filter === 'age_rank_sex') {

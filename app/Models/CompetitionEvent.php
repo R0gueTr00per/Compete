@@ -56,13 +56,20 @@ class CompetitionEvent extends Model
 
     private static function generateCode(self $event): string
     {
-        $prefix = strtoupper(mb_substr($event->name ?? 'E', 0, 1));
+        $words = preg_split('/\s+/', trim($event->name ?? 'E'));
+        $prefix = count($words) === 1
+            ? strtoupper(mb_substr($event->name, 0, 2))
+            : strtoupper(implode('', array_map(fn ($w) => mb_substr($w, 0, 1), array_slice($words, 0, 2))));
 
-        $count = static::where('competition_id', $event->competition_id)
-            ->where('event_code', 'like', $prefix . '%')
-            ->count();
+        if (! static::where('competition_id', $event->competition_id)->where('event_code', $prefix)->exists()) {
+            return $prefix;
+        }
 
-        return $prefix . str_pad($count + 1, 2, '0', STR_PAD_LEFT);
+        $suffix = 2;
+        while (static::where('competition_id', $event->competition_id)->where('event_code', $prefix . $suffix)->exists()) {
+            $suffix++;
+        }
+        return $prefix . $suffix;
     }
 
     public function getActivitylogOptions(): LogOptions

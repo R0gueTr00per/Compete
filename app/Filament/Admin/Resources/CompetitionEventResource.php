@@ -24,6 +24,12 @@ class CompetitionEventResource extends Resource
         return $form->schema([
             TextInput::make('name')->label('Event type name')->disabled(),
 
+            TextInput::make('event_code')
+                ->label('Event code')
+                ->helperText('Short code prefix used for division codes (e.g. PS for Point Sparring).')
+                ->maxLength(10)
+                ->required(),
+
             TextInput::make('running_order')->numeric()->nullable(),
             TextInput::make('location_label')->maxLength(50)->nullable(),
             TextInput::make('target_score')->numeric()->nullable(),

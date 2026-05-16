@@ -12,6 +12,9 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use Illuminate\Validation\Rules\Unique;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRelatedRecords;
 use Filament\Tables\Actions\BulkAction;
@@ -266,46 +269,81 @@ class ManageCompetitionEvents extends ManageRelatedRecords
 
     public function form(Form $form): Form
     {
+        $filterIncludes = fn (array $filters) => fn (Get $get): bool => in_array(
+            CompetitionEvent::find($get('competition_event_id'))?->effectiveDivisionFilter() ?? '',
+            $filters
+        );
+
         return $form->schema([
             Section::make('Division')->columns(2)->schema([
                 Select::make('competition_event_id')
                     ->label('Event type')
-                    ->options(fn () => $this->getRecord()->competitionEvents()
-                        ->pluck('name', 'id')
-                    )
+                    ->options(fn () => $this->getRecord()->competitionEvents()->pluck('name', 'id'))
                     ->required()
                     ->searchable()
-                    ->columnSpanFull(),
+                    ->live()
+                    ->afterStateUpdated(function (?int $state, Set $set) {
+                        $set('age_band_id', null);
+                        $set('rank_band_id', null);
+                        $set('weight_class_id', null);
+                        $set('sex', 'mixed');
+                        $set('code', '');
+                        if (! $state) {
+                            return;
+                        }
+                        $prefix = CompetitionEvent::find($state)?->event_code;
+                        if (! $prefix) {
+                            return;
+                        }
+                        $lastNum = Division::where('competition_event_id', $state)
+                            ->whereNotNull('code')
+                            ->where('code', 'like', $prefix . '%')
+                            ->pluck('code')
+                            ->map(fn ($c) => (int) substr($c, strlen($prefix)))
+                            ->filter(fn ($n) => $n > 0)
+                            ->max();
+                        $set('code', $prefix . str_pad(($lastNum ?? 0) + 1, 2, '0', STR_PAD_LEFT));
+                    }),
 
                 TextInput::make('code')
                     ->label('Division code')
                     ->maxLength(20)
                     ->required()
-                    ->placeholder('e.g. KA01'),
-
-                Select::make('sex')
-                    ->label('Sex')
-                    ->options(['M' => 'Male', 'F' => 'Female'])
-                    ->nullable()
-                    ->placeholder('Mixed'),
+                    ->unique(
+                        table: 'divisions',
+                        column: 'code',
+                        ignoreRecord: true,
+                        modifyRuleUsing: fn (Unique $rule, Get $get) =>
+                            $rule->where('competition_event_id', $get('competition_event_id')),
+                    ),
 
                 Select::make('age_band_id')
                     ->label('Age band')
                     ->options(fn () => $this->getRecord()->ageBands()->pluck('label', 'id'))
                     ->nullable()
-                    ->searchable(),
+                    ->searchable()
+                    ->visible($filterIncludes(['age_rank_sex', 'age_rank', 'age_sex', 'age_only', 'age_weight', 'age_weight_sex'])),
 
                 Select::make('rank_band_id')
                     ->label('Rank band')
                     ->options(fn () => $this->getRecord()->rankBands()->pluck('label', 'id'))
                     ->nullable()
-                    ->searchable(),
+                    ->searchable()
+                    ->visible($filterIncludes(['age_rank_sex', 'age_rank'])),
+
+                Select::make('sex')
+                    ->label('Sex')
+                    ->options(['M' => 'Male', 'F' => 'Female', 'mixed' => 'Mixed'])
+                    ->required()
+                    ->default('mixed')
+                    ->visible($filterIncludes(['age_rank_sex', 'age_sex', 'weight_sex', 'age_weight_sex'])),
 
                 Select::make('weight_class_id')
                     ->label('Weight class')
                     ->options(fn () => $this->getRecord()->weightClasses()->get()->pluck('full_label', 'id'))
                     ->nullable()
-                    ->searchable(),
+                    ->searchable()
+                    ->visible($filterIncludes(['weight_sex', 'age_weight', 'age_weight_sex'])),
             ]),
         ]);
     }

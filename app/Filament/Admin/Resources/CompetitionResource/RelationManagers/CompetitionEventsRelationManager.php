@@ -8,7 +8,9 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\RelationManagers\RelationManager;
+use Illuminate\Validation\Rules\Unique;
 use Filament\Tables\Actions\CreateAction;
 use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\EditAction;
@@ -28,7 +30,26 @@ class CompetitionEventsRelationManager extends RelationManager
                     ->label('Event type name')
                     ->required()
                     ->maxLength(100)
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function (?string $state, Set $set, Get $get) {
+                        if ($state && ! $get('event_code')) {
+                            $set('event_code', strtoupper(mb_substr($state, 0, 2)));
+                        }
+                    })
                     ->columnSpanFull(),
+
+                TextInput::make('event_code')
+                    ->label('Event code')
+                    ->helperText('Short prefix used for division codes (e.g. PS for Point Sparring).')
+                    ->required()
+                    ->maxLength(10)
+                    ->unique(
+                        table: 'competition_events',
+                        column: 'event_code',
+                        ignoreRecord: true,
+                        modifyRuleUsing: fn (Unique $rule, RelationManager $livewire) =>
+                            $rule->where('competition_id', $livewire->ownerRecord->id),
+                    ),
 
                 Select::make('division_filter')
                     ->label('Division filter')

@@ -95,7 +95,7 @@ class DivisionGenerationService
             case 'age_rank':
                 foreach ($ageBands as $ab) {
                     foreach ($rankBands as $rb) {
-                        $rows[] = $this->row($ab->id, $rb->id, null, null);
+                        $rows[] = $this->row($ab->id, $rb->id, null, 'mixed');
                     }
                 }
                 break;
@@ -110,7 +110,7 @@ class DivisionGenerationService
 
             case 'age_only':
                 foreach ($ageBands as $ab) {
-                    $rows[] = $this->row($ab->id, null, null, null);
+                    $rows[] = $this->row($ab->id, null, null, 'mixed');
                 }
                 break;
 
@@ -125,7 +125,7 @@ class DivisionGenerationService
             case 'age_weight':
                 foreach ($ageBands as $ab) {
                     foreach ($weightClasses as $wc) {
-                        $rows[] = $this->row($ab->id, null, $wc->id, null);
+                        $rows[] = $this->row($ab->id, null, $wc->id, 'mixed');
                     }
                 }
                 break;

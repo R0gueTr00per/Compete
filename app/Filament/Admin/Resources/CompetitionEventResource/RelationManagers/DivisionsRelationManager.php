@@ -15,6 +15,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\Rules\Unique;
 
 class DivisionsRelationManager extends RelationManager
 {
@@ -24,6 +25,46 @@ class DivisionsRelationManager extends RelationManager
     public function form(Form $form): Form
     {
         return $form->schema([
+            TextInput::make('code')
+                ->required()
+                ->maxLength(20)
+                ->default(function (RelationManager $livewire): string {
+                    $prefix = $livewire->ownerRecord->event_code;
+                    if (! $prefix) {
+                        return ''; // no event code set — leave blank
+                    }
+                    $lastNum = Division::where('competition_event_id', $livewire->ownerRecord->id)
+                        ->whereNotNull('code')
+                        ->where('code', 'like', $prefix . '%')
+                        ->pluck('code')
+                        ->map(fn ($c) => (int) substr($c, strlen($prefix)))
+                        ->filter(fn ($n) => $n > 0)
+                        ->max();
+                    return $prefix . str_pad(($lastNum ?? 0) + 1, 2, '0', STR_PAD_LEFT);
+                })
+                ->unique(
+                    table: 'divisions',
+                    column: 'code',
+                    ignoreRecord: true,
+                    modifyRuleUsing: fn (Unique $rule, RelationManager $livewire) =>
+                        $rule->where('competition_event_id', $livewire->ownerRecord->id),
+                ),
+
+            Select::make('sex')
+                ->options(['M' => 'Male', 'F' => 'Female', 'mixed' => 'Mixed'])
+                ->required()
+                ->default('mixed'),
+
+            Select::make('rank_band_id')
+                ->label('Rank')
+                ->placeholder('Open (All Ranks)')
+                ->options(function (RelationManager $livewire) {
+                    return $livewire->ownerRecord->competition->rankBands()
+                        ->orderBy('sort_order')
+                        ->pluck('label', 'id');
+                })
+                ->nullable(),
+
             TextInput::make('label')->required()->maxLength(255)->columnSpanFull(),
 
             Select::make('status')
@@ -44,6 +85,7 @@ class DivisionsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('label')
             ->columns([
+                TextColumn::make('code')->label('Code')->searchable(),
                 TextColumn::make('label')->searchable()->wrap(),
                 TextColumn::make('sex')->badge(),
                 TextColumn::make('status')
