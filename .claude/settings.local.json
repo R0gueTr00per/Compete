@@ -186,7 +186,10 @@
       "mcp__jira__jira_update_issue",
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Name)",
       "Bash(del \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\Admin\\\\Pages\\\\Auth\\\\Login.php\")",
-      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\Admin\\\\Pages\\\\Auth\" -ErrorAction SilentlyContinue)"
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\Admin\\\\Pages\\\\Auth\" -ErrorAction SilentlyContinue)",
+      "Bash(xargs grep -l \"class.*Result\")",
+      "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\2026_05_06_120132_add_event_code_to_competition_events_table.php\")",
+      "Bash(Select-String -Pattern \"name|event_type\" -Context 2)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"
