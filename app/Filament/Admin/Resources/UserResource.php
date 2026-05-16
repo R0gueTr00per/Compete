@@ -100,9 +100,9 @@ class UserResource extends Resource
                     Radio::make('role')
                         ->options([
                             'user'                      => 'User',
-                            'competition_official'      => 'Competition Official',
-                            'competition_administrator' => 'Competition Administrator',
-                            'system_admin'              => 'System Administrator',
+                            'competition_official'      => 'Official',
+                            'competition_administrator' => 'Competition Admin',
+                            'system_admin'              => 'System Admin',
                         ])
                         ->descriptions([
                             'user'                      => 'Can enrol in competitions and view their own results.',
@@ -171,9 +171,9 @@ class UserResource extends Resource
                     ->label('Role')
                     ->badge()
                     ->formatStateUsing(fn (string $state) => match ($state) {
-                        'system_admin'              => 'System Administrator',
-                        'competition_administrator' => 'Competition Administrator',
-                        'competition_official'      => 'Competition Official',
+                        'system_admin'              => 'System Admin',
+                        'competition_administrator' => 'Competition Admin',
+                        'competition_official'      => 'Official',
                         'user'                      => 'User',
                         default                     => $state,
                     })
@@ -244,9 +244,9 @@ class UserResource extends Resource
                     ->label('Role')
                     ->options([
                         'user'                      => 'User',
-                        'competition_official'      => 'Competition Official',
-                        'competition_administrator' => 'Competition Administrator',
-                        'system_admin'              => 'System Administrator',
+                        'competition_official'      => 'Official',
+                        'competition_administrator' => 'Competition Admin',
+                        'system_admin'              => 'System Admin',
                     ])
                     ->query(fn ($query, $data) => $data['value']
                         ? $query->role($data['value'])
@@ -318,9 +318,9 @@ class UserResource extends Resource
                                 ->label('Role')
                                 ->options([
                                     'user'                      => 'User',
-                                    'competition_official'      => 'Competition Official',
-                                    'competition_administrator' => 'Competition Administrator',
-                                    'system_admin'              => 'System Administrator',
+                                    'competition_official'      => 'Official',
+                                    'competition_administrator' => 'Competition Admin',
+                                    'system_admin'              => 'System Admin',
                                 ])
                                 ->descriptions([
                                     'user'                      => 'Can enrol in competitions and view their own results.',

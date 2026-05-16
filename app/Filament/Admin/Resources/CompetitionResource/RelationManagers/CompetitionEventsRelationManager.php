@@ -155,6 +155,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         default          => $state ?? '—',
                     }),
             ])
+            ->defaultSort('name')
             ->paginated(false)
             ->headerActions([
                 CreateAction::make()
