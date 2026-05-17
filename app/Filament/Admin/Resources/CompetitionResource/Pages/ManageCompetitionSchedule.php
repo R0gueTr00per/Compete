@@ -9,6 +9,7 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
+use Filament\Support\Enums\MaxWidth;
 
 class ManageCompetitionSchedule extends Page
 {
@@ -28,6 +29,11 @@ class ManageCompetitionSchedule extends Page
     public static function getNavigationLabel(): string
     {
         return 'Scheduling';
+    }
+
+    public function getMaxContentWidth(): MaxWidth|string|null
+    {
+        return MaxWidth::Full;
     }
 
     public function getTitle(): string

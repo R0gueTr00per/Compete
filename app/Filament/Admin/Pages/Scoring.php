@@ -49,6 +49,7 @@ class Scoring extends Page
     public bool  $panelOpen             = false;
     public bool  $bracketExists          = false;
     public bool  $placementOverrideMode  = false;
+    public bool  $confirmLowCompetitorCount = false;
 
     public function mount(): void
     {
@@ -65,6 +66,36 @@ class Scoring extends Page
         }
 
         $this->loadRollcallFromSession();
+        $this->completedRollcallDivisions = $this->loadCompletedRollcallDivisionsFromDb();
+    }
+
+    public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
+    {
+        return $this->filter_location ? 'Scoring — ' . $this->filter_location : 'Scoring';
+    }
+
+    public function markAllPresent(): void
+    {
+        $ids = EnrolmentEvent::where('division_id', $this->division_id)
+            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->where('removed', false)
+            ->pluck('id')
+            ->toArray();
+
+        $this->rollcallPresent = array_values(array_unique(array_merge($this->rollcallPresent, $ids)));
+        $this->saveRollcallToSession();
+    }
+
+    public function unmarkAllPresent(): void
+    {
+        $ids = EnrolmentEvent::where('division_id', $this->division_id)
+            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->where('removed', false)
+            ->pluck('id')
+            ->toArray();
+
+        $this->rollcallPresent = array_values(array_diff($this->rollcallPresent, $ids));
+        $this->saveRollcallToSession();
     }
 
     public function getCompetitions(): array
@@ -104,6 +135,14 @@ class Scoring extends Page
             'enrolmentEvents as competitors_count' => fn ($q) => $q->whereHas(
                 'enrolment', fn ($q2) => $q2->where('status', 'checked_in')
             )->where('removed', false),
+            'enrolmentEvents as absent_count' => fn ($q) => $q->where('removed', true),
+            'enrolmentEvents as scoring_count' => fn ($q) => $q->whereHas('result', fn ($q2) =>
+                $q2->where(fn ($q3) => $q3
+                    ->whereNotNull('total_score')
+                    ->orWhereNotNull('win_loss')
+                    ->orWhereNotNull('placement')
+                )
+            ),
         ])
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
@@ -113,7 +152,26 @@ class Scoring extends Page
             'division'          => $div,
             'checked_in_count'  => $div->checked_in_count,
             'competitors_count' => $div->competitors_count,
+            'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0,
         ]);
+    }
+
+    private function loadCompletedRollcallDivisionsFromDb(): array
+    {
+        if (! $this->competition_id) return [];
+
+        return Division::whereHas('competitionEvent', fn ($q) =>
+            $q->where('competition_id', $this->competition_id)
+        )
+        ->where(fn ($q) => $q
+            ->whereIn('status', ['running', 'complete'])
+            ->orWhereHas('enrolmentEvents', fn ($q2) => $q2->where('removed', true))
+            ->orWhereHas('enrolmentEvents.result', fn ($q2) =>
+                $q2->where(fn ($q3) => $q3->whereNotNull('total_score')->orWhereNotNull('win_loss'))
+            )
+        )
+        ->pluck('id')
+        ->toArray();
     }
 
     private function rollcallSessionKey(): string
@@ -138,16 +196,17 @@ class Scoring extends Page
 
     private function clearScoringMemory(): void
     {
-        $this->judgeScores           = [];
-        $this->pointsInput           = [];
-        $this->placementInput        = [];
-        $this->tiebreakerJudgeInputs = [];
-        $this->bracketScoreInput     = [];
-        $this->savedResultIds        = [];
-        $this->rollcallMode          = true;
-        $this->placementOverrideMode = false;
-        $this->bracketExists         = false;
-        $this->panelOpen             = false;
+        $this->judgeScores              = [];
+        $this->pointsInput              = [];
+        $this->placementInput           = [];
+        $this->tiebreakerJudgeInputs    = [];
+        $this->bracketScoreInput        = [];
+        $this->savedResultIds           = [];
+        $this->rollcallMode             = true;
+        $this->placementOverrideMode    = false;
+        $this->bracketExists            = false;
+        $this->panelOpen                = false;
+        $this->confirmLowCompetitorCount = false;
         // rollcallPresent is intentionally NOT cleared here so ticks survive
         // division switches. Only cancelScoring() resets it explicitly.
     }
@@ -221,6 +280,18 @@ class Scoring extends Page
                 ->where('removed', false)
                 ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
                 ->pluck('id');
+
+            $activePresent = collect($this->rollcallPresent)->intersect($activeEeIds);
+            if ($activePresent->count() < 2 && ! $this->confirmLowCompetitorCount) {
+                $this->confirmLowCompetitorCount = true;
+                Notification::make()
+                    ->title('Only ' . $activePresent->count() . ' competitor(s) marked present')
+                    ->body('At least 2 competitors are needed to score. Click Begin Scoring again to proceed anyway.')
+                    ->warning()
+                    ->send();
+                return;
+            }
+            $this->confirmLowCompetitorCount = false;
 
             $absentIds = $activeEeIds->diff($this->rollcallPresent);
             if ($absentIds->isNotEmpty()) {
@@ -626,6 +697,17 @@ class Scoring extends Page
             ->whereNotNull('home_result')
             ->get();
 
+        // Reset all non-overridden placements before recomputing from scratch.
+        // Without this, stale placements from earlier intermediate states (e.g. R1 losers
+        // being briefly treated as semi-finalists) persist in the DB and corrupt the Results page.
+        $eeIds = EnrolmentEvent::where('division_id', $this->division_id)
+            ->where('removed', false)
+            ->pluck('id');
+        Result::whereIn('enrolment_event_id', $eeIds)
+            ->where('placement_overridden', false)
+            ->whereNotNull('placement')
+            ->update(['placement' => null]);
+
         $format = $this->getTournamentFormat();
 
         if ($format === 'round_robin') {
@@ -669,6 +751,9 @@ class Scoring extends Page
             $repFinal = $matches->where('bracket', 'repechage')->sortByDesc('round')->first();
             if ($repFinal?->winnerId()) {
                 $this->setBracketPlacement($repFinal->winnerId(), 3, $service);
+                if ($repFinal->loserId()) {
+                    $this->setBracketPlacement($repFinal->loserId(), 4, $service);
+                }
             } elseif ($wbFinalRound >= 2) {
                 foreach ($matches->where('bracket', 'winners')->where('round', $wbFinalRound - 1) as $semi) {
                     if ($semi->loserId()) $this->setBracketPlacement($semi->loserId(), 3, $service);
@@ -692,9 +777,14 @@ class Scoring extends Page
             $repMatches   = $matches->where('bracket', 'repechage');
             $maxRepRound  = $repMatches->max('round');
             $repFinal     = $repMatches->where('round', $maxRepRound)->first();
-            if ($repFinal?->winnerId()) $this->setBracketPlacement($repFinal->winnerId(), 3, $service);
+            if ($repFinal?->winnerId()) {
+                $this->setBracketPlacement($repFinal->winnerId(), 3, $service);
+                if ($repFinal->loserId()) {
+                    $this->setBracketPlacement($repFinal->loserId(), 4, $service);
+                }
+            }
         } else {
-            // Single elimination — highest WB round determines 1st/2nd
+            // Single elimination — highest WB round determines 1st/2nd; both semi-final losers share 3rd.
             $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
             $wbFinal = $matches->where('bracket', 'winners')->where('round', $wbFinalRound)->first();
             if ($wbFinal?->winnerId()) {
@@ -702,7 +792,6 @@ class Scoring extends Page
                 if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service);
             }
 
-            // Semi-final losers → 3rd
             if ($wbFinalRound >= 2) {
                 foreach ($matches->where('bracket', 'winners')->where('round', $wbFinalRound - 1) as $semi) {
                     if ($semi->loserId()) $this->setBracketPlacement($semi->loserId(), 3, $service);
@@ -1154,11 +1243,13 @@ class Scoring extends Page
 
     public function updatedCompetitionId(): void
     {
-        $this->filter_location = null;
-        $this->division_id     = null;
-        $this->rollcallPresent = [];
+        $this->filter_location            = null;
+        $this->division_id                = null;
+        $this->rollcallPresent            = [];
+        $this->completedRollcallDivisions = [];
         $this->clearRollcallFromSession();
         $this->clearScoringMemory();
+        $this->completedRollcallDivisions = $this->loadCompletedRollcallDivisionsFromDb();
     }
 
     public function updatedFilterLocation(): void

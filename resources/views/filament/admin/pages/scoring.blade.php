@@ -47,16 +47,17 @@
                 @php
                     $div      = $item->division;
                     $selected = $this->division_id === $div->id && $this->panelOpen;
-                    $rowClass = match ($div->status) {
-                        'complete'  => 'bg-success-50 border-success-300 dark:bg-success-900/20 dark:border-success-700',
-                        'running'   => 'bg-warning-50 border-warning-300 dark:bg-warning-900/20 dark:border-warning-700',
-                        default     => 'bg-white border-gray-200 shadow-sm dark:bg-slate-900 dark:border-slate-700',
-                    };
-                    $textClass = match ($div->status) {
-                        'complete'  => 'text-success-800 dark:text-success-300',
-                        'running'   => 'text-warning-800 dark:text-warning-300',
-                        default     => 'text-gray-900 dark:text-white',
-                    };
+                    $inProgress = $item->scoring_started && $div->status !== 'complete';
+                    $rowClass = $div->status === 'complete'
+                        ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700'
+                        : ($inProgress
+                            ? 'bg-amber-50 border-amber-300 dark:bg-amber-900/20 dark:border-amber-700'
+                            : 'bg-white border-gray-200 shadow-sm dark:bg-slate-900 dark:border-slate-700');
+                    $textClass = $div->status === 'complete'
+                        ? 'text-green-800 dark:text-green-300'
+                        : ($inProgress
+                            ? 'text-amber-800 dark:text-amber-300'
+                            : 'text-gray-900 dark:text-white');
                 @endphp
                 <div
                     wire:key="division-{{ $div->id }}"
@@ -83,15 +84,15 @@
                     <div class="flex items-center gap-3 shrink-0">
                         <span class="text-xs text-gray-500">
                             {{ $item->checked_in_count }} checked in
-                            @if (in_array($div->id, $this->completedRollcallDivisions) || $div->status === 'complete')
+                            @if ($item->scoring_started || $item->competitors_count !== $item->checked_in_count || $div->status === 'complete')
                                 &middot; {{ $item->competitors_count }} competing
                             @endif
                         </span>
 
                         @if ($div->status === 'complete')
                             <x-heroicon-m-check-circle class="w-5 h-5 text-success-500" />
-                        @elseif ($div->status === 'running')
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-800 dark:bg-warning-900 dark:text-warning-200">Running</span>
+                        @elseif ($inProgress)
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">In progress</span>
                         @else
                             <x-heroicon-m-chevron-right class="w-4 h-4 text-gray-400 {{ $selected ? 'rotate-90' : '' }}" />
                         @endif
@@ -154,7 +155,19 @@
                             @if ($rollcall->isEmpty())
                                 <p class="text-center text-sm text-gray-400 py-4">No checked-in competitors in this division.</p>
                             @else
-                                <p class="text-xs text-gray-400 mb-3">Tap each competitor to confirm they are present.</p>
+                                @php
+                                    $activeEeIds = $rollcall->where('absent', false)->pluck('ee_id');
+                                    $allMarked   = $activeEeIds->isNotEmpty() && $activeEeIds->every(fn ($id) => in_array($id, $this->rollcallPresent));
+                                @endphp
+                                <div class="flex items-center justify-between mb-3">
+                                    <p class="text-xs text-gray-400">Tap each competitor to confirm they are present.</p>
+                                    <x-filament::button
+                                        size="xs"
+                                        color="gray"
+                                        wire:click="{{ $allMarked ? 'unmarkAllPresent' : 'markAllPresent' }}">
+                                        {{ $allMarked ? 'Unmark all present' : 'Mark all present' }}
+                                    </x-filament::button>
+                                </div>
                                 <ul class="divide-y divide-gray-100 dark:divide-slate-800">
                                     @foreach ($rollcall->where('absent', false) as $rc)
                                         @php $confirmed = in_array($rc->ee_id, $this->rollcallPresent); @endphp
@@ -194,8 +207,8 @@
                                     $targetScore   = $scoringMethod === 'first_to_n' ? $this->getTargetScore() : null;
                                 @endphp
 
-                                {{-- wire:key changes when bracketExists flips, forcing full replacement instead of morphing --}}
-                                <div wire:key="bracket-{{ $this->division_id }}-{{ $hasBracket ? 'has' : 'empty' }}">
+                                {{-- wire:key changes when bracketExists flips OR scoring completes, forcing full replacement --}}
+                                <div wire:key="bracket-{{ $this->division_id }}-{{ $hasBracket ? 'has' : 'empty' }}-{{ $this->isScoringComplete() ? 'done' : 'active' }}">
 
                                 @if (! $hasBracket)
                                     <div class="text-center py-4">
@@ -334,6 +347,18 @@
                                                                             <input type="number" step="any" min="0"
                                                                                 @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                 wire:model="bracketScoreInput.{{ $match->id }}.away"
+                                                                                @if ($targetScore)
+                                                                                    x-on:change="
+                                                                                        const v = parseFloat($el.value);
+                                                                                        if (isNaN(v)) return;
+                                                                                        const hw = parseFloat($wire.get('bracketScoreInput.{{ $match->id }}.home'));
+                                                                                        if (!isNaN(hw) && hw !== 0 && hw !== {{ $targetScore }}) return;
+                                                                                        if (v === {{ $targetScore }}) {
+                                                                                            if (hw === {{ $targetScore }}) $wire.set('bracketScoreInput.{{ $match->id }}.home', 0);
+                                                                                        } else {
+                                                                                            $wire.set('bracketScoreInput.{{ $match->id }}.home', {{ $targetScore }});
+                                                                                        }"
+                                                                                @endif
                                                                                 class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-1 px-1"
                                                                                 placeholder="0" />
                                                                             <x-filament::button size="xs" color="success" class="shrink-0"

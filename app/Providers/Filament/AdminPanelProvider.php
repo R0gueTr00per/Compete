@@ -74,6 +74,7 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 \App\Http\Middleware\AdminPanelAuthenticate::class,
             ])
+            ->globalSearch(false)
             ->sidebarCollapsibleOnDesktop()
             ->authGuard('web')
             ->navigationItems([

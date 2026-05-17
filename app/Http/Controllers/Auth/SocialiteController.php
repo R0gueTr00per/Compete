@@ -12,7 +12,7 @@ use Laravel\Socialite\Two\InvalidStateException;
 
 class SocialiteController extends Controller
 {
-    private const ALLOWED_PROVIDERS = ['facebook', 'google', 'microsoft'];
+    private const ALLOWED_PROVIDERS = ['google'];
 
     public function redirect(string $provider): RedirectResponse
     {

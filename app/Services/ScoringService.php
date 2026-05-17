@@ -109,8 +109,9 @@ class ScoringService
             }
         }
 
-        if (! empty($updates)) {
-            Result::upsert($updates, ['id'], ['placement', 'updated_at']);
+        foreach ($updates as $update) {
+            Result::where('id', $update['id'])
+                ->update(['placement' => $update['placement'], 'updated_at' => $update['updated_at']]);
         }
     }
 

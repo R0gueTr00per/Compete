@@ -191,7 +191,11 @@
       "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\2026_05_06_120132_add_event_code_to_competition_events_table.php\")",
       "Bash(Select-String -Pattern \"name|event_type\" -Context 2)",
       "mcp__jira__jira_create_issue",
-      "Bash(Get-Date -Format \"yyyy_MM_dd_HHmmss\")"
+      "Bash(Get-Date -Format \"yyyy_MM_dd_HHmmss\")",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Directory)",
+      "Bash(php -l app/Services/ScoringService.php app/Filament/Admin/Pages/Scoring.php app/Filament/Admin/Resources/UserResource.php app/Filament/Portal/Pages/ProfilePage.php app/Filament/Portal/Pages/Auth/Register.php app/Notifications/NewUserRegisteredNotification.php app/Notifications/AccountApprovedNotification.php)",
+      "Bash(php -r \"echo method_exists\\(\\\\Filament\\\\Pages\\\\Auth\\\\Register::class, 'getNameFormComponent'\\) ? 'yes' : 'no';\")",
+      "Bash(php -l app/Filament/Portal/Pages/Auth/Register.php app/Notifications/NewUserRegisteredNotification.php app/Notifications/AccountApprovedNotification.php app/Models/CompetitorProfile.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Pages;
 use App\Models\Competition;
 use App\Models\Division;
 use Filament\Pages\Page;
+use Filament\Support\Enums\MaxWidth;
 use Livewire\Attributes\Url;
 
 class ScheduleView extends Page
@@ -34,6 +35,11 @@ class ScheduleView extends Page
                 $this->competition_id = $comp->id;
             }
         }
+    }
+
+    public function getMaxContentWidth(): MaxWidth|string|null
+    {
+        return MaxWidth::Full;
     }
 
     public function getTitle(): string

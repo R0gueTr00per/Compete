@@ -35,23 +35,10 @@ return [
         ],
     ],
 
-    'facebook' => [
-        'client_id' => env('SOCIALITE_FACEBOOK_CLIENT_ID'),
-        'client_secret' => env('SOCIALITE_FACEBOOK_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/auth/facebook/callback',
-    ],
-
-    'google' => [
+'google' => [
         'client_id' => env('SOCIALITE_GOOGLE_CLIENT_ID'),
         'client_secret' => env('SOCIALITE_GOOGLE_CLIENT_SECRET'),
         'redirect' => env('APP_URL') . '/auth/google/callback',
-    ],
-
-    'microsoft' => [
-        'client_id' => env('SOCIALITE_MICROSOFT_CLIENT_ID'),
-        'client_secret' => env('SOCIALITE_MICROSOFT_CLIENT_SECRET'),
-        'redirect' => env('APP_URL') . '/auth/microsoft/callback',
-        'tenant' => 'common',
     ],
 
 ];

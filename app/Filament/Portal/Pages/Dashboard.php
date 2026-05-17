@@ -47,7 +47,7 @@ class Dashboard extends BaseDashboard
             ->whereHas('enrolments', fn ($q) => $q->whereIn('dojo_name', $dojoNames))
             ->with([
                 'enrolments' => fn ($q) => $q->whereIn('dojo_name', $dojoNames)
-                    ->with(['competitor.competitorProfile', 'activeEvents.competitionEvent', 'activeEvents.division']),
+                    ->with(['competitor.competitorProfile', 'activeEvents.competitionEvent', 'activeEvents.division', 'activeEvents.result']),
             ])
             ->orderBy('competition_date')
             ->get();

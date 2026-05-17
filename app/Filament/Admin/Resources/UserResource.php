@@ -10,6 +10,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use App\Notifications\AccountApprovedNotification;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
@@ -39,21 +40,6 @@ class UserResource extends Resource
         return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
-    public static function getGloballySearchableAttributes(): array
-    {
-        return ['email', 'competitorProfile.first_name', 'competitorProfile.surname'];
-    }
-
-    public static function getGlobalSearchResultTitle(\Illuminate\Database\Eloquent\Model $record): string
-    {
-        return $record->getFilamentName();
-    }
-
-    public static function getGlobalSearchResultDetails(\Illuminate\Database\Eloquent\Model $record): array
-    {
-        return ['Email' => $record->email];
-    }
-
     public static function form(Form $form): Form
     {
         return $form->schema([
@@ -64,6 +50,7 @@ class UserResource extends Resource
                         ->email()
                         ->required()
                         ->unique(ignoreRecord: true)
+                        ->validationMessages(['unique' => 'An account already exists for this email address.'])
                         ->maxLength(255),
 
                     Select::make('status')
@@ -148,7 +135,11 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['socialAccounts', 'roles', 'competitorProfile']))
+            ->modifyQueryUsing(fn ($query) => $query
+                ->with(['socialAccounts', 'roles', 'competitorProfile'])
+                ->leftJoin('competitor_profiles', 'competitor_profiles.user_id', '=', 'users.id')
+                ->select('users.*')
+            )
             ->columns([
                 TextColumn::make('full_name')
                     ->label('Name')
@@ -162,10 +153,6 @@ class UserResource extends Resource
                         )
                         ->orWhere('email', 'like', "%{$search}%")
                     )),
-
-                TextColumn::make('email')
-                    ->sortable()
-                    ->visibleFrom('sm'),
 
                 TextColumn::make('roles.name')
                     ->label('Role')
@@ -231,7 +218,8 @@ class UserResource extends Resource
                     ->sortable()
                     ->visibleFrom('sm'),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('competitor_profiles.surname')
+            ->defaultSort('competitor_profiles.first_name')
             ->filters([
                 SelectFilter::make('status')
                     ->options([
@@ -267,6 +255,7 @@ class UserResource extends Resource
                             if (! $record->hasAnyRole(['competition_administrator', 'system_admin', 'competition_official'])) {
                                 $record->assignRole('user');
                             }
+                            $record->notify(new AccountApprovedNotification());
                             Notification::make()->title('User approved.')->success()->send();
                         }),
 

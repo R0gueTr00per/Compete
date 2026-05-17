@@ -21,6 +21,18 @@ npm run dev
 
 ## Deployment
 
+### Server Configuration (one-time)
+
+#### ModSecurity — OAuth callback whitelist
+
+ModSecurity blocks OAuth callback requests from Google/Facebook/Microsoft. Since Panthur/LiteSpeed does not allow ModSecurity directives in `.htaccess`, this must be configured via cPanel or by contacting Panthur support.
+
+**Via cPanel:** Security → ModSecurity → whitelist the path `/auth/` or disable the specific rule that fires on the callback URL.
+
+**Via Panthur support:** Ask them to whitelist the pattern `/auth/.*/callback` in ModSecurity at the server config level.
+
+### Deploying new code
+
 After pulling new code, run the following to keep caches current:
 
 ```bash

@@ -3,10 +3,10 @@
 namespace App\Filament\Portal\Pages;
 
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -29,10 +29,8 @@ class ProfilePage extends Page implements HasForms
         $user    = auth()->user();
         $profile = $user->competitorProfile;
 
-        $this->form->fill(array_merge(
-            $profile ? $profile->toArray() : [],
-            ['timezone' => $user->timezone ?? 'Australia/Sydney'],
-        ));
+        $data = $profile ? $profile->toArray() : [];
+        $this->form->fill($data);
     }
 
     public function form(Form $form): Form
@@ -40,21 +38,10 @@ class ProfilePage extends Page implements HasForms
         return $form
             ->schema([
                 Section::make('Account')
-                    ->columns(2)
                     ->schema([
                         Placeholder::make('email')
                             ->label('Login email')
                             ->content(fn () => auth()->user()->email),
-
-                        Select::make('timezone')
-                            ->label('Timezone')
-                            ->options(function () {
-                                $zones = \DateTimeZone::listIdentifiers();
-                                return array_combine($zones, $zones);
-                            })
-                            ->default('Australia/Sydney')
-                            ->searchable()
-                            ->required(),
                     ]),
 
                 Section::make('Personal Details')
@@ -81,6 +68,18 @@ class ProfilePage extends Page implements HasForms
                             ->tel()
                             ->maxLength(30),
                     ]),
+
+                Section::make('Profile Photo')
+                    ->schema([
+                        FileUpload::make('profile_photo')
+                            ->label('Photo')
+                            ->image()
+                            ->imagePreviewHeight('200')
+                            ->disk('public')
+                            ->directory('profile-photos')
+                            ->visibility('public')
+                            ->maxSize(2048),
+                    ]),
             ])
             ->statePath('data');
     }
@@ -89,11 +88,15 @@ class ProfilePage extends Page implements HasForms
     {
         $data = $this->form->getState();
 
-        auth()->user()->update(['timezone' => $data['timezone'] ?? 'Australia/Sydney']);
-
         $profileData = array_intersect_key($data, array_flip([
-            'surname', 'first_name', 'date_of_birth', 'gender', 'phone',
+            'surname', 'first_name', 'date_of_birth', 'gender', 'phone', 'profile_photo',
         ]));
+
+        // FileUpload returns an array of paths; unwrap to a single path
+        if (isset($profileData['profile_photo']) && is_array($profileData['profile_photo'])) {
+            $profileData['profile_photo'] = array_values($profileData['profile_photo'])[0] ?? null;
+        }
+
         $profileData['profile_complete'] = true;
 
         auth()->user()->competitorProfile()->updateOrCreate(

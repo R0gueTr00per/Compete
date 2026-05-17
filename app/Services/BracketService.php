@@ -145,7 +145,29 @@ class BracketService
                 return;
             }
 
-            $this->fillOrCreate($match->division_id, $nextRound, 'losers', $nextSlot, $winnerId, true);
+            $lbMatch = $this->fillOrCreate($match->division_id, $nextRound, 'losers', $nextSlot, $winnerId, true);
+
+            // Odd LB rounds receive only LB survivors (no WB loser drops in). When the bracket
+            // has an odd number of LB even-round matches, only one competitor reaches the next
+            // odd-round slot — auto-win them so the bracket doesn't stall.
+            if ($match->round % 2 === 0) {
+                $lbMatch->refresh();
+                if (
+                    $lbMatch->home_enrolment_event_id !== null
+                    && $lbMatch->away_enrolment_event_id === null
+                    && $lbMatch->home_result === null
+                ) {
+                    $feederCount = RoundRobinMatch::where('division_id', $match->division_id)
+                        ->where('bracket', 'losers')
+                        ->where('round', $match->round)
+                        ->whereIn('bracket_slot', [2 * $nextSlot - 1, 2 * $nextSlot])
+                        ->count();
+                    if ($feederCount <= 1) {
+                        $lbMatch->update(['home_result' => 'win']);
+                        $this->advance($lbMatch->fresh(), $format);
+                    }
+                }
+            }
 
             if ($format === 'double_elimination') {
                 $this->checkGrandFinal($match->division_id);

@@ -22,6 +22,7 @@ class Dashboard extends BaseDashboard
             ->withCount('enrolments')
             ->withCount(['enrolments as checkins_count' => fn ($q) => $q->where('enrolments.status', 'checked_in')])
             ->withCount('competitionEvents as events_count')
+            ->withCount('allDivisions as total_divisions_count')
             ->withCount(['allDivisions as completed_divisions_count' => fn ($q) => $q->where('divisions.status', 'complete')])
             ->orderBy('competition_date')
             ->get();
@@ -73,7 +74,16 @@ class Dashboard extends BaseDashboard
                         }
                         return $msg;
                     })(),
-                    'running' => 'Conclude this competition? Results will become visible to competitors.',
+                    'running' => (function () use ($competition) {
+                        $incomplete = $competition->allDivisions()
+                            ->whereNotIn('divisions.status', ['complete', 'combined'])
+                            ->count();
+                        $msg = 'Conclude this competition? Results will become visible to competitors.';
+                        if ($incomplete > 0) {
+                            $msg = "Warning: {$incomplete} division(s) have not been completed. " . $msg;
+                        }
+                        return $msg;
+                    })(),
                     default   => 'Are you sure?',
                 };
             })

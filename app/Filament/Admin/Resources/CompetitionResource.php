@@ -41,11 +41,6 @@ class CompetitionResource extends Resource
         return auth()->user()?->hasRole(['competition_administrator', 'system_admin']) ?? false;
     }
 
-    public static function getGloballySearchableAttributes(): array
-    {
-        return ['name'];
-    }
-
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
     {
         return auth()->user()?->hasRole(['competition_administrator', 'system_admin']) ?? false;

@@ -18,13 +18,23 @@
             </div>
 
             <div class="flex-1">
-                <x-filament::input.wrapper>
-                    <x-filament::input
-                        type="search"
+                <div class="flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-primary-500">
+                    <input
+                        type="text"
                         wire:model.live.debounce.300ms="search"
                         placeholder="Search competitor name…"
+                        class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-sm text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
                     />
-                </x-filament::input.wrapper>
+                    @if ($this->search)
+                        <button
+                            wire:click="$set('search', null)"
+                            class="pr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            aria-label="Clear search"
+                        >
+                            <x-heroicon-m-x-mark class="h-4 w-4" />
+                        </button>
+                    @endif
+                </div>
             </div>
         </div>
     </div>

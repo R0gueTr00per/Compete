@@ -34,26 +34,41 @@
                 </x-filament::button>
             </div>
         @else
-            <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-                <div>
-                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Name</dt>
-                    <dd class="mt-0.5 font-medium text-gray-900 dark:text-white">{{ $profile->first_name }} {{ $profile->surname }}</dd>
+            <div class="flex gap-6 items-start">
+                {{-- Profile photo --}}
+                <div class="shrink-0">
+                    @if ($profile->profile_photo)
+                        <img src="{{ asset('storage/' . $profile->profile_photo) }}"
+                             alt="Profile photo"
+                             class="w-16 h-20 rounded-lg object-cover border-2 border-gray-200 dark:border-gray-600" />
+                    @else
+                        <div class="w-16 h-20 rounded-lg bg-gray-100 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center">
+                            <x-heroicon-o-user class="w-8 h-10 text-gray-400 dark:text-gray-500" />
+                        </div>
+                    @endif
                 </div>
-                <div>
-                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Date of birth</dt>
-                    <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $profile->date_of_birth->format('d M Y') }} (age {{ $profile->age }})</dd>
-                </div>
-                <div>
-                    <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Gender</dt>
-                    <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $profile->gender === 'M' ? 'Male' : 'Female' }}</dd>
-                </div>
-                @if ($profile->phone)
+
+                <dl class="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
                     <div>
-                        <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</dt>
-                        <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $profile->phone }}</dd>
+                        <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Name</dt>
+                        <dd class="mt-0.5 font-medium text-gray-900 dark:text-white">{{ $profile->first_name }} {{ $profile->surname }}</dd>
                     </div>
-                @endif
-            </dl>
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Date of birth</dt>
+                        <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $profile->date_of_birth->format('d M Y') }} (age {{ $profile->age }})</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Gender</dt>
+                        <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $profile->gender === 'M' ? 'Male' : 'Female' }}</dd>
+                    </div>
+                    @if ($profile->phone)
+                        <div>
+                            <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</dt>
+                            <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $profile->phone }}</dd>
+                        </div>
+                    @endif
+                </dl>
+            </div>
             <p class="mt-3 text-xs text-gray-400">Dojo, rank, and weight are entered when you enrol in each competition.</p>
         @endif
     </x-filament::section>
@@ -167,9 +182,6 @@
                                                 @endswitch
                                             </span>
                                         @endif
-                                        @if ($ee->result->total_score !== null)
-                                            <p class="text-gray-500 text-xs">Score: {{ number_format($ee->result->total_score, 1) }}</p>
-                                        @endif
                                         @if ($ee->result->win_loss)
                                             <p class="text-xs {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">
                                                 {{ ucfirst($ee->result->win_loss) }}
@@ -224,22 +236,50 @@
                                 <div class="divide-y divide-gray-100 dark:divide-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                                     @foreach ($dojoEnrolments as $enrolment)
                                         @php
-                                            $profile = $enrolment->competitor?->competitorProfile;
-                                            $name = $profile
+                                            $profile   = $enrolment->competitor?->competitorProfile;
+                                            $name      = $profile
                                                 ? trim($profile->first_name . ' ' . $profile->surname)
                                                 : $enrolment->competitor?->email ?? '—';
+                                            $eventCount = $enrolment->activeEvents->count();
                                         @endphp
-                                        <div class="px-4 py-3">
-                                            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ $name }}</p>
-                                            <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
-                                                @foreach ($enrolment->activeEvents as $ee)
-                                                    <span class="text-xs text-gray-500 dark:text-gray-400">
-                                                        {{ $ee->competitionEvent->event_code }} — {{ $ee->competitionEvent->name }}
-                                                        @if ($ee->division)
-                                                            <span class="text-gray-400">({{ $ee->division->full_label }})</span>
-                                                        @endif
-                                                    </span>
-                                                @endforeach
+                                        <div x-data="{ open: false }" class="px-4 py-3">
+                                            <button
+                                                type="button"
+                                                x-on:click="open = !open"
+                                                class="flex w-full items-center justify-between gap-2 text-left">
+                                                <span class="text-sm font-medium text-gray-900 dark:text-white">
+                                                    {{ $name }}
+                                                    <span class="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">({{ $eventCount }} {{ Str::plural('event', $eventCount) }})</span>
+                                                </span>
+                                                <x-heroicon-m-chevron-down
+                                                    x-bind:class="open ? 'rotate-180' : ''"
+                                                    class="h-4 w-4 text-gray-400 shrink-0 transition-transform" />
+                                            </button>
+                                            <div x-show="open" x-collapse class="mt-2">
+                                                <div class="flex flex-col gap-1">
+                                                    @foreach ($enrolment->activeEvents as $ee)
+                                                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                                                            {{ $ee->competitionEvent->event_code }} — {{ $ee->competitionEvent->name }}
+                                                            @if ($ee->division)
+                                                                <span class="text-gray-400">({{ $ee->division->full_label }})</span>
+                                                            @endif
+                                                            @if ($ee->result && ($ee->result->placement || $ee->result->disqualified))
+                                                                <span class="font-medium text-primary-600 dark:text-primary-400">
+                                                                    @if ($ee->result->disqualified)
+                                                                        DQ
+                                                                    @else
+                                                                        @switch($ee->result->placement)
+                                                                            @case(1) 1st @break
+                                                                            @case(2) 2nd @break
+                                                                            @case(3) 3rd @break
+                                                                            @default {{ $ee->result->placement }}th
+                                                                        @endswitch
+                                                                    @endif
+                                                                </span>
+                                                            @endif
+                                                        </span>
+                                                    @endforeach
+                                                </div>
                                             </div>
                                         </div>
                                     @endforeach

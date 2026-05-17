@@ -29,12 +29,12 @@
             </div>
 
             <div
-                class="flex gap-4 overflow-x-auto pb-6 px-1 py-1"
+                class="flex gap-3 pb-6 px-1 py-1"
                 @mousedown.capture="onCardMousedown($event)"
                 @click.capture="onCardClick($event)"
             >
                 {{-- Unassigned column --}}
-                <div class="flex-shrink-0 w-24 sm:w-72 min-w-0">
+                <div class="flex-1 min-w-0">
                     <div class="mb-2 flex items-center gap-2 min-w-0">
                         <span class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 truncate">Unassigned</span>
                         <span class="shrink-0 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -78,7 +78,7 @@
 
                 {{-- Location columns --}}
                 @foreach($columns as $col)
-                    <div class="flex-shrink-0 w-24 sm:w-72 min-w-0">
+                    <div class="flex-1 min-w-0">
                         <div class="mb-2 flex items-center gap-2 min-w-0">
                             <button
                                 type="button"

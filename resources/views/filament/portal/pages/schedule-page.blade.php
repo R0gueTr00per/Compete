@@ -39,11 +39,24 @@
                 <p class="text-center text-gray-400 py-12">No divisions scheduled yet.</p>
             </x-filament::section>
         @else
-            <div class="flex gap-4 overflow-x-auto px-1 pt-1 pb-4 items-start">
+            {{-- Legend --}}
+            <div class="mb-3 flex flex-wrap gap-4 text-xs text-gray-600 dark:text-gray-400">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm inline-block bg-green-100 dark:bg-green-900/40 border border-green-300 dark:border-green-700"></span> Complete
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm inline-block bg-indigo-100 dark:bg-indigo-900/40 border border-indigo-300 dark:border-indigo-700"></span> Scheduled
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-sm inline-block bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-600 ring-2 ring-gray-800 dark:ring-white"></span> My division
+                </span>
+            </div>
+            <div class="w-full overflow-x-auto px-1 pt-1 pb-4">
+            <div class="flex gap-4 items-start" style="min-width: max-content;">
                 @foreach ($locations as $location)
                     @if ($divisions->has($location))
                         <div class="flex-none w-64">
-                            <h2 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 pb-2 border-b-2 border-gray-200 dark:border-gray-700">
+                            <h2 class="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3 pb-2 border-b-2 border-gray-200 dark:border-gray-700">
                                 {{ $location }}
                             </h2>
 
@@ -52,19 +65,19 @@
                                     @php
                                         $isMyDiv  = in_array($div->id, $myDivisionIds);
                                         $cardClass = $div->status === 'complete'
-                                            ? 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700'
-                                            : 'bg-indigo-100 dark:bg-indigo-900/30 border-gray-200 dark:border-gray-600';
+                                            ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
+                                            : 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700';
                                         if ($isMyDiv) $cardClass .= ' ring-2 ring-gray-800 dark:ring-white';
                                     @endphp
-                                    <div class="rounded-md border px-3 py-2 shadow-sm cursor-pointer {{ $cardClass }}">
+                                    <div class="rounded-md border px-3 py-2 shadow-sm {{ $cardClass }}">
                                         <div class="flex items-center justify-between gap-2">
                                             <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
                                             @if ($div->status === 'complete')
                                                 <x-heroicon-m-check-circle class="h-4 w-4 text-green-600 dark:text-green-400" />
                                             @endif
                                         </div>
-                                        <div class="text-xs text-gray-500 mt-0.5">{{ $div->competitionEvent->name }}</div>
-                                        <div class="text-xs text-gray-700 mt-0.5">{{ $div->label }}</div>
+                                        <div class="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{{ $div->competitionEvent->name }}</div>
+                                        <div class="text-xs font-medium text-gray-800 dark:text-gray-200 mt-0.5">{{ $div->label }}</div>
                                         @if ($div->status === 'complete')
                                             @php
                                                 $placements = $div->activeEnrolmentEvents
@@ -80,7 +93,7 @@
                                                         : ($ee->enrolment->competitor?->name ?? '—');
                                                     $medal = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . '.' };
                                                 @endphp
-                                                <div class="text-xs text-gray-700 mt-0.5">{{ $medal }} {{ $pName }}</div>
+                                                <div class="text-xs text-gray-700 dark:text-gray-300 mt-0.5">{{ $medal }} {{ $pName }}</div>
                                             @endforeach
                                         @endif
                                     </div>
@@ -89,6 +102,7 @@
                         </div>
                     @endif
                 @endforeach
+            </div>
             </div>
         @endif
     @endif

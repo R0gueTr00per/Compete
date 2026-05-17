@@ -64,7 +64,7 @@
                             &bull; {{ $competition->checkins_count }} checked in
                         @endif
                         @if ($competition->status === 'running')
-                            &bull; {{ $competition->events_count }} event{{ $competition->events_count !== 1 ? 's' : '' }} ({{ $competition->completed_divisions_count }} completed)
+                            &bull; {{ $competition->total_divisions_count }} division{{ $competition->total_divisions_count !== 1 ? 's' : '' }} ({{ $competition->completed_divisions_count }} completed)
                         @elseif ($competition->events_count > 0)
                             &bull; {{ $competition->events_count }} event{{ $competition->events_count !== 1 ? 's' : '' }}
                         @endif

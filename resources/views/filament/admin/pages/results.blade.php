@@ -20,15 +20,15 @@
                         type="text"
                         wire:model.live.debounce.300ms="search"
                         placeholder="Search…"
-                        class="flex-1 bg-transparent py-1 pl-2 pr-1 text-xs text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
+                        class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-sm text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
                     />
                     @if ($this->search)
                         <button
                             wire:click="$set('search', null)"
-                            class="pr-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            class="pr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                             aria-label="Clear search"
                         >
-                            <x-heroicon-m-x-mark class="w-3.5 h-3.5" />
+                            <x-heroicon-m-x-mark class="h-4 w-4" />
                         </button>
                     @endif
                 </div>
@@ -64,7 +64,11 @@
         @php $events = $this->getResultsData(); @endphp
 
         @if ($events->isEmpty())
-            <p class="text-center text-gray-400 py-12">No scored events yet for this competition.</p>
+            @if ($this->selectedEvent || $this->selectedDojo || $this->search)
+                <p class="text-center text-gray-400 py-12">No events match your selection.</p>
+            @else
+                <p class="text-center text-gray-400 py-12">No scored events yet for this competition.</p>
+            @endif
         @else
             <div class="space-y-6">
                 @foreach ($events as $compEvent)
