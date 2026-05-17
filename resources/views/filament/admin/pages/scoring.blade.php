@@ -226,10 +226,12 @@
                                         <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">
                                             {{ match($format) { 'double_elimination' => 'Double elimination', 'round_robin' => 'Round robin', 'repechage' => 'Repechage', 'se_3rd_place' => 'SE + 3rd place playoff', default => 'Single elimination' } }} bracket
                                         </p>
+                                        @if (! $this->isScoringComplete())
                                         <x-filament::button size="xs" color="gray"
                                             x-on:click="$dispatch('open-modal', { id: 'confirm-reset-bracket' })">
                                             Reset bracket
                                         </x-filament::button>
+                                        @endif
                                     </div>
 
                                     @php
