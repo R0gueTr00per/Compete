@@ -9,6 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('competitor_profiles', function (Blueprint $table) {
+            // Must drop the FK before dropping the unique index it backs (MySQL requirement)
+            $table->dropForeign(['user_id']);
+
             // Drop the unique constraint on user_id (allows 1:many profiles per user)
             $table->dropUnique(['user_id']);
 
@@ -30,6 +33,11 @@ return new class extends Migration
         });
 
         Schema::table('competitor_profiles', function (Blueprint $table) {
+            // Re-add FK without the unique constraint
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+        });
+
+        Schema::table('competitor_profiles', function (Blueprint $table) {
             $table->index('owner_user_id');
         });
     }
@@ -40,7 +48,16 @@ return new class extends Migration
             $table->dropForeign(['owner_user_id']);
             $table->dropIndex(['owner_user_id']);
             $table->dropColumn(['owner_user_id', 'profile_type', 'is_active']);
+        });
+
+        Schema::table('competitor_profiles', function (Blueprint $table) {
+            // Drop the FK added in up() so we can re-add it with the unique constraint
+            $table->dropForeign(['user_id']);
             $table->foreignId('user_id')->nullable(false)->unique()->change();
+        });
+
+        Schema::table('competitor_profiles', function (Blueprint $table) {
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
     }
 };

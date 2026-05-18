@@ -22,10 +22,10 @@ class AccountCreatedNotification extends Notification implements ShouldQueue
     {
         $name = $notifiable->getFilamentName();
 
-        $resetUrl = url(route('filament.portal.auth.password-reset.reset', [
+        $resetUrl = \Illuminate\Support\Facades\URL::signedRoute('filament.portal.auth.password-reset.reset', [
             'token' => $this->resetToken,
             'email' => $notifiable->email,
-        ]));
+        ]);
 
         return (new MailMessage)
             ->subject('Welcome to Compete — set your password')

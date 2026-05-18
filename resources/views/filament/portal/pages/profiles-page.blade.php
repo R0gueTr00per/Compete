@@ -113,7 +113,12 @@
             </x-filament::section>
         @empty
             <x-filament::section>
-                <p class="text-center text-gray-500 py-6">No profiles yet.</p>
+                <div class="flex flex-col items-center gap-4 py-6 text-center">
+                    <p class="text-gray-500">No profiles yet. Start by completing your own competitor profile.</p>
+                    <x-filament::button :href="filament()->getUrl() . '/profile'" tag="a" icon="heroicon-o-user-circle">
+                        Complete my profile
+                    </x-filament::button>
+                </div>
             </x-filament::section>
         @endforelse
     @endif

@@ -22,9 +22,25 @@
                 <x-filament::button type="button" wire:click="goBack" color="gray" size="lg">
                     Back
                 </x-filament::button>
+                <x-filament::button
+                    tag="a"
+                    href="{{ \App\Filament\Admin\Resources\EnrolmentResource::getUrl() }}"
+                    color="gray"
+                    size="lg"
+                >
+                    Cancel
+                </x-filament::button>
             @else
                 <x-filament::button type="button" wire:click="nextHint" size="lg">
                     Next
+                </x-filament::button>
+                <x-filament::button
+                    tag="a"
+                    href="{{ \App\Filament\Admin\Resources\EnrolmentResource::getUrl() }}"
+                    color="gray"
+                    size="lg"
+                >
+                    Cancel
                 </x-filament::button>
             @endif
         </div>

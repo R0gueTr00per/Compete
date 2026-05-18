@@ -144,13 +144,13 @@ class CreateAdminEnrolment extends Page implements HasForms
                 ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
-                    TextInput::make('new_surname')
-                        ->label('Surname')
+                    TextInput::make('new_first_name')
+                        ->label('First name')
                         ->required()
                         ->maxLength(100),
 
-                    TextInput::make('new_first_name')
-                        ->label('First name')
+                    TextInput::make('new_surname')
+                        ->label('Surname')
                         ->required()
                         ->maxLength(100),
 
@@ -162,10 +162,11 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->unique('users', 'email')
                         ->validationMessages(['unique' => 'A competitor already exists with this email.']),
 
-                    Select::make('new_gender')
+                    Radio::make('new_gender')
                         ->label('Gender')
                         ->options(['M' => 'Male', 'F' => 'Female'])
-                        ->required(),
+                        ->required()
+                        ->inline(),
 
                     DatePicker::make('new_dob')
                         ->label('Date of birth')
@@ -175,7 +176,7 @@ class CreateAdminEnrolment extends Page implements HasForms
 
             Section::make('Competition entry details')
                 ->description('Rank, weight, and dojo for this competition.')
-                ->visible(fn () => $this->competition_id && ($this->competitor_profile_id || ($this->create_new_user && $this->new_email)))
+                ->visible(fn () => $this->competition_id && ($this->competitor_profile_id || ($this->create_new_user && $this->new_email && ! $this->getErrorBag()->has('new_email'))))
                 ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
@@ -369,6 +370,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                 ->label('Select divisions to enter')
                 ->options($options)
                 ->disableOptionWhen(fn (string $value) => in_array($value, $disabledKeys))
+                ->searchable(false)
                 ->live()
                 ->helperText($disabledKeys ? 'Greyed-out entries are already enrolled.' : null),
         ];
@@ -431,6 +433,10 @@ class CreateAdminEnrolment extends Page implements HasForms
         }
         if ($this->create_new_user && (! $this->new_email || ! $this->new_surname || ! $this->new_first_name || ! $this->new_dob || ! $this->new_gender)) {
             Notification::make()->title('Complete the new competitor details to continue.')->info()->send();
+            return;
+        }
+        if ($this->create_new_user && $this->new_email && User::where('email', $this->new_email)->exists()) {
+            $this->addError('new_email', 'A user with that email already exists. Select them from the existing competitor list.');
             return;
         }
         if (! $this->dojo_type) {
@@ -557,7 +563,8 @@ class CreateAdminEnrolment extends Page implements HasForms
             $competition,
             $competitionEventIds,
             $divisionsByEvent,
-            $entryDetails
+            $entryDetails,
+            notify: ! isset($newUser),
         );
 
         if (isset($newUser)) {

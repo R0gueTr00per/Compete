@@ -134,11 +134,20 @@ class UserResource extends Resource
 
                 TextColumn::make('status')
                     ->badge()
+                    ->getStateUsing(fn (User $record) => $record->email_verified_at ? $record->status : 'unverified')
                     ->color(fn (string $state) => match ($state) {
-                        'active'   => 'success',
-                        'pending'  => 'warning',
-                        'inactive' => 'danger',
-                        default    => 'gray',
+                        'active'     => 'success',
+                        'pending'    => 'warning',
+                        'inactive'   => 'danger',
+                        'unverified' => 'gray',
+                        default      => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'active'     => 'Active',
+                        'pending'    => 'Pending approval',
+                        'inactive'   => 'Inactive',
+                        'unverified' => 'Unverified email',
+                        default      => $state,
                     }),
 
                 TextColumn::make('auth_type')
@@ -293,13 +302,25 @@ class UserResource extends Resource
                         })
                         ->visible(fn () => auth()->user()?->hasRole('system_admin')),
 
+                    Action::make('resendVerification')
+                        ->label('Resend email verification')
+                        ->icon('heroicon-o-envelope')
+                        ->color('gray')
+                        ->requiresConfirmation()
+                        ->modalDescription('A new verification link will be emailed to this user.')
+                        ->visible(fn (User $record) => ! $record->email_verified_at && auth()->user()?->hasRole('system_admin'))
+                        ->action(function (User $record) {
+                            $record->sendEmailVerificationNotification();
+                            Notification::make()->title('Verification email sent.')->success()->send();
+                        }),
+
                     Action::make('resetPassword')
                         ->label('Send password reset email')
                         ->icon('heroicon-o-key')
                         ->color('gray')
                         ->requiresConfirmation()
                         ->modalDescription('A password reset link (valid for 24 hours) will be emailed to this user.')
-                        ->visible(fn (User $record) => auth()->user()?->hasRole('system_admin'))
+                        ->visible(fn (User $record) => (bool) $record->email_verified_at && auth()->user()?->hasRole('system_admin'))
                         ->action(function (User $record) {
                             Password::sendResetLink(['email' => $record->email]);
                             Notification::make()->title('Password reset email sent.')->success()->send();
@@ -311,7 +332,7 @@ class UserResource extends Resource
                         ->color('gray')
                         ->requiresConfirmation()
                         ->modalDescription('A new account setup link will be emailed to this user.')
-                        ->visible(fn (User $record) => auth()->user()?->hasRole('system_admin'))
+                        ->visible(fn (User $record) => (bool) $record->email_verified_at && auth()->user()?->hasRole('system_admin'))
                         ->action(function (User $record) {
                             $token = Password::broker()->createToken($record);
                             $record->notify(new AccountCreatedNotification($token));

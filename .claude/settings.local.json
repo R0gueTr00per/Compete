@@ -209,7 +209,9 @@
       "Bash(php -l \"app/Filament/Admin/Resources/CompetitorResource/Pages/EditCompetitor.php\")",
       "Bash(php -l \"app/Filament/Admin/Resources/UserResource/Pages/EditUser.php\")",
       "Bash(php -l app/Filament/Portal/Pages/ProfilePage.php)",
-      "Bash(php -l \"x:/Repos/Compete/app/Filament/Portal/Pages/ProfilesPage.php\")"
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/Portal/Pages/ProfilesPage.php\")",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\" -File)",
+      "Bash(php -r \"echo json_encode\\(json_decode\\(file_get_contents\\('php://stdin'\\)\\), JSON_PRETTY_PRINT\\);\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

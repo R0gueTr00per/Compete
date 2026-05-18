@@ -32,13 +32,13 @@ class EditUser extends EditRecord
 
             DeleteAction::make()
                 ->visible(fn () => auth()->user()?->hasRole('system_admin') && auth()->id() !== $this->record->id)
-                ->before(function () {
+                ->before(function (DeleteAction $action) {
                     if ($this->record->enrolments()->exists()) {
                         Notification::make()
                             ->title('Cannot delete a user with enrolment history. Deactivate them instead.')
                             ->danger()
                             ->send();
-                        $this->halt();
+                        $action->halt();
                     }
                 }),
         ];

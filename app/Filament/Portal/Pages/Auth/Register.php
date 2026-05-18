@@ -2,14 +2,11 @@
 
 namespace App\Filament\Portal\Pages\Auth;
 
-use App\Models\User;
-use App\Notifications\NewUserRegisteredNotification;
 use Filament\Actions\Action;
 use Filament\Http\Responses\Auth\Contracts\RegistrationResponse;
 use Filament\Pages\Auth\Register as BaseRegister;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Support\Facades\Notification;
 
 class Register extends BaseRegister
 {
@@ -32,12 +29,9 @@ class Register extends BaseRegister
             return null;
         }
 
-        // Send outside the transaction so a mail failure does not roll back the account
+        // Send verification email — admin notification fires only after the user verifies
         try {
-            $sysAdmins = User::role('system_admin')->where('status', 'active')->get();
-            if ($sysAdmins->isNotEmpty()) {
-                Notification::send($sysAdmins, new NewUserRegisteredNotification($user));
-            }
+            $user->sendEmailVerificationNotification();
         } catch (\Throwable) {
             // Non-fatal — account is created regardless
         }

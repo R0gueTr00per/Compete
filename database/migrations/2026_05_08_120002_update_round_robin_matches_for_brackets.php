@@ -8,12 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Add plain index first so MySQL still has a supporting index for the division_id FK
+        // Add plain index first so the division_id FK has a backing index after the unique is dropped
         Schema::table('round_robin_matches', function (Blueprint $table) {
             $table->index('division_id', 'rrm_division_idx');
         });
 
         Schema::table('round_robin_matches', function (Blueprint $table) {
+            // Drop FK before the unique index — MySQL won't drop an index backing a FK constraint
+            $table->dropForeign(['division_id']);
             $table->dropUnique('rrm_unique_pairing');
 
             // Make away nullable to support byes
@@ -23,6 +25,11 @@ return new class extends Migration
             $table->unsignedSmallInteger('round')->default(1)->after('home_result');
             $table->string('bracket', 20)->default('winners')->after('round');         // winners | losers | grand_final
             $table->unsignedSmallInteger('bracket_slot')->nullable()->after('bracket'); // position within round
+        });
+
+        // Re-add division_id FK backed by the plain index added above
+        Schema::table('round_robin_matches', function (Blueprint $table) {
+            $table->foreign('division_id')->references('id')->on('divisions')->cascadeOnDelete();
         });
     }
 

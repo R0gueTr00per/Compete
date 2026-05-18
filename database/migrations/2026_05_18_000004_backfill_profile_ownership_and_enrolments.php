@@ -39,10 +39,24 @@ return new class extends Migration
         ");
 
         // 4. Drop the old unique constraint (idempotent — may already be gone from a prior partial run).
+        //    MySQL uses this composite index as the backing index for the competition_id FK (leftmost prefix)
+        //    and may also back the competitor_id FK — both must be dropped before the index can be removed.
         $indexes = collect(Schema::getIndexes('enrolments'))->pluck('name');
+        $fks     = collect(Schema::getForeignKeys('enrolments'))->flatMap(fn ($fk) => $fk['columns']);
         if ($indexes->contains('enrolments_competition_id_competitor_id_unique')) {
-            Schema::table('enrolments', function (Blueprint $table) {
+            Schema::table('enrolments', function (Blueprint $table) use ($fks) {
+                if ($fks->contains('competition_id')) {
+                    $table->dropForeign(['competition_id']);
+                }
+                if ($fks->contains('competitor_id')) {
+                    $table->dropForeign(['competitor_id']);
+                }
                 $table->dropUnique(['competition_id', 'competitor_id']);
+            });
+
+            // Re-add competition_id FK (competitor_id FK is permanently removed in step 7)
+            Schema::table('enrolments', function (Blueprint $table) {
+                $table->foreign('competition_id')->references('id')->on('competitions')->cascadeOnDelete();
             });
         }
 
@@ -81,8 +95,11 @@ return new class extends Migration
                 });
             }
 
-            Schema::table('enrolments', function (Blueprint $table) {
-                $table->dropForeign(['competitor_id']);
+            $remainingFks = collect(Schema::getForeignKeys('enrolments'))->flatMap(fn ($fk) => $fk['columns']);
+            Schema::table('enrolments', function (Blueprint $table) use ($remainingFks) {
+                if ($remainingFks->contains('competitor_id')) {
+                    $table->dropForeign(['competitor_id']);
+                }
                 $table->dropColumn('competitor_id');
             });
         }

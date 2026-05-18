@@ -25,9 +25,9 @@ class EnrolmentService
      * @param  array<int,int>   $selectedDivisions    competition_event_id => division_id
      * @param  array            $entryDetails         rank/weight/dojo to store on the enrolment
      */
-    public function enrol(CompetitorProfile $competitor, Competition $competition, array $competitionEventIds, array $selectedDivisions = [], array $entryDetails = []): Enrolment
+    public function enrol(CompetitorProfile $competitor, Competition $competition, array $competitionEventIds, array $selectedDivisions = [], array $entryDetails = [], bool $notify = true): Enrolment
     {
-        return DB::transaction(function () use ($competitor, $competition, $competitionEventIds, $selectedDivisions, $entryDetails) {
+        return DB::transaction(function () use ($competitor, $competition, $competitionEventIds, $selectedDivisions, $entryDetails, $notify) {
             $isLate = $competition->isLateEnrolment();
             $fee = $this->calculateFee($competition, count($competitionEventIds), $isLate);
 
@@ -95,10 +95,11 @@ class EnrolmentService
                 'is_late'        => $isLate,
             ])->save();
 
-            // Notify the user responsible for this profile
-            $notifiable = $competitor->notifiableUser();
-            if ($notifiable) {
-                $notifiable->notify(new EnrolmentConfirmedNotification($enrolment));
+            if ($notify) {
+                $notifiable = $competitor->notifiableUser();
+                if ($notifiable) {
+                    $notifiable->notify(new EnrolmentConfirmedNotification($enrolment));
+                }
             }
 
             return $enrolment;

@@ -34,4 +34,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/results/pdf', [ResultsPdfController::class, 'show'])->name('results.pdf');
 });
 
+// Unauthenticated email verification for pending portal users
+Route::get('/portal/verify-email/{id}/{hash}', \App\Http\Controllers\Auth\PortalVerifyEmailController::class)
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('portal.verify-email');
+
+Route::get('/portal/email-verified', fn () => view('portal.email-verified'))->name('portal.email-verified');
+
 require __DIR__.'/auth.php';

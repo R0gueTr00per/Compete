@@ -38,10 +38,10 @@ class AdminCreatedAccountNotification extends Notification implements ShouldQueu
                 return $label;
             });
 
-        $resetUrl = url(route('filament.portal.auth.password-reset.reset', [
+        $resetUrl = \Illuminate\Support\Facades\URL::signedRoute('filament.portal.auth.password-reset.reset', [
             'token' => $this->resetToken,
             'email' => $notifiable->email,
-        ]));
+        ]);
 
         $message = (new MailMessage)
             ->subject("Welcome to Compete — your account is ready")
