@@ -54,9 +54,11 @@ class SchedulePage extends Page
             return [];
         }
 
+        $profileIds = Auth::user()->ownedProfiles()->pluck('id');
+
         return EnrolmentEvent::whereHas('enrolment', fn ($q) =>
                 $q->where('competition_id', $this->competition_id)
-                  ->where('competitor_id', Auth::id())
+                  ->whereIn('competitor_profile_id', $profileIds)
             )
             ->whereNotNull('division_id')
             ->where('removed', false)
@@ -76,7 +78,7 @@ class SchedulePage extends Page
             ->with([
                 'competitionEvent',
                 'activeEnrolmentEvents.result',
-                'activeEnrolmentEvents.enrolment.competitor.competitorProfile',
+                'activeEnrolmentEvents.enrolment.competitor',
             ])
             ->withCount('activeEnrolmentEvents')
             ->whereNotIn('status', ['combined'])

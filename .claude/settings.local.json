@@ -195,7 +195,21 @@
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Directory)",
       "Bash(php -l app/Services/ScoringService.php app/Filament/Admin/Pages/Scoring.php app/Filament/Admin/Resources/UserResource.php app/Filament/Portal/Pages/ProfilePage.php app/Filament/Portal/Pages/Auth/Register.php app/Notifications/NewUserRegisteredNotification.php app/Notifications/AccountApprovedNotification.php)",
       "Bash(php -r \"echo method_exists\\(\\\\Filament\\\\Pages\\\\Auth\\\\Register::class, 'getNameFormComponent'\\) ? 'yes' : 'no';\")",
-      "Bash(php -l app/Filament/Portal/Pages/Auth/Register.php app/Notifications/NewUserRegisteredNotification.php app/Notifications/AccountApprovedNotification.php app/Models/CompetitorProfile.php)"
+      "Bash(php -l app/Filament/Portal/Pages/Auth/Register.php app/Notifications/NewUserRegisteredNotification.php app/Notifications/AccountApprovedNotification.php app/Models/CompetitorProfile.php)",
+      "Bash(cd /mnt/x/Repos/Compete && php artisan migrate:status 2>&1 | tail -20)",
+      "Read(//mnt/x/Repos/**)",
+      "Bash(Select-String \"profile\")",
+      "Bash(php -l app/Filament/Portal/Pages/Dashboard.php app/Filament/Portal/Pages/ProfilePage.php app/Filament/Portal/Pages/ProfilesPage.php app/Filament/Portal/Pages/EnrolPage.php app/Filament/Portal/Pages/Auth/Register.php app/Filament/Admin/Resources/CompetitorResource.php app/Filament/Admin/Resources/CompetitionEventResource.php app/Filament/Admin/Resources/UserResource.php app/Filament/Admin/Pages/CreateAdminEnrolment.php app/Models/User.php)",
+      "Bash(php -l app/Filament/Portal/Pages/EnrolPage.php)",
+      "Bash(php -l \"app/Filament/Admin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php\")",
+      "Bash(echo \"exit: $?\")",
+      "PowerShell(cd \"x:\\\\Repos\\\\Compete\"; php artisan tinker --execute=\"$u = App\\\\Models\\\\User::find\\(5\\); echo $u->email . ' - profiles: ' . $u->ownedProfiles\\(\\)->count\\(\\);\" 2>&1)",
+      "Bash(php -l app/Notifications/AccountCreatedNotification.php)",
+      "Bash(php -l app/Filament/Admin/Resources/CompetitorResource.php)",
+      "Bash(php -l \"app/Filament/Admin/Resources/CompetitorResource/Pages/EditCompetitor.php\")",
+      "Bash(php -l \"app/Filament/Admin/Resources/UserResource/Pages/EditUser.php\")",
+      "Bash(php -l app/Filament/Portal/Pages/ProfilePage.php)",
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/Portal/Pages/ProfilesPage.php\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

@@ -29,8 +29,8 @@ class YakusukoPartnerEnrolledNotification extends Notification implements Should
     {
         return (new MailMessage)
             ->subject("Yakusuko partner confirmed — {$this->competition->name}")
-            ->greeting("Hi {$notifiable->name},")
-            ->line("Your Yakusuko partner **{$this->partner->name}** has enrolled for the same event.")
+            ->greeting("Hi {$notifiable->getFilamentName()},")
+            ->line("Your Yakusuko partner **{$this->partner->getFilamentName()}** has enrolled for the same event.")
             ->line("**Competition:** {$this->competition->name}")
             ->line("**Date:** " . $this->competition->competition_date->format('l, d F Y'))
             ->line("**Event:** {$this->event->event_code} — {$this->event->name}")

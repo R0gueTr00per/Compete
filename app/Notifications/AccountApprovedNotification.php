@@ -17,10 +17,7 @@ class AccountApprovedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $profile = $notifiable->competitorProfile;
-        $name    = $profile
-            ? trim($profile->first_name . ' ' . $profile->surname)
-            : $notifiable->email;
+        $name = $notifiable->getFilamentName();
 
         return (new MailMessage)
             ->subject('Your Compete account is now active')

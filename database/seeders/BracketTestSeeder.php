@@ -101,9 +101,10 @@ class BracketTestSeeder extends Seeder
         $testEmails = collect($this->competitors)
             ->map(fn ($c) => strtolower($c['first_name']) . '.bt@example.com')
             ->all();
-        $testUserIds = User::whereIn('email', $testEmails)->pluck('id');
+        $testUserIds     = User::whereIn('email', $testEmails)->pluck('id');
+        $testProfileIds  = \App\Models\CompetitorProfile::whereIn('owner_user_id', $testUserIds)->pluck('id');
         Enrolment::where('competition_id', $competition->id)
-            ->whereIn('competitor_id', $testUserIds)
+            ->whereIn('competitor_profile_id', $testProfileIds)
             ->delete();
 
         // Create the two test divisions
@@ -138,9 +139,12 @@ class BracketTestSeeder extends Seeder
             );
             $user->syncRoles(['user']);
 
-            CompetitorProfile::updateOrCreate(
+            $profile = CompetitorProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 [
+                    'owner_user_id'    => $user->id,
+                    'profile_type'     => 'self',
+                    'is_active'        => true,
                     'first_name'       => $data['first_name'],
                     'surname'          => $data['surname'],
                     'date_of_birth'    => $data['dob'],
@@ -151,8 +155,8 @@ class BracketTestSeeder extends Seeder
             );
 
             $enrolment = Enrolment::create([
-                'competition_id'  => $competition->id,
-                'competitor_id'   => $user->id,
+                'competition_id'        => $competition->id,
+                'competitor_profile_id' => $profile->id,
                 'enrolled_at'     => now(),
                 'is_late'         => false,
                 'fee_calculated'  => 0,
@@ -184,10 +188,9 @@ class BracketTestSeeder extends Seeder
             $div->load('competitionEvent');
             $ees = EnrolmentEvent::where('division_id', $div->id)
                 ->where('removed', false)
-                ->with('enrolment.competitor.competitorProfile')
+                ->with('enrolment.competitor')
                 ->get()
-                ->sortBy(fn ($ee) => ($ee->enrolment->competitor?->competitorProfile?->first_name ?? '')
-                    . ' ' . ($ee->enrolment->competitor?->competitorProfile?->surname ?? ''))
+                ->sortBy(fn ($ee) => $ee->enrolment->competitor?->full_name ?? '')
                 ->values();
 
             $svc->generate($div, $ees);

@@ -20,18 +20,14 @@ class NewUserRegisteredNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $profile = $this->newUser->competitorProfile;
-        $name    = $profile
-            ? trim($profile->first_name . ' ' . $profile->surname)
-            : $this->newUser->email;
+        $name = $this->newUser->getFilamentName();
 
         return (new MailMessage)
             ->subject('Compete: New user awaiting approval')
             ->greeting('New user registration')
             ->line("**{$name}** has registered and is awaiting approval.")
             ->line('Email: ' . $this->newUser->email)
-            ->when($profile?->date_of_birth, fn ($m) => $m->line('Date of birth: ' . $profile->date_of_birth->format('d M Y')))
-            ->when($profile?->gender, fn ($m) => $m->line('Gender: ' . ($profile->gender === 'M' ? 'Male' : 'Female')))
+            ->line('They will need to create a competitor profile before they can enrol.')
             ->action('Review users', url(route('filament.admin.resources.users.index')));
     }
 }

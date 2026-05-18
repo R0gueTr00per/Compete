@@ -90,9 +90,12 @@ class RoundRobinTestSeeder extends Seeder
             );
             $user->syncRoles(['user']);
 
-            CompetitorProfile::updateOrCreate(
+            $profile = CompetitorProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 [
+                    'owner_user_id'    => $user->id,
+                    'profile_type'     => 'self',
+                    'is_active'        => true,
                     'first_name'       => $n['first_name'],
                     'surname'          => $n['surname'],
                     'date_of_birth'    => $n['dob'],
@@ -104,7 +107,7 @@ class RoundRobinTestSeeder extends Seeder
 
             // Enrolment (checked in)
             $enrolment = Enrolment::updateOrCreate(
-                ['competition_id' => $competition->id, 'competitor_id' => $user->id],
+                ['competition_id' => $competition->id, 'competitor_profile_id' => $profile->id],
                 [
                     'enrolled_at'     => now(),
                     'is_late'         => false,

@@ -1,6 +1,6 @@
 @php
-    $profile            = $enrolment->competitor?->competitorProfile;
-    $fullName           = $profile ? "{$profile->first_name} {$profile->surname}" : $enrolment->competitor?->name;
+    $profile            = $enrolment->competitor;
+    $fullName           = $profile?->full_name ?? '—';
     $competitionStatus  = $competitionStatus ?? null;
     $checkedIn          = $enrolment->checked_in;
     $needsWeight        = $enrolment->activeEvents->contains(fn ($ee) => $ee->competitionEvent->requires_weight_check);

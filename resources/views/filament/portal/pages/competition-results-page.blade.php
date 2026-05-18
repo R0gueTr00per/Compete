@@ -49,11 +49,9 @@
                                         @foreach ($entries as $ee)
                                             @php
                                                 $result  = $ee->result;
-                                                $profile = $ee->enrolment->competitor?->competitorProfile;
-                                                $name    = $profile
-                                                    ? "{$profile->first_name} {$profile->surname}"
-                                                    : ($ee->enrolment->competitor?->name ?? '—');
-                                                $isMe    = $ee->enrolment->competitor_id === auth()->id();
+                                                $name = $ee->enrolment->competitor?->full_name ?? '—';
+                                                $isMe = $ee->enrolment->competitor?->owner_user_id === auth()->id()
+                                                     || $ee->enrolment->competitor?->user_id === auth()->id();
                                             @endphp
                                             <div class="flex items-center gap-3 px-4 py-2.5 {{ $isMe ? 'bg-primary-50 dark:bg-primary-950/20' : '' }}">
                                                 <span class="w-8 text-center font-bold text-lg shrink-0">

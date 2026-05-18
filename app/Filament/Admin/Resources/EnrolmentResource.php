@@ -55,18 +55,18 @@ class EnrolmentResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with('competitor.competitorProfile'))
+            ->modifyQueryUsing(fn ($query) => $query->with('competitor'))
             ->header(view('filament.admin.partials.enrolment-competition-header'))
             ->columns([
                 TextColumn::make('competitor_name')
                     ->label('Competitor')
-                    ->getStateUsing(fn (Enrolment $record) => trim($record->competitor?->competitorProfile?->first_name . ' ' . $record->competitor?->competitorProfile?->surname) ?: $record->competitor?->email)
+                    ->getStateUsing(fn (Enrolment $record) => $record->competitor?->full_name ?: '—')
                     ->description(fn (Enrolment $record) => $record->display_rank)
-                    ->searchable(query: fn ($query, $search) => $query->whereHas('competitor.competitorProfile', fn ($q) => $q->where('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"))),
+                    ->searchable(query: fn ($query, $search) => $query->whereHas('competitor', fn ($q) => $q->where('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"))),
 
                 TextColumn::make('age')
                     ->label('Age')
-                    ->state(fn (Enrolment $record) => $record->competitor?->competitorProfile?->age)
+                    ->state(fn (Enrolment $record) => $record->competitor?->age)
                     ->suffix(' yrs')
                     ->alignCenter()
                     ->visibleFrom('sm'),
@@ -168,7 +168,7 @@ class EnrolmentResource extends Resource
                             CheckboxList::make('selected_entries')
                                 ->label('Divisions to add')
                                 ->options(function () use ($record) {
-                                    $profile = $record->competitor->competitorProfile;
+                                    $profile = $record->competitor;
                                     if (! $profile) {
                                         return [];
                                     }
@@ -251,7 +251,7 @@ class EnrolmentResource extends Resource
                                         return [];
                                     }
                                     $ee      = EnrolmentEvent::with('enrolment')->find($eeId);
-                                    $profile = $record->competitor->competitorProfile;
+                                    $profile = $record->competitor;
                                     if (! $ee || ! $profile) {
                                         return [];
                                     }

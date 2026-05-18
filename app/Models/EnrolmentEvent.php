@@ -68,6 +68,6 @@ class EnrolmentEvent extends Model
 
     public function competitor(): \Illuminate\Database\Eloquent\Relations\HasOneThrough
     {
-        return $this->hasOneThrough(User::class, Enrolment::class, 'id', 'id', 'enrolment_id', 'competitor_id');
+        return $this->hasOneThrough(CompetitorProfile::class, Enrolment::class, 'id', 'id', 'enrolment_id', 'competitor_profile_id');
     }
 }

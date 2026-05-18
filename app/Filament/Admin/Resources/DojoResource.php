@@ -57,7 +57,7 @@ class DojoResource extends Resource
                     ->nullable()
                     ->searchable()
                     ->options(
-                        User::whereHas('competitorProfile')
+                        User::whereHas('ownedProfiles')
                             ->get()
                             ->mapWithKeys(fn (User $u) => [$u->id => $u->getFilamentName()])
                             ->toArray()
@@ -77,7 +77,7 @@ class DojoResource extends Resource
                     ->getStateUsing(fn (Dojo $record) => $record->instructor?->getFilamentName()),
                 IconColumn::make('is_active')->label('Active')->boolean(),
             ])
-            ->modifyQueryUsing(fn ($query) => $query->with('instructor.competitorProfile'))
+            ->modifyQueryUsing(fn ($query) => $query->with('instructor'))
             ->defaultSort('name')
             ->defaultGroup(
                 Group::make('is_active')

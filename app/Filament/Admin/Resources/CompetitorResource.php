@@ -5,18 +5,30 @@ namespace App\Filament\Admin\Resources;
 use App\Filament\Admin\Actions\HistoryTableAction;
 use App\Filament\Admin\Resources\CompetitorResource\Pages;
 use App\Models\CompetitorProfile;
+use App\Models\User;
+use App\Notifications\AccountCreatedNotification;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
+use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 class CompetitorResource extends Resource
 {
@@ -24,27 +36,54 @@ class CompetitorResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
     protected static ?string $navigationGroup = 'Competitors';
     protected static ?int $navigationSort = 1;
-    protected static ?string $navigationLabel = 'Competitors';
-    protected static bool $shouldRegisterNavigation = false;
+    protected static ?string $navigationLabel = 'Profiles';
     protected static ?string $recordTitleAttribute = 'surname';
 
     public static function form(Form $form): Form
     {
         return $form->schema([
+            Section::make('Ownership')
+                ->columns(2)
+                ->schema([
+                    Select::make('owner_user_id')
+                        ->label('Managed by (owner)')
+                        ->relationship('owner', 'email')
+                        ->searchable()
+                        ->required()
+                        ->preload(),
+
+                    Radio::make('profile_type')
+                        ->label('Profile type')
+                        ->options(['self' => 'Self', 'child' => 'Child'])
+                        ->required()
+                        ->inline()
+                        ->hiddenOn('edit'),
+
+                    Placeholder::make('profile_type_display')
+                        ->label('Profile type')
+                        ->content(fn (CompetitorProfile $record) => ucfirst($record->profile_type))
+                        ->visibleOn('edit'),
+
+                    Placeholder::make('owner_role_display')
+                        ->label('Account role')
+                        ->content(fn (CompetitorProfile $record) => ucwords(str_replace('_', ' ', $record->owner?->roles->first()?->name ?? 'No role')))
+                        ->visibleOn('edit'),
+                ]),
+
             Section::make('Personal Details')
                 ->columns(2)
                 ->schema([
-                    TextInput::make('surname')
+                    TextInput::make('first_name')
                         ->required()
                         ->maxLength(100),
 
-                    TextInput::make('first_name')
+                    TextInput::make('surname')
                         ->required()
                         ->maxLength(100),
 
                     DatePicker::make('date_of_birth')
                         ->required()
-                        ->maxDate(now()->subYears(5)),
+                        ->maxDate(now()->subYears(1)),
 
                     Radio::make('gender')
                         ->options(['M' => 'Male', 'F' => 'Female'])
@@ -54,7 +93,18 @@ class CompetitorResource extends Resource
                     TextInput::make('phone')
                         ->tel()
                         ->maxLength(30),
+                ]),
 
+            Section::make('Profile Photo')
+                ->schema([
+                    FileUpload::make('profile_photo')
+                        ->label('Photo')
+                        ->image()
+                        ->imagePreviewHeight('200')
+                        ->disk('public')
+                        ->directory('profile-photos')
+                        ->visibility('public')
+                        ->maxSize(2048),
                 ]),
         ]);
     }
@@ -63,13 +113,19 @@ class CompetitorResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('first_name')
+                    ->searchable()
+                    ->sortable(),
+
                 TextColumn::make('surname')
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('first_name')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('profile_type')
+                    ->label('Type')
+                    ->badge()
+                    ->color(fn (string $state) => $state === 'child' ? 'warning' : 'info')
+                    ->formatStateUsing(fn (string $state) => ucfirst($state)),
 
                 TextColumn::make('date_of_birth')
                     ->label('DOB')
@@ -87,13 +143,18 @@ class CompetitorResource extends Resource
                     ->color(fn (string $state) => $state === 'M' ? 'info' : 'danger')
                     ->formatStateUsing(fn (string $state) => $state === 'M' ? 'Male' : 'Female'),
 
-                TextColumn::make('user.email')
-                    ->label('Email')
+                TextColumn::make('owner.email')
+                    ->label('Managed by')
                     ->searchable()
                     ->sortable()
-                    ->copyable(),
+                    ->copyable()
+                    ->url(fn (CompetitorProfile $record) => $record->owner_user_id
+                        ? UserResource::getUrl('edit', ['record' => $record->owner_user_id])
+                        : null
+                    )
+                    ->color('primary'),
 
-                TextColumn::make('user.status')
+                TextColumn::make('owner.status')
                     ->label('Account')
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
@@ -103,19 +164,21 @@ class CompetitorResource extends Resource
                         default    => 'gray',
                     }),
 
-                IconColumn::make('profile_complete')
-                    ->label('Profile')
+                IconColumn::make('is_active')
+                    ->label('Active')
                     ->boolean(),
-
-                TextColumn::make('enrolments_count')
-                    ->label('Enrolments')
-                    ->getStateUsing(fn (CompetitorProfile $record) => $record->user?->enrolments()->count() ?? 0)
-                    ->sortable(false),
             ])
             ->defaultSort('surname')
             ->filters([
                 SelectFilter::make('gender')
                     ->options(['M' => 'Male', 'F' => 'Female']),
+
+                SelectFilter::make('profile_type')
+                    ->label('Type')
+                    ->options(['self' => 'Self', 'child' => 'Child']),
+
+                TernaryFilter::make('is_active')
+                    ->label('Active'),
 
                 SelectFilter::make('profile_complete')
                     ->label('Profile')
@@ -127,6 +190,76 @@ class CompetitorResource extends Resource
             ->actions([
                 EditAction::make(),
                 ActionGroup::make([
+                    Action::make('deactivate')
+                        ->label('Deactivate')
+                        ->icon('heroicon-o-no-symbol')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->visible(fn (CompetitorProfile $record) => $record->is_active)
+                        ->action(function (CompetitorProfile $record) {
+                            $record->update(['is_active' => false]);
+                            Notification::make()->title('Profile deactivated.')->success()->send();
+                        }),
+
+                    Action::make('activate')
+                        ->label('Activate')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('gray')
+                        ->visible(fn (CompetitorProfile $record) => ! $record->is_active)
+                        ->action(function (CompetitorProfile $record) {
+                            $record->update(['is_active' => true]);
+                            Notification::make()->title('Profile activated.')->success()->send();
+                        }),
+
+                    Action::make('promoteToOwnAccount')
+                        ->label('Promote to own account')
+                        ->icon('heroicon-o-arrow-up-circle')
+                        ->color('success')
+                        ->visible(fn (CompetitorProfile $record) => $record->profile_type === 'child')
+                        ->modalHeading('Promote to own account')
+                        ->modalDescription('This will create a new login account for this competitor. They will receive an email with a link to set their password.')
+                        ->modalSubmitActionLabel('Create account')
+                        ->form([
+                            TextInput::make('email')
+                                ->label('Email address for new account')
+                                ->email()
+                                ->required()
+                                ->maxLength(255)
+                                ->unique('users', 'email'),
+                        ])
+                        ->action(function (CompetitorProfile $record, array $data) {
+                            $newUser = User::create([
+                                'email'    => $data['email'],
+                                'password' => Hash::make(Str::random(32)),
+                                'status'   => 'active',
+                            ]);
+                            $newUser->forceFill(['email_verified_at' => now()])->save();
+                            $newUser->assignRole('user');
+
+                            $record->update([
+                                'profile_type'  => 'self',
+                                'user_id'        => $newUser->id,
+                                'owner_user_id'  => $newUser->id,
+                            ]);
+
+                            $token = Password::broker()->createToken($newUser);
+                            $newUser->notify(new AccountCreatedNotification($token));
+
+                            Notification::make()->title('Account created and setup email sent.')->success()->send();
+                        }),
+
+                    DeleteAction::make()
+                        ->visible(fn (CompetitorProfile $record) => $record->enrolments()->doesntExist())
+                        ->before(function (CompetitorProfile $record) {
+                            if ($record->enrolments()->exists()) {
+                                Notification::make()
+                                    ->title('Cannot delete a profile with enrolment history. Deactivate it instead.')
+                                    ->danger()
+                                    ->send();
+                                $this->halt();
+                            }
+                        }),
+
                     HistoryTableAction::make(),
                 ]),
             ]);

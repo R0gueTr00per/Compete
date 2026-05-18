@@ -3,74 +3,49 @@
 namespace App\Filament\Admin\Resources\UserResource\Pages;
 
 use App\Filament\Admin\Resources\UserResource;
+use App\Notifications\AccountCreatedNotification;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Password;
 
 class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
 
-    private array $profileData = [];
-
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('resendSetupEmail')
+                ->label('Resend account setup email')
+                ->icon('heroicon-o-envelope')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->modalDescription('A new account setup link will be emailed to this user.')
+                ->visible(fn () => auth()->user()?->hasRole('system_admin'))
+                ->action(function () {
+                    $token = Password::broker()->createToken($this->record);
+                    $this->record->notify(new AccountCreatedNotification($token));
+                    Notification::make()->title('Account setup email sent.')->success()->send();
+                }),
+
             DeleteAction::make()
-                ->visible(fn () => auth()->user()?->hasRole('system_admin') && auth()->id() !== $this->record->id),
+                ->visible(fn () => auth()->user()?->hasRole('system_admin') && auth()->id() !== $this->record->id)
+                ->before(function () {
+                    if ($this->record->enrolments()->exists()) {
+                        Notification::make()
+                            ->title('Cannot delete a user with enrolment history. Deactivate them instead.')
+                            ->danger()
+                            ->send();
+                        $this->halt();
+                    }
+                }),
         ];
-    }
-
-    protected function mutateFormDataBeforeFill(array $data): array
-    {
-        $profile = $this->record->competitorProfile;
-
-        foreach (['first_name', 'surname', 'date_of_birth', 'gender', 'phone'] as $field) {
-            $data["profile_{$field}"] = $profile?->$field;
-        }
-
-        return $data;
-    }
-
-    protected function mutateFormDataBeforeSave(array $data): array
-    {
-        $this->profileData = $this->extractProfileData($data);
-        return $data;
-    }
-
-    protected function afterSave(): void
-    {
-        $this->profileData['profile_complete'] = $this->isProfileComplete($this->profileData);
-
-        if ($this->record->competitorProfile) {
-            $this->record->competitorProfile()->update($this->profileData);
-        } elseif (! empty(array_filter($this->profileData))) {
-            $this->record->competitorProfile()->create($this->profileData);
-        }
     }
 
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('index');
-    }
-
-    private function extractProfileData(array &$data): array
-    {
-        $profile = [];
-        foreach (['first_name', 'surname', 'date_of_birth', 'gender', 'phone'] as $field) {
-            $key = "profile_{$field}";
-            if (array_key_exists($key, $data)) {
-                $profile[$field] = $data[$key] ?: null;
-                unset($data[$key]);
-            }
-        }
-        return $profile;
-    }
-
-    private function isProfileComplete(array $profile): bool
-    {
-        return filled($profile['first_name'] ?? null)
-            && filled($profile['surname'] ?? null)
-            && filled($profile['date_of_birth'] ?? null)
-            && filled($profile['gender'] ?? null);
     }
 }

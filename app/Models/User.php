@@ -8,6 +8,7 @@ use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -42,15 +43,12 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
 
     public function getFilamentName(): string
     {
-        $profile = $this->competitorProfile;
-        if ($profile) {
-            $name = trim($profile->first_name . ' ' . $profile->surname);
-            if ($name !== '') {
-                return $name;
-            }
-        }
+        return $this->selfProfile?->full_name ?? $this->email;
+    }
 
-        return $this->email;
+    public function getFullNameAttribute(): string
+    {
+        return $this->getFilamentName();
     }
 
     public function canAccessPanel(Panel $panel): bool
@@ -59,7 +57,6 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
             return $this->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
         }
 
-        // Portal: active competitors, plus admin roles (so they can view the competitor experience)
         return $this->status === 'active';
     }
 
@@ -88,19 +85,35 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         $this->forceFill(['locked_until' => null])->save();
     }
 
-    public function competitorProfile(): HasOne
+    // All profiles owned/managed by this user (own profile + child profiles)
+    public function ownedProfiles(): HasMany
     {
-        return $this->hasOne(CompetitorProfile::class);
+        return $this->hasMany(CompetitorProfile::class, 'owner_user_id');
+    }
+
+    // The user's own personal profile (profile_type = 'self')
+    public function selfProfile(): HasOne
+    {
+        return $this->hasOne(CompetitorProfile::class, 'owner_user_id')
+            ->where('profile_type', 'self');
+    }
+
+    // All enrolments across all owned profiles (for admin views)
+    public function enrolments(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Enrolment::class,
+            CompetitorProfile::class,
+            'owner_user_id',        // FK on competitor_profiles
+            'competitor_profile_id', // FK on enrolments
+            'id',                   // local key on users
+            'id'                    // local key on competitor_profiles
+        );
     }
 
     public function socialAccounts(): HasMany
     {
         return $this->hasMany(SocialAccount::class);
-    }
-
-    public function enrolments(): HasMany
-    {
-        return $this->hasMany(Enrolment::class, 'competitor_id');
     }
 
     public function instructorOf(): HasMany

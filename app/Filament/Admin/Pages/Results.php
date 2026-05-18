@@ -112,7 +112,7 @@ class Results extends Page
             ->with([
                 'divisions'                                          => fn ($q) => $q->where('status', 'complete'),
                 'divisions.enrolmentEvents'                          => fn ($q) => $q->where('removed', false),
-                'divisions.enrolmentEvents.enrolment.competitor.competitorProfile',
+                'divisions.enrolmentEvents.enrolment.competitor',
                 'divisions.enrolmentEvents.result.judgeScores',
             ])
             ->whereNotIn('status', ['combined'])
@@ -146,10 +146,7 @@ class Results extends Page
 
                 if ($search !== '') {
                     $entries = $entries->filter(function ($ee) use ($search) {
-                        $profile = $ee->enrolment->competitor?->competitorProfile;
-                        $name = strtolower($profile
-                            ? "{$profile->first_name} {$profile->surname}"
-                            : ($ee->enrolment->competitor?->name ?? ''));
+                        $name = strtolower($ee->enrolment->competitor?->full_name ?? '');
                         $dojo = strtolower($ee->enrolment->dojo_type === 'guest'
                             ? ($ee->enrolment->guest_style ?? '')
                             : ($ee->enrolment->dojo_name ?? ''));

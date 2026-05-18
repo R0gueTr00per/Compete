@@ -372,16 +372,14 @@ class Scoring extends Page
 
         $rows = EnrolmentEvent::where('division_id', $this->division_id)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-            ->with(['enrolment.competitor.competitorProfile'])
+            ->with(['enrolment.competitor'])
             ->get()->toBase();
 
         [$active, $absent] = $rows->partition(fn ($ee) => ! $ee->removed);
 
         $map = fn ($ee, bool $isAbsent) => (object) [
             'ee_id'  => $ee->id,
-            'name'   => ($p = $ee->enrolment->competitor?->competitorProfile)
-                ? $p->first_name . ' ' . $p->surname
-                : ($ee->enrolment->competitor?->name ?? '(unknown)'),
+            'name'   => $ee->enrolment->competitor?->full_name ?? '(unknown)',
             'absent' => $isAbsent,
         ];
 
@@ -407,7 +405,7 @@ class Scoring extends Page
             ->where('removed', false)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
             ->with([
-                'enrolment.competitor.competitorProfile',
+                'enrolment.competitor',
                 'result.judgeScores',
             ])
             ->get()->toBase()
@@ -512,7 +510,7 @@ class Scoring extends Page
         $competitors = EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-            ->with('enrolment.competitor.competitorProfile')
+            ->with('enrolment.competitor')
             ->get()
             ->sortBy(fn ($ee) => $this->resolveEeName($ee))
             ->values();
@@ -814,8 +812,8 @@ class Scoring extends Page
     {
         $all = RoundRobinMatch::where('division_id', $this->division_id)
             ->with([
-                'homeEnrolmentEvent.enrolment.competitor.competitorProfile',
-                'awayEnrolmentEvent.enrolment.competitor.competitorProfile',
+                'homeEnrolmentEvent.enrolment.competitor',
+                'awayEnrolmentEvent.enrolment.competitor',
             ])
             ->orderBy('bracket')->orderBy('round')->orderBy('bracket_slot')
             ->get();
@@ -856,10 +854,7 @@ class Scoring extends Page
     private function resolveEeName(?EnrolmentEvent $ee): string
     {
         if (! $ee) return '—';
-        $profile = $ee->enrolment->competitor?->competitorProfile;
-        return $profile
-            ? $profile->first_name . ' ' . $profile->surname
-            : ($ee->enrolment->competitor?->name ?? '—');
+        return $ee->enrolment->competitor?->full_name ?? '—';
     }
 
     public function getScoringMethod(): ?string

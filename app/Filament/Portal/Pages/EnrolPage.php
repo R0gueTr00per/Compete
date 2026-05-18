@@ -3,10 +3,9 @@
 namespace App\Filament\Portal\Pages;
 
 use App\Models\Competition;
+use App\Models\CompetitorProfile;
 use App\Models\Division;
-use App\Models\Dojo;
 use App\Models\EnrolmentEvent;
-use App\Models\User;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
 use Filament\Forms\Components\CheckboxList;
@@ -20,6 +19,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Livewire\Attributes\Url;
 
 class EnrolPage extends Page implements HasForms
 {
@@ -30,6 +30,8 @@ class EnrolPage extends Page implements HasForms
     protected static string  $view            = 'filament.portal.pages.enrol-page';
     protected static ?string $slug            = 'enrol';
 
+    #[Url]
+    public ?int    $profile_id          = null;
     public ?int    $competition_id      = null;
     public ?string $dojo_type           = null;
     public ?string $dojo_name           = null;
@@ -46,12 +48,32 @@ class EnrolPage extends Page implements HasForms
 
     public function mount(): void
     {
+        $activeProfiles = auth()->user()->ownedProfiles()
+            ->where('is_active', true)
+            ->where('profile_complete', true)
+            ->get();
+
+        // Auto-select only if not already set via URL param
+        if (! $this->profile_id && $activeProfiles->count() === 1) {
+            $this->profile_id = $activeProfiles->first()->id;
+        }
+
         $open = Competition::where('status', 'open')->orderBy('competition_date')->first();
         if ($open) {
             $this->competition_id = $open->id;
         }
     }
 
+    public function getSelectedProfile(): ?CompetitorProfile
+    {
+        if (! $this->profile_id) {
+            return null;
+        }
+        return auth()->user()->ownedProfiles()
+            ->where('id', $this->profile_id)
+            ->where('is_active', true)
+            ->first();
+    }
 
     public function getSelectedCompetition(): ?Competition
     {
@@ -66,17 +88,48 @@ class EnrolPage extends Page implements HasForms
 
     public function form(Form $form): Form
     {
+        $activeProfiles = auth()->user()->ownedProfiles()
+            ->where('is_active', true)
+            ->where('profile_complete', true)
+            ->get();
+
         return $form->schema([
+            // Profile selector — only shown when user has multiple eligible profiles
+            Section::make('Who are you enrolling?')
+                ->visible($activeProfiles->count() > 1)
+                ->disabled(fn () => $this->details_confirmed)
+                ->schema([
+                    Select::make('profile_id')
+                        ->label('Select profile')
+                        ->options(
+                            $activeProfiles->mapWithKeys(fn ($p) => [
+                                $p->id => $p->full_name . ($p->isChild() ? ' (child)' : ''),
+                            ])
+                        )
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function () {
+                            $this->selected_entries  = [];
+                            $this->yakusuko_partners = [];
+                            $this->details_confirmed = false;
+                        }),
+                ]),
+
             Section::make('Competition')
                 ->disabled(fn () => $this->details_confirmed)
                 ->schema([
                     Select::make('competition_id')
                         ->label('Select competition')
                         ->options(function () {
-                            $enrolledDraftIds = auth()->user()
-                                ->enrolments()
-                                ->whereHas('competition', fn ($q) => $q->where('status', 'draft'))
-                                ->pluck('competition_id');
+                            if (! $this->profile_id) {
+                                return [];
+                            }
+                            $profile = $this->getSelectedProfile();
+                            $enrolledDraftIds = $profile
+                                ? $profile->enrolments()
+                                    ->whereHas('competition', fn ($q) => $q->where('status', 'draft'))
+                                    ->pluck('competition_id')
+                                : collect();
 
                             return Competition::where('status', 'open')
                                 ->orWhereIn('id', $enrolledDraftIds)
@@ -97,7 +150,7 @@ class EnrolPage extends Page implements HasForms
 
             Section::make('Your details for this competition')
                 ->description('Rank, weight, and dojo may change between competitions — please confirm them here.')
-                ->visible(fn () => $this->competition_id !== null)
+                ->visible(fn () => $this->competition_id !== null && $this->profile_id !== null)
                 ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
@@ -115,7 +168,7 @@ class EnrolPage extends Page implements HasForms
 
                     Select::make('dojo_name')
                         ->label('LFP Dojo')
-                        ->options(fn () => Dojo::active()->orderBy('name')->pluck('name', 'name'))
+                        ->options(fn () => \App\Models\Dojo::active()->orderBy('name')->pluck('name', 'name'))
                         ->searchable()
                         ->visible(fn () => $this->dojo_type === 'lfp')
                         ->requiredIf('dojo_type', 'lfp'),
@@ -198,7 +251,7 @@ class EnrolPage extends Page implements HasForms
 
     private function buildCtx(): ?object
     {
-        $profile = auth()->user()->competitorProfile;
+        $profile = $this->getSelectedProfile();
         if (! $profile) {
             return null;
         }
@@ -217,7 +270,7 @@ class EnrolPage extends Page implements HasForms
 
     private function buildEventSchema(): array
     {
-        if (! $this->competition_id) {
+        if (! $this->competition_id || ! $this->profile_id) {
             return [];
         }
 
@@ -229,10 +282,10 @@ class EnrolPage extends Page implements HasForms
         $events = $competition->competitionEvents()
             ->where('status', 'scheduled')
             ->orderBy('running_order')
-            ->get(); // no pagination — show all eligible events
+            ->get();
 
         $existingEnrolment = $competition->enrolments()
-            ->where('competitor_id', auth()->id())
+            ->where('competitor_profile_id', $this->profile_id)
             ->with('activeEvents.division')
             ->first();
 
@@ -248,7 +301,7 @@ class EnrolPage extends Page implements HasForms
         $ctx             = $this->buildCtx();
         $divisionService = app(DivisionAssignmentService::class);
         $options         = [];
-        $yakusukoEventIds = [];
+        $partnerEventMap = []; // eventId => event name for requires_partner events
 
         foreach ($events as $event) {
             $eligible = $ctx ? $divisionService->getEligibleDivisions($event, $ctx) : collect();
@@ -262,7 +315,7 @@ class EnrolPage extends Page implements HasForms
             }
 
             if ($event->requires_partner) {
-                $yakusukoEventIds[] = $event->id;
+                $partnerEventMap[$event->id] = $event->name;
             }
         }
 
@@ -292,7 +345,7 @@ class EnrolPage extends Page implements HasForms
                 ->helperText($disabledKeys ? 'Greyed-out entries are already in your enrolment.' : null),
         ];
 
-        // Yakusuko partner selects — shown for partner events where any division is selected
+        // Partner selects for events that require a partner
         $selectedEventIds = [];
         foreach ($this->selected_entries as $key) {
             $div = Division::find((int) substr($key, 1));
@@ -301,17 +354,17 @@ class EnrolPage extends Page implements HasForms
             }
         }
 
-        foreach (array_intersect($yakusukoEventIds, $selectedEventIds) as $eventId) {
+        foreach (array_intersect(array_keys($partnerEventMap), $selectedEventIds) as $eventId) {
+            $eventName = $partnerEventMap[$eventId];
             $components[] = Select::make("yakusuko_partners.{$eventId}")
-                ->label("Yakusuko partner for event #{$eventId}")
+                ->label("Partner for {$eventName}")
                 ->options(
-                    User::whereHas('competitorProfile', fn ($q) => $q->where('profile_complete', true))
-                        ->where('id', '!=', auth()->id())
+                    CompetitorProfile::where('profile_complete', true)
+                        ->where('is_active', true)
+                        ->where('id', '!=', $this->profile_id)
                         ->get()
-                        ->mapWithKeys(fn ($u) => [
-                            $u->id => ($u->competitorProfile->first_name ?? '') . ' '
-                                    . ($u->competitorProfile->surname ?? '')
-                                    . " ({$u->email})",
+                        ->mapWithKeys(fn ($p) => [
+                            $p->id => $p->full_name,
                         ])
                 )
                 ->searchable()
@@ -331,7 +384,7 @@ class EnrolPage extends Page implements HasForms
 
     private function feeSummary(): string
     {
-        if (! $this->competition_id || empty($this->selected_entries)) {
+        if (! $this->competition_id || empty($this->selected_entries) || ! $this->profile_id) {
             return '';
         }
 
@@ -341,7 +394,7 @@ class EnrolPage extends Page implements HasForms
         }
 
         $existingCount = $competition->enrolments()
-            ->where('competitor_id', auth()->id())
+            ->where('competitor_profile_id', $this->profile_id)
             ->withCount('activeEvents')
             ->first()?->active_events_count ?? 0;
 
@@ -366,6 +419,10 @@ class EnrolPage extends Page implements HasForms
 
     public function nextHint(): void
     {
+        if (! $this->profile_id) {
+            Notification::make()->title('Select a profile to continue.')->info()->send();
+            return;
+        }
         if (! $this->competition_id) {
             Notification::make()->title('Select a competition to continue.')->info()->send();
             return;
@@ -403,16 +460,21 @@ class EnrolPage extends Page implements HasForms
         $this->yakusuko_partners = [];
     }
 
+    public function cancel(): void
+    {
+        $this->redirect(\App\Filament\Portal\Pages\Dashboard::getUrl(), navigate: true);
+    }
+
     public function submit(): void
     {
-        $profile = auth()->user()->competitorProfile;
+        $profile = $this->getSelectedProfile();
 
         if (! $profile || ! $profile->profile_complete) {
             Notification::make()
                 ->title('Please complete your profile before enrolling.')
                 ->warning()
                 ->send();
-            $this->redirect(route('filament.portal.pages.profile'));
+            $this->redirect(route('filament.portal.pages.profiles'));
             return;
         }
 
@@ -432,9 +494,7 @@ class EnrolPage extends Page implements HasForms
             return;
         }
 
-        // Parse flat division entries into event + division maps
         $divisionsByEvent = [];
-
         foreach ($this->selected_entries as $key) {
             $divisionId = (int) substr($key, 1);
             $division   = Division::find($divisionId);
@@ -446,19 +506,19 @@ class EnrolPage extends Page implements HasForms
         $competitionEventIds = array_keys($divisionsByEvent);
 
         $entryDetails = [
-            'dojo_type'          => $this->dojo_type,
-            'dojo_name'          => $this->dojo_type === 'lfp' ? $this->dojo_name : null,
-            'guest_style'        => $this->dojo_type === 'guest' ? $this->guest_style : null,
-            'rank_type'          => $this->rank_type,
-            'rank_kyu'           => $this->rank_type === 'kyu' ? $this->rank_kyu : null,
-            'rank_dan'           => $this->rank_type === 'dan' ? $this->rank_dan : null,
-            'experience_years'   => $this->rank_type === 'experience' ? $this->experience_years : null,
-            'experience_months'  => $this->rank_type === 'experience' ? $this->experience_months : null,
-            'weight_kg'          => $this->weight_kg,
+            'dojo_type'         => $this->dojo_type,
+            'dojo_name'         => $this->dojo_type === 'lfp' ? $this->dojo_name : null,
+            'guest_style'       => $this->dojo_type === 'guest' ? $this->guest_style : null,
+            'rank_type'         => $this->rank_type,
+            'rank_kyu'          => $this->rank_type === 'kyu' ? $this->rank_kyu : null,
+            'rank_dan'          => $this->rank_type === 'dan' ? $this->rank_dan : null,
+            'experience_years'  => $this->rank_type === 'experience' ? $this->experience_years : null,
+            'experience_months' => $this->rank_type === 'experience' ? $this->experience_months : null,
+            'weight_kg'         => $this->weight_kg,
         ];
 
         $enrolment = app(EnrolmentService::class)->enrol(
-            auth()->user(),
+            $profile,
             $competition,
             $competitionEventIds,
             $divisionsByEvent,
@@ -466,8 +526,8 @@ class EnrolPage extends Page implements HasForms
         );
 
         // Handle Yakusuko partner linking
-        foreach ($this->yakusuko_partners as $eventId => $partnerId) {
-            if (! $partnerId) {
+        foreach ($this->yakusuko_partners as $eventId => $partnerProfileId) {
+            if (! $partnerProfileId) {
                 continue;
             }
 
@@ -481,7 +541,7 @@ class EnrolPage extends Page implements HasForms
 
             $partnerEe = EnrolmentEvent::whereHas('enrolment', fn ($q) => $q
                 ->where('competition_id', $competition->id)
-                ->where('competitor_id', $partnerId)
+                ->where('competitor_profile_id', $partnerProfileId)
             )->where('competition_event_id', $eventId)->first();
 
             if ($partnerEe) {

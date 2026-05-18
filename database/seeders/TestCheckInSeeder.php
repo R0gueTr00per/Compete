@@ -29,7 +29,7 @@ class TestCheckInSeeder extends Seeder
             ->whereIn('status', ['pending', 'confirmed'])
             ->whereHas('activeEvents')
             ->with([
-                'competitor.competitorProfile',
+                'competitor',
                 'activeEvents.competitionEvent',
                 'activeEvents.division',
             ])
@@ -43,10 +43,7 @@ class TestCheckInSeeder extends Seeder
         $checkedIn = 0;
 
         foreach ($enrolments as $enrolment) {
-            $profile  = $enrolment->competitor?->competitorProfile;
-            $fullName = $profile
-                ? "{$profile->first_name} {$profile->surname}"
-                : $enrolment->competitor?->name ?? "#{$enrolment->id}";
+            $fullName = $enrolment->competitor?->full_name ?? "#{$enrolment->id}";
 
             // Confirm weight for events that require it, using enrolled weight
             $needsWeight = $enrolment->activeEvents->contains(

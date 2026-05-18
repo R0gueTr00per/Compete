@@ -28,9 +28,12 @@ return new class extends Migration
         Schema::table('divisions', function (Blueprint $table) {
             $table->dropIndex('divisions_competition_event_id_status_index');
         });
-        Schema::table('enrolments', function (Blueprint $table) {
-            $table->dropIndex('enrolments_competitor_id_index');
-        });
+        // Only drop if the column still exists (migration 000004 may have already removed it)
+        if (Schema::hasColumn('enrolments', 'competitor_id')) {
+            Schema::table('enrolments', function (Blueprint $table) {
+                $table->dropIndex('enrolments_competitor_id_index');
+            });
+        }
         Schema::table('enrolment_events', function (Blueprint $table) {
             $table->dropIndex('enrolment_events_competition_event_id_index');
             $table->dropIndex('enrolment_events_division_id_index');

@@ -227,7 +227,7 @@ class LfpRound1Seeder extends Seeder
                     'age_band_id'          => $ageBand?->id,
                     'rank_band_id'         => $rankBand?->id,
                     'weight_class_id'      => $weightClass?->id,
-                    'sex'                  => $sex,
+                    'sex'                  => $sex ?? 'mixed',
                 ],
                 [
                     'code'          => $code,
@@ -279,7 +279,9 @@ class LfpRound1Seeder extends Seeder
             ];
 
             try {
-                $service->enrol($user, $competition, $eventIds, [], $entryDetails);
+                $profile = $user->selfProfile;
+                if (! $profile) continue;
+                $service->enrol($profile, $competition, $eventIds, [], $entryDetails);
             } catch (\Exception) {
                 // Already enrolled — skip
             }

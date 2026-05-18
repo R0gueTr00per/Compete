@@ -65,8 +65,7 @@
             @foreach ($entries as $ee)
               @php
                 $result  = $ee->result;
-                $profile = $ee->enrolment->competitor?->competitorProfile;
-                $name    = $profile ? "{$profile->first_name} {$profile->surname}" : ($ee->enrolment->competitor?->name ?? '—');
+                $name    = $ee->enrolment->competitor?->full_name ?? '—';
                 $dojo    = $ee->enrolment->dojo_type === 'guest'
                     ? ($ee->enrolment->guest_style ?? 'Guest')
                     : ($ee->enrolment->dojo_name ?? '—');

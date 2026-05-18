@@ -11,14 +11,17 @@ class Dashboard extends BaseDashboard
 {
     protected static string $view = 'filament.portal.pages.dashboard';
 
-    public function getProfile()
+    public function getProfiles()
     {
-        return auth()->user()->competitorProfile;
+        return auth()->user()->ownedProfiles()
+            ->orderByRaw("CASE WHEN profile_type = 'self' THEN 0 ELSE 1 END")
+            ->orderBy('date_of_birth', 'desc')
+            ->get();
     }
 
-    public function getEnrolments()
+    public function getEnrolmentsForProfile(\App\Models\CompetitorProfile $profile)
     {
-        return Enrolment::where('competitor_id', auth()->id())
+        return $profile->enrolments()
             ->with([
                 'competition',
                 'activeEvents.competitionEvent',
@@ -47,7 +50,7 @@ class Dashboard extends BaseDashboard
             ->whereHas('enrolments', fn ($q) => $q->whereIn('dojo_name', $dojoNames))
             ->with([
                 'enrolments' => fn ($q) => $q->whereIn('dojo_name', $dojoNames)
-                    ->with(['competitor.competitorProfile', 'activeEvents.competitionEvent', 'activeEvents.division', 'activeEvents.result']),
+                    ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division', 'activeEvents.result']),
             ])
             ->orderBy('competition_date')
             ->get();

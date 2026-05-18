@@ -19,6 +19,9 @@
                     Next
                 </x-filament::button>
             @endif
+            <x-filament::button type="button" wire:click="cancel" color="gray" size="lg" outlined>
+                Cancel
+            </x-filament::button>
         </div>
     </form>
 

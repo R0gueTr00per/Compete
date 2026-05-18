@@ -14,7 +14,7 @@ class RequireCompleteProfile
 
         if ($user
             && ! $user->hasRole(['competition_administrator', 'system_admin', 'competition_official'])
-            && ! $user->competitorProfile?->profile_complete
+            && ! $user->ownedProfiles()->where('profile_complete', true)->exists()
         ) {
             if (! $request->routeIs('profile.complete', 'logout')) {
                 return redirect()->route('profile.complete');

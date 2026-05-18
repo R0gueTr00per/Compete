@@ -99,7 +99,7 @@ class SocialiteController extends Controller
     {
         $user = Auth::user();
 
-        if (! $user->competitorProfile?->profile_complete) {
+        if (! $user->ownedProfiles()->where('profile_complete', true)->exists()) {
             return redirect()->route('profile.complete');
         }
 

@@ -71,7 +71,7 @@ class ScheduleView extends Page
             ->with([
                 'competitionEvent',
                 'activeEnrolmentEvents.result',
-                'activeEnrolmentEvents.enrolment.competitor.competitorProfile',
+                'activeEnrolmentEvents.enrolment.competitor',
             ])
             ->withCount('activeEnrolmentEvents')
             ->whereNotIn('status', ['combined'])

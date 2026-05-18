@@ -9,7 +9,7 @@ class PdfReportService
     public function generateCompetitionResults(Competition $competition, array $filters = []): string
     {
         $competition->load([
-            'competitionEvents.divisions.enrolmentEvents.enrolment.competitor.competitorProfile',
+            'competitionEvents.divisions.enrolmentEvents.enrolment.competitor',
             'competitionEvents.divisions.enrolmentEvents.result.judgeScores',
         ]);
 
@@ -51,10 +51,8 @@ class PdfReportService
 
                     if ($search !== '') {
                         $entries = $entries->filter(function ($ee) use ($search) {
-                            $profile = $ee->enrolment->competitor?->competitorProfile;
-                            $name = strtolower($profile
-                                ? "{$profile->first_name} {$profile->surname}"
-                                : ($ee->enrolment->competitor?->name ?? ''));
+                            $profile = $ee->enrolment->competitor;
+                            $name    = strtolower($profile?->full_name ?? '');
                             $dojo = strtolower($ee->enrolment->dojo_type === 'guest'
                                 ? ($ee->enrolment->guest_style ?? '')
                                 : ($ee->enrolment->dojo_name ?? ''));

@@ -15,12 +15,15 @@ class MyEnrolmentsPage extends Page
 
     public function getEnrolments()
     {
-        return Enrolment::where('competitor_id', auth()->id())
+        $profileIds = auth()->user()->ownedProfiles()->pluck('id');
+
+        return Enrolment::whereIn('competitor_profile_id', $profileIds)
             ->with([
+                'competitor',
                 'competition',
                 'activeEvents.competitionEvent',
                 'activeEvents.result.judgeScores',
-                'activeEvents.division.activeEnrolmentEvents.enrolment.competitor.competitorProfile',
+                'activeEvents.division.activeEnrolmentEvents.enrolment.competitor',
             ])
             ->orderByDesc('enrolled_at')
             ->get();

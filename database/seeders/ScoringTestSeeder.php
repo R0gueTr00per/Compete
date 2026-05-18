@@ -65,6 +65,9 @@ class ScoringTestSeeder extends Seeder
             CompetitorProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 [
+                    'owner_user_id'    => $user->id,
+                    'profile_type'     => 'self',
+                    'is_active'        => true,
                     'first_name'       => $p['first_name'],
                     'surname'          => $p['surname'],
                     'date_of_birth'    => $p['dob'],
@@ -118,9 +121,10 @@ class ScoringTestSeeder extends Seeder
             foreach ($indices as $idx) {
                 $user = $users->get($idx);
                 if (! $user) continue;
+                $profileId = \App\Models\CompetitorProfile::where('user_id', $user->id)->value('id');
 
                 $enrolment = Enrolment::updateOrCreate(
-                    ['competition_id' => $competition->id, 'competitor_id' => $user->id],
+                    ['competition_id' => $competition->id, 'competitor_profile_id' => $profileId],
                     [
                         'enrolled_at'    => now(),
                         'is_late'        => false,

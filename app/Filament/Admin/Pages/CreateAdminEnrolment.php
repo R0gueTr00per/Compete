@@ -7,6 +7,7 @@ use App\Models\CompetitorProfile;
 use App\Models\Division;
 use App\Models\Dojo;
 use App\Models\User;
+use App\Notifications\AdminCreatedAccountNotification;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
 use Filament\Forms\Components\CheckboxList;
@@ -23,6 +24,7 @@ use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 class CreateAdminEnrolment extends Page implements HasForms
@@ -41,26 +43,25 @@ class CreateAdminEnrolment extends Page implements HasForms
         return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
     }
 
-    public ?int    $competition_id     = null;
-    public ?int    $competitor_id      = null;
-    public bool    $create_new_user    = false;
-    public ?string $new_name           = null;
-    public ?string $new_email          = null;
-    public ?string $new_surname        = null;
-    public ?string $new_first_name     = null;
-    public ?string $new_dob            = null;
-    public ?string $new_gender         = null;
-    public ?string $dojo_type          = null;
-    public ?string $dojo_name          = null;
-    public ?string $guest_style        = null;
-    public ?string $rank_type          = null;
-    public ?int    $rank_kyu           = null;
-    public ?int    $rank_dan           = null;
-    public ?int    $experience_years   = null;
-    public ?int    $experience_months  = null;
-    public ?float  $weight_kg          = null;
-    public array   $selected_entries    = [];
-    public bool    $details_confirmed   = false;
+    public ?int    $competition_id       = null;
+    public ?int    $competitor_profile_id = null;
+    public bool    $create_new_user      = false;
+    public ?string $new_surname          = null;
+    public ?string $new_first_name       = null;
+    public ?string $new_email            = null;
+    public ?string $new_dob              = null;
+    public ?string $new_gender           = null;
+    public ?string $dojo_type            = null;
+    public ?string $dojo_name            = null;
+    public ?string $guest_style          = null;
+    public ?string $rank_type            = null;
+    public ?int    $rank_kyu             = null;
+    public ?int    $rank_dan             = null;
+    public ?int    $experience_years     = null;
+    public ?int    $experience_months    = null;
+    public ?float  $weight_kg            = null;
+    public array   $selected_entries     = [];
+    public bool    $details_confirmed    = false;
 
     public function mount(): void
     {
@@ -95,34 +96,34 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->required()
                         ->live()
                         ->afterStateUpdated(function () {
-                            $this->selected_entries  = [];
-                            $this->competitor_id     = null;
-                            $this->details_confirmed = false;
+                            $this->selected_entries       = [];
+                            $this->competitor_profile_id  = null;
+                            $this->details_confirmed      = false;
                         })
                         ->columnSpanFull(),
 
                     Toggle::make('create_new_user')
-                        ->label('Create a new competitor account')
+                        ->label('Create a new competitor')
                         ->live()
                         ->afterStateUpdated(function () {
-                            $this->competitor_id     = null;
-                            $this->new_name          = $this->new_email = null;
-                            $this->new_surname       = $this->new_first_name = null;
-                            $this->new_dob           = $this->new_gender = null;
-                            $this->details_confirmed = false;
+                            $this->competitor_profile_id = null;
+                            $this->new_email             = null;
+                            $this->new_surname           = $this->new_first_name = null;
+                            $this->new_dob               = $this->new_gender = null;
+                            $this->details_confirmed     = false;
                         })
                         ->columnSpanFull(),
 
-                    Select::make('competitor_id')
+                    Select::make('competitor_profile_id')
                         ->label('Select existing competitor')
                         ->options(
-                            User::with('competitorProfile')
-                                ->where('status', 'active')
+                            CompetitorProfile::with('owner')
+                                ->where('is_active', true)
                                 ->get()
-                                ->mapWithKeys(fn ($u) => [
-                                    $u->id => ($u->competitorProfile?->surname ?? '')
-                                        . ', ' . ($u->competitorProfile?->first_name ?? $u->name)
-                                        . ' (' . $u->email . ')',
+                                ->sortBy('surname')
+                                ->mapWithKeys(fn ($p) => [
+                                    $p->id => $p->surname . ', ' . $p->first_name
+                                        . ' (age ' . ($p->age ?? '?') . ')',
                                 ])
                         )
                         ->required()
@@ -174,7 +175,7 @@ class CreateAdminEnrolment extends Page implements HasForms
 
             Section::make('Competition entry details')
                 ->description('Rank, weight, and dojo for this competition.')
-                ->visible(fn () => $this->competition_id && ($this->competitor_id || ($this->create_new_user && $this->new_email)))
+                ->visible(fn () => $this->competition_id && ($this->competitor_profile_id || ($this->create_new_user && $this->new_email)))
                 ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
@@ -285,8 +286,7 @@ class CreateAdminEnrolment extends Page implements HasForms
             ];
         }
 
-        $competitor = User::find($this->competitor_id);
-        $profile    = $competitor?->competitorProfile;
+        $profile = CompetitorProfile::find($this->competitor_profile_id);
         if (! $profile) {
             return null;
         }
@@ -305,7 +305,7 @@ class CreateAdminEnrolment extends Page implements HasForms
 
     private function buildEventSchema(): array
     {
-        if (! $this->competition_id || (! $this->competitor_id && ! $this->create_new_user)) {
+        if (! $this->competition_id || (! $this->competitor_profile_id && ! $this->create_new_user)) {
             return [];
         }
 
@@ -319,9 +319,9 @@ class CreateAdminEnrolment extends Page implements HasForms
             ->orderBy('running_order')
             ->get();
 
-        $existingEnrolment = $this->competitor_id
+        $existingEnrolment = $this->competitor_profile_id
             ? $competition->enrolments()
-                ->where('competitor_id', $this->competitor_id)
+                ->where('competitor_profile_id', $this->competitor_profile_id)
                 ->with('activeEvents.division')
                 ->first()
             : null;
@@ -385,9 +385,9 @@ class CreateAdminEnrolment extends Page implements HasForms
             return '';
         }
 
-        $existingCount = $this->competitor_id
+        $existingCount = $this->competitor_profile_id
             ? ($competition->enrolments()
-                ->where('competitor_id', $this->competitor_id)
+                ->where('competitor_profile_id', $this->competitor_profile_id)
                 ->withCount('activeEvents')
                 ->first()?->active_events_count ?? 0)
             : 0;
@@ -416,7 +416,7 @@ class CreateAdminEnrolment extends Page implements HasForms
         if ($this->create_new_user) {
             return (bool) ($this->new_email && $this->new_surname && $this->new_first_name && $this->new_dob && $this->new_gender);
         }
-        return (bool) $this->competitor_id;
+        return (bool) $this->competitor_profile_id;
     }
 
     public function nextHint(): void
@@ -425,7 +425,7 @@ class CreateAdminEnrolment extends Page implements HasForms
             Notification::make()->title('Select a competition to continue.')->info()->send();
             return;
         }
-        if (! $this->competitor_id && ! $this->create_new_user) {
+        if (! $this->competitor_profile_id && ! $this->create_new_user) {
             Notification::make()->title('Select or create a competitor to continue.')->info()->send();
             return;
         }
@@ -450,7 +450,6 @@ class CreateAdminEnrolment extends Page implements HasForms
             return;
         }
 
-        // All entry details complete — reveal the events section
         if (! $this->details_confirmed) {
             $this->details_confirmed = true;
             $this->selected_entries  = [];
@@ -478,7 +477,6 @@ class CreateAdminEnrolment extends Page implements HasForms
             return;
         }
 
-        // Create new user if requested
         if ($this->create_new_user) {
             if (! $this->new_email || ! $this->new_surname || ! $this->new_first_name || ! $this->new_dob || ! $this->new_gender) {
                 Notification::make()->title('Please fill in all new competitor details.')->warning()->send();
@@ -498,31 +496,33 @@ class CreateAdminEnrolment extends Page implements HasForms
             $newUser->forceFill(['email_verified_at' => now()])->save();
             $newUser->assignRole('user');
 
-            CompetitorProfile::create([
+            $newProfile = CompetitorProfile::create([
+                'owner_user_id'    => $newUser->id,
                 'user_id'          => $newUser->id,
+                'profile_type'     => 'self',
                 'surname'          => $this->new_surname,
                 'first_name'       => $this->new_first_name,
                 'date_of_birth'    => $this->new_dob,
                 'gender'           => $this->new_gender,
+                'is_active'        => true,
                 'profile_complete' => true,
             ]);
 
-            $this->competitor_id = $newUser->id;
+            $this->competitor_profile_id = $newProfile->id;
         }
 
-        if (! $this->competitor_id) {
+        if (! $this->competitor_profile_id) {
             Notification::make()->title('Please select or create a competitor.')->warning()->send();
             return;
         }
 
-        $competitor  = User::find($this->competitor_id);
+        $profile     = CompetitorProfile::find($this->competitor_profile_id);
         $competition = Competition::find($this->competition_id);
 
-        if (! $competitor || ! $competition) {
+        if (! $profile || ! $competition) {
             return;
         }
 
-        // Parse flat division entries into event + division maps
         $divisionsByEvent = [];
 
         foreach ($this->selected_entries as $key) {
@@ -552,18 +552,23 @@ class CreateAdminEnrolment extends Page implements HasForms
             'weight_kg'         => $this->weight_kg,
         ];
 
-        app(EnrolmentService::class)->enrol(
-            $competitor,
+        $enrolment = app(EnrolmentService::class)->enrol(
+            $profile,
             $competition,
             $competitionEventIds,
             $divisionsByEvent,
             $entryDetails
         );
 
+        if (isset($newUser)) {
+            $resetToken = Password::broker()->createToken($newUser);
+            $newUser->notify(new AdminCreatedAccountNotification($enrolment, $resetToken));
+        }
+
         Notification::make()->title('Enrolment created successfully.')->success()->send();
 
-        $this->reset(['selected_entries', 'details_confirmed', 'competitor_id',
-            'create_new_user', 'new_name', 'new_email', 'new_surname', 'new_first_name', 'new_dob', 'new_gender',
+        $this->reset(['selected_entries', 'details_confirmed', 'competitor_profile_id',
+            'create_new_user', 'new_email', 'new_surname', 'new_first_name', 'new_dob', 'new_gender',
             'dojo_type', 'dojo_name', 'guest_style', 'rank_type', 'rank_kyu', 'rank_dan',
             'experience_years', 'experience_months', 'weight_kg']);
     }

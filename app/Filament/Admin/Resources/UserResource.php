@@ -4,23 +4,22 @@ namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\UserResource\Pages;
 use App\Models\User;
-use Filament\Forms\Components\DatePicker;
+use App\Notifications\AccountApprovedNotification;
+use App\Notifications\AccountCreatedNotification;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
-use App\Notifications\AccountApprovedNotification;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Actions\EditAction;
-use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 
 class UserResource extends Resource
 {
@@ -51,7 +50,8 @@ class UserResource extends Resource
                         ->required()
                         ->unique(ignoreRecord: true)
                         ->validationMessages(['unique' => 'An account already exists for this email address.'])
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->columnSpanFull(),
 
                     Select::make('status')
                         ->options([
@@ -100,59 +100,19 @@ class UserResource extends Resource
                         ->required()
                         ->default('user'),
                 ]),
-
-            Section::make('Profile')
-                ->columns(2)
-                ->schema([
-                    TextInput::make('profile_first_name')
-                        ->label('First name')
-                        ->required()
-                        ->maxLength(100),
-
-                    TextInput::make('profile_surname')
-                        ->label('Surname')
-                        ->required()
-                        ->maxLength(100),
-
-                    DatePicker::make('profile_date_of_birth')
-                        ->label('Date of birth')
-                        ->required(),
-
-                    Radio::make('profile_gender')
-                        ->label('Gender')
-                        ->options(['M' => 'Male', 'F' => 'Female'])
-                        ->required()
-                        ->inline(),
-
-                    TextInput::make('profile_phone')
-                        ->label('Phone')
-                        ->tel()
-                        ->maxLength(30),
-                ]),
         ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query
-                ->with(['socialAccounts', 'roles', 'competitorProfile'])
-                ->leftJoin('competitor_profiles', 'competitor_profiles.user_id', '=', 'users.id')
-                ->select('users.*')
-            )
+            ->modifyQueryUsing(fn ($query) => $query->with(['socialAccounts', 'roles']))
             ->columns([
                 TextColumn::make('full_name')
-                    ->label('Name')
-                    ->getStateUsing(fn (User $record) => trim($record->competitorProfile?->first_name . ' ' . $record->competitorProfile?->surname) ?: null)
-                    ->placeholder('—')
-                    ->description(fn (User $record) => $record->email)
-                    ->searchable(query: fn ($query, $search) => $query->where(fn ($q) => $q
-                        ->whereHas('competitorProfile', fn ($q2) => $q2
-                            ->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('surname', 'like', "%{$search}%")
-                        )
-                        ->orWhere('email', 'like', "%{$search}%")
-                    )),
+                    ->label('Name / Email')
+                    ->getStateUsing(fn (User $record) => $record->getFilamentName())
+                    ->description(fn (User $record) => $record->getFilamentName() !== $record->email ? $record->email : null)
+                    ->searchable(query: fn ($query, $search) => $query->where('email', 'like', "%{$search}%")),
 
                 TextColumn::make('roles.name')
                     ->label('Role')
@@ -181,17 +141,6 @@ class UserResource extends Resource
                         default    => 'gray',
                     }),
 
-                TextColumn::make('profile_status')
-                    ->label('Profile')
-                    ->getStateUsing(fn (User $record) => $record->competitorProfile?->profile_complete ? 'Complete' : ($record->competitorProfile ? 'Incomplete' : 'None'))
-                    ->badge()
-                    ->color(fn (string $state) => match ($state) {
-                        'Complete'   => 'success',
-                        'Incomplete' => 'warning',
-                        'None'       => 'gray',
-                    })
-                    ->visibleFrom('sm'),
-
                 TextColumn::make('auth_type')
                     ->label('Auth')
                     ->getStateUsing(function (User $record): string {
@@ -218,8 +167,7 @@ class UserResource extends Resource
                     ->sortable()
                     ->visibleFrom('sm'),
             ])
-            ->defaultSort('competitor_profiles.surname')
-            ->defaultSort('competitor_profiles.first_name')
+            ->defaultSort('email')
             ->filters([
                 SelectFilter::make('status')
                     ->options([
@@ -346,36 +294,38 @@ class UserResource extends Resource
                         ->visible(fn () => auth()->user()?->hasRole('system_admin')),
 
                     Action::make('resetPassword')
-                        ->label('Reset password')
+                        ->label('Send password reset email')
                         ->icon('heroicon-o-key')
                         ->color('gray')
-                        ->form([
-                            TextInput::make('password')
-                                ->label('New password')
-                                ->password()
-                                ->required()
-                                ->minLength(8)
-                                ->confirmed(),
-
-                            TextInput::make('password_confirmation')
-                                ->label('Confirm password')
-                                ->password()
-                                ->required(),
-                        ])
+                        ->requiresConfirmation()
+                        ->modalDescription('A password reset link (valid for 24 hours) will be emailed to this user.')
                         ->visible(fn (User $record) => auth()->user()?->hasRole('system_admin'))
-                        ->action(function (User $record, array $data) {
-                            $record->update(['password' => Hash::make($data['password'])]);
-                            Notification::make()->title('Password reset.')->success()->send();
+                        ->action(function (User $record) {
+                            Password::sendResetLink(['email' => $record->email]);
+                            Notification::make()->title('Password reset email sent.')->success()->send();
+                        }),
+
+                    Action::make('resendSetupEmail')
+                        ->label('Resend account setup email')
+                        ->icon('heroicon-o-envelope')
+                        ->color('gray')
+                        ->requiresConfirmation()
+                        ->modalDescription('A new account setup link will be emailed to this user.')
+                        ->visible(fn (User $record) => auth()->user()?->hasRole('system_admin'))
+                        ->action(function (User $record) {
+                            $token = Password::broker()->createToken($record);
+                            $record->notify(new AccountCreatedNotification($token));
+                            Notification::make()->title('Account setup email sent.')->success()->send();
                         }),
                 ]),
             ])
             ->bulkActions([]);
     }
 
-    public static function getRelationManagers(): array
+    public static function getRelations(): array
     {
         return [
-            UserResource\RelationManagers\EnrolmentsRelationManager::class,
+            UserResource\RelationManagers\ProfilesRelationManager::class,
         ];
     }
 

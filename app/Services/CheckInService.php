@@ -54,7 +54,7 @@ class CheckInService
             $ee->update(['weight_confirmed_kg' => $weightKg]);
 
             $newDivision = $this->divisions->assignDivision(
-                $ee->fresh(['competitionEvent', 'enrolment.competitor.competitorProfile'])
+                $ee->fresh(['competitionEvent', 'enrolment.competitor'])
             );
 
             $ee->update(['division_id' => $newDivision?->id]);

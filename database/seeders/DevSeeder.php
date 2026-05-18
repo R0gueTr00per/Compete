@@ -34,6 +34,9 @@ class DevSeeder extends Seeder
         CompetitorProfile::updateOrCreate(
             ['user_id' => $competitor->id],
             [
+                'owner_user_id'    => $competitor->id,
+                'profile_type'     => 'self',
+                'is_active'        => true,
                 'surname'          => 'Competitor',
                 'first_name'       => 'Test',
                 'date_of_birth'    => '1990-06-15',

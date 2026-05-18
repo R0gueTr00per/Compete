@@ -90,10 +90,7 @@
                                             @endphp
                                             @foreach ($placements as $ee)
                                                 @php
-                                                    $profile = $ee->enrolment->competitor?->competitorProfile;
-                                                    $pName = $profile
-                                                        ? $profile->first_name . ' ' . $profile->surname
-                                                        : ($ee->enrolment->competitor?->name ?? '—');
+                                                    $pName = $ee->enrolment->competitor?->full_name ?? '—';
                                                     $medal = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . '.' };
                                                 @endphp
                                                 <div class="text-xs text-gray-700 dark:text-gray-300 mt-0.5">{{ $medal }} {{ $pName }}</div>

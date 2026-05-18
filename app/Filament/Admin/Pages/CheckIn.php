@@ -65,7 +65,7 @@ class CheckIn extends Page
 
         $query = Enrolment::where('competition_id', $this->competition_id)
             ->with([
-                'competitor.competitorProfile',
+                'competitor',
                 'activeEvents.division',
                 'activeEvents.competitionEvent' => fn ($q) => $q->withExists([
                     'divisions as has_weight_divisions' => fn ($q) => $q->whereNotNull('weight_class_id'),
@@ -75,16 +75,13 @@ class CheckIn extends Page
 
         if ($this->search) {
             $query->whereHas('competitor', fn ($q) =>
-                $q->where('email', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('competitorProfile', fn ($q2) =>
-                      $q2->where('surname', 'like', '%' . $this->search . '%')
-                         ->orWhere('first_name', 'like', '%' . $this->search . '%')
-                  )
+                $q->where('surname', 'like', '%' . $this->search . '%')
+                  ->orWhere('first_name', 'like', '%' . $this->search . '%')
             );
         }
 
         return $query->get()
-            ->sortBy(fn ($e) => $e->competitor?->competitorProfile?->surname ?? $e->competitor?->name);
+            ->sortBy(fn ($e) => $e->competitor?->surname ?? '');
     }
 
     public function checkIn(int $enrolmentId): void

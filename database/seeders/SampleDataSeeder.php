@@ -43,7 +43,12 @@ class SampleDataSeeder extends Seeder
             $user->assignRole('user');
             CompetitorProfile::updateOrCreate(
                 ['user_id' => $user->id],
-                array_merge($c['profile'], ['profile_complete' => true])
+                array_merge($c['profile'], [
+                    'owner_user_id'    => $user->id,
+                    'profile_type'     => 'self',
+                    'is_active'        => true,
+                    'profile_complete' => true,
+                ])
             );
         }
 

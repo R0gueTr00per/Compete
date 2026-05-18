@@ -187,7 +187,7 @@ class LFPCompetitionSeeder extends Seeder
         $this->command->info('Created 7 competition events.');
 
         // 8. Divisions — created directly from PDF data, exact codes and structure
-        $sexMap = ['Mixed' => null, 'Female' => 'F', 'Male' => 'M'];
+        $sexMap = ['Mixed' => 'mixed', 'Female' => 'F', 'Male' => 'M'];
 
         // Rank label → rank band key (handles PDF variations like "5th–Black", "Black")
         $rankMap = [
@@ -217,7 +217,7 @@ class LFPCompetitionSeeder extends Seeder
                 'code'                 => $d['code'],
                 'age_band_id'          => $ab[$ageMap[$d['age']]]->id,
                 'rank_band_id'         => $rb[$rankMap[$d['rank']]]->id,
-                'sex'                  => null,
+                'sex'                  => 'mixed',
                 'running_order'        => $i + 1,
                 'status'               => 'pending',
             ]);
@@ -231,7 +231,7 @@ class LFPCompetitionSeeder extends Seeder
                 'code'                 => $d['code'],
                 'age_band_id'          => $ab[$ageMap[$d['age']]]->id,
                 'rank_band_id'         => $rb[$rankMap[$d['rank']]]->id,
-                'sex'                  => null,
+                'sex'                  => 'mixed',
                 'running_order'        => $i + 1,
                 'status'               => 'pending',
             ]);
@@ -245,7 +245,7 @@ class LFPCompetitionSeeder extends Seeder
                 'code'                 => $d['code'],
                 'age_band_id'          => $ab[$ageMap[$d['age']]]->id,
                 'rank_band_id'         => null,
-                'sex'                  => null,
+                'sex'                  => 'mixed',
                 'running_order'        => $i + 1,
                 'status'               => 'pending',
             ]);
@@ -257,8 +257,8 @@ class LFPCompetitionSeeder extends Seeder
         // SC01/SC02 have no standard age band — pass label explicitly (auto-gen skipped when all bands null)
         // SC03/SC04 have a band+sex set — label is auto-generated as "15+ Years / Female|Male"
         $scRows = [
-            ['SC01', 'Under 11 — Mixed',   null,                    null],
-            ['SC02', 'Under 15 — Mixed',   null,                    null],
+            ['SC01', 'Under 11 — Mixed',   null,                    'mixed'],
+            ['SC02', 'Under 15 — Mixed',   null,                    'mixed'],
             ['SC03', '15+ Years — Female', $ab['15+ Years']->id,    'F'],
             ['SC04', '15+ Years — Male',   $ab['15+ Years']->id,    'M'],
         ];

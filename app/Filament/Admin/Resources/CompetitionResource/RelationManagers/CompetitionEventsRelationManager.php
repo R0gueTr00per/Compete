@@ -111,6 +111,12 @@ class CompetitionEventsRelationManager extends RelationManager
                     ->numeric()
                     ->nullable()
                     ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n'),
+
+                Toggle::make('requires_partner')
+                    ->label('Requires partner')
+                    ->helperText('Competitors must nominate a partner when enrolling in this event.')
+                    ->columnSpanFull()
+                    ->inline(false),
             ]),
         ]);
     }

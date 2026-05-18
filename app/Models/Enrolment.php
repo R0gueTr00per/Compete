@@ -14,7 +14,7 @@ class Enrolment extends Model
 
     protected $fillable = [
         'competition_id',
-        'competitor_id',
+        'competitor_profile_id',
         'enrolled_at',
         'is_late',
         'status',
@@ -84,7 +84,7 @@ class Enrolment extends Model
 
     public function competitor(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'competitor_id');
+        return $this->belongsTo(CompetitorProfile::class, 'competitor_profile_id');
     }
 
     public function enrolmentEvents(): HasMany

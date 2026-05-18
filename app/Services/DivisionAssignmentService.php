@@ -338,7 +338,8 @@ class DivisionAssignmentService
     {
         $compEvent = $ee->competitionEvent;
         $filter    = $compEvent->effectiveDivisionFilter();
-        $profile   = $ee->enrolment->competitor->competitorProfile;
+        // competitor() now returns CompetitorProfile directly
+        $profile = $ee->enrolment->competitor;
 
         if (! $profile) {
             return null;

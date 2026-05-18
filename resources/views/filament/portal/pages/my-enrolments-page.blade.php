@@ -34,8 +34,9 @@
                         @php
                             $coCompetitors = $ee->division
                                 ? $ee->division->activeEnrolmentEvents
-                                    ->where('enrolment.competitor_id', '!=', auth()->id())
-                                    ->sortBy(fn ($other) => $other->enrolment->competitor?->competitorProfile?->surname)
+                                    ->filter(fn ($other) => $other->enrolment->competitor?->owner_user_id !== auth()->id()
+                                        && $other->enrolment->competitor?->user_id !== auth()->id())
+                                    ->sortBy(fn ($other) => $other->enrolment->competitor?->surname)
                                 : collect();
                         @endphp
                         <div class="py-3">
@@ -93,10 +94,7 @@
                                     <div class="flex flex-wrap gap-x-4 gap-y-0.5">
                                         @foreach ($coCompetitors as $other)
                                             @php
-                                                $op = $other->enrolment->competitor?->competitorProfile;
-                                                $otherName = $op
-                                                    ? "{$op->first_name} {$op->surname}"
-                                                    : ($other->enrolment->competitor?->name ?? '—');
+                                                $otherName = $other->enrolment->competitor?->full_name ?? '—';
                                                 $otherResult = $other->result;
                                             @endphp
                                             <span class="text-xs text-gray-500 dark:text-gray-400">

@@ -28,10 +28,12 @@ class EnrolmentConfirmedNotification extends Notification implements ShouldQueue
             ->map(fn ($ee) => $ee->competitionEvent->name)
             ->join(', ');
 
+        $profileName = $this->enrolment->competitor?->full_name ?? $notifiable->getFilamentName();
+
         $message = (new MailMessage)
             ->subject("Enrolment confirmed – {$competition->name}")
-            ->greeting("Hi {$notifiable->name},")
-            ->line("Your enrolment in **{$competition->name}** has been received.")
+            ->greeting("Hi {$notifiable->getFilamentName()},")
+            ->line("Enrolment for **{$profileName}** in **{$competition->name}** has been received.")
             ->line("**Events:** {$events}")
             ->line("**Fee:** \${$this->enrolment->fee_calculated}");
 

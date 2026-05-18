@@ -52,7 +52,7 @@ class CompetitionResultsPage extends Page
             ->with([
                 'divisions' => fn ($q) => $q->whereNotIn('status', ['combined']),
                 'divisions.enrolmentEvents' => fn ($q) => $q->where('removed', false),
-                'divisions.enrolmentEvents.enrolment.competitor.competitorProfile',
+                'divisions.enrolmentEvents.enrolment.competitor',
                 'divisions.enrolmentEvents.result',
             ])
             ->whereIn('status', ['running', 'complete'])

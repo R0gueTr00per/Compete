@@ -3,10 +3,10 @@
 namespace App\Services;
 
 use App\Models\Competition;
+use App\Models\CompetitorProfile;
 use App\Models\Division;
 use App\Models\Enrolment;
 use App\Models\EnrolmentEvent;
-use App\Models\User;
 use App\Notifications\EnrolmentConfirmedNotification;
 use App\Notifications\YakusukoPartnerEnrolledNotification;
 use Illuminate\Support\Facades\DB;
@@ -18,19 +18,14 @@ class EnrolmentService
     ) {}
 
     /**
-     * Enrol a competitor in a competition for one or more event type IDs.
+     * Enrol a competitor profile in a competition for one or more competition event IDs.
      * Returns the Enrolment record (new or existing).
-     */
-    /**
-     * @param  array<int,int>  $competitionEventIds  IDs of CompetitionEvents to add
-     * @param  array<int,int>  $selectedDivisions    Optional map of competition_event_id => division_id chosen by the competitor
-     */
-    /**
+     *
      * @param  array<int,int>   $competitionEventIds
      * @param  array<int,int>   $selectedDivisions    competition_event_id => division_id
      * @param  array            $entryDetails         rank/weight/dojo to store on the enrolment
      */
-    public function enrol(User $competitor, Competition $competition, array $competitionEventIds, array $selectedDivisions = [], array $entryDetails = []): Enrolment
+    public function enrol(CompetitorProfile $competitor, Competition $competition, array $competitionEventIds, array $selectedDivisions = [], array $entryDetails = []): Enrolment
     {
         return DB::transaction(function () use ($competitor, $competition, $competitionEventIds, $selectedDivisions, $entryDetails) {
             $isLate = $competition->isLateEnrolment();
@@ -39,7 +34,7 @@ class EnrolmentService
             $fillableDetails = array_filter($entryDetails, fn ($v) => $v !== null && $v !== '');
 
             $enrolment = Enrolment::firstOrNew(
-                ['competition_id' => $competition->id, 'competitor_id' => $competitor->id]
+                ['competition_id' => $competition->id, 'competitor_profile_id' => $competitor->id]
             );
 
             if (! $enrolment->exists) {
@@ -50,12 +45,10 @@ class EnrolmentService
             }
 
             foreach ($competitionEventIds as $eventId) {
-                // selectedDivisions[eventId] can be a single ID (legacy) or an array of IDs
                 $chosen = $selectedDivisions[$eventId] ?? null;
                 $divisionIds = $chosen ? array_filter((array) $chosen) : [];
 
                 if (empty($divisionIds)) {
-                    // No division pre-selected — create one EE and auto-assign
                     $alreadyBlank = $enrolment->enrolmentEvents()
                         ->where('competition_event_id', $eventId)
                         ->whereNull('division_id')
@@ -73,7 +66,6 @@ class EnrolmentService
                         }
                     }
                 } else {
-                    // Create one EE per selected division, skipping duplicates
                     foreach ($divisionIds as $divisionId) {
                         $division = Division::find($divisionId);
                         if (! $division || $division->competition_event_id !== (int) $eventId) {
@@ -97,14 +89,17 @@ class EnrolmentService
                 }
             }
 
-            // Recalculate fee based on total active events
             $totalEvents = $enrolment->activeEvents()->count();
             $enrolment->forceFill([
                 'fee_calculated' => $this->calculateFee($competition, $totalEvents, $enrolment->is_late),
                 'is_late'        => $isLate,
             ])->save();
 
-            $competitor->notify(new EnrolmentConfirmedNotification($enrolment));
+            // Notify the user responsible for this profile
+            $notifiable = $competitor->notifiableUser();
+            if ($notifiable) {
+                $notifiable->notify(new EnrolmentConfirmedNotification($enrolment));
+            }
 
             return $enrolment;
         });
@@ -112,7 +107,6 @@ class EnrolmentService
 
     /**
      * Link two EnrolmentEvents as Yakusuko partners.
-     * Sets yakusuko_complete = true on both once both sides are enrolled.
      */
     public function resolveYakusukoPartner(EnrolmentEvent $ee, EnrolmentEvent $partnerEe): void
     {
@@ -122,15 +116,14 @@ class EnrolmentService
         $ee->update(['yakusuko_complete' => true]);
         $partnerEe->update(['yakusuko_complete' => true]);
 
-        // Notify both competitors
         $ee->load(['enrolment.competitor', 'competitionEvent.competition']);
         $partnerEe->load(['enrolment.competitor', 'competitionEvent']);
 
         $competition = $ee->competitionEvent->competition;
         $event       = $ee->competitionEvent;
 
-        $eeUser      = $ee->enrolment->competitor;
-        $partnerUser = $partnerEe->enrolment->competitor;
+        $eeUser      = $ee->enrolment->competitor?->notifiableUser();
+        $partnerUser = $partnerEe->enrolment->competitor?->notifiableUser();
 
         if ($eeUser && $partnerUser) {
             $eeUser->notify(new YakusukoPartnerEnrolledNotification($competition, $event, $partnerUser));
@@ -141,7 +134,7 @@ class EnrolmentService
     /**
      * Remove a competitor from a specific event (soft-remove with reason).
      */
-    public function removeParticipant(EnrolmentEvent $ee, User $removedBy, string $reason): void
+    public function removeParticipant(EnrolmentEvent $ee, \App\Models\User $removedBy, string $reason): void
     {
         DB::transaction(function () use ($ee, $removedBy, $reason) {
             $ee->forceFill([

@@ -12,6 +12,11 @@ class EnrolmentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'enrolments';
 
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    {
+        return true;
+    }
+
     public function table(Table $table): Table
     {
         return $table
