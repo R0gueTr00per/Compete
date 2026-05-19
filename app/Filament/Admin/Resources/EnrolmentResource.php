@@ -95,6 +95,7 @@ class EnrolmentResource extends Resource
                 TextColumn::make('fee_calculated')
                     ->label('Fee')
                     ->money('AUD')
+                    ->description(fn (Enrolment $record) => $record->is_official_discount ? 'officials discount' : null)
                     ->sortable()
                     ->visibleFrom('sm'),
 

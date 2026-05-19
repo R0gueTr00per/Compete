@@ -213,7 +213,12 @@
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\" -File)",
       "Bash(php -r \"echo json_encode\\(json_decode\\(file_get_contents\\('php://stdin'\\)\\), JSON_PRETTY_PRINT\\);\")",
       "Bash(Remove-Item \"x:\\\\Repos\\\\Compete\\\\app\\\\Listeners\\\\ActivateUserOnPasswordReset.php\")",
-      "Bash(xargs grep -l \"official\\\\|Official\")"
+      "Bash(xargs grep -l \"official\\\\|Official\")",
+      "Bash(php -l app/Models/OfficialRole.php)",
+      "Bash(php -l app/Models/CompetitionOfficial.php)",
+      "Bash(php -l app/Models/Competition.php)",
+      "Bash(php -l app/Models/Enrolment.php)",
+      "Bash(php -l app/Services/EnrolmentService.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

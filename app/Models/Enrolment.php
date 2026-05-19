@@ -17,6 +17,7 @@ class Enrolment extends Model
         'competitor_profile_id',
         'enrolled_at',
         'is_late',
+        'is_official_discount',
         'status',
         'checked_in',
         'checked_in_at',
@@ -34,9 +35,10 @@ class Enrolment extends Model
     protected function casts(): array
     {
         return [
-            'enrolled_at'    => 'datetime',
-            'is_late'        => 'boolean',
-            'fee_calculated' => 'decimal:2',
+            'enrolled_at'          => 'datetime',
+            'is_late'              => 'boolean',
+            'is_official_discount' => 'boolean',
+            'fee_calculated'       => 'decimal:2',
             'payment_amount' => 'decimal:2',
             'checked_in'     => 'boolean',
             'checked_in_at'  => 'datetime',

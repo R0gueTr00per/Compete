@@ -29,7 +29,9 @@ class EnrolmentService
     {
         return DB::transaction(function () use ($competitor, $competition, $competitionEventIds, $selectedDivisions, $entryDetails, $notify) {
             $isLate = $competition->isLateEnrolment();
-            $fee = $this->calculateFee($competition, count($competitionEventIds), $isLate);
+            $competitorUser = $competitor->notifiableUser();
+            $isOfficial = $competitorUser && $competition->isOfficial($competitorUser);
+            $fee = $this->calculateFee($competition, count($competitionEventIds), $isLate, $isOfficial);
 
             $fillableDetails = array_filter($entryDetails, fn ($v) => $v !== null && $v !== '');
 
@@ -38,7 +40,7 @@ class EnrolmentService
             );
 
             if (! $enrolment->exists) {
-                $enrolment->fill(array_merge(['enrolled_at' => now(), 'is_late' => $isLate, 'status' => 'pending'], $fillableDetails));
+                $enrolment->fill(array_merge(['enrolled_at' => now(), 'is_late' => $isLate, 'is_official_discount' => $isOfficial, 'status' => 'pending'], $fillableDetails));
                 $enrolment->forceFill(['fee_calculated' => $fee])->save();
             } elseif (! empty($fillableDetails)) {
                 $enrolment->fill($fillableDetails)->save();
@@ -91,8 +93,9 @@ class EnrolmentService
 
             $totalEvents = $enrolment->activeEvents()->count();
             $enrolment->forceFill([
-                'fee_calculated' => $this->calculateFee($competition, $totalEvents, $enrolment->is_late),
-                'is_late'        => $isLate,
+                'fee_calculated'       => $this->calculateFee($competition, $totalEvents, $enrolment->is_late, $isOfficial),
+                'is_late'              => $isLate,
+                'is_official_discount' => $isOfficial,
             ])->save();
 
             if ($notify) {
@@ -151,7 +154,8 @@ class EnrolmentService
                 'fee_calculated' => $this->calculateFee(
                     $enrolment->competition,
                     $totalEvents,
-                    $enrolment->is_late
+                    $enrolment->is_late,
+                    $enrolment->is_official_discount,
                 ),
             ])->save();
         });
@@ -176,20 +180,30 @@ class EnrolmentService
                 'fee_calculated' => $this->calculateFee(
                     $enrolment->competition,
                     $totalEvents,
-                    $enrolment->is_late
+                    $enrolment->is_late,
+                    $enrolment->is_official_discount,
                 ),
             ])->save();
         });
     }
 
-    public function calculateFee(Competition $competition, int $eventCount, bool $isLate): float
+    public function calculateFee(Competition $competition, int $eventCount, bool $isLate, bool $isOfficial = false): float
     {
         if ($eventCount <= 0) {
             return 0.0;
         }
 
-        $fee = $competition->fee_first_event
-            + ($eventCount - 1) * $competition->fee_additional_event;
+        $useOfficialFees = $isOfficial
+            && $competition->fee_official_first_event !== null
+            && $competition->fee_official_additional_event !== null;
+
+        if ($useOfficialFees) {
+            $fee = $competition->fee_official_first_event
+                + ($eventCount - 1) * $competition->fee_official_additional_event;
+        } else {
+            $fee = $competition->fee_first_event
+                + ($eventCount - 1) * $competition->fee_additional_event;
+        }
 
         if ($isLate) {
             $fee += $competition->late_surcharge;

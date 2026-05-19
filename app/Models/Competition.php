@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Division;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,6 +28,8 @@ class Competition extends Model
         'fee_first_event',
         'fee_additional_event',
         'late_surcharge',
+        'fee_official_first_event',
+        'fee_official_additional_event',
         'status',
         'copied_from_id',
     ];
@@ -36,9 +39,11 @@ class Competition extends Model
         return [
             'competition_date'     => 'date',
             'enrolment_due_date'   => 'date',
-            'fee_first_event'      => 'decimal:2',
-            'fee_additional_event' => 'decimal:2',
-            'late_surcharge'       => 'decimal:2',
+            'fee_first_event'               => 'decimal:2',
+            'fee_additional_event'          => 'decimal:2',
+            'late_surcharge'                => 'decimal:2',
+            'fee_official_first_event'      => 'decimal:2',
+            'fee_official_additional_event' => 'decimal:2',
         ];
     }
 
@@ -82,6 +87,16 @@ class Competition extends Model
     public function weightClasses(): HasMany
     {
         return $this->hasMany(WeightClass::class)->orderBy('sort_order');
+    }
+
+    public function officials(): HasMany
+    {
+        return $this->hasMany(CompetitionOfficial::class);
+    }
+
+    public function isOfficial(User $user): bool
+    {
+        return $this->officials()->where('user_id', $user->id)->exists();
     }
 
     public function enrolments(): HasMany

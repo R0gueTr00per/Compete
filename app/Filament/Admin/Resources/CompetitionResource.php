@@ -118,6 +118,23 @@ class CompetitionResource extends Resource
                         ->prefix('$'),
                 ]),
 
+            Section::make('Official Fees')
+                ->columns(3)
+                ->schema([
+                    TextInput::make('fee_official_first_event')
+                        ->label('First event fee ($)')
+                        ->numeric()
+                        ->nullable()
+                        ->prefix('$')
+                        ->helperText('Leave blank to use standard fees for officials.'),
+
+                    TextInput::make('fee_official_additional_event')
+                        ->label('Additional event fee ($)')
+                        ->numeric()
+                        ->nullable()
+                        ->prefix('$'),
+                ]),
+
             Section::make('Structure')
                 ->visibleOn('create')
                 ->schema([
@@ -412,7 +429,9 @@ class CompetitionResource extends Resource
 
     public static function getRelationManagers(): array
     {
-        return [];
+        return [
+            RelationManagers\OfficialsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
