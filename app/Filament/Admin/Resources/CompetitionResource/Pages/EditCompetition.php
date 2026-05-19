@@ -46,6 +46,12 @@ class EditCompetition extends EditRecord
                 ->color('warning')
                 ->url(fn () => CompetitionResource::getUrl('schedule', ['record' => $this->record])),
 
+            Action::make('officials')
+                ->label('Officials')
+                ->icon('heroicon-o-identification')
+                ->color('info')
+                ->url(fn () => CompetitionResource::getUrl('officials', ['record' => $this->record])),
+
             Action::make('downloadPdf')
                 ->label('Download results PDF')
                 ->icon('heroicon-o-document-arrow-down')

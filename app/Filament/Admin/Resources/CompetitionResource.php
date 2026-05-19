@@ -211,6 +211,11 @@ class CompetitionResource extends Resource
                         ->icon('heroicon-o-calendar-days')
                         ->color('warning')
                         ->url(fn (Competition $record) => static::getUrl('schedule', ['record' => $record])),
+                    Action::make('officials')
+                        ->label('Officials')
+                        ->icon('heroicon-o-identification')
+                        ->color('info')
+                        ->url(fn (Competition $record) => static::getUrl('officials', ['record' => $record])),
                     Action::make('enrolments')
                         ->label('Enrolments')
                         ->icon('heroicon-o-clipboard-document-list')
@@ -440,9 +445,10 @@ class CompetitionResource extends Resource
             'index'    => Pages\ListCompetitions::route('/'),
             'create'   => Pages\CreateCompetition::route('/create'),
             'edit'     => Pages\EditCompetition::route('/{record}/edit'),
-            'config'   => Pages\ManageCompetitionConfig::route('/{record}/config'),
-            'events'   => Pages\ManageCompetitionEvents::route('/{record}/events'),
-            'schedule' => Pages\ManageCompetitionSchedule::route('/{record}/schedule'),
+            'config'    => Pages\ManageCompetitionConfig::route('/{record}/config'),
+            'events'    => Pages\ManageCompetitionEvents::route('/{record}/events'),
+            'schedule'  => Pages\ManageCompetitionSchedule::route('/{record}/schedule'),
+            'officials' => Pages\ManageCompetitionOfficials::route('/{record}/officials'),
         ];
     }
 }
