@@ -74,6 +74,7 @@ class ManageCompetitionOfficials extends Page
                         ->label('Role')
                         ->required()
                         ->options(OfficialRole::orderBy('name')->pluck('name', 'id')->toArray())
+                        ->getOptionLabelUsing(fn ($value) => OfficialRole::find($value)?->name)
                         ->createOptionForm([
                             TextInput::make('name')
                                 ->label('Role name')
