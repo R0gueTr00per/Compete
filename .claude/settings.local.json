@@ -234,7 +234,8 @@
       "Bash(python -c ' *)",
       "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 40)",
       "Bash(php x:\\\\Repos\\\\Compete\\\\artisan --version)",
-      "PowerShell(php \"x:\\\\Repos\\\\Compete\\\\artisan\" --version)"
+      "PowerShell(php \"x:\\\\Repos\\\\Compete\\\\artisan\" --version)",
+      "PowerShell(head -30)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

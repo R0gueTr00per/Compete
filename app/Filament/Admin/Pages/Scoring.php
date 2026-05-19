@@ -222,6 +222,9 @@ class Scoring extends Page
         // Same division clicked — toggle the panel open/closed (state preserved either way).
         if ($this->division_id === $divisionId) {
             $this->panelOpen = ! $this->panelOpen;
+            if ($this->panelOpen) {
+                $this->dispatch('scroll-to-division', divisionId: $divisionId);
+            }
             return;
         }
 
@@ -229,6 +232,7 @@ class Scoring extends Page
         $this->clearScoringMemory();
         $this->division_id   = $divisionId;
         $this->panelOpen     = true;
+        $this->dispatch('scroll-to-division', divisionId: $divisionId);
         $this->bracketExists = RoundRobinMatch::where('division_id', $divisionId)->exists();
 
         $division = Division::find($divisionId);

@@ -42,7 +42,12 @@
         <p class="text-center text-gray-400 py-12">No divisions assigned to {{ $this->filter_location }}.</p>
     @else
         {{-- Division list --}}
-        <div class="space-y-1 mb-4">
+        <div class="space-y-1 mb-4"
+            x-on:scroll-to-division.window="
+                let el = document.getElementById('division-row-' + $event.detail.divisionId);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            "
+        >
             @foreach ($divisionList as $item)
                 @php
                     $div      = $item->division;
@@ -60,6 +65,7 @@
                             : 'text-gray-900 dark:text-white');
                 @endphp
                 <div
+                    id="division-row-{{ $div->id }}"
                     wire:key="division-{{ $div->id }}"
                     wire:click="selectDivision({{ $div->id }})"
                     class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
