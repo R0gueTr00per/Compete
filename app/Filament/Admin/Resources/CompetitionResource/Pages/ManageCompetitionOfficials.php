@@ -8,6 +8,7 @@ use App\Models\OfficialRole;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
@@ -58,17 +59,31 @@ class ManageCompetitionOfficials extends Page
                         ->label('User')
                         ->required()
                         ->searchable()
-                        ->options(
-                            User::whereHas('ownedProfiles')
+                        ->options(function () {
+                            $assigned = CompetitionOfficial::where('competition_id', $this->getRecord()->id)
+                                ->pluck('user_id');
+
+                            return User::whereHas('ownedProfiles')
+                                ->whereNotIn('id', $assigned)
                                 ->get()
                                 ->mapWithKeys(fn (User $u) => [$u->id => $u->getFilamentName()])
-                                ->toArray()
-                        ),
+                                ->toArray();
+                        }),
 
                     Select::make('official_role_id')
                         ->label('Role')
                         ->required()
-                        ->options(OfficialRole::orderBy('name')->pluck('name', 'id')->toArray()),
+                        ->options(OfficialRole::orderBy('name')->pluck('name', 'id')->toArray())
+                        ->createOptionForm([
+                            TextInput::make('name')
+                                ->label('Role name')
+                                ->required()
+                                ->maxLength(100)
+                                ->unique(OfficialRole::class, 'name'),
+                        ])
+                        ->createOptionUsing(function (array $data): int {
+                            return OfficialRole::create(['name' => $data['name']])->id;
+                        }),
 
                     Select::make('competition_location_id')
                         ->label('Location')

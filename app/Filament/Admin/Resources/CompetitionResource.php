@@ -434,9 +434,7 @@ class CompetitionResource extends Resource
 
     public static function getRelationManagers(): array
     {
-        return [
-            RelationManagers\OfficialsRelationManager::class,
-        ];
+        return [];
     }
 
     public static function getPages(): array
