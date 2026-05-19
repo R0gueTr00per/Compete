@@ -21,7 +21,7 @@ class Login extends BaseLogin
         if (request()->query('registered')) {
             Notification::make()
                 ->title('Registration submitted')
-                ->body('Your account is awaiting admin approval. You will receive an email once access is granted.')
+                ->body('A verification email has been sent to your address. Once verified, your account will be reviewed and you will be notified when access is granted.')
                 ->info()
                 ->persistent()
                 ->send();
