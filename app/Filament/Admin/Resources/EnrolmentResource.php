@@ -332,6 +332,30 @@ class EnrolmentResource extends Resource
                         ->visible(fn (Enrolment $record) => $record->enrolmentEvents()
                             ->where('removed', true)->exists()),
 
+                    Action::make('toggleOfficialDiscount')
+                        ->label(fn (Enrolment $record) => $record->is_official_discount
+                            ? 'Remove official discount'
+                            : 'Apply official discount')
+                        ->icon('heroicon-o-identification')
+                        ->color(fn (Enrolment $record) => $record->is_official_discount ? 'warning' : 'success')
+                        ->requiresConfirmation()
+                        ->action(function (Enrolment $record) {
+                            $newValue = ! $record->is_official_discount;
+                            $record->forceFill([
+                                'is_official_discount' => $newValue,
+                                'fee_calculated'       => app(EnrolmentService::class)->calculateFee(
+                                    $record->competition,
+                                    $record->activeEvents()->count(),
+                                    $record->is_late,
+                                    $newValue,
+                                ),
+                            ])->save();
+                            Notification::make()
+                                ->title($newValue ? 'Official discount applied.' : 'Official discount removed.')
+                                ->success()
+                                ->send();
+                        }),
+
                     Action::make('recordPayment')
                         ->label('Record payment')
                         ->icon('heroicon-o-banknotes')

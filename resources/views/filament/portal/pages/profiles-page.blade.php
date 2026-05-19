@@ -21,6 +21,26 @@
             </x-filament-panels::form>
         </x-filament::section>
 
+    {{-- Delete confirmation --}}
+    @elseif ($this->deleting_profile_id)
+        @php $deletingProfile = $profiles->find($this->deleting_profile_id); @endphp
+        <x-filament::section>
+            <x-slot name="heading">Delete "{{ $deletingProfile?->full_name }}"?</x-slot>
+
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                This will permanently delete the profile and cannot be undone.
+            </p>
+
+            <div class="flex items-center gap-3">
+                <x-filament::button color="danger" wire:click="confirmDelete">
+                    Delete profile
+                </x-filament::button>
+                <x-filament::button color="gray" wire:click="cancelEdit">
+                    Cancel
+                </x-filament::button>
+            </div>
+        </x-filament::section>
+
     {{-- Create / edit form --}}
     @elseif ($this->editing !== null)
         <x-filament::section>
@@ -78,6 +98,11 @@
                         @if ($profile->profile_type === 'child' && ! $profile->hasDedicatedAccount())
                             <x-filament::button size="xs" color="primary" wire:click="startGraduate({{ $profile->id }})">
                                 Move to own account
+                            </x-filament::button>
+                        @endif
+                        @if ($profile->profile_type === 'child')
+                            <x-filament::button size="xs" color="danger" wire:click="startDelete({{ $profile->id }})">
+                                Delete
                             </x-filament::button>
                         @endif
                     </div>

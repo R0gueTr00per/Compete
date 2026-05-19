@@ -8,6 +8,7 @@ use App\Models\Division;
 use App\Models\Dojo;
 use App\Models\User;
 use App\Notifications\AdminCreatedAccountNotification;
+use App\Notifications\AdminCreatedParentAccountNotification;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
 use Filament\Forms\Components\CheckboxList;
@@ -46,9 +47,11 @@ class CreateAdminEnrolment extends Page implements HasForms
     public ?int    $competition_id       = null;
     public ?int    $competitor_profile_id = null;
     public bool    $create_new_user      = false;
+    public bool    $is_child_profile     = false;
     public ?string $new_surname          = null;
     public ?string $new_first_name       = null;
     public ?string $new_email            = null;
+    public ?string $new_parent_email     = null;
     public ?string $new_dob              = null;
     public ?string $new_gender           = null;
     public ?string $dojo_type            = null;
@@ -107,7 +110,9 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->live()
                         ->afterStateUpdated(function () {
                             $this->competitor_profile_id = null;
+                            $this->is_child_profile      = false;
                             $this->new_email             = null;
+                            $this->new_parent_email      = null;
                             $this->new_surname           = $this->new_first_name = null;
                             $this->new_dob               = $this->new_gender = null;
                             $this->details_confirmed     = false;
@@ -144,6 +149,16 @@ class CreateAdminEnrolment extends Page implements HasForms
                 ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
+                    Toggle::make('is_child_profile')
+                        ->label('This is a child profile (requires parent login account)')
+                        ->live()
+                        ->afterStateUpdated(function () {
+                            $this->new_email        = null;
+                            $this->new_parent_email = null;
+                            $this->details_confirmed = false;
+                        })
+                        ->columnSpanFull(),
+
                     TextInput::make('new_first_name')
                         ->label('First name')
                         ->required()
@@ -160,7 +175,33 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->required()
                         ->maxLength(255)
                         ->unique('users', 'email')
-                        ->validationMessages(['unique' => 'A competitor already exists with this email.']),
+                        ->validationMessages(['unique' => 'A competitor already exists with this email.'])
+                        ->visible(fn () => ! $this->is_child_profile),
+
+                    TextInput::make('new_parent_email')
+                        ->label('Parent / Guardian email')
+                        ->email()
+                        ->required()
+                        ->maxLength(255)
+                        ->live(debounce: 500)
+                        ->hint(function () {
+                            if (! $this->new_parent_email || ! filter_var($this->new_parent_email, FILTER_VALIDATE_EMAIL)) {
+                                return null;
+                            }
+                            $user = User::where('email', $this->new_parent_email)->first();
+                            if ($user) {
+                                $name = $user->selfProfile?->full_name ?? $user->email;
+                                return "Existing account found — {$name}";
+                            }
+                            return 'No account found — a new account will be created';
+                        })
+                        ->hintColor(function () {
+                            if (! $this->new_parent_email || ! filter_var($this->new_parent_email, FILTER_VALIDATE_EMAIL)) {
+                                return null;
+                            }
+                            return User::where('email', $this->new_parent_email)->exists() ? 'success' : 'warning';
+                        })
+                        ->visible(fn () => $this->is_child_profile),
 
                     Radio::make('new_gender')
                         ->label('Gender')
@@ -171,12 +212,12 @@ class CreateAdminEnrolment extends Page implements HasForms
                     DatePicker::make('new_dob')
                         ->label('Date of birth')
                         ->required()
-                        ->maxDate(now()->subYears(5)),
+                        ->maxDate(now()->subYears(4)),
                 ]),
 
             Section::make('Competition entry details')
                 ->description('Rank, weight, and dojo for this competition.')
-                ->visible(fn () => $this->competition_id && ($this->competitor_profile_id || ($this->create_new_user && $this->new_email && ! $this->getErrorBag()->has('new_email'))))
+                ->visible(fn () => $this->competition_id && ($this->competitor_profile_id || ($this->create_new_user && $this->newCompetitorReady())))
                 ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
@@ -408,6 +449,17 @@ class CreateAdminEnrolment extends Page implements HasForms
         return implode("\n\n", $lines);
     }
 
+    private function newCompetitorReady(): bool
+    {
+        if (! $this->new_surname || ! $this->new_first_name || ! $this->new_dob || ! $this->new_gender) {
+            return false;
+        }
+        if ($this->is_child_profile) {
+            return (bool) $this->new_parent_email;
+        }
+        return (bool) ($this->new_email && ! $this->getErrorBag()->has('new_email'));
+    }
+
     public function isReadyToSubmit(): bool
     {
         if (! $this->details_confirmed) return false;
@@ -416,7 +468,7 @@ class CreateAdminEnrolment extends Page implements HasForms
         if ($this->rank_type === 'dan' && ! $this->rank_dan) return false;
         if (empty($this->selected_entries)) return false;
         if ($this->create_new_user) {
-            return (bool) ($this->new_email && $this->new_surname && $this->new_first_name && $this->new_dob && $this->new_gender);
+            return $this->newCompetitorReady();
         }
         return (bool) $this->competitor_profile_id;
     }
@@ -431,11 +483,19 @@ class CreateAdminEnrolment extends Page implements HasForms
             Notification::make()->title('Select or create a competitor to continue.')->info()->send();
             return;
         }
-        if ($this->create_new_user && (! $this->new_email || ! $this->new_surname || ! $this->new_first_name || ! $this->new_dob || ! $this->new_gender)) {
+        if ($this->create_new_user && (! $this->new_surname || ! $this->new_first_name || ! $this->new_dob || ! $this->new_gender)) {
             Notification::make()->title('Complete the new competitor details to continue.')->info()->send();
             return;
         }
-        if ($this->create_new_user && $this->new_email && User::where('email', $this->new_email)->exists()) {
+        if ($this->create_new_user && $this->is_child_profile && ! $this->new_parent_email) {
+            Notification::make()->title('Enter the parent / guardian email to continue.')->info()->send();
+            return;
+        }
+        if ($this->create_new_user && ! $this->is_child_profile && ! $this->new_email) {
+            Notification::make()->title('Complete the new competitor details to continue.')->info()->send();
+            return;
+        }
+        if ($this->create_new_user && ! $this->is_child_profile && $this->new_email && User::where('email', $this->new_email)->exists()) {
             $this->addError('new_email', 'A user with that email already exists. Select them from the existing competitor list.');
             return;
         }
@@ -483,36 +543,76 @@ class CreateAdminEnrolment extends Page implements HasForms
             return;
         }
 
+        $newAdultUser  = null;
+        $newParentUser = null;
+
         if ($this->create_new_user) {
-            if (! $this->new_email || ! $this->new_surname || ! $this->new_first_name || ! $this->new_dob || ! $this->new_gender) {
+            if (! $this->new_surname || ! $this->new_first_name || ! $this->new_dob || ! $this->new_gender) {
                 Notification::make()->title('Please fill in all new competitor details.')->warning()->send();
                 return;
             }
 
-            if (User::where('email', $this->new_email)->exists()) {
-                Notification::make()->title('A user with that email already exists. Select them from the existing competitor list.')->warning()->send();
-                return;
+            if ($this->is_child_profile) {
+                if (! $this->new_parent_email) {
+                    Notification::make()->title('Please enter the parent / guardian email.')->warning()->send();
+                    return;
+                }
+
+                $parentUser = User::where('email', $this->new_parent_email)->first();
+
+                if (! $parentUser) {
+                    $parentUser = User::create([
+                        'email'    => $this->new_parent_email,
+                        'password' => Hash::make(Str::random(32)),
+                        'status'   => 'active',
+                    ]);
+                    $parentUser->forceFill(['email_verified_at' => now()])->save();
+                    $parentUser->assignRole('user');
+                    $newParentUser = $parentUser;
+                }
+
+                $newProfile = CompetitorProfile::create([
+                    'owner_user_id'    => $parentUser->id,
+                    'user_id'          => null,
+                    'profile_type'     => 'child',
+                    'surname'          => $this->new_surname,
+                    'first_name'       => $this->new_first_name,
+                    'date_of_birth'    => $this->new_dob,
+                    'gender'           => $this->new_gender,
+                    'is_active'        => true,
+                    'profile_complete' => true,
+                ]);
+            } else {
+                if (! $this->new_email) {
+                    Notification::make()->title('Please fill in all new competitor details.')->warning()->send();
+                    return;
+                }
+
+                if (User::where('email', $this->new_email)->exists()) {
+                    Notification::make()->title('A user with that email already exists. Select them from the existing competitor list.')->warning()->send();
+                    return;
+                }
+
+                $newAdultUser = User::create([
+                    'email'    => $this->new_email,
+                    'password' => Hash::make(Str::random(32)),
+                    'status'   => 'active',
+                ]);
+                $newAdultUser->forceFill(['email_verified_at' => now()])->save();
+                $newAdultUser->assignRole('user');
+
+                $newProfile = CompetitorProfile::create([
+                    'owner_user_id'    => $newAdultUser->id,
+                    'user_id'          => $newAdultUser->id,
+                    'profile_type'     => 'self',
+                    'surname'          => $this->new_surname,
+                    'first_name'       => $this->new_first_name,
+                    'date_of_birth'    => $this->new_dob,
+                    'gender'           => $this->new_gender,
+                    'is_active'        => true,
+                    'profile_complete' => true,
+                ]);
             }
-
-            $newUser = User::create([
-                'email'    => $this->new_email,
-                'password' => Hash::make(Str::random(32)),
-                'status'   => 'active',
-            ]);
-            $newUser->forceFill(['email_verified_at' => now()])->save();
-            $newUser->assignRole('user');
-
-            $newProfile = CompetitorProfile::create([
-                'owner_user_id'    => $newUser->id,
-                'user_id'          => $newUser->id,
-                'profile_type'     => 'self',
-                'surname'          => $this->new_surname,
-                'first_name'       => $this->new_first_name,
-                'date_of_birth'    => $this->new_dob,
-                'gender'           => $this->new_gender,
-                'is_active'        => true,
-                'profile_complete' => true,
-            ]);
 
             $this->competitor_profile_id = $newProfile->id;
         }
@@ -558,24 +658,30 @@ class CreateAdminEnrolment extends Page implements HasForms
             'weight_kg'         => $this->weight_kg,
         ];
 
+        $suppressServiceNotification = $newAdultUser !== null || $newParentUser !== null;
+
         $enrolment = app(EnrolmentService::class)->enrol(
             $profile,
             $competition,
             $competitionEventIds,
             $divisionsByEvent,
             $entryDetails,
-            notify: ! isset($newUser),
+            notify: ! $suppressServiceNotification,
         );
 
-        if (isset($newUser)) {
-            $resetToken = Password::broker()->createToken($newUser);
-            $newUser->notify(new AdminCreatedAccountNotification($enrolment, $resetToken));
+        if ($newAdultUser !== null) {
+            $resetToken = Password::broker()->createToken($newAdultUser);
+            $newAdultUser->notify(new AdminCreatedAccountNotification($enrolment, $resetToken));
+        } elseif ($newParentUser !== null) {
+            $resetToken = Password::broker()->createToken($newParentUser);
+            $newParentUser->notify(new AdminCreatedParentAccountNotification($enrolment, $resetToken));
         }
 
         Notification::make()->title('Enrolment created successfully.')->success()->send();
 
         $this->reset(['selected_entries', 'details_confirmed', 'competitor_profile_id',
-            'create_new_user', 'new_email', 'new_surname', 'new_first_name', 'new_dob', 'new_gender',
+            'create_new_user', 'is_child_profile', 'new_email', 'new_parent_email',
+            'new_surname', 'new_first_name', 'new_dob', 'new_gender',
             'dojo_type', 'dojo_name', 'guest_style', 'rank_type', 'rank_kyu', 'rank_dan',
             'experience_years', 'experience_months', 'weight_kg']);
     }

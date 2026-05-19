@@ -29,8 +29,8 @@ class EnrolmentService
     {
         return DB::transaction(function () use ($competitor, $competition, $competitionEventIds, $selectedDivisions, $entryDetails, $notify) {
             $isLate = $competition->isLateEnrolment();
-            $competitorUser = $competitor->notifiableUser();
-            $isOfficial = $competitorUser && $competition->isOfficial($competitorUser);
+            $ownAccount = $competitor->account;
+            $isOfficial = $ownAccount && $competition->isOfficial($ownAccount);
             $fee = $this->calculateFee($competition, count($competitionEventIds), $isLate, $isOfficial);
 
             $fillableDetails = array_filter($entryDetails, fn ($v) => $v !== null && $v !== '');

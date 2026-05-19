@@ -38,6 +38,9 @@ class ProfilesPage extends Page implements HasForms
     public ?int    $graduating_profile_id = null;
     public ?array  $graduateData          = [];
 
+    // Delete confirmation state
+    public ?int $deleting_profile_id = null;
+
     public ?array $data = [];
 
     public function mount(): void
@@ -138,8 +141,9 @@ class ProfilesPage extends Page implements HasForms
 
     public function cancelEdit(): void
     {
-        $this->editing = null;
+        $this->editing               = null;
         $this->graduating_profile_id = null;
+        $this->deleting_profile_id   = null;
     }
 
     public function saveProfile(): void
@@ -192,6 +196,45 @@ class ProfilesPage extends Page implements HasForms
 
         $label = $profile->is_active ? 'activated' : 'deactivated';
         Notification::make()->title("Profile {$label}.")->success()->send();
+    }
+
+    public function startDelete(int $profileId): void
+    {
+        $profile = $this->authoriseProfile($profileId);
+        if (! $profile) {
+            return;
+        }
+
+        if ($profile->enrolments()->exists()) {
+            Notification::make()
+                ->title('This profile cannot be deleted because it has competition enrolments on record.')
+                ->warning()
+                ->send();
+            return;
+        }
+
+        $this->deleting_profile_id = $profileId;
+    }
+
+    public function confirmDelete(): void
+    {
+        $profile = $this->authoriseProfile($this->deleting_profile_id);
+        if (! $profile) {
+            return;
+        }
+
+        if ($profile->enrolments()->exists()) {
+            Notification::make()
+                ->title('This profile cannot be deleted because it has competition enrolments on record.')
+                ->warning()
+                ->send();
+            $this->deleting_profile_id = null;
+            return;
+        }
+
+        $profile->delete();
+        $this->deleting_profile_id = null;
+        Notification::make()->title('Profile deleted.')->success()->send();
     }
 
     public function deactivateProfileAction(): Action
