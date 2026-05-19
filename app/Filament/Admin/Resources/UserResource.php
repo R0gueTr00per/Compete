@@ -60,25 +60,8 @@ class UserResource extends Resource
                             'inactive' => 'Inactive',
                         ])
                         ->required()
-                        ->default('active'),
-                ]),
-
-            Section::make('Password')
-                ->hiddenOn('edit')
-                ->schema([
-                    TextInput::make('password')
-                        ->password()
-                        ->required()
-                        ->minLength(8)
-                        ->confirmed()
-                        ->dehydrated(fn ($state) => filled($state))
-                        ->dehydrateStateUsing(fn ($state) => Hash::make($state)),
-
-                    TextInput::make('password_confirmation')
-                        ->password()
-                        ->required()
-                        ->label('Confirm password')
-                        ->dehydrated(false),
+                        ->default('pending')
+                        ->hiddenOn('create'),
                 ]),
 
             Section::make('Role')
