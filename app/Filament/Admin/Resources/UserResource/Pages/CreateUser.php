@@ -4,8 +4,11 @@ namespace App\Filament\Admin\Resources\UserResource\Pages;
 
 use App\Filament\Admin\Resources\UserResource;
 use App\Notifications\AccountCreatedNotification;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 
 class CreateUser extends CreateRecord
 {
@@ -13,11 +16,18 @@ class CreateUser extends CreateRecord
 
     private string $role = 'user';
 
+    protected function getCreatedNotification(): ?\Filament\Notifications\Notification
+    {
+        return null;
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $this->role = $data['role'] ?? 'user';
         unset($data['role']);
-        $data['status'] = 'pending';
+        $data['status']             = 'active';
+        $data['email_verified_at'] = Carbon::now();
+        $data['password']          = Str::random(64);
         return $data;
     }
 
@@ -27,10 +37,16 @@ class CreateUser extends CreateRecord
 
         $token = Password::broker()->createToken($this->record);
         $this->record->notify(new AccountCreatedNotification($token));
+
+        Notification::make()
+            ->title('User created')
+            ->body("An account setup email has been sent to {$this->record->email}.")
+            ->success()
+            ->send();
     }
 
     protected function getRedirectUrl(): string
     {
-        return $this->getResource()::getUrl('edit', ['record' => $this->record]);
+        return $this->getResource()::getUrl('index');
     }
 }

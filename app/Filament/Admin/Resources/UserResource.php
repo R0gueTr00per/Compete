@@ -315,7 +315,7 @@ class UserResource extends Resource
                         ->color('gray')
                         ->requiresConfirmation()
                         ->modalDescription('A new account setup link will be emailed to this user.')
-                        ->visible(fn (User $record) => (bool) $record->email_verified_at && auth()->user()?->hasRole('system_admin'))
+                        ->visible(fn () => auth()->user()?->hasRole('system_admin'))
                         ->action(function (User $record) {
                             $token = Password::broker()->createToken($record);
                             $record->notify(new AccountCreatedNotification($token));

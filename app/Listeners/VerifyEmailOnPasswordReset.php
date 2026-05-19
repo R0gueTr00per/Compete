@@ -4,14 +4,14 @@ namespace App\Listeners;
 
 use Illuminate\Auth\Events\PasswordReset;
 
-class ActivateUserOnPasswordReset
+class VerifyEmailOnPasswordReset
 {
     public function handle(PasswordReset $event): void
     {
         $user = $event->user;
 
-        if ($user->status === 'pending') {
-            $user->forceFill(['status' => 'active'])->save();
+        if (! $user->email_verified_at) {
+            $user->forceFill(['email_verified_at' => now()])->save();
         }
     }
 }
