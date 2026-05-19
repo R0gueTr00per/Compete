@@ -30,9 +30,8 @@ class PortalPanelProvider extends PanelProvider
             ->registration(\App\Filament\Portal\Pages\Auth\Register::class)
             ->passwordReset(resetAction: \App\Filament\Portal\Pages\Auth\PasswordReset::class)
             ->brandName('Compete')
-            ->brandLogo(asset('images/logo-light.svg'))
-            ->darkModeBrandLogo(asset('images/logo-dark.svg'))
-            ->brandLogoHeight('2.5rem')
+            ->brandLogo(fn () => new \Illuminate\Support\HtmlString(view('filament.brand-logo')->render()))
+            ->brandLogoHeight('3.5rem')
             ->colors([
                 'primary' => Color::Blue,
             ])

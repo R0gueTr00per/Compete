@@ -28,9 +28,8 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->brandName('Compete')
-            ->brandLogo(asset('images/logo-light.svg'))
-            ->darkModeBrandLogo(asset('images/logo-dark.svg'))
-            ->brandLogoHeight('2.5rem')
+            ->brandLogo(fn () => new \Illuminate\Support\HtmlString(view('filament.brand-logo')->render()))
+            ->brandLogoHeight('3.5rem')
             ->colors([
                 'primary' => Color::Orange,
             ])

@@ -224,7 +224,17 @@
       "Bash(php -l \"app/Filament/Admin/Resources/CompetitionResource/Pages/EditCompetition.php\")",
       "Bash(findstr officials *)",
       "Bash(Select-String officials *)",
-      "Bash(php -l \"app/Models/CompetitionEvent.php\")"
+      "Bash(php -l \"app/Models/CompetitionEvent.php\")",
+      "PowerShell(Rename-Item \"x:\\\\Repos\\\\Compete\\\\public\\\\images\\\\Gemini_Generated_Image_2pjf9e2pjf9e2pjf.png\" \"logo.png\")",
+      "Bash(magick --version)",
+      "Bash(convert --version)",
+      "Bash(php -r \"echo extension_loaded\\('gd'\\) ? 'GD available' : 'GD not available'; echo PHP_EOL; echo extension_loaded\\('imagick'\\) ? 'Imagick available' : 'Imagick not available';\")",
+      "Bash(python -c \"from PIL import Image; print\\('Pillow available'\\)\")",
+      "Bash(pip install *)",
+      "Bash(python -c ' *)",
+      "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 40)",
+      "Bash(php x:\\\\Repos\\\\Compete\\\\artisan --version)",
+      "PowerShell(php \"x:\\\\Repos\\\\Compete\\\\artisan\" --version)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"
