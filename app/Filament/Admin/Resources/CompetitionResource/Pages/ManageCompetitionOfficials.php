@@ -73,7 +73,7 @@ class ManageCompetitionOfficials extends Page
                     Select::make('official_role_id')
                         ->label('Role')
                         ->required()
-                        ->options(OfficialRole::orderBy('name')->pluck('name', 'id')->toArray())
+                        ->options(fn () => OfficialRole::orderBy('name')->pluck('name', 'id')->toArray())
                         ->getOptionLabelUsing(fn ($value) => OfficialRole::find($value)?->name)
                         ->createOptionForm([
                             TextInput::make('name')
@@ -82,9 +82,7 @@ class ManageCompetitionOfficials extends Page
                                 ->maxLength(100)
                                 ->unique(OfficialRole::class, 'name'),
                         ])
-                        ->createOptionUsing(function (array $data): int {
-                            return OfficialRole::create(['name' => $data['name']])->id;
-                        }),
+                        ->createOptionUsing(fn (array $data) => OfficialRole::create(['name' => $data['name']])->id),
 
                     Select::make('competition_location_id')
                         ->label('Location')
