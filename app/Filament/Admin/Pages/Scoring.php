@@ -50,6 +50,9 @@ class Scoring extends Page
     public bool  $bracketExists          = false;
     public bool  $placementOverrideMode  = false;
     public bool  $confirmLowCompetitorCount = false;
+    public bool  $manualPairingMode      = false;
+    public array $manualPairings         = [];
+    public array $pairingCompetitorList  = [];
 
     public function mount(): void
     {
@@ -207,6 +210,9 @@ class Scoring extends Page
         $this->bracketExists            = false;
         $this->panelOpen                = false;
         $this->confirmLowCompetitorCount = false;
+        $this->manualPairingMode        = false;
+        $this->manualPairings           = [];
+        $this->pairingCompetitorList    = [];
         // rollcallPresent is intentionally NOT cleared here so ticks survive
         // division switches. Only cancelScoring() resets it explicitly.
     }
@@ -511,9 +517,7 @@ class Scoring extends Page
             ->where('removed', false)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
             ->with('enrolment.competitor')
-            ->get()
-            ->sortBy(fn ($ee) => $this->resolveEeName($ee))
-            ->values();
+            ->get()->toBase();
 
         $n = $competitors->count();
         if ($n < 2) {
@@ -521,9 +525,175 @@ class Scoring extends Page
             return;
         }
 
-        app(BracketService::class)->generate($this->getSelectedDivision(), $competitors);
+        $division = $this->getSelectedDivision();
+
+        if ($division?->competitionEvent?->manual_pairing) {
+            $this->pairingCompetitorList = $competitors
+                ->map(fn ($ee) => ['ee_id' => $ee->id, 'name' => $this->resolveEeName($ee)])
+                ->sortBy('name')
+                ->values()
+                ->toArray();
+            $this->manualPairings = array_fill(0, (int) ceil($n / 2), ['home' => '', 'away' => '']);
+            $this->manualPairingMode = true;
+            return;
+        }
+
+        $sorted = $competitors->sortBy(fn ($ee) => $this->resolveEeName($ee))->values();
+        app(BracketService::class)->generate($division, $sorted);
 
         $this->bracketExists = true;
+        Notification::make()->success()->title("Bracket generated for {$n} competitors.")->send();
+    }
+
+    public function closePairingWizard(): void
+    {
+        $this->manualPairingMode     = false;
+        $this->manualPairings        = [];
+        $this->pairingCompetitorList = [];
+    }
+
+    public function isPairingComplete(): bool
+    {
+        if (empty($this->manualPairings) || empty($this->pairingCompetitorList)) return false;
+
+        $n      = count($this->pairingCompetitorList);
+        $isOdd  = ($n % 2 !== 0);
+        $byeCount   = 0;
+        $assignedIds = [];
+
+        foreach ($this->manualPairings as $pair) {
+            $homeId = isset($pair['home']) && $pair['home'] !== '' ? (int) $pair['home'] : null;
+            $awayVal = $pair['away'] ?? '';
+            $isBye  = $awayVal === 'bye';
+            $awayId = (!$isBye && $awayVal !== '') ? (int) $awayVal : null;
+
+            if (! $homeId) return false;
+
+            if ($isBye) {
+                $byeCount++;
+            } elseif (! $awayId) {
+                return false;
+            }
+
+            $assignedIds[] = $homeId;
+            if ($awayId) $assignedIds[] = $awayId;
+        }
+
+        if ($isOdd && $byeCount !== 1) return false;
+        if (! $isOdd && $byeCount !== 0) return false;
+        if (count($assignedIds) !== count(array_unique($assignedIds))) return false;
+
+        return true;
+    }
+
+    public function confirmManualPairings(): void
+    {
+        if (! $this->division_id) return;
+
+        if (RoundRobinMatch::where('division_id', $this->division_id)->exists()) {
+            Notification::make()->title('Bracket already generated.')->warning()->send();
+            $this->manualPairingMode = false;
+            $this->bracketExists     = true;
+            return;
+        }
+
+        $competitors = EnrolmentEvent::where('division_id', $this->division_id)
+            ->where('removed', false)
+            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->with('enrolment.competitor')
+            ->get()->toBase()
+            ->keyBy('id');
+
+        $n     = $competitors->count();
+        $isOdd = ($n % 2 !== 0);
+
+        if ($n < 2) {
+            Notification::make()->title('Need at least 2 checked-in competitors.')->warning()->send();
+            return;
+        }
+
+        $byeCount    = 0;
+        $assignedIds = [];
+        $errors      = [];
+
+        foreach ($this->manualPairings as $i => $pair) {
+            $homeId  = isset($pair['home']) && $pair['home'] !== '' ? (int) $pair['home'] : null;
+            $awayVal = $pair['away'] ?? '';
+            $isBye   = $awayVal === 'bye';
+            $awayId  = (!$isBye && $awayVal !== '') ? (int) $awayVal : null;
+
+            if (! $homeId) {
+                $errors[] = 'Match ' . ($i + 1) . ': no home competitor selected.';
+                continue;
+            }
+            if (! $competitors->has($homeId)) {
+                $errors[] = 'Match ' . ($i + 1) . ': competitor is no longer valid.';
+                continue;
+            }
+
+            if ($isBye) {
+                $byeCount++;
+            } elseif (! $awayId) {
+                $errors[] = 'Match ' . ($i + 1) . ': no away competitor selected.';
+            } elseif (! $competitors->has($awayId)) {
+                $errors[] = 'Match ' . ($i + 1) . ': competitor is no longer valid.';
+            }
+
+            $assignedIds[] = $homeId;
+            if ($awayId) $assignedIds[] = $awayId;
+        }
+
+        if (count($assignedIds) !== count(array_unique($assignedIds))) {
+            $errors[] = 'Each competitor may only appear once.';
+        }
+
+        if ($isOdd && $byeCount !== 1) {
+            $errors[] = 'With an odd number of competitors, exactly one must receive a bye.';
+        }
+        if (! $isOdd && $byeCount > 0) {
+            $errors[] = 'Byes are only allowed when the competitor count is odd.';
+        }
+
+        if (count(array_unique($assignedIds)) < $n) {
+            $errors[] = 'Not all competitors have been assigned to a match.';
+        }
+
+        if (! empty($errors)) {
+            foreach ($errors as $msg) {
+                Notification::make()->title($msg)->warning()->send();
+            }
+            return;
+        }
+
+        // Build ordered collection: real pairs first (home, away interleaved), bye competitor last.
+        $ordered         = collect();
+        $byeCompetitor   = null;
+
+        foreach ($this->manualPairings as $pair) {
+            $homeId  = (int) $pair['home'];
+            $awayVal = $pair['away'] ?? '';
+            $isBye   = $awayVal === 'bye';
+            $awayId  = $isBye ? null : (int) $awayVal;
+
+            if ($isBye) {
+                $byeCompetitor = $competitors->get($homeId);
+            } else {
+                $ordered->push($competitors->get($homeId));
+                $ordered->push($competitors->get($awayId));
+            }
+        }
+
+        if ($byeCompetitor) {
+            $ordered->push($byeCompetitor);
+        }
+
+        app(BracketService::class)->generate($this->getSelectedDivision(), $ordered);
+
+        $this->bracketExists     = true;
+        $this->manualPairingMode = false;
+        $this->manualPairings    = [];
+        $this->pairingCompetitorList = [];
+
         Notification::make()->success()->title("Bracket generated for {$n} competitors.")->send();
     }
 

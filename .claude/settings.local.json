@@ -223,7 +223,8 @@
       "Bash(php -l \"app/Filament/Admin/Resources/CompetitionResource.php\")",
       "Bash(php -l \"app/Filament/Admin/Resources/CompetitionResource/Pages/EditCompetition.php\")",
       "Bash(findstr officials *)",
-      "Bash(Select-String officials *)"
+      "Bash(Select-String officials *)",
+      "Bash(php -l \"app/Models/CompetitionEvent.php\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

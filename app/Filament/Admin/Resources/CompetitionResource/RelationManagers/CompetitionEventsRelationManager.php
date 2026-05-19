@@ -77,7 +77,15 @@ class CompetitionEventsRelationManager extends RelationManager
                     ])
                     ->default('once_off')
                     ->required()
+                    ->live()
                     ->columnSpanFull(),
+
+                Toggle::make('manual_pairing')
+                    ->label('Manual pairing')
+                    ->helperText('User manually assigns Round 1 matchups instead of automatic alphabetical sorting. Not available for round robin or single performance events.')
+                    ->columnSpanFull()
+                    ->inline(false)
+                    ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['once_off', 'round_robin', null])),
 
                 Select::make('scoring_method')
                     ->label('Scoring method')

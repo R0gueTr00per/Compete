@@ -211,15 +211,69 @@
                                 <div wire:key="bracket-{{ $this->division_id }}-{{ $hasBracket ? 'has' : 'empty' }}-{{ $this->isScoringComplete() ? 'done' : 'active' }}">
 
                                 @if (! $hasBracket)
-                                    <div class="text-center py-4">
-                                        <p class="text-sm text-gray-500 mb-1">{{ $competitorCount }} competitor(s) competing.</p>
-                                        <p class="text-xs text-gray-400 mb-3">
-                                            {{ match($format) { 'double_elimination' => 'Double elimination bracket', 'round_robin' => 'Round robin', 'repechage' => 'Single elimination with repechage', 'se_3rd_place' => 'Single elimination with 3rd place playoff', default => 'Single elimination bracket' } }}
-                                        </p>
-                                        <x-filament::button color="primary" wire:click="generateBracket">
-                                            Generate bracket
-                                        </x-filament::button>
-                                    </div>
+                                    @if ($this->manualPairingMode)
+                                        {{-- Manual pairing wizard --}}
+                                        @php $isOddPairing = (count($this->pairingCompetitorList) % 2 !== 0); @endphp
+                                        <div class="space-y-2">
+                                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                                Assign each competitor to a Round 1 matchup.
+                                                @if ($isOddPairing)
+                                                    One competitor must receive a bye (advances automatically to Round 2).
+                                                @endif
+                                            </p>
+
+                                            @foreach ($this->manualPairings as $slotIdx => $pair)
+                                                <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 px-3 py-2.5">
+                                                    <p class="text-xs font-medium text-gray-400 mb-2">Match {{ $slotIdx + 1 }}</p>
+                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                        <select wire:model.live="manualPairings.{{ $slotIdx }}.home"
+                                                            class="flex-1 min-w-32 rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white py-1.5 px-2">
+                                                            <option value="">— Select competitor —</option>
+                                                            @foreach ($this->pairingCompetitorList as $comp)
+                                                                <option value="{{ $comp['ee_id'] }}">{{ $comp['name'] }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                        <span class="text-xs text-gray-400 shrink-0">vs</span>
+                                                        <select wire:model.live="manualPairings.{{ $slotIdx }}.away"
+                                                            class="flex-1 min-w-32 rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white py-1.5 px-2">
+                                                            <option value="">— Select competitor —</option>
+                                                            @if ($isOddPairing)
+                                                                <option value="bye">Bye (advances automatically)</option>
+                                                            @endif
+                                                            @foreach ($this->pairingCompetitorList as $comp)
+                                                                <option value="{{ $comp['ee_id'] }}">{{ $comp['name'] }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+
+                                            <div class="flex justify-end gap-2 pt-1">
+                                                <x-filament::button size="sm" color="gray" wire:click="closePairingWizard">
+                                                    Cancel
+                                                </x-filament::button>
+                                                @if ($this->isPairingComplete())
+                                                    <x-filament::button size="sm" color="primary" wire:click="confirmManualPairings">
+                                                        Confirm pairings
+                                                    </x-filament::button>
+                                                @else
+                                                    <x-filament::button size="sm" color="primary" disabled>
+                                                        Confirm pairings
+                                                    </x-filament::button>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="text-center py-4">
+                                            <p class="text-sm text-gray-500 mb-1">{{ $competitorCount }} competitor(s) competing.</p>
+                                            <p class="text-xs text-gray-400 mb-3">
+                                                {{ match($format) { 'double_elimination' => 'Double elimination bracket', 'round_robin' => 'Round robin', 'repechage' => 'Single elimination with repechage', 'se_3rd_place' => 'Single elimination with 3rd place playoff', default => 'Single elimination bracket' } }}
+                                            </p>
+                                            <x-filament::button color="primary" wire:click="generateBracket">
+                                                Generate bracket
+                                            </x-filament::button>
+                                        </div>
+                                    @endif
                                 @else
                                     {{-- Bracket header --}}
                                     <div class="flex items-center justify-between mb-3">

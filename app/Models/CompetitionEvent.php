@@ -21,6 +21,7 @@ class CompetitionEvent extends Model
         'location_label',
         'scoring_method',
         'tournament_format',
+        'manual_pairing',
         'judge_count',
         'target_score',
         'default_score',
@@ -33,6 +34,7 @@ class CompetitionEvent extends Model
     {
         return [
             'requires_partner' => 'boolean',
+            'manual_pairing'   => 'boolean',
         ];
     }
 

@@ -111,25 +111,23 @@
     {{-- Payment --}}
     @if ($paymentOutstanding)
         <div class="mb-3 p-3 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
-            <div class="flex flex-wrap items-center gap-2">
-                <p class="text-xs font-semibold text-warning-800 dark:text-warning-200 flex-1 min-w-0">
-                    💰 Payment outstanding — ${{ number_format($enrolment->fee_calculated, 2) }}
-                </p>
-                <div class="flex items-center gap-2 shrink-0">
-                    <x-filament::input.wrapper class="w-20">
-                        <x-filament::input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            wire:model="paymentAmounts.{{ $enrolment->id }}"
-                            placeholder="{{ number_format($enrolment->fee_calculated, 2) }}"
-                        />
-                    </x-filament::input.wrapper>
-                    <x-filament::button size="xs" color="warning"
-                        wire:click="recordPayment({{ $enrolment->id }})">
-                        Mark paid
-                    </x-filament::button>
-                </div>
+            <p class="text-xs font-semibold text-warning-800 dark:text-warning-200 mb-2">
+                💰 Payment outstanding — ${{ number_format($enrolment->fee_calculated, 2) }}
+            </p>
+            <div class="flex items-center gap-2">
+                <x-filament::input.wrapper class="w-28">
+                    <x-filament::input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        wire:model="paymentAmounts.{{ $enrolment->id }}"
+                        placeholder="{{ number_format($enrolment->fee_calculated, 2) }}"
+                    />
+                </x-filament::input.wrapper>
+                <x-filament::button size="xs" color="warning"
+                    wire:click="recordPayment({{ $enrolment->id }})">
+                    Mark paid
+                </x-filament::button>
             </div>
         </div>
     @else
