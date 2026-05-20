@@ -7,6 +7,7 @@ use Filament\Http\Responses\Auth\Contracts\LoginResponse;
 use Filament\Notifications\Notification;
 use Filament\Pages\Auth\Login as BaseLogin;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -51,10 +52,11 @@ class Login extends BaseLogin
 
     public function authenticate(): ?LoginResponse
     {
-        $data   = $this->form->getState();
-        $email  = Str::lower($data['email'] ?? '');
-        $orgId  = app('tenant')?->id;
-        $user   = User::where('email', $email)->where('organisation_id', $orgId)->first();
+        $data     = $this->form->getState();
+        $email    = Str::lower($data['email'] ?? '');
+        $password = $data['password'] ?? '';
+        $orgId    = app('tenant')?->id;
+        $user     = User::where('email', $email)->where('organisation_id', $orgId)->first();
 
         if ($user && $user->isLocked()) {
             $minutes = (int) ceil(now()->diffInSeconds($user->locked_until) / 60);
@@ -63,7 +65,13 @@ class Login extends BaseLogin
             ]);
         }
 
-        $response = parent::authenticate();
+        if (! $user || ! Hash::check($password, $user->password)) {
+            $this->throwFailureValidationException();
+        }
+
+        auth()->login($user, $data['remember'] ?? false);
+
+        $response = app(LoginResponse::class);
 
         if ($response !== null) {
             $freshUser = User::where('email', $email)->where('organisation_id', $orgId)->first();

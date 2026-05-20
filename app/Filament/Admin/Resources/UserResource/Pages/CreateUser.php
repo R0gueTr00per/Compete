@@ -14,8 +14,6 @@ class CreateUser extends CreateRecord
 {
     protected static string $resource = UserResource::class;
 
-    private string $role = 'user';
-
     protected function getCreatedNotification(): ?\Filament\Notifications\Notification
     {
         return null;
@@ -23,8 +21,6 @@ class CreateUser extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $this->role = $data['role'] ?? 'user';
-        unset($data['role']);
         $data['status']             = 'active';
         $data['email_verified_at'] = Carbon::now();
         $data['password']          = Str::random(64);
@@ -33,7 +29,7 @@ class CreateUser extends CreateRecord
 
     protected function afterCreate(): void
     {
-        $this->record->syncRoles([$this->role]);
+        $this->record->syncRoles(['system_admin']);
 
         $token = Password::broker()->createToken($this->record);
         $this->record->notify(new AccountCreatedNotification($token));

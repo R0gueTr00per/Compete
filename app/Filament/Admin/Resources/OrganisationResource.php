@@ -51,12 +51,14 @@ class OrganisationResource extends Resource
                     ->unique(Organisation::class, 'slug', ignoreRecord: true)
                     ->rules([
                         'alpha_dash',
-                        function (string $attribute, mixed $value, \Closure $fail) {
-                            $reserved = ['www', 'mail', 'api', 'admin', 'app', 'manage', 'portal', 'static',
-                                         'cdn', 'help', 'support', 'ftp', 'smtp', 'pop', 'imap', 'ns', 'ns1',
-                                         'ns2', 'dev', 'staging', 'test', 'beta', 'demo', 'kompetic'];
-                            if (in_array(strtolower($value), $reserved, true)) {
-                                $fail("The sub-domain \"{$value}\" is reserved and cannot be used.");
+                        new class implements \Illuminate\Contracts\Validation\ValidationRule {
+                            public function validate(string $attribute, mixed $value, \Closure $fail): void {
+                                $reserved = ['www', 'mail', 'api', 'admin', 'app', 'manage', 'portal', 'static',
+                                             'cdn', 'help', 'support', 'ftp', 'smtp', 'pop', 'imap', 'ns', 'ns1',
+                                             'ns2', 'dev', 'staging', 'test', 'beta', 'kompetic'];
+                                if (in_array(strtolower($value), $reserved, true)) {
+                                    $fail("The sub-domain \"{$value}\" is reserved and cannot be used.");
+                                }
                             }
                         },
                     ])

@@ -4,9 +4,6 @@ namespace App\Filament\Admin\Resources;
 
 use App\Filament\Admin\Resources\UserResource\Pages;
 use App\Models\User;
-use App\Notifications\AccountApprovedNotification;
-use App\Notifications\AccountCreatedNotification;
-use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -19,7 +16,6 @@ use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Password;
 
 class UserResource extends Resource
 {
@@ -71,27 +67,18 @@ class UserResource extends Resource
                         ->dehydrated(fn ($state) => filled($state))
                         ->hiddenOn('create')
                         ->helperText('Leave blank to keep the existing password.')
-                        ->columnSpanFull(),
-                ]),
+                        ->columnSpanFull()
+                        ->live(),
 
-            Section::make('Role')
-                ->hiddenOn('edit')
-                ->schema([
-                    Radio::make('role')
-                        ->options([
-                            'user'                      => 'User',
-                            'competition_official'      => 'Official',
-                            'competition_administrator' => 'Competition Admin',
-                            'system_admin'              => 'System Admin',
-                        ])
-                        ->descriptions([
-                            'user'                      => 'Can enrol in competitions and view their own results.',
-                            'competition_official'      => 'Can manage scheduling, check-in, and scoring.',
-                            'competition_administrator' => 'Full access to competitions, events, and divisions.',
-                            'system_admin'              => 'Full access including user management and system settings.',
-                        ])
-                        ->required()
-                        ->default('user'),
+                    TextInput::make('password_confirmation')
+                        ->password()
+                        ->label('Confirm new password')
+                        ->requiredWith('password')
+                        ->same('password')
+                        ->dehydrated(false)
+                        ->hiddenOn('create')
+                        ->visible(fn ($get) => filled($get('password')))
+                        ->columnSpanFull(),
                 ]),
         ]);
     }
@@ -99,31 +86,13 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['socialAccounts', 'roles']))
+            ->modifyQueryUsing(fn ($query) => $query->role('system_admin')->with(['socialAccounts']))
             ->columns([
                 TextColumn::make('full_name')
                     ->label('Name / Email')
                     ->getStateUsing(fn (User $record) => $record->getFilamentName())
                     ->description(fn (User $record) => $record->getFilamentName() !== $record->email ? $record->email : null)
                     ->searchable(query: fn ($query, $search) => $query->where('email', 'like', "%{$search}%")),
-
-                TextColumn::make('roles.name')
-                    ->label('Role')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state) => match ($state) {
-                        'system_admin'              => 'System Admin',
-                        'competition_administrator' => 'Competition Admin',
-                        'competition_official'      => 'Official',
-                        'user'                      => 'User',
-                        default                     => $state,
-                    })
-                    ->color(fn (string $state) => match ($state) {
-                        'system_admin'              => 'danger',
-                        'competition_administrator' => 'warning',
-                        'competition_official'      => 'info',
-                        'user'                      => 'gray',
-                        default                     => 'gray',
-                    }),
 
                 TextColumn::make('status')
                     ->badge()
@@ -177,37 +146,10 @@ class UserResource extends Resource
                         'active'   => 'Active',
                         'inactive' => 'Inactive',
                     ]),
-
-                SelectFilter::make('role')
-                    ->label('Role')
-                    ->options([
-                        'user'                      => 'User',
-                        'competition_official'      => 'Official',
-                        'competition_administrator' => 'Competition Admin',
-                        'system_admin'              => 'System Admin',
-                    ])
-                    ->query(fn ($query, $data) => $data['value']
-                        ? $query->role($data['value'])
-                        : $query
-                    ),
             ])
             ->actions([
                 ActionGroup::make([
                     EditAction::make(),
-
-                    Action::make('approve')
-                        ->label('Approve')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->visible(fn (User $record) => $record->status === 'pending')
-                        ->action(function (User $record) {
-                            $record->update(['status' => 'active']);
-                            if (! $record->hasAnyRole(['competition_administrator', 'system_admin', 'competition_official'])) {
-                                $record->assignRole('user');
-                            }
-                            $record->notify(new AccountApprovedNotification());
-                            Notification::make()->title('User approved.')->success()->send();
-                        }),
 
                     Action::make('deactivate')
                         ->label('Deactivate')
@@ -220,18 +162,16 @@ class UserResource extends Resource
                             && auth()->id() !== $record->id
                         )
                         ->action(function (User $record) {
-                            if ($record->hasRole('system_admin')) {
-                                $remaining = User::role('system_admin')
-                                    ->where('status', 'active')
-                                    ->count();
+                            $remaining = User::role('system_admin')
+                                ->where('status', 'active')
+                                ->count();
 
-                                if ($remaining <= 1) {
-                                    Notification::make()
-                                        ->title('Cannot deactivate the last system admin.')
-                                        ->danger()
-                                        ->send();
-                                    return;
-                                }
+                            if ($remaining <= 1) {
+                                Notification::make()
+                                    ->title('Cannot deactivate the last system admin.')
+                                    ->danger()
+                                    ->send();
+                                return;
                             }
 
                             $record->update(['status' => 'inactive']);
@@ -247,90 +187,6 @@ class UserResource extends Resource
                             $record->update(['status' => 'active']);
                             Notification::make()->title('User reactivated.')->success()->send();
                         }),
-
-                    Action::make('assignRole')
-                        ->label('Change role')
-                        ->icon('heroicon-o-shield-check')
-                        ->color('warning')
-                        ->form([
-                            Radio::make('role')
-                                ->label('Role')
-                                ->options([
-                                    'user'                      => 'User',
-                                    'competition_official'      => 'Official',
-                                    'competition_administrator' => 'Competition Admin',
-                                    'system_admin'              => 'System Admin',
-                                ])
-                                ->descriptions([
-                                    'user'                      => 'Can enrol in competitions and view their own results.',
-                                    'competition_official'      => 'Can manage scheduling, check-in, and scoring.',
-                                    'competition_administrator' => 'Full access to competitions, events, and divisions.',
-                                    'system_admin'              => 'Full access including user management and system settings.',
-                                ])
-                                ->required(),
-                        ])
-                        ->fillForm(fn (User $record) => [
-                            'role' => $record->roles->first()?->name,
-                        ])
-                        ->action(function (User $record, array $data) {
-                            $isLeavingSysAdmin = $record->hasRole('system_admin')
-                                && $data['role'] !== 'system_admin';
-
-                            if ($isLeavingSysAdmin) {
-                                $remaining = User::role('system_admin')
-                                    ->where('status', 'active')
-                                    ->count();
-
-                                if ($remaining <= 1) {
-                                    Notification::make()
-                                        ->title('Cannot remove the last system admin.')
-                                        ->danger()
-                                        ->send();
-                                    return;
-                                }
-                            }
-
-                            $record->syncRoles([$data['role']]);
-                            Notification::make()->title('Role updated.')->success()->send();
-                        })
-                        ->visible(fn () => auth()->user()?->hasRole('system_admin')),
-
-                    Action::make('resendVerification')
-                        ->label('Resend email verification')
-                        ->icon('heroicon-o-envelope')
-                        ->color('gray')
-                        ->requiresConfirmation()
-                        ->modalDescription('A new verification link will be emailed to this user.')
-                        ->visible(fn (User $record) => ! $record->email_verified_at && auth()->user()?->hasRole('system_admin'))
-                        ->action(function (User $record) {
-                            $record->sendEmailVerificationNotification();
-                            Notification::make()->title('Verification email sent.')->success()->send();
-                        }),
-
-                    Action::make('resetPassword')
-                        ->label('Send password reset email')
-                        ->icon('heroicon-o-key')
-                        ->color('gray')
-                        ->requiresConfirmation()
-                        ->modalDescription('A password reset link (valid for 24 hours) will be emailed to this user.')
-                        ->visible(fn (User $record) => (bool) $record->email_verified_at && auth()->user()?->hasRole('system_admin'))
-                        ->action(function (User $record) {
-                            Password::sendResetLink(['email' => $record->email]);
-                            Notification::make()->title('Password reset email sent.')->success()->send();
-                        }),
-
-                    Action::make('resendSetupEmail')
-                        ->label('Resend account setup email')
-                        ->icon('heroicon-o-envelope')
-                        ->color('gray')
-                        ->requiresConfirmation()
-                        ->modalDescription('A new account setup link will be emailed to this user.')
-                        ->visible(fn () => auth()->user()?->hasRole('system_admin'))
-                        ->action(function (User $record) {
-                            $token = Password::broker()->createToken($record);
-                            $record->notify(new AccountCreatedNotification($token));
-                            Notification::make()->title('Account setup email sent.')->success()->send();
-                        }),
                 ]),
             ])
             ->bulkActions([]);
@@ -338,9 +194,7 @@ class UserResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            UserResource\RelationManagers\ProfilesRelationManager::class,
-        ];
+        return [];
     }
 
     public static function getPages(): array
