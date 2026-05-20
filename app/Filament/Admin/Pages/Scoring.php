@@ -745,10 +745,7 @@ class Scoring extends Page
                     Notification::make()->title("Both competitors cannot have {$target} points.")->warning()->send();
                     return;
                 }
-                if ($homeScore != $target && $awayScore != $target) {
-                    Notification::make()->title("One competitor must have {$target} points.")->warning()->send();
-                    return;
-                }
+                // Neither reaching target is valid — timed rounds may end before target is reached.
             }
         }
 
@@ -1003,6 +1000,14 @@ class Scoring extends Page
 
         $map = ['winners' => [], 'losers' => [], 'repechage' => [], 'grand_final' => []];
         foreach ($all as $m) {
+            if ($m->isPending() && ! $m->isBye() && $m->home_score !== null && $m->away_score !== null) {
+                if (! isset($this->bracketScoreInput[$m->id]['home'])) {
+                    $this->bracketScoreInput[$m->id]['home'] = (string) ((float) $m->home_score + 0);
+                }
+                if (! isset($this->bracketScoreInput[$m->id]['away'])) {
+                    $this->bracketScoreInput[$m->id]['away'] = (string) ((float) $m->away_score + 0);
+                }
+            }
             $map[$m->bracket][$m->round][] = (object) [
                 'id'          => $m->id,
                 'slot'        => $m->bracket_slot,

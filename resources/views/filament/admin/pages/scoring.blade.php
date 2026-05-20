@@ -391,36 +391,12 @@
                                                                             <input type="number" step="any" min="0"
                                                                                 @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                 wire:model="bracketScoreInput.{{ $match->id }}.home"
-                                                                                @if ($targetScore)
-                                                                                    x-on:change="
-                                                                                        const v = parseFloat($el.value);
-                                                                                        if (isNaN(v)) return;
-                                                                                        const aw = parseFloat($wire.get('bracketScoreInput.{{ $match->id }}.away'));
-                                                                                        if (!isNaN(aw) && aw !== 0 && aw !== {{ $targetScore }}) return;
-                                                                                        if (v === {{ $targetScore }}) {
-                                                                                            if (aw === {{ $targetScore }}) $wire.set('bracketScoreInput.{{ $match->id }}.away', 0);
-                                                                                        } else {
-                                                                                            $wire.set('bracketScoreInput.{{ $match->id }}.away', {{ $targetScore }});
-                                                                                        }"
-                                                                                @endif
                                                                                 class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-1 px-1"
                                                                                 placeholder="0" />
                                                                             <span class="text-xs text-gray-400 shrink-0">—</span>
                                                                             <input type="number" step="any" min="0"
                                                                                 @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                 wire:model="bracketScoreInput.{{ $match->id }}.away"
-                                                                                @if ($targetScore)
-                                                                                    x-on:change="
-                                                                                        const v = parseFloat($el.value);
-                                                                                        if (isNaN(v)) return;
-                                                                                        const hw = parseFloat($wire.get('bracketScoreInput.{{ $match->id }}.home'));
-                                                                                        if (!isNaN(hw) && hw !== 0 && hw !== {{ $targetScore }}) return;
-                                                                                        if (v === {{ $targetScore }}) {
-                                                                                            if (hw === {{ $targetScore }}) $wire.set('bracketScoreInput.{{ $match->id }}.home', 0);
-                                                                                        } else {
-                                                                                            $wire.set('bracketScoreInput.{{ $match->id }}.home', {{ $targetScore }});
-                                                                                        }"
-                                                                                @endif
                                                                                 class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-1 px-1"
                                                                                 placeholder="0" />
                                                                             <x-filament::button size="xs" color="success" class="shrink-0"
