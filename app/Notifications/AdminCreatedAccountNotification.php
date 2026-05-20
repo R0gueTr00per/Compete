@@ -43,10 +43,18 @@ class AdminCreatedAccountNotification extends Notification implements ShouldQueu
             'email' => $notifiable->email,
         ]);
 
+        $orgName = $competition->organisation?->name;
+        $subject = $orgName
+            ? "Welcome to {$orgName} — your account is ready"
+            : "Welcome to Compete — your account is ready";
+
         $message = (new MailMessage)
-            ->subject("Welcome to Compete — your account is ready")
+            ->subject($subject)
             ->greeting("Hi {$name},")
-            ->line("An account has been created for you on Compete and you have been enrolled in the following competition:")
+            ->line($orgName
+                ? "An account has been created for you on **{$orgName}** and you have been enrolled in the following competition:"
+                : "An account has been created for you on Compete and you have been enrolled in the following competition:"
+            )
             ->line("**{$competition->name}**")
             ->line("**Date:** {$competition->competition_date->format('l, d F Y')}");
 

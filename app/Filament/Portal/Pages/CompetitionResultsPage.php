@@ -20,6 +20,7 @@ class CompetitionResultsPage extends Page
     {
         if (! $this->competition_id) {
             $competition = Competition::whereIn('status', ['complete', 'running'])
+                ->where('organisation_id', app('tenant')?->id)
                 ->orderByDesc('competition_date')
                 ->first();
 
@@ -32,6 +33,7 @@ class CompetitionResultsPage extends Page
     public function getCompetitions(): array
     {
         return Competition::whereIn('status', ['complete', 'running'])
+            ->where('organisation_id', app('tenant')?->id)
             ->orderByDesc('competition_date')
             ->pluck('name', 'id')
             ->toArray();

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\Organisation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -9,6 +10,8 @@ use Illuminate\Notifications\Notification;
 class AccountApprovedNotification extends Notification implements \Illuminate\Contracts\Queue\ShouldQueue
 {
     use Queueable;
+
+    public function __construct(protected ?Organisation $org = null) {}
 
     public function via(object $notifiable): array
     {
@@ -19,11 +22,19 @@ class AccountApprovedNotification extends Notification implements \Illuminate\Co
     {
         $name = $notifiable->getFilamentName();
 
+        $loginUrl = $this->org
+            ? config('app.scheme') . '://' . $this->org->slug . '.' . config('app.domain', 'kompetic.com') . '/portal/login'
+            : url(route('filament.portal.auth.login'));
+
+        $orgLine = $this->org
+            ? "Your membership for **{$this->org->name}** has been approved."
+            : 'Great news — your account has been approved and is now active.';
+
         return (new MailMessage)
-            ->subject('Your Compete account is now active')
+            ->subject('Your account is now active')
             ->greeting("Hi {$name},")
-            ->line('Great news — your account has been approved and is now active.')
+            ->line($orgLine)
             ->line('You can now log in and enrol in competitions.')
-            ->action('Log in now', url(route('filament.portal.auth.login')));
+            ->action('Log in now', $loginUrl);
     }
 }

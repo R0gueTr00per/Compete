@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Dojo extends Model
 {
-    protected $fillable = ['name', 'is_active', 'instructor_id'];
+    protected $fillable = ['organisation_id', 'name', 'is_active', 'instructor_id'];
 
     protected function casts(): array
     {
@@ -24,6 +24,11 @@ class Dojo extends Model
     public function isUsed(): bool
     {
         return Enrolment::where('dojo_name', $this->name)->exists();
+    }
+
+    public function organisation(): BelongsTo
+    {
+        return $this->belongsTo(Organisation::class);
     }
 
     public function instructor(): BelongsTo

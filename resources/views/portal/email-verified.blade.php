@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email Verified — Compete</title>
+    <title>Email Verified — Kompetic</title>
     @vite(['resources/css/app.css'])
     <style>
         body { background-color: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: ui-sans-serif, system-ui, sans-serif; }

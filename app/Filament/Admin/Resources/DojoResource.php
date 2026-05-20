@@ -27,15 +27,10 @@ class DojoResource extends Resource
     protected static ?int    $navigationSort  = 3;
     protected static ?string $navigationLabel = 'Dojos';
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()?->hasRole(['system_admin', 'competition_administrator']) ?? false;
-    }
-
-    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
-    {
-        return ! $record->isUsed();
-    }
+    public static function canAccess(): bool { return false; }
+    public static function canCreate(): bool { return false; }
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool   { return false; }
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool { return false; }
 
     public static function form(Form $form): Form
     {

@@ -20,6 +20,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     use HasFactory, Notifiable, HasRoles, CausesActivity;
 
     protected $fillable = [
+        'organisation_id',
         'email',
         'status',
         'timezone',
@@ -54,10 +55,61 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     public function canAccessPanel(Panel $panel): bool
     {
         if ($panel->getId() === 'admin') {
-            return $this->hasRole(['competition_administrator', 'system_admin', 'competition_official']);
+            return $this->hasRole('system_admin');
         }
 
-        return $this->status === 'active';
+        if ($panel->getId() === 'org-admin') {
+            $tenant = app('tenant');
+            if (! $tenant) return false;
+            $membership = $this->membershipFor($tenant);
+            return $this->status === 'active'
+                && $membership
+                && $membership->status === 'active'
+                && in_array($membership->role, ['administrator', 'official']);
+        }
+
+        if ($this->status !== 'active') {
+            return false;
+        }
+
+        // On an org subdomain, require active membership
+        $tenant = app('tenant');
+        if ($tenant) {
+            return $this->canAccessTenant($tenant);
+        }
+
+        return true;
+    }
+
+    public function canAccessTenant(Organisation $tenant): bool
+    {
+        return $this->memberships()
+            ->where('organisation_id', $tenant->id)
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    public function membershipFor(Organisation $org): ?OrganisationMembership
+    {
+        return $this->memberships()->where('organisation_id', $org->id)->first();
+    }
+
+    public function isOrgAdmin(Organisation $org): bool
+    {
+        return $this->memberships()
+            ->where('organisation_id', $org->id)
+            ->where('role', 'administrator')
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    public function isOrgOfficial(Organisation $org): bool
+    {
+        return $this->memberships()
+            ->where('organisation_id', $org->id)
+            ->where('role', 'official')
+            ->where('status', 'active')
+            ->exists();
     }
 
     public function isActive(): bool
@@ -109,6 +161,18 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
             'id',                   // local key on users
             'id'                    // local key on competitor_profiles
         );
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(OrganisationMembership::class);
+    }
+
+    public function organisations(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Organisation::class, 'organisation_memberships')
+            ->withPivot(['role', 'status', 'invited_at', 'joined_at'])
+            ->withTimestamps();
     }
 
     public function socialAccounts(): HasMany

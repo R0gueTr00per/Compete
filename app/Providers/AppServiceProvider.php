@@ -7,6 +7,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Default binding so app('tenant') is always safe to call.
+        // Must use bind() not instance(null) — isset() returns false for null,
+        // causing the container to try resolving 'tenant' as a class name.
+        $this->app->bind('tenant', fn () => null);
+
         $this->app->bind(
             \Filament\Http\Responses\Auth\Contracts\LoginResponse::class,
             \App\Http\Responses\LoginResponse::class,

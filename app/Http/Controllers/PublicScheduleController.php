@@ -9,6 +9,12 @@ class PublicScheduleController extends Controller
 {
     public function show(Competition $competition)
     {
+        // If accessed from an org subdomain, ensure this competition belongs to that org
+        $tenant = app('tenant');
+        if ($tenant && $competition->organisation_id !== $tenant->id) {
+            abort(404);
+        }
+
         $divisions = Division::whereHas('competitionEvent', fn ($q) =>
                 $q->where('competition_id', $competition->id)
             )

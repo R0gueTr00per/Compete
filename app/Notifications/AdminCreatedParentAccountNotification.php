@@ -44,10 +44,18 @@ class AdminCreatedParentAccountNotification extends Notification implements Shou
             'email' => $notifiable->email,
         ]);
 
+        $orgName = $competition->organisation?->name;
+        $subject = $orgName
+            ? "Welcome to {$orgName} — {$childName} has been enrolled"
+            : "Welcome to Compete — {$childName} has been enrolled";
+
         $message = (new MailMessage)
-            ->subject("Welcome to Compete — {$childName} has been enrolled")
+            ->subject($subject)
             ->greeting("Hi {$parentName},")
-            ->line("An account has been created for you on Compete as the parent / guardian of **{$childName}**, who has been enrolled in the following competition:")
+            ->line($orgName
+                ? "An account has been created for you on **{$orgName}** as the parent / guardian of **{$childName}**, who has been enrolled in the following competition:"
+                : "An account has been created for you on Compete as the parent / guardian of **{$childName}**, who has been enrolled in the following competition:"
+            )
             ->line("**{$competition->name}**")
             ->line("**Date:** {$competition->competition_date->format('l, d F Y')}");
 

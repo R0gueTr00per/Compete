@@ -47,6 +47,7 @@ class Dashboard extends BaseDashboard
         $dojoNames = $dojos->pluck('name');
 
         return Competition::whereIn('status', ['open', 'closed', 'check_in', 'running'])
+            ->where('organisation_id', app('tenant')?->id)
             ->whereHas('enrolments', fn ($q) => $q->whereIn('dojo_name', $dojoNames))
             ->with([
                 'enrolments' => fn ($q) => $q->whereIn('dojo_name', $dojoNames)

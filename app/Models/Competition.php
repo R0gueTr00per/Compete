@@ -18,6 +18,7 @@ class Competition extends Model
     use SoftDeletes, LogsActivity;
 
     protected $fillable = [
+        'organisation_id',
         'name',
         'competition_date',
         'start_time',
@@ -102,6 +103,11 @@ class Competition extends Model
     public function enrolments(): HasMany
     {
         return $this->hasMany(Enrolment::class);
+    }
+
+    public function organisation(): BelongsTo
+    {
+        return $this->belongsTo(Organisation::class);
     }
 
     public function copiedFrom(): BelongsTo

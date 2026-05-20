@@ -6,8 +6,6 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Navigation\MenuItem;
-use Filament\Navigation\NavigationItem;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -34,22 +32,9 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Orange,
             ])
             ->navigationGroups([
-                'Competitions',
-                'Competitors',
                 'System',
-                'Competitor Portal',
             ])
-            ->userMenuItems([
-                MenuItem::make()
-                    ->label('My Profile')
-                    ->icon('heroicon-o-user-circle')
-                    ->url('/portal/profile'),
-
-                MenuItem::make()
-                    ->label('Competitor Portal')
-                    ->icon('heroicon-o-globe-alt')
-                    ->url('/portal'),
-            ])
+            ->userMenuItems([])
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\\Filament\\Admin\\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
             ->pages([
@@ -76,18 +61,6 @@ class AdminPanelProvider extends PanelProvider
             ->globalSearch(false)
             ->sidebarCollapsibleOnDesktop()
             ->authGuard('web')
-            ->navigationItems([
-                NavigationItem::make('My Dashboard')
-                    ->url('/portal')
-                    ->icon('heroicon-o-home')
-                    ->group('Competitor Portal')
-                    ->sort(1),
-                NavigationItem::make('My Profile')
-                    ->url('/portal/profile')
-                    ->icon('heroicon-o-user-circle')
-                    ->group('Competitor Portal')
-                    ->sort(2),
-            ])
             ->renderHook(
                 'panels::head.end',
                 fn () => new \Illuminate\Support\HtmlString(
@@ -162,7 +135,7 @@ class AdminPanelProvider extends PanelProvider
                     .fi-main, body.fi-body { background-color: var(--app-bg) !important; }
                     .fi-section, .fi-wi-stats-overview-stat, .fi-ta-ctn { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important; }
                     .dark .fi-section, .dark .fi-wi-stats-overview-stat, .dark .fi-ta-ctn { box-shadow: none !important; }
-                    .fi-section-header, .fi-ta-header-cell, .fi-ta-ctn thead, .fi-ta-ctn thead tr { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
+                    .fi-section-header, .fi-ta-header-cell, .fi-ta-header, .fi-ta-ctn thead, .fi-ta-ctn thead tr { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
                     .fi-modal-window { background-color: var(--app-card) !important; }
 
                     /* Nav-confirm modal */

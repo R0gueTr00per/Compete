@@ -39,6 +39,11 @@ class CompetitorResource extends Resource
     protected static ?string $navigationLabel = 'Profiles';
     protected static ?string $recordTitleAttribute = 'surname';
 
+    public static function canAccess(): bool { return false; }
+    public static function canCreate(): bool { return false; }
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool   { return false; }
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool { return false; }
+
     public static function form(Form $form): Form
     {
         return $form->schema([

@@ -54,6 +54,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'domain' => env('APP_DOMAIN', null),
+
+    'scheme' => parse_url(env('APP_URL', 'http://localhost'), PHP_URL_SCHEME) ?? 'https',
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

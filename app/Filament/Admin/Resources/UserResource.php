@@ -31,7 +31,7 @@ class UserResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->hasRole(['system_admin', 'competition_administrator']) ?? false;
+        return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
     public static function canCreate(): bool
@@ -62,6 +62,16 @@ class UserResource extends Resource
                         ->required()
                         ->default('pending')
                         ->hiddenOn('create'),
+
+                    TextInput::make('password')
+                        ->password()
+                        ->minLength(8)
+                        ->maxLength(255)
+                        ->dehydrateStateUsing(fn ($state) => filled($state) ? bcrypt($state) : null)
+                        ->dehydrated(fn ($state) => filled($state))
+                        ->hiddenOn('create')
+                        ->helperText('Leave blank to keep the existing password.')
+                        ->columnSpanFull(),
                 ]),
 
             Section::make('Role')

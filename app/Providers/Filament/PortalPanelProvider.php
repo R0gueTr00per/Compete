@@ -12,6 +12,7 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use App\Http\Middleware\ResolveTenant;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
@@ -29,7 +30,7 @@ class PortalPanelProvider extends PanelProvider
             ->login(\App\Filament\Portal\Pages\Auth\Login::class)
             ->registration(\App\Filament\Portal\Pages\Auth\Register::class)
             ->passwordReset(resetAction: \App\Filament\Portal\Pages\Auth\PasswordReset::class)
-            ->brandName('Compete')
+            ->brandName(fn () => app('tenant')?->name ?? 'Kompetic')
             ->brandLogo(fn () => new \Illuminate\Support\HtmlString(view('filament.brand-logo')->render()))
             ->brandLogoHeight('3.5rem')
             ->colors([
@@ -37,10 +38,16 @@ class PortalPanelProvider extends PanelProvider
             ])
             ->userMenuItems([
                 MenuItem::make()
-                    ->label('Admin Panel')
+                    ->label('Manage Panel')
                     ->icon('heroicon-o-cog-6-tooth')
-                    ->url('/admin')
-                    ->visible(fn () => auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official'])),
+                    ->url('/manage')
+                    ->visible(fn () => ($tenant = app('tenant')) && auth()->user()?->isOrgAdmin($tenant)),
+
+                MenuItem::make()
+                    ->label('System Admin')
+                    ->icon('heroicon-o-shield-check')
+                    ->url(fn () => config('app.scheme') . '://' . config('app.domain') . '/admin')
+                    ->visible(fn () => auth()->user()?->hasRole('system_admin')),
 
                 MenuItem::make()
                     ->label('My Profile')
@@ -55,6 +62,7 @@ class PortalPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Portal/Widgets'), for: 'App\\Filament\\Portal\\Widgets')
             ->widgets([])
             ->middleware([
+                ResolveTenant::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
@@ -72,12 +80,19 @@ class PortalPanelProvider extends PanelProvider
             ->authGuard('web')
             ->navigationGroups(['Admin'])
             ->navigationItems([
-                NavigationItem::make('Admin Panel')
-                    ->url('/admin')
+                NavigationItem::make('Manage Panel')
+                    ->url('/manage')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->group('Admin')
                     ->sort(1)
-                    ->visible(fn () => auth()->user()?->hasAnyRole(['competition_administrator', 'system_admin', 'competition_official'])),
+                    ->visible(fn () => ($tenant = app('tenant')) && auth()->user()?->isOrgAdmin($tenant)),
+
+                NavigationItem::make('System Admin')
+                    ->url(fn () => config('app.scheme') . '://' . config('app.domain') . '/admin')
+                    ->icon('heroicon-o-shield-check')
+                    ->group('Admin')
+                    ->sort(2)
+                    ->visible(fn () => auth()->user()?->hasRole('system_admin')),
             ])
             ->renderHook(
                 'panels::head.end',
@@ -150,9 +165,23 @@ class PortalPanelProvider extends PanelProvider
                     .fi-main, body.fi-body { background-color: var(--app-bg) !important; }
                     .fi-section, .fi-wi-stats-overview-stat, .fi-ta-ctn { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important; }
                     .dark .fi-section, .dark .fi-wi-stats-overview-stat, .dark .fi-ta-ctn { box-shadow: none !important; }
-                    .fi-section-header, .fi-ta-header-cell { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
+                    .fi-section-header, .fi-ta-header-cell, .fi-ta-header { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
                     .fi-modal-window { background-color: var(--app-card) !important; }
                 </style>')
+            )
+            ->renderHook(
+                'panels::topbar.start',
+                function () {
+                    $tenant = app('tenant');
+                    if (! $tenant) return '';
+                    return new \Illuminate\Support\HtmlString(
+                        '<div style="display:flex;align-items:center;padding:0 1rem 0 0.5rem;gap:0.5rem;flex-shrink:0;">' .
+                        '<div style="width:1px;height:1.25rem;background:rgba(255,255,255,0.25);"></div>' .
+                        '<span style="font-size:0.875rem;font-weight:600;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22rem;">' .
+                        e($tenant->name) .
+                        '</span></div>'
+                    );
+                }
             )
             ->renderHook(
                 'panels::body.end',

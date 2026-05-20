@@ -13,6 +13,7 @@ class CompetitorProfile extends Model
     use LogsActivity;
 
     protected $fillable = [
+        'organisation_id',
         'user_id',
         'owner_user_id',
         'profile_type',
@@ -41,6 +42,11 @@ class CompetitorProfile extends Model
             ->logFillable()
             ->logOnlyDirty()
             ->setDescriptionForEvent(fn (string $eventName) => "Profile {$eventName}");
+    }
+
+    public function organisation(): BelongsTo
+    {
+        return $this->belongsTo(Organisation::class);
     }
 
     // The user who manages/owns this profile (parent for child profiles, self for self-profiles)

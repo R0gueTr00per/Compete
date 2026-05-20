@@ -17,10 +17,7 @@ class ScheduleView extends Page
     protected static string  $view              = 'filament.admin.pages.schedule-view';
     protected static bool    $shouldRegisterNavigation = false;
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
-    }
+    public static function canAccess(): bool { return false; }
 
     #[Url]
     public ?int $competition_id = null;

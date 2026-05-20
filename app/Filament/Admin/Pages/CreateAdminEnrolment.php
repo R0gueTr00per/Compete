@@ -39,10 +39,7 @@ class CreateAdminEnrolment extends Page implements HasForms
     protected static string  $view            = 'filament.admin.pages.create-admin-enrolment';
     protected static ?string $slug            = 'create-enrolment';
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
-    }
+    public static function canAccess(): bool { return false; }
 
     public ?int    $competition_id       = null;
     public ?int    $competitor_profile_id = null;

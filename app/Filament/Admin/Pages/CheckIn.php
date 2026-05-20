@@ -17,10 +17,7 @@ class CheckIn extends Page
     protected static ?string $navigationLabel = 'Check-in';
     protected static string $view = 'filament.admin.pages.check-in';
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
-    }
+    public static function canAccess(): bool { return false; }
 
     #[Url]
     public ?int $competition_id = null;

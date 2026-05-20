@@ -17,10 +17,7 @@ class Results extends Page
     protected static ?string $navigationLabel = 'Results';
     protected static string  $view            = 'filament.admin.pages.results';
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
-    }
+    public static function canAccess(): bool { return false; }
 
     #[Url]
     public ?int $competition_id = null;

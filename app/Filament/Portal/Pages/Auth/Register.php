@@ -2,14 +2,33 @@
 
 namespace App\Filament\Portal\Pages\Auth;
 
+use App\Models\OrganisationMembership;
+use App\Notifications\NewUserRegisteredNotification;
 use Filament\Actions\Action;
+use Filament\Forms\Components\TextInput;
 use Filament\Http\Responses\Auth\Contracts\RegistrationResponse;
+use Illuminate\Validation\Rule;
+use Filament\Notifications\Notification;
 use Filament\Pages\Auth\Register as BaseRegister;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 class Register extends BaseRegister
 {
+    public function mount(): void
+    {
+        parent::mount();
+
+        if (request()->query('no_membership')) {
+            Notification::make()
+                ->title('Not a member')
+                ->body('You don\'t have access to this organisation. Register below to request access.')
+                ->warning()
+                ->persistent()
+                ->send();
+        }
+    }
+
     public function register(): ?RegistrationResponse
     {
         try {
@@ -19,7 +38,48 @@ class Register extends BaseRegister
             return null;
         }
 
-        $data           = $this->form->getState();
+        $tenant = app('tenant');
+        $data   = $this->form->getState();
+
+        // Org portal: create account as pending, awaiting org admin approval
+        if ($tenant) {
+            $data['status']          = 'pending';
+            $data['organisation_id'] = $tenant->id;
+
+            try {
+                $membership = $this->wrapInDatabaseTransaction(function () use ($data, $tenant) {
+                    $user = $this->handleRegistration($data);
+
+                    $membership = OrganisationMembership::create([
+                        'organisation_id' => $tenant->id,
+                        'user_id'         => $user->id,
+                        'role'            => 'competitor',
+                        'status'          => 'pending',
+                    ]);
+
+                    // Notify all active org administrators
+                    $admins = OrganisationMembership::where('organisation_id', $tenant->id)
+                        ->where('role', 'administrator')
+                        ->where('status', 'active')
+                        ->with('user')
+                        ->get();
+
+                    foreach ($admins as $admin) {
+                        $admin->user->notify(new NewUserRegisteredNotification($user, $membership));
+                    }
+
+                    return $membership;
+                });
+            } catch (UniqueConstraintViolationException) {
+                $this->addError('data.email', 'An account already exists for this email address.');
+                return null;
+            }
+
+            $this->redirect(route('filament.portal.auth.login') . '?registered=1', navigate: false);
+            return null;
+        }
+
+        // Non-org (legacy) registration — pending approval flow
         $data['status'] = 'pending';
 
         try {
@@ -29,16 +89,13 @@ class Register extends BaseRegister
             return null;
         }
 
-        // Send verification email — admin notification fires only after the user verifies
         try {
             $user->sendEmailVerificationNotification();
         } catch (\Throwable) {
-            // Non-fatal — account is created regardless
+            // Non-fatal
         }
 
-        // Do not auto-login — pending users cannot access the portal until approved
         $this->redirect(route('filament.portal.auth.login') . '?registered=1', navigate: true);
-
         return null;
     }
 
@@ -55,6 +112,10 @@ class Register extends BaseRegister
                     ->schema([
                         $this->getEmailFormComponent()
                             ->autofocus()
+                            ->rules([
+                                Rule::unique('users', 'email')
+                                    ->where('organisation_id', app('tenant')?->id),
+                            ])
                             ->validationMessages(['unique' => 'An account already exists for this email address.']),
                         $this->getPasswordFormComponent(),
                         $this->getPasswordConfirmationFormComponent(),

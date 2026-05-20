@@ -1,16 +1,33 @@
 <?php
 
 use App\Http\Controllers\Auth\SocialiteController;
+use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicScheduleController;
 use App\Http\Controllers\ResultsPdfController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return redirect('/portal');
-});
+    // On an org subdomain → redirect to portal
+    if (app('tenant')) {
+        return redirect('/portal');
+    }
+    // Root domain → landing page with org search
+    $query = request()->query('q');
+    $orgs  = $query
+        ? \App\Models\Organisation::active()->where('name', 'like', '%' . $query . '%')->get()
+        : collect();
+    return view('landing', compact('orgs', 'query'));
+})->name('landing');
 
 Route::get('/schedule/{competition}', [PublicScheduleController::class, 'show'])->name('public.schedule');
+
+// Org admin invitation magic links
+Route::get('/invite/org-admin/{membership}', [InvitationController::class, 'accept'])
+    ->name('invite.org-admin.accept')
+    ->middleware('signed');
+Route::post('/invite/org-admin/{membership}', [InvitationController::class, 'complete'])
+    ->name('invite.org-admin.complete');
 
 // Admin panel has no login page — redirect any /admin/login requests to portal
 Route::get('admin/login', fn () => redirect()->route('filament.portal.auth.login'))

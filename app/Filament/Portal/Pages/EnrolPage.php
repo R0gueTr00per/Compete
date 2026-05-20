@@ -58,7 +58,7 @@ class EnrolPage extends Page implements HasForms
             $this->profile_id = $activeProfiles->first()->id;
         }
 
-        $open = Competition::where('status', 'open')->orderBy('competition_date')->first();
+        $open = Competition::where('status', 'open')->where('organisation_id', app('tenant')?->id)->orderBy('competition_date')->first();
         if ($open) {
             $this->competition_id = $open->id;
         }
@@ -131,8 +131,11 @@ class EnrolPage extends Page implements HasForms
                                     ->pluck('competition_id')
                                 : collect();
 
-                            return Competition::where('status', 'open')
-                                ->orWhereIn('id', $enrolledDraftIds)
+                            return Competition::where(fn ($q) => $q
+                                    ->where('status', 'open')
+                                    ->orWhereIn('id', $enrolledDraftIds)
+                                )
+                                ->where('organisation_id', app('tenant')?->id)
                                 ->orderBy('competition_date')
                                 ->get()
                                 ->mapWithKeys(fn ($c) => [
@@ -168,7 +171,7 @@ class EnrolPage extends Page implements HasForms
 
                     Select::make('dojo_name')
                         ->label('LFP Dojo')
-                        ->options(fn () => \App\Models\Dojo::active()->orderBy('name')->pluck('name', 'name'))
+                        ->options(fn () => \App\Models\Dojo::active()->where('organisation_id', app('tenant')?->id)->orderBy('name')->pluck('name', 'name'))
                         ->searchable()
                         ->visible(fn () => $this->dojo_type === 'lfp')
                         ->requiredIf('dojo_type', 'lfp'),
@@ -361,6 +364,7 @@ class EnrolPage extends Page implements HasForms
                 ->options(
                     CompetitorProfile::where('profile_complete', true)
                         ->where('is_active', true)
+                        ->where('organisation_id', app('tenant')?->id)
                         ->where('id', '!=', $this->profile_id)
                         ->get()
                         ->mapWithKeys(fn ($p) => [

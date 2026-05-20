@@ -235,7 +235,18 @@
       "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 40)",
       "Bash(php x:\\\\Repos\\\\Compete\\\\artisan --version)",
       "PowerShell(php \"x:\\\\Repos\\\\Compete\\\\artisan\" --version)",
-      "PowerShell(head -30)"
+      "PowerShell(head -30)",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Recurse -File -Name)",
+      "Bash(Select-Object -First 50)",
+      "Bash(grep -r \"App\\\\\\\\\\\\\\\\Filament\\\\\\\\\\\\\\\\Admin\" \"x:/Repos/Compete/app/Filament/OrgAdmin\")",
+      "Bash(grep -n 'protected static \\\\?string $model\\\\|public static function canCreate\\\\|public static function canDelete\\\\|public static function canAccess' x:/Repos/Compete/app/Filament/OrgAdmin/Resources/CompetitionResource.php)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(New-Item -ItemType Directory -Force \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\filament\\\\admin\\\\tables\\\\columns\")",
+      "Bash(Write-Output \"done\")",
+      "Bash(composer show *)",
+      "Bash(php -r \"echo file_get_contents\\('storage/logs/laravel.log'\\);\")",
+      "Bash(del orphan_check.php)",
+      "Bash(Remove-Item \"x:\\\\Repos\\\\Compete\\\\orphan_check.php\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory"

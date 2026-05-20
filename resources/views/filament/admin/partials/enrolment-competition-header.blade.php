@@ -1,5 +1,8 @@
 @php
-    $competitions = \App\Models\Competition::orderByDesc('competition_date')->pluck('name', 'id');
+    $tenant = app('tenant');
+    $competitions = \App\Models\Competition::when($tenant, fn ($q) => $q->where('organisation_id', $tenant->id))
+        ->orderByDesc('competition_date')
+        ->pluck('name', 'id');
 @endphp
 <div class="rounded-t-xl border-b border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30">
     <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>

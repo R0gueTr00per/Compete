@@ -52,7 +52,8 @@ class ProfilesPage extends Page implements HasForms
     {
         return auth()->user()->ownedProfiles()
             ->orderByRaw("CASE WHEN profile_type = 'self' THEN 0 ELSE 1 END")
-            ->orderBy('date_of_birth', 'desc')
+            ->orderBy('first_name')
+            ->orderBy('surname')
             ->get();
     }
 
@@ -277,9 +278,10 @@ class ProfilesPage extends Page implements HasForms
 
         DB::transaction(function () use ($data, $profile) {
             $newUser = User::create([
-                'email'    => $data['email'],
-                'password' => Hash::make(Str::random(32)),
-                'status'   => 'active',
+                'email'           => $data['email'],
+                'organisation_id' => app('tenant')?->id,
+                'password'        => Hash::make(Str::random(32)),
+                'status'          => 'active',
             ]);
             $newUser->forceFill(['email_verified_at' => now()])->save();
             $newUser->assignRole('user');
@@ -291,7 +293,7 @@ class ProfilesPage extends Page implements HasForms
             ]);
 
             $token = Password::broker()->createToken($newUser);
-            $newUser->notify(new AccountCreatedNotification($token));
+            $newUser->notify(new AccountCreatedNotification($token, app('tenant')));
         });
 
         $this->graduating_profile_id = null;

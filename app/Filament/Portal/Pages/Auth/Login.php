@@ -14,6 +14,18 @@ class Login extends BaseLogin
 {
     protected static string $view = 'filament.portal.pages.auth.login';
 
+    public function getHeading(): \Illuminate\Contracts\Support\Htmlable|string
+    {
+        $name = app('tenant')?->name;
+        if ($name) {
+            return new \Illuminate\Support\HtmlString(
+                '<span style="display:block;font-size:0.85rem;font-weight:500;opacity:0.6;margin-bottom:0.15rem;">Sign in to</span>' .
+                '<span>' . e($name) . '</span>'
+            );
+        }
+        return 'Sign in';
+    }
+
     public function mount(): void
     {
         parent::mount();
@@ -39,9 +51,10 @@ class Login extends BaseLogin
 
     public function authenticate(): ?LoginResponse
     {
-        $data  = $this->form->getState();
-        $email = Str::lower($data['email'] ?? '');
-        $user  = User::where('email', $email)->first();
+        $data   = $this->form->getState();
+        $email  = Str::lower($data['email'] ?? '');
+        $orgId  = app('tenant')?->id;
+        $user   = User::where('email', $email)->where('organisation_id', $orgId)->first();
 
         if ($user && $user->isLocked()) {
             $minutes = (int) ceil(now()->diffInSeconds($user->locked_until) / 60);
@@ -53,7 +66,7 @@ class Login extends BaseLogin
         $response = parent::authenticate();
 
         if ($response !== null) {
-            $freshUser = User::where('email', $email)->first();
+            $freshUser = User::where('email', $email)->where('organisation_id', $orgId)->first();
             Cache::forget('login_failures:' . $email);
 
             if ($freshUser && $freshUser->locked_until?->isPast()) {
@@ -75,6 +88,35 @@ class Login extends BaseLogin
                     'data.email' => 'Your account has been deactivated. Please contact us for assistance.',
                 ]);
             }
+
+            // Org portal: check tenant membership
+            $tenant = app('tenant');
+            if ($freshUser && $tenant) {
+                $membership = $freshUser->membershipFor($tenant);
+                if (! $membership) {
+                    auth()->logout();
+                    $this->redirect(route('filament.portal.auth.register') . '?no_membership=1', navigate: false);
+                    return null;
+                }
+                if ($membership->status === 'pending') {
+                    auth()->logout();
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'data.email' => 'Your registration is awaiting approval from the organisation administrator.',
+                    ]);
+                }
+                if ($membership->status === 'suspended') {
+                    auth()->logout();
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'data.email' => 'Your access to this organisation has been suspended.',
+                    ]);
+                }
+
+                // Admins and officials go directly to the manage panel
+                if ($freshUser->isOrgAdmin($tenant) || $freshUser->isOrgOfficial($tenant)) {
+                    $this->redirect('/manage', navigate: false);
+                    return null;
+                }
+            }
         }
 
         return $response;
@@ -89,7 +131,7 @@ class Login extends BaseLogin
         Cache::put($cacheKey, $attempts, now()->addHour());
 
         if ($attempts >= 5) {
-            $user = User::where('email', $email)->first();
+            $user = User::where('email', $email)->where('organisation_id', app('tenant')?->id)->first();
             $user?->lock();
         }
 

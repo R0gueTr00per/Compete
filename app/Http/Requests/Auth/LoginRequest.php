@@ -79,7 +79,7 @@ class LoginRequest extends FormRequest
     public function ensureAccountIsNotLocked(): void
     {
         $email = Str::lower($this->string('email'));
-        $user  = User::where('email', $email)->first();
+        $user  = User::where('email', $email)->whereNull('organisation_id')->first();
 
         if ($user && $user->isLocked()) {
             $minutes = (int) ceil(now()->diffInSeconds($user->locked_until) / 60);
@@ -99,7 +99,7 @@ class LoginRequest extends FormRequest
         Cache::put($key, $attempts, now()->addHour());
 
         if ($attempts >= 5) {
-            $user = User::where('email', $email)->first();
+            $user = User::where('email', $email)->whereNull('organisation_id')->first();
             $user?->lock();
         }
     }
@@ -110,7 +110,7 @@ class LoginRequest extends FormRequest
         Cache::forget('login_failures:' . $email);
 
         // Clear any DB-level lock set by a previous lockout
-        $user = User::where('email', $email)->first();
+        $user = User::where('email', $email)->whereNull('organisation_id')->first();
         if ($user && $user->locked_until?->isPast()) {
             $user->unlock();
         }

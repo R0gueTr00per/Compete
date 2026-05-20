@@ -10,7 +10,7 @@ class OfficialRole extends Model
 {
     use LogsActivity;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'organisation_id'];
 
     public function getActivitylogOptions(): LogOptions
     {

@@ -84,7 +84,7 @@
 @endforeach
 
 <p style="margin-top:30px; font-size:9px; color:#999; text-align:right;">
-  Generated {{ now()->format('d M Y H:i') }} — Compete
+  Generated {{ now()->format('d M Y H:i') }} — Kompetic
 </p>
 </body>
 </html>

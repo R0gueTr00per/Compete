@@ -23,6 +23,7 @@ class SchedulePage extends Page
     {
         if (! $this->competition_id) {
             $comp = Competition::whereIn('status', ['open', 'running'])
+                ->where('organisation_id', app('tenant')?->id)
                 ->orderBy('competition_date')
                 ->first();
             if ($comp) {

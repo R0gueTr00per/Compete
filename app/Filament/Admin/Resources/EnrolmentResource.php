@@ -32,20 +32,10 @@ class EnrolmentResource extends Resource
     protected static ?string $navigationGroup = 'Competitions';
     protected static ?int $navigationSort = 2;
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']) ?? false;
-    }
-
-    public static function canCreate(): bool
-    {
-        return false;
-    }
-
-    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
-    {
-        return false;
-    }
+    public static function canAccess(): bool { return false; }
+    public static function canCreate(): bool { return false; }
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool   { return false; }
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool { return false; }
 
     public static function form(Form $form): Form
     {

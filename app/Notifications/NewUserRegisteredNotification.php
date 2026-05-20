@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\OrganisationMembership;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -11,7 +12,10 @@ class NewUserRegisteredNotification extends Notification implements \Illuminate\
 {
     use Queueable;
 
-    public function __construct(protected User $newUser) {}
+    public function __construct(
+        protected User $newUser,
+        protected ?OrganisationMembership $membership = null
+    ) {}
 
     public function via(object $notifiable): array
     {
@@ -21,13 +25,22 @@ class NewUserRegisteredNotification extends Notification implements \Illuminate\
     public function toMail(object $notifiable): MailMessage
     {
         $name = $this->newUser->getFilamentName();
+        $org  = $this->membership?->organisation;
+
+        if ($org) {
+            $url     = config('app.scheme') . '://' . $org->slug . '.' . config('app.domain', 'kompetic.com') . '/manage/members';
+            $subject = "New member awaiting approval — {$org->name}";
+            $body    = "**{$name}** ({$this->newUser->email}) has registered on the {$org->name} portal and is awaiting your approval.";
+        } else {
+            $url     = url(route('filament.admin.resources.users.index'));
+            $subject = 'Compete: New user awaiting approval';
+            $body    = "**{$name}** ({$this->newUser->email}) has registered and is awaiting approval.";
+        }
 
         return (new MailMessage)
-            ->subject('Compete: New user awaiting approval')
-            ->greeting('New user registration')
-            ->line("**{$name}** has registered and is awaiting approval.")
-            ->line('Email: ' . $this->newUser->email)
-            ->line('They will need to create a competitor profile before they can enrol.')
-            ->action('Review users', url(route('filament.admin.resources.users.index')));
+            ->subject($subject)
+            ->greeting('New registration')
+            ->line($body)
+            ->action('Review in Users', $url);
     }
 }
