@@ -371,6 +371,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                     ->sortable()
                     ->searchable(),
             ])
+            ->defaultSort('code')
             ->defaultGroup(
                 Group::make('competitionEvent.name')
                     ->label('Event type')

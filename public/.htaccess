@@ -1,3 +1,10 @@
+<IfModule mod_headers.c>
+    # Vite build assets carry content hashes in their filenames — serve them with
+    # a long-lived immutable cache so browsers never re-download unchanged files.
+    SetEnvIf Request_URI "^/build/assets/" vite_asset
+    Header set Cache-Control "public, max-age=31536000, immutable" env=vite_asset
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

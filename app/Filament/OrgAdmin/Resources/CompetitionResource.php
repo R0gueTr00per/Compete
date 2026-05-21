@@ -117,21 +117,18 @@ class CompetitionResource extends Resource
                         ->label('First event fee ($)')
                         ->numeric()
                         ->required()
-                        ->default(38.00)
                         ->prefix('$'),
 
                     TextInput::make('fee_additional_event')
                         ->label('Additional event fee ($)')
                         ->numeric()
                         ->required()
-                        ->default(12.00)
                         ->prefix('$'),
 
                     TextInput::make('late_surcharge')
                         ->label('Late surcharge ($)')
                         ->numeric()
                         ->required()
-                        ->default(15.00)
                         ->prefix('$'),
                 ]),
 

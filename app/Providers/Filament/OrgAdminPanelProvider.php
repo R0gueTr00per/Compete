@@ -143,7 +143,7 @@ class OrgAdminPanelProvider extends PanelProvider
                     .fi-main, body.fi-body { background-color: var(--app-bg) !important; }
                     .fi-section, .fi-wi-stats-overview-stat, .fi-ta-ctn { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important; }
                     .dark .fi-section, .dark .fi-wi-stats-overview-stat, .dark .fi-ta-ctn { box-shadow: none !important; }
-                    .fi-section-header, .fi-ta-header-cell, .fi-ta-header { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
+                    .fi-section-header, .fi-ta-header-cell, .fi-ta-header, .fi-ta-ctn thead, .fi-ta-ctn thead tr, .fi-ta-ctn thead th { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
                     .fi-modal-window { background-color: var(--app-card) !important; }
                     </style>'
                 )

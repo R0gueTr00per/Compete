@@ -60,7 +60,10 @@
       "Bash(php -l app/Filament/Admin/Resources/UserResource/Pages/EditUser.php)",
       "mcp__jira__jira_get_transitions",
       "mcp__jira__jira_add_comment",
-      "Bash(php -l app/Http/Responses/LoginResponse.php)"
+      "Bash(php -l app/Http/Responses/LoginResponse.php)",
+      "Bash(grep -v \"^$\")",
+      "Bash(php -r ' *)",
+      "Bash(xargs grep -l \"fi-ta-header-cell\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

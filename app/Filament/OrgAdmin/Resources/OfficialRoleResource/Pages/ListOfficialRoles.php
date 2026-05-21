@@ -15,7 +15,11 @@ class ListOfficialRoles extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make(),
+            CreateAction::make()
+                ->mutateFormDataUsing(function (array $data): array {
+                    $data['organisation_id'] = app('tenant')?->id;
+                    return $data;
+                }),
         ];
     }
 }

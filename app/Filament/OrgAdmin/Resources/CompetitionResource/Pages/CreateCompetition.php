@@ -16,6 +16,7 @@ class CreateCompetition extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        $data['organisation_id'] = app('tenant')?->id;
         $this->shouldCopyStructure = (bool) ($data['copy_previous_structure'] ?? true);
         unset($data['copy_previous_structure']);
         return $data;

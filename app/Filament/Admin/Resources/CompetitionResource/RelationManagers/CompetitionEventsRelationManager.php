@@ -109,7 +109,6 @@ class CompetitionEventsRelationManager extends RelationManager
                     ->label('Default judge score')
                     ->numeric()
                     ->step(0.1)
-                    ->default(7.0)
                     ->nullable()
                     ->helperText('Pre-fills judge score inputs on the scoring screen.')
                     ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average'])),

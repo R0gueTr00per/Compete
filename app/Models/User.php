@@ -25,21 +25,52 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         'status',
         'timezone',
         'password',
+        'two_factor_secret',
+        'two_factor_confirmed_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
     ];
 
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'locked_until'      => 'datetime',
-            'last_login_at'     => 'datetime',
-            'password'          => 'hashed',
+            'email_verified_at'       => 'datetime',
+            'locked_until'            => 'datetime',
+            'last_login_at'           => 'datetime',
+            'password'                => 'hashed',
+            'two_factor_secret'       => 'encrypted',
+            'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
+    }
+
+    public function twoFactorSecretDecrypted(): ?string
+    {
+        return $this->two_factor_secret;
+    }
+
+    public function enableTwoFactor(string $plainSecret): void
+    {
+        $this->forceFill([
+            'two_factor_secret'       => $plainSecret,
+            'two_factor_confirmed_at' => now(),
+        ])->save();
+    }
+
+    public function disableTwoFactor(): void
+    {
+        $this->forceFill([
+            'two_factor_secret'       => null,
+            'two_factor_confirmed_at' => null,
+        ])->save();
     }
 
     public function getFilamentName(): string
