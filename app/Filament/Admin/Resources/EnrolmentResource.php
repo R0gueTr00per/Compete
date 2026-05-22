@@ -105,6 +105,13 @@ class EnrolmentResource extends Resource
 
                 TextColumn::make('status')
                     ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'pending'    => 'Pending',
+                        'confirmed'  => 'Confirmed',
+                        'checked_in' => 'Checked In',
+                        'withdrawn'  => 'Withdrawn',
+                        default      => ucfirst($state),
+                    })
                     ->color(fn (string $state) => match ($state) {
                         'pending'    => 'warning',
                         'confirmed'  => 'success',

@@ -213,8 +213,8 @@
                                     $targetScore   = $scoringMethod === 'first_to_n' ? $this->getTargetScore() : null;
                                 @endphp
 
-                                {{-- wire:key changes when bracketExists flips OR scoring completes, forcing full replacement --}}
-                                <div wire:key="bracket-{{ $this->division_id }}-{{ $hasBracket ? 'has' : 'empty' }}-{{ $this->isScoringComplete() ? 'done' : 'active' }}">
+                                {{-- wire:key changes on any bracket structural change (new matches) or completion, forcing full replacement --}}
+                                <div wire:key="bracket-{{ $this->division_id }}-{{ $hasBracket ? 'has' : 'empty' }}-{{ collect($bracketData)->flatten(2)->count() }}-{{ $this->isScoringComplete() ? 'done' : 'active' }}">
 
                                 @if (! $hasBracket)
                                     @if ($this->manualPairingMode)
@@ -337,10 +337,12 @@
 
                                     @foreach ($displaySections as $displaySection)
                                         @php
-                                            $displayBracketKey = $displaySection['key'];
-                                            $rounds            = $displaySection['rounds'];
-                                            $sectionLabel      = $displaySection['label'];
+                                            $displayBracketKey  = $displaySection['key'];
+                                            $rounds             = $displaySection['rounds'];
+                                            $sectionLabel       = $displaySection['label'];
+                                            $sectionFirstRound  = array_key_first($rounds ?? [1 => null]);
                                         @endphp
+                                        <div wire:key="section-{{ $this->division_id }}-{{ $displayBracketKey }}-{{ $sectionFirstRound }}">
 
                                         @if ($sectionLabel)
                                             <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mt-4 mb-1">{{ $sectionLabel }}</p>
@@ -349,7 +351,7 @@
                                         @foreach ($rounds as $roundNum => $matches)
                                             @php $visibleMatches = collect($matches)->filter(fn($m) => ! $m->is_bye); @endphp
                                             @if ($visibleMatches->isEmpty()) @continue @endif
-                                            <div class="mb-3">
+                                            <div wire:key="round-{{ $this->division_id }}-{{ $displayBracketKey }}-{{ $roundNum }}" class="mb-3">
                                                 {{-- Show round label when: multiple rounds in section, OR no section label and not grand_final --}}
                                                 @if (count($rounds) > 1 || ($sectionLabel === null && $displayBracketKey !== 'grand_final'))
                                                     <p class="text-xs text-gray-400 mb-1.5">
@@ -437,6 +439,7 @@
                                                 </div>
                                             </div>
                                         @endforeach
+                                        </div>{{-- end section wire:key --}}
                                     @endforeach
 
                                     {{-- Bracket results summary --}}
@@ -545,7 +548,8 @@
                                     @endphp
 
                                     @if ($isComplete && ! empty($bracketPlacements))
-                                        <div class="mt-4 rounded-lg border border-success-300 dark:border-success-700 bg-success-50 dark:bg-success-900/20 px-4 py-3">
+                                        <div wire:key="bracket-results-{{ $this->division_id }}"
+                                             class="mt-4 rounded-lg border border-success-300 dark:border-success-700 bg-success-50 dark:bg-success-900/20 px-4 py-3">
                                             <p class="text-xs font-semibold uppercase tracking-wider text-success-700 dark:text-success-400 mb-2">Results</p>
                                             @if (isset($bracketPlacements[1]))
                                                 <p class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white"><span class="text-2xl leading-none">🥇</span> {{ $bracketPlacements[1] }}</p>

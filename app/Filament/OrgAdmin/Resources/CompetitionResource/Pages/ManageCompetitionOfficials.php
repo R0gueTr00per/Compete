@@ -183,14 +183,20 @@ class ManageCompetitionOfficials extends Page
         }
     }
 
-    public function removeOfficial(int $officialId): void
+    public function removeOfficialAction(): Action
     {
-        $competition = $this->getRecord();
+        return Action::make('removeOfficial')
+            ->requiresConfirmation()
+            ->modalHeading('Remove official?')
+            ->modalDescription(fn (array $arguments) => "Remove {$arguments['name']} as an official from this competition?")
+            ->modalSubmitActionLabel('Remove')
+            ->color('danger')
+            ->action(function (array $arguments) {
+                CompetitionOfficial::where('id', (int) $arguments['officialId'])
+                    ->where('competition_id', $this->getRecord()->id)
+                    ->delete();
 
-        CompetitionOfficial::where('id', $officialId)
-            ->where('competition_id', $competition->id)
-            ->delete();
-
-        Notification::make()->success()->title('Official removed.')->send();
+                Notification::make()->success()->title('Official removed.')->send();
+            });
     }
 }

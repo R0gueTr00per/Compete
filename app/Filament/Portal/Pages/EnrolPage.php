@@ -6,6 +6,7 @@ use App\Models\Competition;
 use App\Models\CompetitorProfile;
 use App\Models\Division;
 use App\Models\EnrolmentEvent;
+use App\Models\Rank;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
 use Filament\Forms\Components\CheckboxList;
@@ -36,11 +37,7 @@ class EnrolPage extends Page implements HasForms
     public ?string $dojo_type           = null;
     public ?string $dojo_name           = null;
     public ?string $guest_style         = null;
-    public ?string $rank_type           = null;
-    public ?int    $rank_kyu            = null;
-    public ?int    $rank_dan            = null;
-    public ?int    $experience_years    = null;
-    public ?int    $experience_months   = null;
+    public ?int    $rank_id             = null;
     public ?float  $weight_kg           = null;
     public array   $selected_entries    = [];
     public array   $yakusuko_partners   = [];
@@ -182,53 +179,19 @@ class EnrolPage extends Page implements HasForms
                         ->visible(fn () => $this->dojo_type === 'guest')
                         ->requiredIf('dojo_type', 'guest'),
 
-                    Radio::make('rank_type')
-                        ->label('Rank type')
-                        ->options([
-                            'kyu'        => 'Kyu grade',
-                            'dan'        => 'Dan grade',
-                            'experience' => 'Years of experience',
-                        ])
+                    Select::make('rank_id')
+                        ->label('Rank / Level')
+                        ->options(fn () => Rank::where('organisation_id', Competition::find($this->competition_id)?->organisation_id)
+                            ->orderBy('sort_order')
+                            ->pluck('name', 'id'))
                         ->required()
-                        ->inline()
+                        ->searchable()
                         ->live()
                         ->afterStateUpdated(function () {
                             $this->details_confirmed = false;
                             $this->selected_entries  = [];
                         })
                         ->columnSpanFull(),
-
-                    TextInput::make('rank_kyu')
-                        ->label('Kyu grade')
-                        ->numeric()
-                        ->minValue(1)
-                        ->maxValue(10)
-                        ->suffix('Kyu')
-                        ->visible(fn () => $this->rank_type === 'kyu')
-                        ->requiredIf('rank_type', 'kyu'),
-
-                    TextInput::make('rank_dan')
-                        ->label('Dan grade')
-                        ->numeric()
-                        ->minValue(1)
-                        ->maxValue(10)
-                        ->suffix('Dan')
-                        ->visible(fn () => $this->rank_type === 'dan')
-                        ->requiredIf('rank_type', 'dan'),
-
-                    TextInput::make('experience_years')
-                        ->label('Years')
-                        ->numeric()
-                        ->minValue(0)
-                        ->maxValue(80)
-                        ->visible(fn () => $this->rank_type === 'experience'),
-
-                    TextInput::make('experience_months')
-                        ->label('Months (in addition to years)')
-                        ->numeric()
-                        ->minValue(0)
-                        ->maxValue(11)
-                        ->visible(fn () => $this->rank_type === 'experience'),
 
                     TextInput::make('weight_kg')
                         ->label('Weight (kg)')
@@ -260,14 +223,10 @@ class EnrolPage extends Page implements HasForms
         }
 
         return (object) [
-            'gender'            => $profile->gender,
-            'age'               => $profile->age,
-            'rank_type'         => $this->rank_type,
-            'rank_kyu'          => $this->rank_kyu,
-            'rank_dan'          => $this->rank_dan,
-            'experience_years'  => $this->experience_years,
-            'experience_months' => $this->experience_months,
-            'weight_kg'         => $this->weight_kg,
+            'gender'    => $profile->gender,
+            'age'       => $profile->age,
+            'rank_id'   => $this->rank_id,
+            'weight_kg' => $this->weight_kg,
         ];
     }
 
@@ -435,16 +394,8 @@ class EnrolPage extends Page implements HasForms
             Notification::make()->title('Select a membership type (LFP or Guest) to continue.')->info()->send();
             return;
         }
-        if (! $this->rank_type) {
-            Notification::make()->title('Select a rank type to continue.')->info()->send();
-            return;
-        }
-        if ($this->rank_type === 'kyu' && ! $this->rank_kyu) {
-            Notification::make()->title('Enter your Kyu grade to continue.')->info()->send();
-            return;
-        }
-        if ($this->rank_type === 'dan' && ! $this->rank_dan) {
-            Notification::make()->title('Enter your Dan grade to continue.')->info()->send();
+        if (! $this->rank_id) {
+            Notification::make()->title('Select a rank to continue.')->info()->send();
             return;
         }
 
@@ -487,7 +438,7 @@ class EnrolPage extends Page implements HasForms
             return;
         }
 
-        if (! $this->dojo_type || ! $this->rank_type) {
+        if (! $this->dojo_type || ! $this->rank_id) {
             Notification::make()->title('Please fill in your competition details (dojo and rank).')->warning()->send();
             return;
         }
@@ -510,15 +461,11 @@ class EnrolPage extends Page implements HasForms
         $competitionEventIds = array_keys($divisionsByEvent);
 
         $entryDetails = [
-            'dojo_type'         => $this->dojo_type,
-            'dojo_name'         => $this->dojo_type === 'lfp' ? $this->dojo_name : null,
-            'guest_style'       => $this->dojo_type === 'guest' ? $this->guest_style : null,
-            'rank_type'         => $this->rank_type,
-            'rank_kyu'          => $this->rank_type === 'kyu' ? $this->rank_kyu : null,
-            'rank_dan'          => $this->rank_type === 'dan' ? $this->rank_dan : null,
-            'experience_years'  => $this->rank_type === 'experience' ? $this->experience_years : null,
-            'experience_months' => $this->rank_type === 'experience' ? $this->experience_months : null,
-            'weight_kg'         => $this->weight_kg,
+            'dojo_type'   => $this->dojo_type,
+            'dojo_name'   => $this->dojo_type === 'lfp' ? $this->dojo_name : null,
+            'guest_style' => $this->dojo_type === 'guest' ? $this->guest_style : null,
+            'rank_id'     => $this->rank_id,
+            'weight_kg'   => $this->weight_kg,
         ];
 
         $enrolment = app(EnrolmentService::class)->enrol(

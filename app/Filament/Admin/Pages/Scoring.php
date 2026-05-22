@@ -907,7 +907,10 @@ class Scoring extends Page
             }
             return;
         } elseif ($format === 'se_3rd_place') {
-            $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
+            // Use DB max so bye-cascade matches that exist but aren't played yet don't shrink $wbFinalRound.
+            $wbFinalRound = RoundRobinMatch::where('division_id', $this->division_id)
+                ->where('bracket', 'winners')
+                ->max('round') ?? 0;
             $wbFinal      = $matches->where('bracket', 'winners')->where('round', $wbFinalRound)->first();
             if ($wbFinal?->winnerId()) {
                 $this->setBracketPlacement($wbFinal->winnerId(), 1, $service);

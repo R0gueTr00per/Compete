@@ -7,6 +7,7 @@ use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\Division;
 use App\Models\EnrolmentEvent;
+use App\Models\Rank;
 use App\Models\RankBand;
 use App\Models\WeightClass;
 use Illuminate\Support\Facades\DB;
@@ -267,7 +268,10 @@ class DivisionAssignmentService
             // Copy rank bands, track old → new ID mapping
             $rankBandMap = [];
             foreach ($source->rankBands->sortBy('sort_order') as $band) {
-                $new = $target->rankBands()->create($band->only(['label', 'description', 'sort_order', 'rank_min', 'rank_max']));
+                $new = $target->rankBands()->create($band->only([
+                    'label', 'description', 'sort_order',
+                    'rank_min', 'rank_max', 'from_rank_id', 'to_rank_id',
+                ]));
                 $rankBandMap[$band->id] = $new->id;
             }
 
@@ -369,21 +373,18 @@ class DivisionAssignmentService
     public function buildContext($profile, $enrolment = null, ?float $confirmedWeight = null): object
     {
         return (object) [
-            'gender'            => $profile->gender,
-            'age'               => $profile->age,
-            'rank_type'         => $enrolment?->rank_type,
-            'rank_kyu'          => $enrolment?->rank_kyu,
-            'rank_dan'          => $enrolment?->rank_dan,
-            'experience_years'  => $enrolment?->experience_years,
-            'experience_months' => $enrolment?->experience_months,
-            'weight_kg'         => $confirmedWeight ?? $enrolment?->weight_kg,
+            'gender'    => $profile->gender,
+            'age'       => $profile->age,
+            'rank_id'   => $enrolment?->rank_id,
+            'weight_kg' => $confirmedWeight ?? $enrolment?->weight_kg,
         ];
     }
 
     private function assignAgeRankSex(int $eventId, string $sex, $ctx): ?Division
     {
-        $age  = $ctx->age;
-        $rank = $this->normalizeRank($ctx);
+        $age       = $ctx->age;
+        $rank      = $this->normalizeRank($ctx);
+        $sortOrder = $this->resolveRankSortOrder($ctx);
 
         // Try sex-specific divisions first, then fall back to Mixed
         foreach ([$sex, 'mixed'] as $trySex) {
@@ -392,17 +393,16 @@ class DivisionAssignmentService
                 ->whereIn('status', ['pending', 'assigned']);
 
             // 1. Exact: matching age band + rank band
-            if ($rank !== null) {
-                $match = (clone $base)
+            if ($rank !== null || $sortOrder !== null) {
+                $candidates = (clone $base)
+                    ->whereNotNull('rank_band_id')
                     ->whereHas('ageBand', fn ($q) => $q
                         ->where(fn ($q2) => $q2->whereNull('min_age')->orWhere('min_age', '<=', $age))
                         ->where(fn ($q2) => $q2->whereNull('max_age')->orWhere('max_age', '>=', $age))
                     )
-                    ->whereHas('rankBand', fn ($q) => $q
-                        ->where(fn ($q2) => $q2->whereNull('rank_min')->orWhere('rank_min', '<=', $rank))
-                        ->where(fn ($q2) => $q2->whereNull('rank_max')->orWhere('rank_max', '>=', $rank))
-                    )
-                    ->first();
+                    ->with(['rankBand.fromRank', 'rankBand.toRank'])
+                    ->get();
+                $match = $candidates->first(fn ($d) => $this->divisionFitsRank($d, $ctx));
                 if ($match) {
                     return $match;
                 }
@@ -490,24 +490,24 @@ class DivisionAssignmentService
 
     private function assignAgeRank(int $eventId, $ctx): ?Division
     {
-        $age  = $ctx->age;
-        $rank = $this->normalizeRank($ctx);
+        $age       = $ctx->age;
+        $rank      = $this->normalizeRank($ctx);
+        $sortOrder = $this->resolveRankSortOrder($ctx);
 
         $base = Division::where('competition_event_id', $eventId)
             ->where('sex', 'mixed')
             ->whereIn('status', ['pending', 'assigned']);
 
-        if ($rank !== null) {
-            $match = (clone $base)
+        if ($rank !== null || $sortOrder !== null) {
+            $candidates = (clone $base)
+                ->whereNotNull('rank_band_id')
                 ->whereHas('ageBand', fn ($q) => $q
                     ->where(fn ($q2) => $q2->whereNull('min_age')->orWhere('min_age', '<=', $age))
                     ->where(fn ($q2) => $q2->whereNull('max_age')->orWhere('max_age', '>=', $age))
                 )
-                ->whereHas('rankBand', fn ($q) => $q
-                    ->where(fn ($q2) => $q2->whereNull('rank_min')->orWhere('rank_min', '<=', $rank))
-                    ->where(fn ($q2) => $q2->whereNull('rank_max')->orWhere('rank_max', '>=', $rank))
-                )
-                ->first();
+                ->with(['rankBand.fromRank', 'rankBand.toRank'])
+                ->get();
+            $match = $candidates->first(fn ($d) => $this->divisionFitsRank($d, $ctx));
             if ($match) {
                 return $match;
             }
@@ -632,7 +632,7 @@ class DivisionAssignmentService
 
     /**
      * Return all divisions for a competition event that a competitor is eligible to enter.
-     * Accepts a context object with: gender, age, rank_type, rank_kyu, rank_dan, weight_kg.
+     * Accepts a context object with: gender, age, rank_id, weight_kg.
      * This may be a CompetitorProfile, an Enrolment-derived stdClass, or a form-built stdClass.
      */
     public function getEligibleDivisions(CompetitionEvent $compEvent, $ctx): \Illuminate\Database\Eloquent\Collection
@@ -647,11 +647,10 @@ class DivisionAssignmentService
         }
 
         // Load all candidates with relationships; filter in PHP to avoid N correlated subqueries
-        $divisions = $base->with(['ageBand', 'rankBand', 'weightClass'])->get();
+        $divisions = $base->with(['ageBand', 'rankBand.fromRank', 'rankBand.toRank', 'weightClass'])->get();
 
         $sex    = $ctx->gender;
         $age    = $ctx->age;
-        $rank   = $this->normalizeRank($ctx);
         $weight = $ctx->weight_kg;
 
         // Sex filter
@@ -669,10 +668,7 @@ class DivisionAssignmentService
                 && ($d->ageBand->min_age === null || $d->ageBand->min_age <= $age)
                 && ($d->ageBand->max_age === null || $d->ageBand->max_age >= $age));
 
-        $fitsRank = fn ($d) => ! $d->rank_band_id
-            || ($rank !== null && $d->rankBand
-                && ($d->rankBand->rank_min === null || $d->rankBand->rank_min <= $rank)
-                && ($d->rankBand->rank_max === null || $d->rankBand->rank_max >= $rank));
+        $fitsRank = fn ($d) => $this->divisionFitsRank($d, $ctx);
 
         // Derive best-fit weight class from already-loaded relationships (avoids extra DB query)
         $resolveBestMaxKg = fn ($pool) => $pool
@@ -734,17 +730,70 @@ class DivisionAssignmentService
     }
 
     /**
-     * Convert rank fields to a signed integer for range comparison.
-     * 9th kyu = -9 … 1st kyu = -1, experience = 0, 1st dan = 1 … 10th dan = 10.
-     * Accepts any object with rank_type, rank_kyu, rank_dan.
+     * Convert rank_id to a signed integer for range comparison.
+     * 9th kyu = -9 … 1st kyu = -1, 1st dan = 1 … 10th dan = 10.
      */
     private function normalizeRank($ctx): ?int
     {
-        return match ($ctx->rank_type ?? null) {
-            'kyu'        => $ctx->rank_kyu ? -$ctx->rank_kyu : null,
-            'dan'        => $ctx->rank_dan ?? null,
-            'experience' => 0,
-            default      => null,
-        };
+        $rankId = $ctx->rank_id ?? null;
+        if (! $rankId) {
+            return null;
+        }
+
+        $name = Rank::find($rankId)?->name ?? '';
+        if (preg_match('/(\d+)(?:st|nd|rd|th)?\s+kyu/i', $name, $m)) {
+            return -(int) $m[1];
+        }
+        if (preg_match('/(\d+)(?:st|nd|rd|th)?\s+dan/i', $name, $m)) {
+            return (int) $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve a competitor's sort_order position from their rank_id.
+     */
+    private function resolveRankSortOrder($ctx): ?int
+    {
+        $rankId = $ctx->rank_id ?? null;
+        if (! $rankId) {
+            return null;
+        }
+        return Rank::find($rankId)?->sort_order;
+    }
+
+    /**
+     * Check whether a division's rank band covers the competitor's rank.
+     * Supports both new-style (from_rank_id/to_rank_id with sort_order) and
+     * legacy-style (rank_min/rank_max signed integer) bands.
+     */
+    private function divisionFitsRank(Division $d, $ctx): bool
+    {
+        if (! $d->rank_band_id) {
+            return true;
+        }
+
+        $rankBand = $d->rankBand;
+        if (! $rankBand) {
+            return true;
+        }
+
+        // New style: uses from_rank_id / to_rank_id
+        if ($rankBand->from_rank_id || $rankBand->to_rank_id) {
+            $sortOrder = $this->resolveRankSortOrder($ctx);
+            if ($sortOrder === null) {
+                return false;
+            }
+            $fromSort = $rankBand->fromRank?->sort_order ?? 0;
+            $toSort   = $rankBand->toRank?->sort_order;
+            return $sortOrder >= $fromSort && ($toSort === null || $sortOrder <= $toSort);
+        }
+
+        // Legacy style: uses rank_min / rank_max signed integers
+        $rank = $this->normalizeRank($ctx);
+        return $rank !== null
+            && ($rankBand->rank_min === null || $rankBand->rank_min <= $rank)
+            && ($rankBand->rank_max === null || $rankBand->rank_max >= $rank);
     }
 }

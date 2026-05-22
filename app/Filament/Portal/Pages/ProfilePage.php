@@ -121,14 +121,18 @@ class ProfilePage extends Page implements HasForms
 
         $user = auth()->user();
 
-        if ($this->profile) {
-            $this->profile->update($profileData);
+        // Re-resolve on each request — private $profile is not persisted by Livewire between requests
+        $profile = $this->resolveProfile();
+
+        if ($profile) {
+            $profile->update($profileData);
         } else {
             // Create self-profile if it doesn't exist yet
-            $profileData['profile_type']  = 'self';
-            $profileData['owner_user_id'] = $user->id;
-            $profileData['user_id']       = $user->id;
-            $profileData['is_active']     = true;
+            $profileData['profile_type']    = 'self';
+            $profileData['owner_user_id']   = $user->id;
+            $profileData['user_id']         = $user->id;
+            $profileData['is_active']       = true;
+            $profileData['organisation_id'] = app('tenant')?->id;
             CompetitorProfile::create($profileData);
         }
 
@@ -148,9 +152,9 @@ class ProfilePage extends Page implements HasForms
                 ->label('Deactivate profile')
                 ->color('danger')
                 ->requiresConfirmation()
-                ->visible(fn () => $this->profile?->is_active === true)
+                ->visible(fn () => $this->resolveProfile()?->is_active === true)
                 ->action(function () {
-                    $this->profile->update(['is_active' => false]);
+                    $this->resolveProfile()?->update(['is_active' => false]);
                     Notification::make()->title('Profile deactivated.')->success()->send();
                     $this->redirect(route('filament.portal.pages.dashboard'));
                 }),
@@ -159,9 +163,12 @@ class ProfilePage extends Page implements HasForms
                 ->label('Reactivate profile')
                 ->color('success')
                 ->requiresConfirmation()
-                ->visible(fn () => $this->profile !== null && $this->profile->is_active === false)
+                ->visible(function () {
+                    $p = $this->resolveProfile();
+                    return $p !== null && $p->is_active === false;
+                })
                 ->action(function () {
-                    $this->profile->update(['is_active' => true]);
+                    $this->resolveProfile()?->update(['is_active' => true]);
                     Notification::make()->title('Profile reactivated.')->success()->send();
                 }),
 

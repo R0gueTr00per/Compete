@@ -9,12 +9,11 @@ use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class ProfilesRelationManager extends RelationManager
 {
-    protected static string $relationship = 'user';
+    protected static string $relationship = 'competitorProfiles';
 
     protected static ?string $title = 'Linked Profiles';
 
@@ -26,11 +25,6 @@ class ProfilesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->query(
-                CompetitorProfile::query()
-                    ->where('owner_user_id', $this->getOwnerRecord()->user_id)
-                    ->where('organisation_id', $this->getOwnerRecord()->organisation_id)
-            )
             ->recordTitleAttribute('full_name')
             ->columns([
                 TextColumn::make('full_name')

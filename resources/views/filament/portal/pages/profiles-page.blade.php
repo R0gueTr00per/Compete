@@ -87,7 +87,7 @@
                         </x-filament::button>
                         @if ($profile->is_active)
                             <x-filament::button size="xs" color="warning"
-                                x-on:click="$wire.mountAction('deactivateProfile', @js(['profileId' => $profile->id]))">
+                                x-on:click="$wire.mountAction('deactivateProfile', { profileId: {{ $profile->id }} })">
                                 Deactivate
                             </x-filament::button>
                         @else

@@ -68,7 +68,11 @@ class OrganisationResource extends Resource
                         'alpha_dash' => 'The sub-domain may only contain letters, numbers, dashes, and underscores.',
                     ])
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn (Set $set, ?string $state) => $set('slug', strtolower($state ?? ''))),
+                    ->afterStateUpdated(function (Set $set, ?string $state, string $operation) {
+                        if ($operation === 'create') {
+                            $set('slug', strtolower($state ?? ''));
+                        }
+                    }),
 
                 Select::make('status')
                     ->options(['active' => 'Active', 'inactive' => 'Inactive'])

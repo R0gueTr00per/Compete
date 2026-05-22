@@ -1,30 +1,13 @@
 <x-filament-panels::page>
     @php
-        $stats = $this->getStats();
         $orgs  = $this->getRecentOrgs();
         $domain = config('app.domain', 'kompetic.com');
     @endphp
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <x-filament::section>
-            <div class="text-center">
-                <div class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ $stats['total'] }}</div>
-                <div class="text-sm text-gray-500 mt-1">Total organisations</div>
-            </div>
-        </x-filament::section>
-        <x-filament::section>
-            <div class="text-center">
-                <div class="text-3xl font-bold text-green-600">{{ $stats['active'] }}</div>
-                <div class="text-sm text-gray-500 mt-1">Active</div>
-            </div>
-        </x-filament::section>
-        <x-filament::section>
-            <div class="text-center">
-                <div class="text-3xl font-bold text-gray-400">{{ $stats['inactive'] }}</div>
-                <div class="text-sm text-gray-500 mt-1">Inactive</div>
-            </div>
-        </x-filament::section>
-    </div>
+    <x-filament-widgets::widgets
+        :widgets="$this->getWidgets()"
+        :columns="1"
+    />
 
     <x-filament::section heading="Organisations">
         @if ($orgs->isEmpty())
@@ -38,6 +21,13 @@
                                 {{ $org->name }}
                             </a>
                             <div class="text-sm text-gray-400">{{ $org->slug }}.{{ $domain }}</div>
+                            @if ($org->nextCompetition)
+                                <div class="text-xs text-gray-500 mt-0.5">
+                                    Next: <span class="text-gray-700 dark:text-gray-300">{{ $org->nextCompetition->name }}</span>
+                                    &mdash; {{ $org->nextCompetition->competition_date->format('d M Y') }}
+                                    &mdash; {{ $org->nextCompetition->enrolments_count }} enrolment{{ $org->nextCompetition->enrolments_count === 1 ? '' : 's' }}
+                                </div>
+                            @endif
                         </div>
                         <div class="flex items-center gap-3 shrink-0">
                             <span class="text-xs text-gray-500">{{ $org->memberships_count }} admin{{ $org->memberships_count === 1 ? '' : 's' }}</span>
@@ -48,7 +38,6 @@
                                 'bg-green-100 text-green-700' => $org->status === 'active',
                                 'bg-gray-100 text-gray-500'   => $org->status !== 'active',
                             ])>{{ ucfirst($org->status) }}</span>
-                            <a href="{{ config('app.scheme') }}://{{ $org->slug }}.{{ $domain }}/manage" target="_blank" class="text-xs text-primary-600 hover:underline">Manage →</a>
                         </div>
                     </div>
                 @endforeach

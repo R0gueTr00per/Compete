@@ -10,6 +10,7 @@ use App\Models\OrganisationMembership;
 use App\Models\User;
 use App\Notifications\AdminCreatedAccountNotification;
 use App\Notifications\AdminCreatedParentAccountNotification;
+use App\Models\Rank;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
 use Filament\Forms\Components\CheckboxList;
@@ -60,11 +61,7 @@ class CreateAdminEnrolment extends Page implements HasForms
     public ?string $new_gender           = null;
     public ?string $dojo_type            = null;
     public ?string $dojo_name            = null;
-    public ?string $rank_type            = null;
-    public ?int    $rank_kyu             = null;
-    public ?int    $rank_dan             = null;
-    public ?int    $experience_years     = null;
-    public ?int    $experience_months    = null;
+    public ?int    $rank_id              = null;
     public ?float  $weight_kg            = null;
     public array   $selected_entries     = [];
     public bool    $details_confirmed    = false;
@@ -149,7 +146,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->afterStateUpdated(function () {
                             $this->selected_entries  = [];
                             $this->dojo_type         = 'lfp';
-                            $this->rank_type         = null;
+                            $this->rank_id           = null;
                             $this->details_confirmed = false;
                         })
                         ->columnSpanFull(),
@@ -238,51 +235,16 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->searchable()
                         ->required(),
 
-                    Radio::make('rank_type')
-                        ->label('Rank type')
-                        ->options([
-                            'kyu'        => 'Kyu grade',
-                            'dan'        => 'Dan grade',
-                            'experience' => 'Years of experience',
-                        ])
+                    Select::make('rank_id')
+                        ->label('Rank / Level')
+                        ->options(fn () => Rank::where('organisation_id', app('tenant')?->id)->orderBy('sort_order')->pluck('name', 'id'))
                         ->required()
-                        ->inline()
+                        ->searchable()
                         ->live()
                         ->afterStateUpdated(function () {
                             $this->details_confirmed = false;
                             $this->selected_entries  = [];
-                        })
-                        ->columnSpanFull(),
-
-                    TextInput::make('rank_kyu')
-                        ->label('Kyu grade')
-                        ->numeric()
-                        ->minValue(1)
-                        ->maxValue(10)
-                        ->suffix('Kyu')
-                        ->visible(fn () => $this->rank_type === 'kyu'),
-
-                    TextInput::make('rank_dan')
-                        ->label('Dan grade')
-                        ->numeric()
-                        ->minValue(1)
-                        ->maxValue(10)
-                        ->suffix('Dan')
-                        ->visible(fn () => $this->rank_type === 'dan'),
-
-                    TextInput::make('experience_years')
-                        ->label('Years')
-                        ->numeric()
-                        ->minValue(0)
-                        ->maxValue(80)
-                        ->visible(fn () => $this->rank_type === 'experience'),
-
-                    TextInput::make('experience_months')
-                        ->label('Months')
-                        ->numeric()
-                        ->minValue(0)
-                        ->maxValue(11)
-                        ->visible(fn () => $this->rank_type === 'experience'),
+                        }),
 
                     TextInput::make('weight_kg')
                         ->label('Weight (kg)')
@@ -310,14 +272,10 @@ class CreateAdminEnrolment extends Page implements HasForms
     {
         if ($this->create_new_user && $this->new_dob && $this->new_gender) {
             return (object) [
-                'gender'            => $this->new_gender,
-                'age'               => \Carbon\Carbon::parse($this->new_dob)->age,
-                'rank_type'         => $this->rank_type,
-                'rank_kyu'          => $this->rank_kyu,
-                'rank_dan'          => $this->rank_dan,
-                'experience_years'  => $this->experience_years,
-                'experience_months' => $this->experience_months,
-                'weight_kg'         => $this->weight_kg,
+                'gender'    => $this->new_gender,
+                'age'       => \Carbon\Carbon::parse($this->new_dob)->age,
+                'rank_id'   => $this->rank_id,
+                'weight_kg' => $this->weight_kg,
             ];
         }
 
@@ -327,14 +285,10 @@ class CreateAdminEnrolment extends Page implements HasForms
         }
 
         return (object) [
-            'gender'            => $profile->gender,
-            'age'               => $profile->age,
-            'rank_type'         => $this->rank_type,
-            'rank_kyu'          => $this->rank_kyu,
-            'rank_dan'          => $this->rank_dan,
-            'experience_years'  => $this->experience_years,
-            'experience_months' => $this->experience_months,
-            'weight_kg'         => $this->weight_kg,
+            'gender'    => $profile->gender,
+            'age'       => $profile->age,
+            'rank_id'   => $this->rank_id,
+            'weight_kg' => $this->weight_kg,
         ];
     }
 
@@ -456,9 +410,7 @@ class CreateAdminEnrolment extends Page implements HasForms
     public function isReadyToSubmit(): bool
     {
         if (! $this->details_confirmed) return false;
-        if (! $this->competition_id || ! $this->dojo_type || ! $this->rank_type) return false;
-        if ($this->rank_type === 'kyu' && ! $this->rank_kyu) return false;
-        if ($this->rank_type === 'dan' && ! $this->rank_dan) return false;
+        if (! $this->competition_id || ! $this->dojo_type || ! $this->rank_id) return false;
         if (empty($this->selected_entries)) return false;
         if ($this->create_new_user) {
             return $this->newCompetitorReady();
@@ -492,16 +444,8 @@ class CreateAdminEnrolment extends Page implements HasForms
             $this->addError('new_email', 'A user with that email already exists. Select them from the existing competitor list.');
             return;
         }
-        if (! $this->rank_type) {
-            Notification::make()->title('Select a rank type to continue.')->info()->send();
-            return;
-        }
-        if ($this->rank_type === 'kyu' && ! $this->rank_kyu) {
-            Notification::make()->title('Enter the Kyu grade to continue.')->info()->send();
-            return;
-        }
-        if ($this->rank_type === 'dan' && ! $this->rank_dan) {
-            Notification::make()->title('Enter the Dan grade to continue.')->info()->send();
+        if (! $this->rank_id) {
+            Notification::make()->title('Select a rank / level to continue.')->info()->send();
             return;
         }
 
@@ -527,7 +471,7 @@ class CreateAdminEnrolment extends Page implements HasForms
             return;
         }
 
-        if (! $this->dojo_type || ! $this->rank_type) {
+        if (! $this->dojo_type || ! $this->rank_id) {
             Notification::make()->title('Please fill in the competitor\'s entry details (dojo and rank).')->warning()->send();
             return;
         }
@@ -664,14 +608,10 @@ class CreateAdminEnrolment extends Page implements HasForms
         }
 
         $entryDetails = [
-            'dojo_type'         => $this->dojo_type,
-            'dojo_name'         => $this->dojo_name,
-            'rank_type'         => $this->rank_type,
-            'rank_kyu'          => $this->rank_type === 'kyu' ? $this->rank_kyu : null,
-            'rank_dan'          => $this->rank_type === 'dan' ? $this->rank_dan : null,
-            'experience_years'  => $this->rank_type === 'experience' ? $this->experience_years : null,
-            'experience_months' => $this->rank_type === 'experience' ? $this->experience_months : null,
-            'weight_kg'         => $this->weight_kg,
+            'dojo_type'  => $this->dojo_type,
+            'dojo_name'  => $this->dojo_name,
+            'rank_id'    => $this->rank_id,
+            'weight_kg'  => $this->weight_kg,
         ];
 
         $suppressServiceNotification = $newAdultUser !== null || $newParentUser !== null;
@@ -698,8 +638,7 @@ class CreateAdminEnrolment extends Page implements HasForms
         $this->reset(['selected_entries', 'details_confirmed', 'competitor_profile_id',
             'create_new_user', 'is_child_profile', 'new_email', 'new_parent_email',
             'new_surname', 'new_first_name', 'new_dob', 'new_gender',
-            'dojo_name', 'rank_type', 'rank_kyu', 'rank_dan',
-            'experience_years', 'experience_months', 'weight_kg']);
+            'dojo_name', 'rank_id', 'weight_kg']);
         $this->dojo_type = 'lfp';
     }
 }

@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Competition;
 use App\Models\Enrolment;
 use App\Services\CheckInService;
 use Illuminate\Database\Seeder;
@@ -14,20 +13,9 @@ class TestCheckInSeeder extends Seeder
     {
         Notification::fake();
 
-        $competition = Competition::orderByDesc('competition_date')->first();
-
-        if (! $competition) {
-            $this->command->error('No competition found.');
-            return;
-        }
-
-        $this->command->info("Checking in competitors for: {$competition->name}");
-
         $service = app(CheckInService::class);
 
-        $enrolments = Enrolment::where('competition_id', $competition->id)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->whereHas('activeEvents')
+        $enrolments = Enrolment::whereIn('status', ['pending', 'confirmed'])
             ->with([
                 'competitor',
                 'activeEvents.competitionEvent',
@@ -40,12 +28,13 @@ class TestCheckInSeeder extends Seeder
             return;
         }
 
+        $this->command->info("Found {$enrolments->count()} enrolment(s) to check in.");
+
         $checkedIn = 0;
 
         foreach ($enrolments as $enrolment) {
             $fullName = $enrolment->competitor?->full_name ?? "#{$enrolment->id}";
 
-            // Confirm weight for events that require it, using enrolled weight
             $needsWeight = $enrolment->activeEvents->contains(
                 fn ($ee) => $ee->competitionEvent->requires_weight_check
             );

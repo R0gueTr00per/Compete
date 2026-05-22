@@ -17,8 +17,7 @@
             <button
                 type="button"
                 title="Remove official"
-                wire:click="removeOfficial({{ $official->id }})"
-                wire:confirm="Remove {{ $official->user?->getFilamentName() }} as an official?"
+                x-on:click="$wire.mountAction('removeOfficial', { officialId: {{ $official->id }}, name: '{{ addslashes($official->user?->getFilamentName() ?? '') }}' })"
                 class="shrink-0 rounded p-0.5 text-gray-300 dark:text-gray-600
                        hover:text-danger-500 dark:hover:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-950
                        opacity-0 group-hover:opacity-100 transition-opacity"

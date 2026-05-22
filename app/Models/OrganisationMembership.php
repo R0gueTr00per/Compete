@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OrganisationMembership extends Model
 {
@@ -33,6 +34,12 @@ class OrganisationMembership extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function competitorProfiles(): HasMany
+    {
+        return $this->hasMany(CompetitorProfile::class, 'owner_user_id', 'user_id')
+            ->where('organisation_id', $this->organisation_id);
     }
 
     public function invitedBy(): BelongsTo

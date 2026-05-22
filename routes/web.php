@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicScheduleController;
@@ -33,9 +32,9 @@ Route::post('/invite/org-admin/{membership}', [InvitationController::class, 'com
 Route::get('admin/login', fn () => redirect()->route('filament.portal.auth.login'))
     ->name('filament.admin.auth.login');
 
-// Social OAuth routes
-Route::get('auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->name('socialite.redirect');
-Route::middleware('throttle:10,1')->get('auth/{provider}/callback', [SocialiteController::class, 'callback'])->name('socialite.callback');
+// Social OAuth routes (disabled — re-enable when Google login is restored)
+// Route::get('auth/{provider}/redirect', [SocialiteController::class, 'redirect'])->name('socialite.redirect');
+// Route::middleware('throttle:10,1')->get('auth/{provider}/callback', [SocialiteController::class, 'callback'])->name('socialite.callback');
 
 // Profile completion alias — named route used by RequireCompleteProfile middleware and SocialiteController
 Route::middleware(['auth'])->get('/portal/profile-setup', fn () => redirect()->route('filament.portal.pages.profile'))->name('profile.complete');

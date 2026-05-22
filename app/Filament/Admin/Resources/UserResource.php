@@ -7,7 +7,10 @@ use App\Models\User;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Illuminate\Validation\Rules\Password;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
@@ -23,7 +26,9 @@ class UserResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-users';
     protected static ?string $navigationGroup = 'System';
     protected static ?int $navigationSort = 1;
-    protected static ?string $navigationLabel = 'Users';
+    protected static ?string $navigationLabel = 'System Administrators';
+    protected static ?string $modelLabel      = 'System Administrator';
+    protected static ?string $pluralModelLabel = 'System Administrators';
 
     public static function canAccess(): bool
     {
@@ -44,40 +49,57 @@ class UserResource extends Resource
                     TextInput::make('email')
                         ->email()
                         ->required()
-                        ->unique(ignoreRecord: true)
+                        ->unique(
+                            ignoreRecord: true,
+                            modifyRuleUsing: fn (\Illuminate\Validation\Rules\Unique $rule) => $rule->whereNull('organisation_id'),
+                        )
                         ->validationMessages(['unique' => 'An account already exists for this email address.'])
                         ->maxLength(255)
                         ->columnSpanFull(),
 
                     Select::make('status')
-                        ->options([
-                            'active'   => 'Active',
-                            'pending'  => 'Pending approval',
-                            'inactive' => 'Inactive',
-                        ])
+                        ->options(['active' => 'Active', 'inactive' => 'Inactive'])
                         ->required()
-                        ->default('pending')
+                        ->default('active')
                         ->hiddenOn('create'),
+                ]),
+
+            Section::make('Identity Verification')
+                ->description('Enter your own password to confirm changes to the email address or status.')
+                ->hiddenOn('create')
+                ->schema([
+                    TextInput::make('current_password')
+                        ->label('Your password')
+                        ->password()
+                        ->dehydrated(false)
+                        ->columnSpanFull(),
+                ]),
+
+            Section::make('Change Password')
+                ->hiddenOn('create')
+                ->schema([
+                    Toggle::make('change_password')
+                        ->label('Set a new password')
+                        ->live()
+                        ->dehydrated(false),
 
                     TextInput::make('password')
                         ->password()
-                        ->minLength(8)
+                        ->rule(Password::defaults())
                         ->maxLength(255)
                         ->dehydrateStateUsing(fn ($state) => filled($state) ? bcrypt($state) : null)
                         ->dehydrated(fn ($state) => filled($state))
-                        ->hiddenOn('create')
-                        ->helperText('Leave blank to keep the existing password.')
-                        ->columnSpanFull()
-                        ->live(),
+                        ->required(fn (Get $get) => (bool) $get('change_password'))
+                        ->visible(fn (Get $get) => (bool) $get('change_password'))
+                        ->columnSpanFull(),
 
                     TextInput::make('password_confirmation')
                         ->password()
                         ->label('Confirm new password')
-                        ->requiredWith('password')
                         ->same('password')
+                        ->requiredWith('password')
                         ->dehydrated(false)
-                        ->hiddenOn('create')
-                        ->visible(fn ($get) => filled($get('password')))
+                        ->visible(fn (Get $get) => (bool) $get('change_password'))
                         ->columnSpanFull(),
                 ]),
         ]);
@@ -96,21 +118,8 @@ class UserResource extends Resource
 
                 TextColumn::make('status')
                     ->badge()
-                    ->getStateUsing(fn (User $record) => $record->email_verified_at ? $record->status : 'unverified')
-                    ->color(fn (string $state) => match ($state) {
-                        'active'     => 'success',
-                        'pending'    => 'warning',
-                        'inactive'   => 'danger',
-                        'unverified' => 'gray',
-                        default      => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state) => match ($state) {
-                        'active'     => 'Active',
-                        'pending'    => 'Pending approval',
-                        'inactive'   => 'Inactive',
-                        'unverified' => 'Unverified email',
-                        default      => $state,
-                    }),
+                    ->color(fn (string $state) => $state === 'active' ? 'success' : 'danger')
+                    ->formatStateUsing(fn (string $state) => $state === 'active' ? 'Active' : 'Inactive'),
 
                 TextColumn::make('auth_type')
                     ->label('Auth')

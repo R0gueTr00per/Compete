@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Pages;
 
+use App\Filament\Admin\Widgets\ActiveUsersChart;
 use App\Models\Organisation;
 use Filament\Pages\Dashboard as BaseDashboard;
 
@@ -9,12 +10,10 @@ class Dashboard extends BaseDashboard
 {
     protected static string $view = 'filament.admin.pages.dashboard';
 
-    public function getStats(): array
+    public function getWidgets(): array
     {
         return [
-            'total'    => Organisation::count(),
-            'active'   => Organisation::where('status', 'active')->count(),
-            'inactive' => Organisation::where('status', 'inactive')->count(),
+            ActiveUsersChart::class,
         ];
     }
 
@@ -25,6 +24,7 @@ class Dashboard extends BaseDashboard
                 'users'       => fn ($q) => $q->where('users.status', 'active'),
                 'competitions',
             ])
+            ->with(['nextCompetition' => fn ($q) => $q->withCount('enrolments')])
             ->latest()
             ->limit(10)
             ->get();

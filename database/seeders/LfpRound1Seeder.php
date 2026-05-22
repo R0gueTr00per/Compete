@@ -7,6 +7,7 @@ use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\CompetitorProfile;
 use App\Models\Division;
+use App\Models\Rank;
 use App\Models\RankBand;
 use App\Models\User;
 use App\Models\WeightClass;
@@ -243,13 +244,14 @@ class LfpRound1Seeder extends Seeder
     private function enrolTestCompetitors(Competition $competition, array $events): void
     {
         $service = app(EnrolmentService::class);
+        $rankMap = Rank::pluck('id', 'name');
 
         $enrolments = [
-            'alice@example.com'      => ['events' => ['Kata', 'Point Sparring', 'Yakusuko'],  'rank_type' => 'kyu', 'rank_kyu' => 5,  'weight_kg' => 52.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
-            'bob@example.com'        => ['events' => ['Kata', 'Sumo', 'Continuous Sparring'], 'rank_type' => 'kyu', 'rank_kyu' => 3,  'weight_kg' => 78.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
-            'cara@example.com'       => ['events' => ['Kata', 'Semi Contact', 'Point Sparring'], 'rank_type' => 'dan', 'rank_dan' => 1, 'weight_kg' => 58.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
-            'dan@example.com'        => ['events' => ['Kata', 'Point Sparring', 'Yakusuko'],  'rank_type' => 'kyu', 'rank_kyu' => 8,  'weight_kg' => 65.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
-            'competitor@example.com' => ['events' => ['Kata', 'Sumo', 'Point Sparring'],      'rank_type' => 'kyu', 'rank_kyu' => 7,  'weight_kg' => 70.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
+            'alice@example.com'      => ['events' => ['Kata', 'Point Sparring', 'Yakusuko'],        'rank' => '5th Kyu', 'weight_kg' => 52.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
+            'bob@example.com'        => ['events' => ['Kata', 'Sumo', 'Continuous Sparring'],       'rank' => '3rd Kyu', 'weight_kg' => 78.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
+            'cara@example.com'       => ['events' => ['Kata', 'Semi Contact', 'Point Sparring'],    'rank' => '1st Dan', 'weight_kg' => 58.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
+            'dan@example.com'        => ['events' => ['Kata', 'Point Sparring', 'Yakusuko'],        'rank' => '8th Kyu', 'weight_kg' => 65.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
+            'competitor@example.com' => ['events' => ['Kata', 'Sumo', 'Point Sparring'],           'rank' => '7th Kyu', 'weight_kg' => 70.0, 'dojo_type' => 'lfp', 'dojo_name' => 'LFP Melbourne'],
         ];
 
         foreach ($enrolments as $email => $cfg) {
@@ -269,12 +271,10 @@ class LfpRound1Seeder extends Seeder
             }
 
             $entryDetails = [
-                'rank_type'  => $cfg['rank_type'],
-                'rank_kyu'   => $cfg['rank_kyu'] ?? null,
-                'rank_dan'   => $cfg['rank_dan'] ?? null,
-                'weight_kg'  => $cfg['weight_kg'],
-                'dojo_type'  => $cfg['dojo_type'],
-                'dojo_name'  => $cfg['dojo_name'] ?? null,
+                'rank_id'     => $rankMap[$cfg['rank']] ?? null,
+                'weight_kg'   => $cfg['weight_kg'],
+                'dojo_type'   => $cfg['dojo_type'],
+                'dojo_name'   => $cfg['dojo_name'] ?? null,
                 'guest_style' => $cfg['guest_style'] ?? null,
             ];
 

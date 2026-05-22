@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Competition;
 use App\Models\CompetitorProfile;
 use App\Models\EnrolmentEvent;
+use App\Models\Rank;
 use App\Services\EnrolmentService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -14,22 +15,22 @@ class TestEnrolmentSeeder extends Seeder
 {
     // Rank / weight / dojo keyed by profile full_name — fallback cycles through $defaults.
     private array $byName = [
-        'Alice Chen'       => ['rank_type' => 'kyu', 'rank_kyu' => 5,  'weight_kg' => 58.0, 'dojo_name' => 'Scoresby'],
-        'Bob Smith'        => ['rank_type' => 'kyu', 'rank_kyu' => 2,  'weight_kg' => 75.0, 'dojo_name' => 'Honbu'],
-        'Cara Jones'       => ['rank_type' => 'kyu', 'rank_kyu' => 8,  'weight_kg' => 50.0, 'dojo_name' => 'Wangaratta'],
-        'Dan Wu'           => ['rank_type' => 'dan', 'rank_dan' => 1,  'weight_kg' => 68.0, 'dojo_name' => 'Scoresby'],
-        'Test Competitor'  => ['rank_type' => 'kyu', 'rank_kyu' => 6,  'weight_kg' => 82.0, 'dojo_name' => 'Honbu'],
-        'Brad Gouldson'    => ['rank_type' => 'dan', 'rank_dan' => 3,  'weight_kg' => 88.0, 'dojo_name' => 'Honbu'],
-        'Lily Gouldson'    => ['rank_type' => 'kyu', 'rank_kyu' => 9,  'weight_kg' => 47.0, 'dojo_name' => 'Honbu'],
-        'Jasmine Gouldson' => ['rank_type' => 'kyu', 'rank_kyu' => 3,  'weight_kg' => 55.0, 'dojo_name' => 'Honbu'],
-        'Ronald Donald'    => ['rank_type' => 'dan', 'rank_dan' => 4,  'weight_kg' => 92.0, 'dojo_name' => 'Wangaratta'],
+        'Alice Chen'       => ['rank' => '5th Kyu',  'weight_kg' => 58.0, 'dojo_name' => 'Scoresby'],
+        'Bob Smith'        => ['rank' => '2nd Kyu',  'weight_kg' => 75.0, 'dojo_name' => 'Honbu'],
+        'Cara Jones'       => ['rank' => '8th Kyu',  'weight_kg' => 50.0, 'dojo_name' => 'Wangaratta'],
+        'Dan Wu'           => ['rank' => '1st Dan',  'weight_kg' => 68.0, 'dojo_name' => 'Scoresby'],
+        'Test Competitor'  => ['rank' => '6th Kyu',  'weight_kg' => 82.0, 'dojo_name' => 'Honbu'],
+        'Brad Gouldson'    => ['rank' => '3rd Dan',  'weight_kg' => 88.0, 'dojo_name' => 'Honbu'],
+        'Lily Gouldson'    => ['rank' => '9th Kyu',  'weight_kg' => 47.0, 'dojo_name' => 'Honbu'],
+        'Jasmine Gouldson' => ['rank' => '3rd Kyu',  'weight_kg' => 55.0, 'dojo_name' => 'Honbu'],
+        'Ronald Donald'    => ['rank' => '4th Dan',  'weight_kg' => 92.0, 'dojo_name' => 'Wangaratta'],
     ];
 
     private array $defaults = [
-        ['rank_type' => 'kyu', 'rank_kyu' => 8,  'weight_kg' => 42.0, 'dojo_name' => 'Honbu'],
-        ['rank_type' => 'kyu', 'rank_kyu' => 6,  'weight_kg' => 55.0, 'dojo_name' => 'Scoresby'],
-        ['rank_type' => 'kyu', 'rank_kyu' => 3,  'weight_kg' => 63.0, 'dojo_name' => 'Honbu'],
-        ['rank_type' => 'dan', 'rank_dan' => 2,  'weight_kg' => 78.0, 'dojo_name' => 'Wangaratta'],
+        ['rank' => '8th Kyu',  'weight_kg' => 42.0, 'dojo_name' => 'Honbu'],
+        ['rank' => '6th Kyu',  'weight_kg' => 55.0, 'dojo_name' => 'Scoresby'],
+        ['rank' => '3rd Kyu',  'weight_kg' => 63.0, 'dojo_name' => 'Honbu'],
+        ['rank' => '2nd Dan',  'weight_kg' => 78.0, 'dojo_name' => 'Wangaratta'],
     ];
 
     public function run(): void
@@ -75,6 +76,7 @@ class TestEnrolmentSeeder extends Seeder
             ->where('event_code', 'YA')
             ->value('id');
 
+        $rankMap      = Rank::pluck('id', 'name');
         $service      = app(EnrolmentService::class);
         $enrolments   = [];
         $defaultIndex = 0;
@@ -84,9 +86,7 @@ class TestEnrolmentSeeder extends Seeder
                 ?? $this->defaults[$defaultIndex++ % count($this->defaults)];
 
             $entryDetails = [
-                'rank_type' => $data['rank_type'],
-                'rank_kyu'  => $data['rank_kyu'] ?? null,
-                'rank_dan'  => $data['rank_dan'] ?? null,
+                'rank_id'   => $rankMap[$data['rank']] ?? null,
                 'weight_kg' => $data['weight_kg'],
                 'dojo_type' => 'lfp',
                 'dojo_name' => $data['dojo_name'],
@@ -98,10 +98,7 @@ class TestEnrolmentSeeder extends Seeder
 
                 $assigned = $enrolment->activeEvents()->whereNotNull('division_id')->count();
                 $total    = $enrolment->activeEvents()->count();
-                $rankDesc = isset($data['rank_dan'])
-                    ? "{$data['rank_dan']} dan"
-                    : "{$data['rank_kyu']} kyu";
-                $this->command->info("  {$profile->full_name} (age {$profile->age}, {$profile->gender}) — {$rankDesc}, {$data['weight_kg']}kg, {$data['dojo_name']} → {$assigned}/{$total} divisions assigned");
+                $this->command->info("  {$profile->full_name} (age {$profile->age}, {$profile->gender}) — {$data['rank']}, {$data['weight_kg']}kg, {$data['dojo_name']} → {$assigned}/{$total} divisions assigned");
             } catch (\Throwable $e) {
                 $this->command->error("  FAILED {$profile->full_name}: " . $e->getMessage());
             }

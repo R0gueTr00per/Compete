@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Organisation extends Model
 {
@@ -45,6 +46,13 @@ class Organisation extends Model
     public function competitions(): HasMany
     {
         return $this->hasMany(Competition::class);
+    }
+
+    public function nextCompetition(): HasOne
+    {
+        return $this->hasOne(Competition::class)
+            ->where('competition_date', '>=', now()->toDateString())
+            ->orderBy('competition_date');
     }
 
     public function competitorProfiles(): HasMany

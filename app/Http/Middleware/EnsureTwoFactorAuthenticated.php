@@ -26,11 +26,7 @@ class EnsureTwoFactorAuthenticated
             return $next($request);
         }
 
-        if (! $user->hasTwoFactorEnabled()) {
-            return redirect()->to(TwoFactorSetup::getUrl(panel: 'admin'));
-        }
-
-        if (! $request->session()->get('2fa_authenticated')) {
+        if ($user->hasTwoFactorEnabled() && ! $request->session()->get('2fa_authenticated')) {
             return redirect()->to(TwoFactorChallenge::getUrl(panel: 'admin'));
         }
 

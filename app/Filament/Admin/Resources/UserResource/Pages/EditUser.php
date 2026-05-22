@@ -6,6 +6,8 @@ use App\Filament\Admin\Resources\UserResource;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Exceptions\Halt;
+use Illuminate\Support\Facades\Hash;
 
 class EditUser extends EditRecord
 {
@@ -26,6 +28,27 @@ class EditUser extends EditRecord
                     }
                 }),
         ];
+    }
+
+    protected function beforeSave(): void
+    {
+        $original = $this->record;
+
+        $emailChanging  = ($this->data['email'] ?? $original->email) !== $original->email;
+        $statusChanging = ($this->data['status'] ?? $original->status) !== $original->status;
+
+        if ($emailChanging || $statusChanging) {
+            $current = $this->data['current_password'] ?? null;
+
+            if (!$current || !Hash::check($current, auth()->user()->password)) {
+                Notification::make()
+                    ->title('Your password is required to change the email address or status.')
+                    ->danger()
+                    ->send();
+
+                throw new Halt();
+            }
+        }
     }
 
     protected function getRedirectUrl(): string

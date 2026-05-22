@@ -20,6 +20,7 @@ use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -305,10 +306,26 @@ class MemberResource extends Resource
                         }),
                 ])->tooltip('More actions'),
             ])
+            ->filters([
+                SelectFilter::make('role')
+                    ->options([
+                        'competitor'    => 'Competitor',
+                        'official'      => 'Official',
+                        'administrator' => 'Administrator',
+                    ]),
+
+                SelectFilter::make('status')
+                    ->options([
+                        'active'    => 'Active',
+                        'invited'   => 'Invited',
+                        'pending'   => 'Pending approval',
+                        'suspended' => 'Suspended',
+                    ]),
+            ])
             ->defaultSort('joined_at', 'desc');
     }
 
-    public static function getRelationManagers(): array
+    public static function getRelations(): array
     {
         return [
             \App\Filament\OrgAdmin\Resources\MemberResource\RelationManagers\ProfilesRelationManager::class,

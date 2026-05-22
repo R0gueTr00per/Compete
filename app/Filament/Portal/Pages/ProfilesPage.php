@@ -165,9 +165,10 @@ class ProfilesPage extends Page implements HasForms
             && filled($profileData['gender'] ?? null);
 
         if ($this->editing === 'new') {
-            $profileData['owner_user_id'] = auth()->id();
-            $profileData['is_active']     = true;
-            $profileData['profile_type']  = 'child';
+            $profileData['owner_user_id']   = auth()->id();
+            $profileData['is_active']       = true;
+            $profileData['profile_type']    = 'child';
+            $profileData['organisation_id'] = app('tenant')?->id;
 
             CompetitorProfile::create($profileData);
             Notification::make()->title('Profile created.')->success()->send();

@@ -21,11 +21,7 @@ class Enrolment extends Model
         'status',
         'checked_in',
         'checked_in_at',
-        'rank_type',
-        'rank_kyu',
-        'rank_dan',
-        'experience_years',
-        'experience_months',
+        'rank_id',
         'weight_kg',
         'dojo_type',
         'dojo_name',
@@ -53,30 +49,17 @@ class Enrolment extends Model
 
     public function getDisplayRankAttribute(): string
     {
-        return match ($this->rank_type) {
-            'kyu'        => $this->rank_kyu . ' Kyu',
-            'dan'        => $this->rank_dan . ' Dan',
-            'experience' => trim(
-                ($this->experience_years ? $this->experience_years . 'y ' : '') .
-                ($this->experience_months ? $this->experience_months . 'm' : '')
-            ) . ' experience',
-            default => '—',
-        };
-    }
-
-    public function normalizeRank(): ?int
-    {
-        return match ($this->rank_type) {
-            'kyu'        => $this->rank_kyu ? -$this->rank_kyu : null,
-            'dan'        => $this->rank_dan ?? null,
-            'experience' => 0,
-            default      => null,
-        };
+        return $this->rank?->name ?? '—';
     }
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()->logFillable()->logOnlyDirty();
+    }
+
+    public function rank(): BelongsTo
+    {
+        return $this->belongsTo(Rank::class);
     }
 
     public function competition(): BelongsTo

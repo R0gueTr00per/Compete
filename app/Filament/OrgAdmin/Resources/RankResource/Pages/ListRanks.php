@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Filament\Admin\Resources\UserResource\Pages;
+namespace App\Filament\OrgAdmin\Resources\RankResource\Pages;
 
-use App\Filament\Admin\Resources\UserResource;
+use App\Filament\OrgAdmin\Resources\RankResource;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
-class ListUsers extends ListRecords
+class ListRanks extends ListRecords
 {
-    protected static string $resource = UserResource::class;
+    protected static string $resource = RankResource::class;
 
     protected function getHeaderActions(): array
     {

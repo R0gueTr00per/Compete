@@ -31,7 +31,7 @@
                 @if ($dojoLabel)
                     <span class="text-xs text-gray-400">{{ $dojoLabel }}</span>
                 @endif
-                @if ($enrolment->rank_type)
+                @if ($enrolment->rank_id)
                     <span class="text-xs text-gray-400">{{ $enrolment->display_rank }}</span>
                 @endif
             </div>
