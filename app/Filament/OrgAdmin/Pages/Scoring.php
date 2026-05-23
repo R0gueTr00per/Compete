@@ -138,6 +138,7 @@ class Scoring extends Page
             $q->where('competition_id', $this->competition_id)
               ->whereIn('status', ['scheduled', 'running', 'complete'])
         )
+        ->whereNotNull('location_label')
         ->with(['competitionEvent'])
         ->withCount([
             'enrolmentEvents as checked_in_count' => fn ($q) => $q->whereHas(
@@ -155,7 +156,6 @@ class Scoring extends Page
                 )
             ),
         ])
-        ->whereNotNull('location_label')
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
         ->orderBy('code');

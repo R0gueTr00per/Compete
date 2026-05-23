@@ -133,7 +133,7 @@
                         </span>
                     </div>
 
-                    <template x-if="selectedLocation && detailDivision?.status !== 'complete'">
+                    <template x-if="selectedLocation">
                         <button
                             @click="assignDetailToLocation()"
                             class="w-full rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2.5 text-center transition-colors"
@@ -141,7 +141,7 @@
                             Assign to <span x-text="selectedLocation"></span>
                         </button>
                     </template>
-                    <template x-if="!selectedLocation && detailDivision?.status !== 'complete'">
+                    <template x-if="!selectedLocation">
                         <p class="text-xs text-center text-gray-400 dark:text-gray-500 mt-1">Tap a location header to select it, then tap a card to assign.</p>
                     </template>
                 </div>
@@ -284,8 +284,6 @@
                             ghostClass: 'sortable-ghost',
                             dragClass: 'sortable-drag',
                             emptyInsertThreshold: 100,
-                            filter: '[data-scored]',
-                            preventOnFilter: true,
                             onEnd: (evt) => {
                                 const ids = this.selectedIds.length > 0
                                     ? [...this.selectedIds]

@@ -18,7 +18,6 @@ class CompetitionEvent extends Model
         'name',
         'event_code',
         'running_order',
-        'location_label',
         'scoring_method',
         'tournament_format',
         'manual_pairing',
@@ -36,15 +35,6 @@ class CompetitionEvent extends Model
             'requires_partner' => 'boolean',
             'manual_pairing'   => 'boolean',
         ];
-    }
-
-    protected function requiresWeightCheck(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => isset($this->attributes['has_weight_divisions'])
-                ? (bool) $this->attributes['has_weight_divisions']
-                : $this->divisions()->whereNotNull('weight_class_id')->exists(),
-        )->shouldCache();
     }
 
     protected static function booted(): void

@@ -10,12 +10,12 @@ class ResultsPdfController extends Controller
 {
     public function show(Request $request, PdfReportService $pdfService)
     {
+        $competition = Competition::findOrFail($request->integer('competition_id'));
+
         abort_unless(
-            auth()->user()?->hasRole(['competition_administrator', 'system_admin', 'competition_official']),
+            auth()->user()?->isOrgAdmin($competition->organisation),
             403
         );
-
-        $competition = Competition::findOrFail($request->integer('competition_id'));
 
         $filters = [
             'only_placings'  => (bool) $request->integer('only_placings', 0),

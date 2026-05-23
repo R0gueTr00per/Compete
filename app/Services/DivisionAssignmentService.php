@@ -288,7 +288,6 @@ class DivisionAssignmentService
                 $new = $target->competitionEvents()->create([
                     'name'                 => $event->name,
                     'running_order'        => $event->running_order,
-                    'location_label'       => $event->location_label,
                     'target_score'         => $event->target_score,
                     'scoring_method'       => $event->scoring_method,
                     'tournament_format'    => $event->tournament_format,

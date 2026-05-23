@@ -23,7 +23,7 @@ class PublicScheduleController extends Controller
             ->orderBy('running_order')
             ->orderBy('code')
             ->get()
-            ->groupBy(fn ($div) => $div->competitionEvent->location_label ?? 'Unassigned');
+            ->groupBy(fn ($div) => $div->location_label ?? 'Unassigned');
 
         return view('public.schedule', compact('competition', 'divisions'));
     }

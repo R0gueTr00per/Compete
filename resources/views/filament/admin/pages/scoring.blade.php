@@ -126,8 +126,8 @@
                         <div class="min-w-0">
                             <p class="text-sm font-medium {{ $textClass }} truncate">
                                 {{ $div->competitionEvent->name }}
-                                @if ($div->competitionEvent->location_label)
-                                    <span class="font-normal text-gray-500 dark:text-gray-400">— {{ $div->competitionEvent->location_label }}</span>
+                                @if ($div->location_label)
+                                    <span class="font-normal text-gray-500 dark:text-gray-400">— {{ $div->location_label }}</span>
                                 @endif
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $div->label }}</p>

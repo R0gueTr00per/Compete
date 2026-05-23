@@ -22,10 +22,8 @@
 <div
     data-id="{{ $div->id }}"
     data-division="{{ $divisionData }}"
-    @if($div->status === 'complete') data-scored="true" @endif
-    class="group relative mb-1.5 rounded-md border shadow-sm transition-colors
-        {{ $colorClass }}
-        {{ $div->status === 'complete' ? 'cursor-default' : 'cursor-grab hover:shadow-md' }}"
+    class="group relative mb-1.5 rounded-md border shadow-sm transition-colors cursor-grab hover:shadow-md
+        {{ $colorClass }}"
 >
     {{-- Mobile: code only --}}
     <div class="sm:hidden px-1 py-1.5 text-center">
