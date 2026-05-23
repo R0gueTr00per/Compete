@@ -143,20 +143,16 @@ class PdfReportService
             ->sortByDesc(fn ($t) => [$t['gold'], $t['silver'], $t['bronze']])
             ->values();
 
-        $rank     = 1;
-        $prev     = null;
-        $prevRank = 1;
+        $rank = 1;
+        $prev = null;
 
-        return $tally->map(function ($entry) use (&$rank, &$prev, &$prevRank) {
+        return $tally->map(function ($entry) use (&$rank, &$prev) {
             $key = [$entry['gold'], $entry['silver'], $entry['bronze']];
-            if ($prev !== null && $key === $prev) {
-                $entry['rank'] = $prevRank;
-            } else {
-                $entry['rank'] = $rank;
-                $prevRank      = $rank;
+            if ($prev !== null && $key !== $prev) {
+                $rank++;
             }
-            $prev = $key;
-            $rank++;
+            $entry['rank'] = $rank;
+            $prev          = $key;
             return $entry;
         });
     }
