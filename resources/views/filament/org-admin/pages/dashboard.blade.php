@@ -1,9 +1,13 @@
 <x-filament-panels::page>
-    @php $competitions = $this->getActiveCompetitions(); @endphp
+    @php
+        $competitions  = $this->getActiveCompetitions();
+        $isOrgAdmin    = $this->isOrgAdmin();
+        $officialRole  = $this->getOfficialRole();
+    @endphp
 
     @if ($competitions->isEmpty())
         <x-filament::section>
-            <p class="text-center text-gray-500 py-8">No active competitions. <a href="{{ route('filament.org-admin.resources.competitions.create') }}" class="text-primary-600 underline">Create one</a>.</p>
+            <p class="text-center text-gray-500 py-8">No active competitions.@if($isOrgAdmin) <a href="{{ route('filament.org-admin.resources.competitions.create') }}" class="text-primary-600 underline">Create one</a>.@endif</p>
         </x-filament::section>
     @else
         <div class="grid gap-4">
@@ -70,7 +74,7 @@
                     </x-slot>
 
                     <div class="flex flex-wrap gap-2">
-                        @if ($nextLabel)
+                        @if ($isOrgAdmin && $nextLabel)
                             <x-filament::button
                                 size="sm"
                                 :color="$nextColor"
@@ -80,7 +84,7 @@
                             </x-filament::button>
                         @endif
 
-                        @if ($competition->status === 'draft')
+                        @if ($isOrgAdmin && $competition->status === 'draft')
                             <x-filament::button
                                 size="sm"
                                 color="gray"
@@ -91,41 +95,49 @@
                             </x-filament::button>
                         @endif
 
-                        <x-filament::button
-                            size="sm"
-                            :color="$enrolmentsColor"
-                            tag="a"
-                            href="{{ route('filament.org-admin.resources.enrolments.index') }}?competition_id={{ $competition->id }}"
-                        >
-                            Enrolments
-                        </x-filament::button>
+                        @if ($isOrgAdmin || $officialRole?->can_access_enrolments)
+                            <x-filament::button
+                                size="sm"
+                                :color="$enrolmentsColor"
+                                tag="a"
+                                href="{{ route('filament.org-admin.resources.enrolments.index') }}?competition_id={{ $competition->id }}"
+                            >
+                                Enrolments
+                            </x-filament::button>
+                        @endif
 
-                        <x-filament::button
-                            size="sm"
-                            :color="$checkInColor"
-                            tag="a"
-                            href="{{ route('filament.org-admin.pages.check-in') }}?competition_id={{ $competition->id }}"
-                        >
-                            Check-in
-                        </x-filament::button>
+                        @if ($isOrgAdmin || $officialRole?->can_access_checkin)
+                            <x-filament::button
+                                size="sm"
+                                :color="$checkInColor"
+                                tag="a"
+                                href="{{ route('filament.org-admin.pages.check-in') }}?competition_id={{ $competition->id }}"
+                            >
+                                Check-in
+                            </x-filament::button>
+                        @endif
 
-                        <x-filament::button
-                            size="sm"
-                            :color="$schedulingColor"
-                            tag="a"
-                            href="{{ route('filament.org-admin.resources.competitions.schedule', $competition) }}"
-                        >
-                            Scheduling
-                        </x-filament::button>
+                        @if ($isOrgAdmin)
+                            <x-filament::button
+                                size="sm"
+                                :color="$schedulingColor"
+                                tag="a"
+                                href="{{ route('filament.org-admin.resources.competitions.schedule', $competition) }}"
+                            >
+                                Scheduling
+                            </x-filament::button>
+                        @endif
 
-                        <x-filament::button
-                            size="sm"
-                            :color="$scoringColor"
-                            tag="a"
-                            href="{{ route('filament.org-admin.pages.scoring') }}?competition_id={{ $competition->id }}"
-                        >
-                            Scoring
-                        </x-filament::button>
+                        @if ($isOrgAdmin || $officialRole?->can_access_scoring)
+                            <x-filament::button
+                                size="sm"
+                                :color="$scoringColor"
+                                tag="a"
+                                href="{{ route('filament.org-admin.pages.scoring') }}?competition_id={{ $competition->id }}"
+                            >
+                                Scoring
+                            </x-filament::button>
+                        @endif
                     </div>
                 </x-filament::section>
             @endforeach

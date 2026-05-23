@@ -19,7 +19,9 @@ class Results extends Page
 
     public static function canAccess(): bool
     {
-        return true;
+        $tenant = app('tenant');
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
     }
 
     #[Url]

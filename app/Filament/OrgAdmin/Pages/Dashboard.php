@@ -16,6 +16,19 @@ class Dashboard extends BaseDashboard
         return true;
     }
 
+    public function isOrgAdmin(): bool
+    {
+        $tenant = app('tenant');
+        return $tenant && (auth()->user()?->isOrgAdmin($tenant) ?? false);
+    }
+
+    public function getOfficialRole(): ?object
+    {
+        $tenant = app('tenant');
+        if (! $tenant) return null;
+        return auth()->user()?->getActiveOfficialRoleFor($tenant);
+    }
+
     public function getActiveCompetitions()
     {
         return Competition::where('organisation_id', app('tenant')?->id)

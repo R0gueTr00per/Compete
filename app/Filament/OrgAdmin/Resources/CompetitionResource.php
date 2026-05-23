@@ -37,24 +37,32 @@ class CompetitionResource extends Resource
     protected static ?string $navigationGroup = 'Competitions';
     protected static ?int $navigationSort = 1;
 
-    public static function canAccess(): bool { return true; }
+    public static function canAccess(): bool
+    {
+        $tenant = app('tenant');
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
+    }
 
     public static function canCreate(): bool
     {
         $tenant = app('tenant');
-        return ! ($tenant && (auth()->user()?->isOrgOfficial($tenant) ?? false));
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
     }
 
     public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
     {
         $tenant = app('tenant');
-        return ! ($tenant && (auth()->user()?->isOrgOfficial($tenant) ?? false));
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
     }
 
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
     {
         $tenant = app('tenant');
-        return ! ($tenant && (auth()->user()?->isOrgOfficial($tenant) ?? false));
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
     }
 
     public static function getEloquentQuery(): Builder

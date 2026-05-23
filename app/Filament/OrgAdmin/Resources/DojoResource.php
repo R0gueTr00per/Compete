@@ -30,18 +30,25 @@ class DojoResource extends Resource
     protected static ?string $modelLabel       = 'Dojo/Club';
     protected static ?string $pluralModelLabel = 'Dojos/Clubs';
 
-    public static function canAccess(): bool { return true; }
+    public static function canAccess(): bool
+    {
+        $tenant = app('tenant');
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
+    }
 
     public static function canCreate(): bool
     {
         $tenant = app('tenant');
-        return ! ($tenant && (auth()->user()?->isOrgOfficial($tenant) ?? false));
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
     }
 
     public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
     {
         $tenant = app('tenant');
-        return ! ($tenant && (auth()->user()?->isOrgOfficial($tenant) ?? false));
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
     }
 
     public static function getEloquentQuery(): Builder
@@ -53,9 +60,8 @@ class DojoResource extends Resource
     public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
     {
         $tenant = app('tenant');
-        if ($tenant && (auth()->user()?->isOrgOfficial($tenant) ?? false)) {
-            return false;
-        }
+        if (! $tenant) return ! $record->isUsed();
+        if (! (auth()->user()?->isOrgAdmin($tenant) ?? false)) return false;
         return ! $record->isUsed();
     }
 

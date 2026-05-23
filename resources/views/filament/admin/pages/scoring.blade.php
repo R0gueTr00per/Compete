@@ -42,10 +42,57 @@
         <p class="text-center text-gray-400 py-12">No divisions assigned to {{ $this->filter_location }}.</p>
     @else
         {{-- Division list --}}
+        <style>
+            @keyframes scoring-row-pulse {
+                0%   { box-shadow: 0 0 0 0 rgba(99,102,241,.6); }
+                35%  { box-shadow: 0 0 0 10px rgba(99,102,241,.2); }
+                100% { box-shadow: 0 0 0 16px rgba(99,102,241,0); }
+            }
+            .scoring-row-pulse {
+                animation: scoring-row-pulse .8s ease-out forwards;
+            }
+        </style>
         <div class="space-y-1 mb-4"
             x-on:scroll-to-division.window="
                 let el = document.getElementById('division-row-' + $event.detail.divisionId);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (!el) return;
+
+                // Find the real scrollable container (Filament wraps content in an overflow-y:auto element)
+                function getScrollContainer(node) {
+                    let p = node.parentElement;
+                    while (p && p !== document.body) {
+                        const ov = getComputedStyle(p).overflowY;
+                        if ((ov === 'auto' || ov === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+                        p = p.parentElement;
+                    }
+                    return document.documentElement;
+                }
+
+                const container = getScrollContainer(el);
+                const isRoot    = container === document.documentElement;
+                const contTop   = isRoot ? 0 : container.getBoundingClientRect().top;
+                const elTop     = el.getBoundingClientRect().top;
+                const scrollNow = isRoot ? window.scrollY : container.scrollTop;
+                const target    = Math.max(0, scrollNow + elTop - contTop - 80);
+                const distance  = target - scrollNow;
+
+                if (Math.abs(distance) > 4) {
+                    const duration = Math.min(400, Math.max(180, Math.abs(distance) * 0.4));
+                    const t0 = performance.now();
+                    (function step(now) {
+                        const p    = Math.min((now - t0) / duration, 1);
+                        const ease = 1 - Math.pow(1 - p, 3);   // ease-out cubic
+                        const y    = scrollNow + distance * ease;
+                        isRoot ? window.scrollTo(0, y) : (container.scrollTop = y);
+                        if (p < 1) requestAnimationFrame(step);
+                    })(t0);
+                }
+
+                // Pulse ring to confirm which row was selected
+                el.classList.remove('scoring-row-pulse');
+                void el.offsetWidth;
+                el.classList.add('scoring-row-pulse');
+                el.addEventListener('animationend', () => el.classList.remove('scoring-row-pulse'), { once: true });
             "
         >
             @foreach ($divisionList as $item)

@@ -21,7 +21,10 @@ class RankResource extends Resource
 
     public static function canAccess(): bool
     {
-        return ! auth()->user()?->hasRole('system_admin');
+        if (auth()->user()?->hasRole('system_admin')) return false;
+        $tenant = app('tenant');
+        if (! $tenant) return true;
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
     }
 
     public static function getEloquentQuery(): Builder

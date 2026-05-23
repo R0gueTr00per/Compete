@@ -7,6 +7,7 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
+use Filament\Navigation\NavigationItem;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -47,6 +48,16 @@ class OrgAdminPanelProvider extends PanelProvider
                     ->label('Competitor Portal')
                     ->icon('heroicon-o-globe-alt')
                     ->url('/portal'),
+            ])
+            ->navigationItems([
+                NavigationItem::make('My Profile')
+                    ->icon('heroicon-o-user-circle')
+                    ->url('/portal/profile')
+                    ->sort(100),
+                NavigationItem::make('Competitor Portal')
+                    ->icon('heroicon-o-globe-alt')
+                    ->url('/portal')
+                    ->sort(101),
             ])
             ->discoverResources(in: app_path('Filament/OrgAdmin/Resources'), for: 'App\\Filament\\OrgAdmin\\Resources')
             ->discoverPages(in: app_path('Filament/OrgAdmin/Pages'), for: 'App\\Filament\\OrgAdmin\\Pages')

@@ -34,7 +34,6 @@ class OrgAdminInvitationNotification extends Notification implements ShouldQueue
 
         $roleLabel = match ($role) {
             'administrator' => 'organisation administrator',
-            'official'      => 'official (check-in & scoring)',
             default         => 'competitor',
         };
 

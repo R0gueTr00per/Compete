@@ -82,7 +82,12 @@
       "Bash(php -l app/Providers/AppServiceProvider.php)",
       "Bash(xargs grep -l -i \"rank\")",
       "PowerShell(cd \"x:\\\\Repos\\\\Compete\"; \\(Get-Content composer.json | ConvertFrom-Json\\).require | Select-Object -Property \"filament/filament\")",
-      "PowerShell(cd \"x:\\\\Repos\\\\Compete\"; php artisan tinker --execute=\"App\\\\Models\\\\CompetitorProfile::select\\('id','owner_user_id','organisation_id','profile_type'\\)->get\\(\\)->map\\(fn\\(\\\\$p\\) => \\\\$p->id.'|'.\\\\$p->owner_user_id.'|'.\\(\\\\$p->organisation_id??'NULL'\\).'|'.\\\\$p->profile_type\\)->each\\(fn\\(\\\\$s\\)=>print\\(\\\\$s.PHP_EOL\\)\\);\" 2>&1)"
+      "PowerShell(cd \"x:\\\\Repos\\\\Compete\"; php artisan tinker --execute=\"App\\\\Models\\\\CompetitorProfile::select\\('id','owner_user_id','organisation_id','profile_type'\\)->get\\(\\)->map\\(fn\\(\\\\$p\\) => \\\\$p->id.'|'.\\\\$p->owner_user_id.'|'.\\(\\\\$p->organisation_id??'NULL'\\).'|'.\\\\$p->profile_type\\)->each\\(fn\\(\\\\$s\\)=>print\\(\\\\$s.PHP_EOL\\)\\);\" 2>&1)",
+      "Bash(php -l app/Filament/OrgAdmin/Resources/OfficialRoleResource.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Resources/EnrolmentResource.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Pages/CheckIn.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Pages/Scoring.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource.php)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

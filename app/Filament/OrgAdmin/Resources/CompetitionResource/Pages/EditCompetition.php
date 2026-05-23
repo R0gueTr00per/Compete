@@ -6,6 +6,7 @@ use App\Filament\OrgAdmin\Resources\CompetitionResource;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\AgeBandsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\CompetitionEventsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\LocationsRelationManager;
+use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\OfficialsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\RankBandsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\WeightClassesRelationManager;
 use App\Models\Division;
@@ -26,6 +27,7 @@ class EditCompetition extends EditRecord
             RankBandsRelationManager::class,
             WeightClassesRelationManager::class,
             LocationsRelationManager::class,
+            OfficialsRelationManager::class,
         ];
     }
 

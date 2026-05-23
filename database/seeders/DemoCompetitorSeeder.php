@@ -75,12 +75,9 @@ class DemoCompetitorSeeder extends Seeder
                 'is_active'        => true,
             ]);
 
-            $rankDesc = match ($data['rank_type']) {
-                'dan'        => "{$data['rank_dan']} dan",
-                'kyu'        => "{$data['rank_kyu']} kyu",
-                'experience' => ($data['experience_years'] ?? 0) . 'y ' . ($data['experience_months'] ?? 0) . 'm exp',
-                default      => '—',
-            };
+            $rankDesc = $data['rank_type'] === 'dan'
+                ? "{$data['rank_dan']} dan"
+                : "{$data['rank_kyu']} kyu";
 
             $this->command->line(sprintf(
                 '  [%3d] %-22s age %2d %s  %-14s  %5.1f kg',

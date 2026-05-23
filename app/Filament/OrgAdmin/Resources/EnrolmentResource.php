@@ -35,7 +35,11 @@ class EnrolmentResource extends Resource
 
     public static function canAccess(): bool
     {
-        return true;
+        $tenant = app('tenant');
+        if (! $tenant) return true;
+        $user = auth()->user();
+        if ($user->isOrgAdmin($tenant)) return true;
+        return $user->getActiveOfficialRoleFor($tenant)?->can_access_enrolments ?? false;
     }
 
     public static function getEloquentQuery(): Builder

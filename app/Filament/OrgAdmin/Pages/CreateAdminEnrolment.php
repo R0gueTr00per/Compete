@@ -46,7 +46,9 @@ class CreateAdminEnrolment extends Page implements HasForms
     {
         $tenant = app('tenant');
         if (! $tenant) return true;
-        return ! (auth()->user()?->isOrgOfficial($tenant) ?? false);
+        $user = auth()->user();
+        if ($user->isOrgAdmin($tenant)) return true;
+        return $user->getActiveOfficialRoleFor($tenant)?->can_access_create_enrolment ?? false;
     }
 
     public ?int    $competition_id       = null;

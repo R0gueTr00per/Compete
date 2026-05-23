@@ -35,7 +35,7 @@ class DemoCompetitionSeeder extends Seeder
         $this->command->info("Org: {$org->name} (slug: {$org->slug})");
 
         // ── Competition ───────────────────────────────────────────────────────────
-        $competition = Competition::updateOrCreate(
+        $competition = Competition::firstOrCreate(
             ['organisation_id' => $org->id, 'name' => 'Demo Tournament'],
             [
                 'competition_date'              => '2027-06-15',
@@ -61,7 +61,7 @@ class DemoCompetitionSeeder extends Seeder
             ['label' => '15+ Years',   'min_age' => 15,   'max_age' => 39,   'sort_order' => 4],
             ['label' => '40+ Years',   'min_age' => 40,   'max_age' => null, 'sort_order' => 5],
         ] as $data) {
-            AgeBand::updateOrCreate(
+            AgeBand::firstOrCreate(
                 ['competition_id' => $competition->id, 'label' => $data['label']],
                 $data + ['competition_id' => $competition->id]
             );
@@ -76,7 +76,7 @@ class DemoCompetitionSeeder extends Seeder
             ['label' => '5-1 Kyu',     'description' => '5th to 1st kyu (intermediate)', 'rank_min' => -5,   'rank_max' => -1,   'sort_order' => 4],
             ['label' => 'Black Belt',  'description' => '1st dan and above',             'rank_min' => 1,    'rank_max' => null, 'sort_order' => 5],
         ] as $data) {
-            RankBand::updateOrCreate(
+            RankBand::firstOrCreate(
                 ['competition_id' => $competition->id, 'label' => $data['label']],
                 $data + ['competition_id' => $competition->id]
             );
@@ -93,7 +93,7 @@ class DemoCompetitionSeeder extends Seeder
             ['label' => '71-80 kg',    'max_kg' => 80.0,  'sort_order' => 7],
             ['label' => '80+ kg',      'max_kg' => null,  'sort_order' => 8],
         ] as $data) {
-            WeightClass::updateOrCreate(
+            WeightClass::firstOrCreate(
                 ['competition_id' => $competition->id, 'label' => $data['label']],
                 $data + ['competition_id' => $competition->id]
             );
@@ -115,7 +115,7 @@ class DemoCompetitionSeeder extends Seeder
                 'name'              => 'Kata',
                 'event_code'        => 'KA',
                 'running_order'     => 1,
-                'location_label'    => 'Mat 1',
+                'location_label'    => null,
                 'scoring_method'    => 'judges_total',
                 'tournament_format' => 'once_off',
                 'division_filter'   => 'age_rank',
@@ -127,7 +127,7 @@ class DemoCompetitionSeeder extends Seeder
                 'name'              => 'Point Sparring',
                 'event_code'        => 'PS',
                 'running_order'     => 2,
-                'location_label'    => 'Mat 2',
+                'location_label'    => null,
                 'scoring_method'    => 'first_to_n',
                 'tournament_format' => 'single_elimination',
                 'division_filter'   => 'age_rank_sex',
@@ -139,7 +139,7 @@ class DemoCompetitionSeeder extends Seeder
                 'name'              => 'Semi Contact',
                 'event_code'        => 'SC',
                 'running_order'     => 3,
-                'location_label'    => 'Mat 2',
+                'location_label'    => null,
                 'scoring_method'    => 'win_loss',
                 'tournament_format' => 'single_elimination',
                 'division_filter'   => 'age_sex',
@@ -151,7 +151,7 @@ class DemoCompetitionSeeder extends Seeder
                 'name'              => 'Yakusuko',
                 'event_code'        => 'YA',
                 'running_order'     => 4,
-                'location_label'    => 'Mat 1',
+                'location_label'    => null,
                 'scoring_method'    => 'judges_total',
                 'tournament_format' => 'once_off',
                 'division_filter'   => 'age_only',
@@ -163,7 +163,7 @@ class DemoCompetitionSeeder extends Seeder
                 'name'              => 'Sumo',
                 'event_code'        => 'SU',
                 'running_order'     => 5,
-                'location_label'    => 'Mat 3',
+                'location_label'    => null,
                 'scoring_method'    => 'win_loss',
                 'tournament_format' => 'single_elimination',
                 'division_filter'   => 'weight_sex',
@@ -175,7 +175,7 @@ class DemoCompetitionSeeder extends Seeder
                 'name'              => 'Weapons Kata',
                 'event_code'        => 'WK',
                 'running_order'     => 6,
-                'location_label'    => 'Mat 3',
+                'location_label'    => null,
                 'scoring_method'    => 'judges_total',
                 'tournament_format' => 'once_off',
                 'division_filter'   => 'age_weight',
@@ -187,7 +187,7 @@ class DemoCompetitionSeeder extends Seeder
                 'name'              => 'Creative Solo',
                 'event_code'        => 'CS',
                 'running_order'     => 7,
-                'location_label'    => 'Mat 4',
+                'location_label'    => null,
                 'scoring_method'    => 'judges_total',
                 'tournament_format' => 'once_off',
                 'division_filter'   => 'age_weight_sex',
@@ -196,12 +196,12 @@ class DemoCompetitionSeeder extends Seeder
                 'requires_partner'  => false,
             ],
         ] as $cfg) {
-            CompetitionEvent::updateOrCreate(
+            CompetitionEvent::firstOrCreate(
                 ['competition_id' => $competition->id, 'name' => $cfg['name']],
                 [
                     'event_code'         => $cfg['event_code'],
                     'running_order'      => $cfg['running_order'],
-                    'location_label'     => $cfg['location_label'],
+                    'location_label'     => null,
                     'scoring_method'     => $cfg['scoring_method'],
                     'tournament_format'  => $cfg['tournament_format'],
                     'division_filter'    => $cfg['division_filter'],

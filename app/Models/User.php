@@ -92,11 +92,12 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         if ($panel->getId() === 'org-admin') {
             $tenant = app('tenant');
             if (! $tenant) return false;
+            if ($this->status !== 'active') return false;
             $membership = $this->membershipFor($tenant);
-            return $this->status === 'active'
-                && $membership
-                && $membership->status === 'active'
-                && in_array($membership->role, ['administrator', 'official']);
+            if ($membership && $membership->status === 'active' && $membership->role === 'administrator') {
+                return true;
+            }
+            return $this->isActiveOfficialFor($tenant);
         }
 
         if ($this->status !== 'active') {
@@ -136,11 +137,28 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
 
     public function isOrgOfficial(Organisation $org): bool
     {
-        return $this->memberships()
-            ->where('organisation_id', $org->id)
-            ->where('role', 'official')
-            ->where('status', 'active')
-            ->exists();
+        return $this->isActiveOfficialFor($org);
+    }
+
+    public function isActiveOfficialFor(Organisation $org): bool
+    {
+        return $this->competitionOfficials()
+            ->whereHas('competition', fn ($q) => $q
+                ->where('organisation_id', $org->id)
+                ->whereIn('status', ['check_in', 'running'])
+            )->exists();
+    }
+
+    public function getActiveOfficialRoleFor(Organisation $org): ?OfficialRole
+    {
+        return $this->competitionOfficials()
+            ->whereHas('competition', fn ($q) => $q
+                ->where('organisation_id', $org->id)
+                ->whereIn('status', ['check_in', 'running'])
+            )
+            ->with('officialRole')
+            ->first()
+            ?->officialRole;
     }
 
     public function isActive(): bool
@@ -197,6 +215,11 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     public function memberships(): HasMany
     {
         return $this->hasMany(OrganisationMembership::class);
+    }
+
+    public function competitionOfficials(): HasMany
+    {
+        return $this->hasMany(CompetitionOfficial::class);
     }
 
     public function organisations(): \Illuminate\Database\Eloquent\Relations\BelongsToMany

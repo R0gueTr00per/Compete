@@ -38,7 +38,7 @@ class MemberResource extends Resource
     {
         $tenant = app('tenant');
         if (! $tenant) return true;
-        return ! (auth()->user()?->isOrgOfficial($tenant) ?? false);
+        return auth()->user()?->isOrgAdmin($tenant) ?? false;
     }
 
     public static function canCreate(): bool { return false; }
@@ -68,7 +68,6 @@ class MemberResource extends Resource
                 Select::make('role')
                     ->options([
                         'competitor'    => 'Competitor',
-                        'official'      => 'Official',
                         'administrator' => 'Administrator',
                     ])
                     ->required(),
@@ -98,7 +97,6 @@ class MemberResource extends Resource
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'administrator' => 'warning',
-                        'official'      => 'info',
                         default         => 'gray',
                     }),
 
@@ -131,7 +129,6 @@ class MemberResource extends Resource
                             ->label('Role')
                             ->options([
                                 'competitor'    => 'Competitor',
-                                'official'      => 'Official',
                                 'administrator' => 'Administrator',
                             ])
                             ->default('competitor')
@@ -310,7 +307,6 @@ class MemberResource extends Resource
                 SelectFilter::make('role')
                     ->options([
                         'competitor'    => 'Competitor',
-                        'official'      => 'Official',
                         'administrator' => 'Administrator',
                     ]),
 

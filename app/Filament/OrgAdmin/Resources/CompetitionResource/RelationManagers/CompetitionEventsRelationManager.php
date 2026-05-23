@@ -9,6 +9,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Illuminate\Validation\Rules\Unique;
 use Filament\Tables\Actions\CreateAction;
@@ -180,12 +181,25 @@ class CompetitionEventsRelationManager extends RelationManager
 
                 DeleteAction::make()
                     ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
-                    ->before(fn ($record) => $record->divisions()->delete())
                     ->modalDescription(function ($record) {
+                        if ($record->enrolmentEvents()->exists()) {
+                            $enrolCount = $record->enrolmentEvents()->count();
+                            return "Cannot delete — this event type has {$enrolCount} enrolment(s). Remove all enrolments first.";
+                        }
                         $count = $record->divisions()->count();
                         return $count > 0
                             ? "This will also delete {$count} division(s) belonging to this event type."
                             : 'Are you sure you want to remove this event type?';
+                    })
+                    ->before(function ($record, $action) {
+                        if ($record->enrolmentEvents()->exists()) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Cannot delete — remove all enrolments for this event type first.')
+                                ->send();
+                            $action->cancel();
+                        }
+                        $record->divisions()->delete();
                     }),
             ]);
     }
