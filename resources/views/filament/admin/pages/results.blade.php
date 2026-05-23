@@ -13,54 +13,70 @@
         </x-filament::input.wrapper>
 
         @if ($this->competition_id)
-            {{-- Search row --}}
-            <div class="mt-3 max-w-xs">
-                <div class="flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-primary-500">
-                    <input
-                        type="text"
-                        wire:model.live.debounce.300ms="search"
-                        placeholder="Search…"
-                        class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-sm text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
-                    />
-                    @if ($this->search)
-                        <button
-                            wire:click="$set('search', null)"
-                            class="pr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                            aria-label="Clear search"
-                        >
-                            <x-heroicon-m-x-mark class="h-4 w-4" />
-                        </button>
-                    @endif
+            {{-- View switcher --}}
+            <div class="mt-3 flex gap-1">
+                @foreach (['events' => 'Results', 'by-competitor' => 'Competitor Rankings', 'by-dojo' => 'Dojo Rankings'] as $view => $label)
+                    <button
+                        wire:click="$set('activeView', '{{ $view }}')"
+                        class="px-3 py-1 rounded-full text-xs font-medium transition-colors
+                            {{ $this->activeView === $view
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700' }}">
+                        {{ $label }}
+                    </button>
+                @endforeach
+            </div>
+
+            @if ($this->activeView === 'events')
+                {{-- Search row --}}
+                <div class="mt-3 max-w-xs">
+                    <div class="flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-primary-500">
+                        <input
+                            type="text"
+                            wire:model.live.debounce.300ms="search"
+                            placeholder="Search…"
+                            class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-sm text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
+                        />
+                        @if ($this->search)
+                            <button
+                                wire:click="$set('search', null)"
+                                class="pr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                                aria-label="Clear search"
+                            >
+                                <x-heroicon-m-x-mark class="h-4 w-4" />
+                            </button>
+                        @endif
+                    </div>
                 </div>
-            </div>
-            {{-- Filter row --}}
-            <div class="mt-2 flex flex-wrap items-center gap-2">
-                <select wire:model.live="selectedEvent"
-                    style="width: 13rem" class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1 px-2 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
-                    <option value="">— All events —</option>
-                    @foreach ($this->getEventOptions() as $id => $name)
-                        <option value="{{ $id }}">{{ $name }}</option>
-                    @endforeach
-                </select>
-                <select wire:model.live="selectedDojo"
-                    style="width: 13rem" class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1 px-2 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
-                    <option value="">— All dojos —</option>
-                    @foreach ($this->getDojoOptions() as $dojo)
-                        <option value="{{ $dojo }}">{{ $dojo }}</option>
-                    @endforeach
-                </select>
-                <label class="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer select-none whitespace-nowrap">
-                    <input type="checkbox" wire:model.live="onlyPlacings"
-                        class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800">
-                    Top 3 only
-                </label>
-            </div>
+                {{-- Filter row --}}
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <select wire:model.live="selectedEvent"
+                        style="width: 13rem" class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1 px-2 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
+                        <option value="">— All events —</option>
+                        @foreach ($this->getEventOptions() as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    </select>
+                    <select wire:model.live="selectedDojo"
+                        style="width: 13rem" class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1 px-2 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
+                        <option value="">— All dojos —</option>
+                        @foreach ($this->getDojoOptions() as $dojo)
+                            <option value="{{ $dojo }}">{{ $dojo }}</option>
+                        @endforeach
+                    </select>
+                    <label class="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 cursor-pointer select-none whitespace-nowrap">
+                        <input type="checkbox" wire:model.live="onlyPlacings"
+                            class="rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800">
+                        Top 3 only
+                    </label>
+                </div>
+            @endif
         @endif
     </div>
 
     @if (! $this->competition_id)
         <p class="text-center text-gray-400 py-12">Select a competition to view results.</p>
-    @else
+    @elseif ($this->activeView === 'events')
         @php $events = $this->getResultsData(); @endphp
 
         @if ($events->isEmpty())
@@ -129,6 +145,76 @@
                         </div>
                     </div>
                 @endforeach
+            </div>
+        @endif
+
+    @elseif ($this->activeView === 'by-competitor')
+        @php $tally = $this->getMedalTallyByCompetitor(); @endphp
+
+        @if ($tally->isEmpty())
+            <p class="text-center text-gray-400 py-12">No medal results yet for this competition.</p>
+        @else
+            <div class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-12">#</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Competitor</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Dojo</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥇</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥈</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥉</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                        @foreach ($tally as $row)
+                            <tr class="hover:bg-black/10 dark:hover:bg-white/10">
+                                <td class="px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400">{{ $row['rank'] }}</td>
+                                <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $row['name'] }}</td>
+                                <td class="px-4 py-2 text-gray-500 dark:text-gray-400">{{ $row['dojo'] }}</td>
+                                <td class="px-4 py-2 text-center font-semibold {{ $row['gold'] > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['gold'] ?: '—' }}</td>
+                                <td class="px-4 py-2 text-center font-semibold {{ $row['silver'] > 0 ? 'text-gray-500 dark:text-gray-300' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['silver'] ?: '—' }}</td>
+                                <td class="px-4 py-2 text-center font-semibold {{ $row['bronze'] > 0 ? 'text-amber-700 dark:text-amber-500' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['bronze'] ?: '—' }}</td>
+                                <td class="px-4 py-2 text-center text-gray-700 dark:text-gray-300">{{ $row['gold'] + $row['silver'] + $row['bronze'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
+    @elseif ($this->activeView === 'by-dojo')
+        @php $tally = $this->getMedalTallyByDojo(); @endphp
+
+        @if ($tally->isEmpty())
+            <p class="text-center text-gray-400 py-12">No medal results yet for this competition.</p>
+        @else
+            <div class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-12">#</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Dojo</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥇</span></th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥈</span></th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥉</span></th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
+                        @foreach ($tally as $row)
+                            <tr class="hover:bg-black/10 dark:hover:bg-white/10">
+                                <td class="px-4 py-2 text-sm font-bold text-gray-500 dark:text-gray-400">{{ $row['rank'] }}</td>
+                                <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $row['name'] }}</td>
+                                <td class="px-4 py-2 text-center font-semibold {{ $row['gold'] > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['gold'] ?: '—' }}</td>
+                                <td class="px-4 py-2 text-center font-semibold {{ $row['silver'] > 0 ? 'text-gray-500 dark:text-gray-300' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['silver'] ?: '—' }}</td>
+                                <td class="px-4 py-2 text-center font-semibold {{ $row['bronze'] > 0 ? 'text-amber-700 dark:text-amber-500' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['bronze'] ?: '—' }}</td>
+                                <td class="px-4 py-2 text-center text-gray-700 dark:text-gray-300">{{ $row['gold'] + $row['silver'] + $row['bronze'] }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         @endif
     @endif

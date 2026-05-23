@@ -5,6 +5,7 @@ namespace App\Filament\OrgAdmin\Pages;
 use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\Enrolment;
+use App\Models\Result;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
 use Livewire\Attributes\Url;
@@ -26,6 +27,9 @@ class Results extends Page
 
     #[Url]
     public ?int $competition_id = null;
+
+    #[Url]
+    public string $activeView = 'events';
 
     #[Url]
     public bool $onlyPlacings = true;
@@ -58,6 +62,95 @@ class Results extends Page
         $this->selectedEvent = null;
         $this->selectedDojo  = null;
         $this->search        = null;
+    }
+
+    public function getMedalTallyByCompetitor(): \Illuminate\Support\Collection
+    {
+        if (! $this->competition_id) {
+            return collect();
+        }
+
+        $results = Result::whereHas('enrolmentEvent.enrolment', fn ($q) => $q->where('competition_id', $this->competition_id))
+            ->whereNotNull('placement')
+            ->whereBetween('placement', [1, 3])
+            ->where('disqualified', false)
+            ->with('enrolmentEvent.enrolment.competitor')
+            ->get();
+
+        $tally = $results->groupBy(fn ($r) => $r->enrolmentEvent->enrolment->competitor_profile_id)
+            ->map(function ($group) {
+                $first      = $group->first();
+                $competitor = $first->enrolmentEvent->enrolment->competitor;
+                $enrolment  = $first->enrolmentEvent->enrolment;
+                $dojo       = $enrolment->dojo_type === 'guest'
+                    ? ($enrolment->guest_style ?? 'Guest')
+                    : ($enrolment->dojo_name ?? '—');
+
+                return [
+                    'name'   => $competitor?->full_name ?? '—',
+                    'dojo'   => $dojo,
+                    'gold'   => $group->where('placement', 1)->count(),
+                    'silver' => $group->where('placement', 2)->count(),
+                    'bronze' => $group->where('placement', 3)->count(),
+                ];
+            })
+            ->sortByDesc(fn ($t) => [$t['gold'], $t['silver'], $t['bronze']])
+            ->values();
+
+        return $this->assignRanks($tally);
+    }
+
+    public function getMedalTallyByDojo(): \Illuminate\Support\Collection
+    {
+        if (! $this->competition_id) {
+            return collect();
+        }
+
+        $results = Result::whereHas('enrolmentEvent.enrolment', fn ($q) => $q->where('competition_id', $this->competition_id))
+            ->whereNotNull('placement')
+            ->whereBetween('placement', [1, 3])
+            ->where('disqualified', false)
+            ->with('enrolmentEvent.enrolment')
+            ->get();
+
+        $tally = $results->groupBy(function ($r) {
+                $enrolment = $r->enrolmentEvent->enrolment;
+                return $enrolment->dojo_type === 'guest'
+                    ? ($enrolment->guest_style ?? 'Guest')
+                    : ($enrolment->dojo_name ?? '—');
+            })
+            ->map(function ($group, $dojoName) {
+                return [
+                    'name'   => $dojoName,
+                    'gold'   => $group->where('placement', 1)->count(),
+                    'silver' => $group->where('placement', 2)->count(),
+                    'bronze' => $group->where('placement', 3)->count(),
+                ];
+            })
+            ->sortByDesc(fn ($t) => [$t['gold'], $t['silver'], $t['bronze']])
+            ->values();
+
+        return $this->assignRanks($tally);
+    }
+
+    private function assignRanks(\Illuminate\Support\Collection $tally): \Illuminate\Support\Collection
+    {
+        $rank     = 1;
+        $prev     = null;
+        $prevRank = 1;
+
+        return $tally->map(function ($entry) use (&$rank, &$prev, &$prevRank) {
+            $key = [$entry['gold'], $entry['silver'], $entry['bronze']];
+            if ($prev !== null && $key === $prev) {
+                $entry['rank'] = $prevRank;
+            } else {
+                $entry['rank'] = $rank;
+                $prevRank      = $rank;
+            }
+            $prev = $key;
+            $rank++;
+            return $entry;
+        });
     }
 
     public function getCompetitions(): array
@@ -176,15 +269,19 @@ class Results extends Page
                 ->color('gray')
                 ->requiresConfirmation()
                 ->modalHeading('Open Results PDF')
-                ->modalDescription('The PDF will reflect your current search and filter settings.')
+                ->modalDescription('The PDF will reflect your current view and filter settings.')
                 ->modalSubmitActionLabel('Open PDF')
-                ->url(fn () => route('results.pdf', [
-                    'competition_id' => $this->competition_id,
-                    'only_placings'  => $this->onlyPlacings ? '1' : '0',
-                    'search'         => $this->search,
-                    'selected_event' => $this->selectedEvent,
-                    'selected_dojo'  => $this->selectedDojo,
-                ]))
+                ->url(fn () => match ($this->activeView) {
+                    'by-competitor' => route('results.pdf.medal-tally-competitor', ['competition_id' => $this->competition_id]),
+                    'by-dojo'       => route('results.pdf.medal-tally-dojo', ['competition_id' => $this->competition_id]),
+                    default         => route('results.pdf', [
+                        'competition_id' => $this->competition_id,
+                        'only_placings'  => $this->onlyPlacings ? '1' : '0',
+                        'search'         => $this->search,
+                        'selected_event' => $this->selectedEvent,
+                        'selected_dojo'  => $this->selectedDojo,
+                    ]),
+                })
                 ->openUrlInNewTab()
                 ->visible(fn () => (bool) $this->competition_id),
         ];

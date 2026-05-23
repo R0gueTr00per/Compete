@@ -2,6 +2,7 @@
 namespace App\Services;
 
 use App\Models\Competition;
+use App\Models\Result;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class PdfReportService
@@ -79,5 +80,84 @@ class PdfReportService
             ]);
 
         return $pdf->output();
+    }
+
+    public function generateMedalTallyByCompetitor(Competition $competition): string
+    {
+        $tally = $this->buildMedalTally(
+            $competition,
+            groupBy: fn ($r) => $r->enrolmentEvent->enrolment->competitor_profile_id,
+            label: function ($group) {
+                $first      = $group->first();
+                $enrolment  = $first->enrolmentEvent->enrolment;
+                $competitor = $enrolment->competitor;
+                $dojo       = $enrolment->dojo_type === 'guest'
+                    ? ($enrolment->guest_style ?? 'Guest')
+                    : ($enrolment->dojo_name ?? '—');
+                return ['name' => $competitor?->full_name ?? '—', 'dojo' => $dojo];
+            }
+        );
+
+        $pdf = Pdf::loadView('pdf.medal-tally-by-competitor', compact('competition', 'tally'))
+            ->setPaper('a4', 'portrait')
+            ->setOptions(['margin_top' => 28, 'margin_right' => 28, 'margin_bottom' => 28, 'margin_left' => 28]);
+
+        return $pdf->output();
+    }
+
+    public function generateMedalTallyByDojo(Competition $competition): string
+    {
+        $tally = $this->buildMedalTally(
+            $competition,
+            groupBy: fn ($r) => $r->enrolmentEvent->enrolment->dojo_type === 'guest'
+                ? ($r->enrolmentEvent->enrolment->guest_style ?? 'Guest')
+                : ($r->enrolmentEvent->enrolment->dojo_name ?? '—'),
+            label: fn ($group, $key) => ['name' => $key]
+        );
+
+        $pdf = Pdf::loadView('pdf.medal-tally-by-dojo', compact('competition', 'tally'))
+            ->setPaper('a4', 'portrait')
+            ->setOptions(['margin_top' => 28, 'margin_right' => 28, 'margin_bottom' => 28, 'margin_left' => 28]);
+
+        return $pdf->output();
+    }
+
+    private function buildMedalTally(Competition $competition, callable $groupBy, callable $label): \Illuminate\Support\Collection
+    {
+        $results = Result::whereHas('enrolmentEvent.enrolment', fn ($q) => $q->where('competition_id', $competition->id))
+            ->whereNotNull('placement')
+            ->whereBetween('placement', [1, 3])
+            ->where('disqualified', false)
+            ->with('enrolmentEvent.enrolment.competitor')
+            ->get();
+
+        $tally = $results->groupBy($groupBy)
+            ->map(function ($group, $key) use ($label) {
+                $meta = $label($group, $key);
+                return array_merge($meta, [
+                    'gold'   => $group->where('placement', 1)->count(),
+                    'silver' => $group->where('placement', 2)->count(),
+                    'bronze' => $group->where('placement', 3)->count(),
+                ]);
+            })
+            ->sortByDesc(fn ($t) => [$t['gold'], $t['silver'], $t['bronze']])
+            ->values();
+
+        $rank     = 1;
+        $prev     = null;
+        $prevRank = 1;
+
+        return $tally->map(function ($entry) use (&$rank, &$prev, &$prevRank) {
+            $key = [$entry['gold'], $entry['silver'], $entry['bronze']];
+            if ($prev !== null && $key === $prev) {
+                $entry['rank'] = $prevRank;
+            } else {
+                $entry['rank'] = $rank;
+                $prevRank      = $rank;
+            }
+            $prev = $key;
+            $rank++;
+            return $entry;
+        });
     }
 }

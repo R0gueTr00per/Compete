@@ -32,4 +32,40 @@ class ResultsPdfController extends Controller
             'Content-Disposition' => "inline; filename=\"{$filename}\"",
         ]);
     }
+
+    public function medalTallyCompetitor(Request $request, PdfReportService $pdfService)
+    {
+        $competition = Competition::findOrFail($request->integer('competition_id'));
+
+        abort_unless(
+            auth()->user()?->isOrgAdmin($competition->organisation),
+            403
+        );
+
+        $pdf      = $pdfService->generateMedalTallyByCompetitor($competition);
+        $filename = str($competition->name)->slug() . '-medal-tally-competitor.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => "inline; filename=\"{$filename}\"",
+        ]);
+    }
+
+    public function medalTallyDojo(Request $request, PdfReportService $pdfService)
+    {
+        $competition = Competition::findOrFail($request->integer('competition_id'));
+
+        abort_unless(
+            auth()->user()?->isOrgAdmin($competition->organisation),
+            403
+        );
+
+        $pdf      = $pdfService->generateMedalTallyByDojo($competition);
+        $filename = str($competition->name)->slug() . '-medal-tally-dojo.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => "inline; filename=\"{$filename}\"",
+        ]);
+    }
 }

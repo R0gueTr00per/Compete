@@ -48,6 +48,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/admin/results/pdf', [ResultsPdfController::class, 'show'])->name('results.pdf');
+    Route::get('/admin/results/pdf/medal-tally-competitor', [ResultsPdfController::class, 'medalTallyCompetitor'])->name('results.pdf.medal-tally-competitor');
+    Route::get('/admin/results/pdf/medal-tally-dojo', [ResultsPdfController::class, 'medalTallyDojo'])->name('results.pdf.medal-tally-dojo');
 });
 
 // Unauthenticated email verification for pending portal users
