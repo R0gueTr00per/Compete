@@ -336,6 +336,7 @@ class Scoring extends Page
                     'placement'            => null,
                     'placement_overridden' => false,
                     'win_loss'             => null,
+                    'disqualified'         => false,
                 ])->save();
             });
 
@@ -375,6 +376,7 @@ class Scoring extends Page
                 'placement'            => null,
                 'placement_overridden' => false,
                 'win_loss'             => null,
+                'disqualified'         => false,
             ])->save();
         });
         $this->judgeScores          = [];
@@ -765,7 +767,19 @@ class Scoring extends Page
 
         $match->update(['home_score' => $homeScore, 'away_score' => $awayScore]);
 
-        $homeWins = $homeScore > $awayScore;
+        $homeResult = Result::where('enrolment_event_id', $match->home_enrolment_event_id)->first();
+        $awayResult = Result::where('enrolment_event_id', $match->away_enrolment_event_id)->first();
+        $homeDq     = $homeResult?->disqualified ?? false;
+        $awayDq     = $awayResult?->disqualified ?? false;
+
+        if ($homeDq && ! $awayDq) {
+            $homeWins = false;
+        } elseif ($awayDq && ! $homeDq) {
+            $homeWins = true;
+        } else {
+            $homeWins = $homeScore > $awayScore;
+        }
+
         $match->update(['home_result' => $homeWins ? 'win' : 'loss']);
 
         app(BracketService::class)->advance($match->fresh());
@@ -848,14 +862,22 @@ class Scoring extends Page
         if (! $match) return;
 
         if ($match->home_enrolment_event_id === $eeId) {
-            $match->update(['home_enrolment_event_id' => null]);
+            if ($match->away_enrolment_event_id !== null) {
+                // home_enrolment_event_id is NOT NULL in the DB — promote away to home and clear away
+                $match->update([
+                    'home_enrolment_event_id' => $match->away_enrolment_event_id,
+                    'away_enrolment_event_id' => null,
+                ]);
+            } else {
+                $match->delete();
+            }
         } elseif ($match->away_enrolment_event_id === $eeId) {
             $match->update(['away_enrolment_event_id' => null]);
-        }
 
-        $match->refresh();
-        if ($match->home_enrolment_event_id === null && $match->away_enrolment_event_id === null) {
-            $match->delete();
+            $match->refresh();
+            if ($match->home_enrolment_event_id === null) {
+                $match->delete();
+            }
         }
     }
 
@@ -865,6 +887,12 @@ class Scoring extends Page
 
         RoundRobinMatch::where('division_id', $this->division_id)->delete();
         $this->bracketExists = false;
+
+        $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+        Result::whereIn('enrolment_event_id', $eeIds)
+            ->where('disqualified', true)
+            ->update(['disqualified' => false, 'placement' => null]);
+
         Notification::make()->success()->title('Bracket cleared.')->send();
     }
 
@@ -1009,12 +1037,16 @@ class Scoring extends Page
 
         $map = ['winners' => [], 'losers' => [], 'repechage' => [], 'grand_final' => []];
         foreach ($all as $m) {
-            if ($m->isPending() && ! $m->isBye() && $m->home_score !== null && $m->away_score !== null) {
+            if ($m->isPending() && ! $m->isBye()) {
                 if (! isset($this->bracketScoreInput[$m->id]['home'])) {
-                    $this->bracketScoreInput[$m->id]['home'] = (string) ((float) $m->home_score + 0);
+                    $this->bracketScoreInput[$m->id]['home'] = $m->home_score !== null
+                        ? (string) ((float) $m->home_score + 0)
+                        : '0';
                 }
                 if (! isset($this->bracketScoreInput[$m->id]['away'])) {
-                    $this->bracketScoreInput[$m->id]['away'] = (string) ((float) $m->away_score + 0);
+                    $this->bracketScoreInput[$m->id]['away'] = $m->away_score !== null
+                        ? (string) ((float) $m->away_score + 0)
+                        : '0';
                 }
             }
             $map[$m->bracket][$m->round][] = (object) [
@@ -1156,8 +1188,39 @@ class Scoring extends Page
         if (! $result) return;
 
         app(ScoringService::class)->toggleDisqualify($result);
-        $label = $result->fresh()->disqualified ? 'Disqualified.' : 'Disqualification removed.';
+        $result->refresh();
+
+        $label = $result->disqualified ? 'Disqualified.' : 'Disqualification removed.';
         Notification::make()->title($label)->warning()->send();
+
+        // For first_to_n bracket: auto-advance pending match to the opponent when DQ'd
+        if ($result->disqualified && $this->isTournament() && $this->getScoringMethod() === 'first_to_n') {
+            $eeId = $result->enrolment_event_id;
+            $match = RoundRobinMatch::where('division_id', $this->division_id)
+                ->whereNull('home_result')
+                ->whereNotNull('away_enrolment_event_id')
+                ->where(fn ($q) => $q->where('home_enrolment_event_id', $eeId)
+                    ->orWhere('away_enrolment_event_id', $eeId))
+                ->first();
+
+            if ($match) {
+                $winnerEeId = $match->home_enrolment_event_id === $eeId
+                    ? $match->away_enrolment_event_id
+                    : $match->home_enrolment_event_id;
+
+                $otherResult = $winnerEeId
+                    ? Result::where('enrolment_event_id', $winnerEeId)->first()
+                    : null;
+
+                if ($winnerEeId && ! $otherResult?->disqualified) {
+                    $homeWins = $match->home_enrolment_event_id === $winnerEeId;
+                    $match->update(['home_result' => $homeWins ? 'win' : 'loss']);
+                    app(BracketService::class)->advance($match->fresh());
+                    $this->applyBracketPlacements();
+                    Notification::make()->title('Match awarded to opponent.')->info()->send();
+                }
+            }
+        }
     }
 
     public function hasSavedScores(): bool
@@ -1177,6 +1240,7 @@ class Scoring extends Page
                 'tiebreaker_score'     => null,
                 'placement'            => null,
                 'placement_overridden' => false,
+                'disqualified'         => false,
             ])->save();
         });
 
@@ -1203,6 +1267,7 @@ class Scoring extends Page
                 'placement'            => null,
                 'placement_overridden' => false,
                 'win_loss'             => null,
+                'disqualified'         => false,
             ])->save();
         });
 

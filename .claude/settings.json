@@ -96,7 +96,9 @@
       "Bash(php -l app/Models/CompetitionEvent.php)",
       "Bash(php -l \"app/Filament/OrgAdmin/Pages/Scoring.php\")",
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Recurse -Filter \"*Result*\" -Include \"*.php\")",
-      "Bash(Select-Object -ExpandProperty FullName)"
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\" -Recurse -Directory)",
+      "Bash(php -l storage/framework/views/*.php)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

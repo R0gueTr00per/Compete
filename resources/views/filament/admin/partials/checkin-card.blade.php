@@ -89,9 +89,9 @@
                 @php $confirmedKg = $enrolment->activeEvents->firstWhere(fn($ee) => $ee->weight_confirmed_kg)?->weight_confirmed_kg; @endphp
                 <p class="text-xs text-success-600 font-medium">✓ Weight confirmed: {{ number_format($confirmedKg, 1) }} kg</p>
             @else
-                <p class="text-xs text-gray-500 mb-2">Check-in Weight</p>
-                <div class="flex items-center gap-2">
-                    <x-filament::input.wrapper class="w-28">
+                <p class="text-sm text-gray-500 mb-2">Check-in Weight</p>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <x-filament::input.wrapper class="w-full sm:w-28">
                         <x-filament::input
                             type="number"
                             step="0.1"
@@ -100,7 +100,7 @@
                             placeholder="{{ $enrolment->weight_kg ?? 'kg' }}"
                         />
                     </x-filament::input.wrapper>
-                    <x-filament::button size="xs" color="primary" wire:click="confirmWeight({{ $enrolment->id }})">
+                    <x-filament::button size="sm" color="primary" wire:click="confirmWeight({{ $enrolment->id }})">
                         Confirm weight
                     </x-filament::button>
                 </div>
@@ -111,11 +111,11 @@
     {{-- Payment --}}
     @if ($paymentOutstanding)
         <div class="mb-3 p-3 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
-            <p class="text-xs font-semibold text-warning-800 dark:text-warning-200 mb-2">
+            <p class="text-sm font-semibold text-warning-800 dark:text-warning-200 mb-2">
                 💰 Payment outstanding — ${{ number_format($enrolment->fee_calculated, 2) }}
             </p>
-            <div class="flex items-center gap-2">
-                <x-filament::input.wrapper class="w-28">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <x-filament::input.wrapper class="w-full sm:w-28">
                     <x-filament::input
                         type="number"
                         step="0.01"
@@ -124,7 +124,7 @@
                         placeholder="{{ number_format($enrolment->fee_calculated, 2) }}"
                     />
                 </x-filament::input.wrapper>
-                <x-filament::button size="xs" color="warning"
+                <x-filament::button size="sm" color="warning"
                     wire:click="recordPayment({{ $enrolment->id }})">
                     Mark paid
                 </x-filament::button>

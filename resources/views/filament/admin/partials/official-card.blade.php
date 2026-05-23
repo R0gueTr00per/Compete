@@ -1,6 +1,6 @@
 <div
     data-id="{{ $official->id }}"
-    class="group relative mb-1.5 rounded-md border shadow-sm transition-colors cursor-grab
+    class="group relative mb-1.5 rounded-md border shadow-sm transition-colors sm:cursor-grab
            bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600
            hover:shadow-md hover:border-gray-300 dark:hover:border-gray-500"
 >
