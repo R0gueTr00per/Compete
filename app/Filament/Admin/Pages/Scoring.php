@@ -144,7 +144,7 @@ class Scoring extends Page
                 )
             ),
         ])
-        ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
+        ->when($this->filter_location, fn ($q) => $q->whereHas('competitionEvent', fn ($q2) => $q2->where('location_label', $this->filter_location)))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
         ->orderBy('code');
 

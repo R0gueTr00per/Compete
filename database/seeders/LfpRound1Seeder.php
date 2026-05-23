@@ -98,7 +98,6 @@ class LfpRound1Seeder extends Seeder
                 [
                     'event_code'            => $cfg['event_code'],
                     'running_order'         => $cfg['order'],
-                    'location_label'        => $cfg['location'],
                     'scoring_method'        => $cfg['scoring_method'],
                     'tournament_format'     => $cfg['tournament_format'],
                     'division_filter'       => $cfg['division_filter'],
@@ -233,7 +232,6 @@ class LfpRound1Seeder extends Seeder
                 [
                     'code'          => $code,
                     'label'         => $label,
-                    'location_label' => $event->location_label,
                     'running_order' => $order++,
                     'status'        => 'pending',
                 ]
