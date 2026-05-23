@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WeightClass extends Model
 {
-    protected $fillable = ['competition_id', 'label', 'max_kg', 'sort_order'];
+    protected $fillable = ['competition_id', 'label', 'max_kg', 'weight_type', 'sort_order'];
 
     protected function casts(): array
     {
@@ -27,36 +27,25 @@ class WeightClass extends Model
 
     public function getFullLabelAttribute(): string
     {
-        $thisMax = $this->max_kg !== null ? (float) $this->max_kg : null;
-
-        if ($thisMax !== null) {
-            $prevMax = static::where('competition_id', $this->competition_id)
-                ->whereNotNull('max_kg')
-                ->where('max_kg', '<', $thisMax)
-                ->orderByDesc('max_kg')
-                ->value('max_kg');
-        } else {
-            $prevMax = static::where('competition_id', $this->competition_id)
-                ->whereNotNull('max_kg')
-                ->orderByDesc('max_kg')
-                ->value('max_kg');
+        if ($this->max_kg === null) {
+            return "{$this->label} (Open)";
         }
 
-        $prevMax = $prevMax !== null ? (float) $prevMax : null;
+        $weight = number_format((float) $this->max_kg, 0);
 
-        if ($prevMax === null && $thisMax !== null) {
-            $range = number_format($thisMax, 0) . ' kg & under';
-        } elseif ($thisMax === null) {
-            $range = 'over ' . number_format((float) $prevMax, 0) . ' kg';
-        } else {
-            $range = 'over ' . number_format($prevMax, 0) . ' to ' . number_format($thisMax, 0) . ' kg';
-        }
-
-        return "{$this->label} ({$range})";
+        return $this->weight_type === 'over'
+            ? "{$this->label} ({$weight} kg and over)"
+            : "{$this->label} (Under {$weight} kg)";
     }
 
     public function matchesWeight(float $weightKg): bool
     {
-        return $this->max_kg === null || $weightKg <= $this->max_kg;
+        if ($this->max_kg === null) {
+            return true;
+        }
+
+        return $this->weight_type === 'over'
+            ? $weightKg >= (float) $this->max_kg
+            : $weightKg < (float) $this->max_kg;
     }
 }

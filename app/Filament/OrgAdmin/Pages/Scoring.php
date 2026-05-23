@@ -155,6 +155,7 @@ class Scoring extends Page
                 )
             ),
         ])
+        ->whereNotNull('location_label')
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
         ->orderBy('code');

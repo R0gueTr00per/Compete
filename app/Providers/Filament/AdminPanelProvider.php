@@ -6,6 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\MenuItem;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -34,7 +35,12 @@ class AdminPanelProvider extends PanelProvider
             ->navigationGroups([
                 'System',
             ])
-            ->userMenuItems([])
+            ->userMenuItems([
+                MenuItem::make()
+                    ->label('Two-Factor Auth')
+                    ->icon('heroicon-o-shield-check')
+                    ->url(fn () => \App\Filament\Admin\Pages\TwoFactorSetup::getUrl()),
+            ])
             ->discoverResources(in: app_path('Filament/Admin/Resources'), for: 'App\\Filament\\Admin\\Resources')
             ->discoverPages(in: app_path('Filament/Admin/Pages'), for: 'App\\Filament\\Admin\\Pages')
             ->pages([

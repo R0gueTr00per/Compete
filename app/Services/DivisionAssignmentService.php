@@ -472,12 +472,15 @@ class DivisionAssignmentService
         if ($weight) {
             $match = (clone $base)
                 ->whereHas('weightClass', fn ($q) => $q
-                    ->where(fn ($q2) => $q2->whereNull('max_kg')->orWhere('max_kg', '>=', $weight))
-                    ->orderBy('max_kg')
+                    ->where(fn ($q2) => $q2
+                        ->whereNull('max_kg')
+                        ->orWhere(fn ($q3) => $q3->where('weight_type', 'under')->where('max_kg', '>', $weight))
+                        ->orWhere(fn ($q3) => $q3->where('weight_type', 'over')->where('max_kg', '<=', $weight))
+                    )
                 )
                 ->join('weight_classes', 'divisions.weight_class_id', '=', 'weight_classes.id')
                 ->orderByRaw('CASE WHEN weight_classes.max_kg IS NULL THEN 1 ELSE 0 END')
-                ->orderBy('weight_classes.max_kg')
+                ->orderByRaw("CASE WHEN weight_classes.weight_type = 'under' THEN weight_classes.max_kg ELSE -weight_classes.max_kg END ASC")
                 ->select('divisions.*')
                 ->first();
             if ($match) {
@@ -564,12 +567,15 @@ class DivisionAssignmentService
                     ->where(fn ($q2) => $q2->whereNull('max_age')->orWhere('max_age', '>=', $age))
                 )
                 ->whereHas('weightClass', fn ($q) => $q
-                    ->where(fn ($q2) => $q2->whereNull('max_kg')->orWhere('max_kg', '>=', $weight))
-                    ->orderBy('max_kg')
+                    ->where(fn ($q2) => $q2
+                        ->whereNull('max_kg')
+                        ->orWhere(fn ($q3) => $q3->where('weight_type', 'under')->where('max_kg', '>', $weight))
+                        ->orWhere(fn ($q3) => $q3->where('weight_type', 'over')->where('max_kg', '<=', $weight))
+                    )
                 )
                 ->join('weight_classes', 'divisions.weight_class_id', '=', 'weight_classes.id')
                 ->orderByRaw('CASE WHEN weight_classes.max_kg IS NULL THEN 1 ELSE 0 END')
-                ->orderBy('weight_classes.max_kg')
+                ->orderByRaw("CASE WHEN weight_classes.weight_type = 'under' THEN weight_classes.max_kg ELSE -weight_classes.max_kg END ASC")
                 ->select('divisions.*')
                 ->first();
             if ($match) {
@@ -603,11 +609,15 @@ class DivisionAssignmentService
                         ->where(fn ($q2) => $q2->whereNull('max_age')->orWhere('max_age', '>=', $age))
                     )
                     ->whereHas('weightClass', fn ($q) => $q
-                        ->where(fn ($q2) => $q2->whereNull('max_kg')->orWhere('max_kg', '>=', $weight))
+                        ->where(fn ($q2) => $q2
+                            ->whereNull('max_kg')
+                            ->orWhere(fn ($q3) => $q3->where('weight_type', 'under')->where('max_kg', '>', $weight))
+                            ->orWhere(fn ($q3) => $q3->where('weight_type', 'over')->where('max_kg', '<=', $weight))
+                        )
                     )
                     ->join('weight_classes', 'divisions.weight_class_id', '=', 'weight_classes.id')
                     ->orderByRaw('CASE WHEN weight_classes.max_kg IS NULL THEN 1 ELSE 0 END')
-                    ->orderBy('weight_classes.max_kg')
+                    ->orderByRaw("CASE WHEN weight_classes.weight_type = 'under' THEN weight_classes.max_kg ELSE -weight_classes.max_kg END ASC")
                     ->select('divisions.*')
                     ->first();
                 if ($match) {
@@ -670,16 +680,36 @@ class DivisionAssignmentService
 
         $fitsRank = fn ($d) => $this->divisionFitsRank($d, $ctx);
 
-        // Derive best-fit weight class from already-loaded relationships (avoids extra DB query)
-        $resolveBestMaxKg = fn ($pool) => $pool
-            ->map(fn ($d) => $d->weightClass?->max_kg)
-            ->filter(fn ($kg) => $kg !== null && $kg >= $weight)
-            ->min();
+        // Derive best-fit weight class IDs from already-loaded relationships (avoids extra DB query)
+        $resolveBestFitIds = function ($pool) use ($weight) {
+            $classes = $pool->map(fn ($d) => $d->weightClass)->filter()->unique('id');
+            $ids = [];
 
-        $fitsWeight = fn ($d, $bestMaxKg) => ! $d->weight_class_id
-            || ($bestMaxKg !== null
-                ? (float) ($d->weightClass?->max_kg) == (float) $bestMaxKg
-                : $d->weightClass?->max_kg === null);
+            // Under: smallest max_kg >= weight (tightest upper bound)
+            $fit = $classes->where('weight_type', 'under')
+                ->filter(fn ($wc) => $wc->max_kg !== null && (float) $wc->max_kg > $weight)
+                ->sortBy('max_kg')->first();
+            if ($fit) {
+                $ids[] = $fit->id;
+            } elseif ($open = $classes->where('weight_type', 'under')->firstWhere('max_kg', null)) {
+                $ids[] = $open->id;
+            }
+
+            // Over: largest max_kg <= weight (tightest lower bound)
+            $fit = $classes->where('weight_type', 'over')
+                ->filter(fn ($wc) => $wc->max_kg !== null && (float) $wc->max_kg <= $weight)
+                ->sortByDesc('max_kg')->first();
+            if ($fit) {
+                $ids[] = $fit->id;
+            } elseif ($open = $classes->where('weight_type', 'over')->firstWhere('max_kg', null)) {
+                $ids[] = $open->id;
+            }
+
+            return $ids;
+        };
+
+        $fitsWeight = fn ($d, $bestIds) => ! $d->weight_class_id
+            || in_array($d->weight_class_id, $bestIds);
 
         if ($filter === 'age_rank_sex') {
             if ($age !== null) $divisions = $divisions->filter($fitsAge);
@@ -688,8 +718,8 @@ class DivisionAssignmentService
             if ($age !== null) $divisions = $divisions->filter($fitsAge);
         } elseif ($filter === 'weight_sex') {
             if ($weight !== null) {
-                $bestMaxKg = $resolveBestMaxKg($divisions);
-                $divisions = $divisions->filter(fn ($d) => $fitsWeight($d, $bestMaxKg));
+                $bestIds = $resolveBestFitIds($divisions);
+                $divisions = $divisions->filter(fn ($d) => $fitsWeight($d, $bestIds));
             }
             // weight_sex uses ascending max_kg order (unlimited class last)
             return new \Illuminate\Database\Eloquent\Collection(
@@ -703,8 +733,8 @@ class DivisionAssignmentService
         } elseif (in_array($filter, ['age_weight', 'age_weight_sex'])) {
             if ($age !== null) $divisions = $divisions->filter($fitsAge);
             if ($weight !== null) {
-                $bestMaxKg = $resolveBestMaxKg($divisions);
-                $divisions = $divisions->filter(fn ($d) => $fitsWeight($d, $bestMaxKg));
+                $bestIds = $resolveBestFitIds($divisions);
+                $divisions = $divisions->filter(fn ($d) => $fitsWeight($d, $bestIds));
             }
         }
 
@@ -713,20 +743,25 @@ class DivisionAssignmentService
         );
     }
 
-    /**
-     * Find the minimum max_kg weight class that can accommodate the given weight.
-     * Returns null if no capped class fits (person falls into the "over" / unlimited class).
-     */
     private function bestFitMaxKg(int $competitionId, ?float $weight): ?float
     {
         if (! $weight) {
             return null;
         }
 
-        return \App\Models\WeightClass::where('competition_id', $competitionId)
+        $under = \App\Models\WeightClass::where('competition_id', $competitionId)
+            ->where('weight_type', 'under')
             ->whereNotNull('max_kg')
-            ->where('max_kg', '>=', $weight)
+            ->where('max_kg', '>', $weight)
             ->min('max_kg');
+
+        $over = \App\Models\WeightClass::where('competition_id', $competitionId)
+            ->where('weight_type', 'over')
+            ->whereNotNull('max_kg')
+            ->where('max_kg', '<=', $weight)
+            ->max('max_kg');
+
+        return $under ?? $over;
     }
 
     /**

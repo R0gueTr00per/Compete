@@ -87,7 +87,11 @@
       "Bash(php -l app/Filament/OrgAdmin/Resources/EnrolmentResource.php)",
       "Bash(php -l app/Filament/OrgAdmin/Pages/CheckIn.php)",
       "Bash(php -l app/Filament/OrgAdmin/Pages/Scoring.php)",
-      "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource.php)"
+      "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource.php)",
+      "Bash(xargs grep -l \"two.*factor\\\\|2fa\\\\|google2fa\")",
+      "Bash(php -l app/Models/WeightClass.php)",
+      "Bash(php -l app/Filament/Admin/Resources/CompetitionResource/RelationManagers/WeightClassesRelationManager.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/WeightClassesRelationManager.php)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

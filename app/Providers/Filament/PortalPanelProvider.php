@@ -38,6 +38,11 @@ class PortalPanelProvider extends PanelProvider
             ])
             ->userMenuItems([
                 MenuItem::make()
+                    ->label('Two-Factor Auth')
+                    ->icon('heroicon-o-shield-check')
+                    ->url(fn () => \App\Filament\Portal\Pages\TwoFactorSetup::getUrl()),
+
+                MenuItem::make()
                     ->label('Manage Panel')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->url('/manage')
@@ -75,6 +80,7 @@ class PortalPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\EnsureTwoFactorAuthenticated::class,
             ])
             ->sidebarCollapsibleOnDesktop()
             ->authGuard('web')

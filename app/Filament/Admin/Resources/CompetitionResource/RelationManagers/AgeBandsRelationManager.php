@@ -99,21 +99,6 @@ class AgeBandsRelationManager extends RelationManager
             return 'Min age must be less than max age.';
         }
 
-        // Only check overlap when both bounds are provided; open-ended ranges are allowed to overlap.
-        if ($minAge !== null && $maxAge !== null) {
-            $overlap = AgeBand::where('competition_id', $this->getOwnerRecord()->id)
-                ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
-                ->whereNotNull('min_age')
-                ->whereNotNull('max_age')
-                ->whereRaw('min_age <= ?', [$maxAge])
-                ->whereRaw('max_age >= ?', [$minAge])
-                ->first();
-
-            if ($overlap) {
-                return "Age range overlaps with \"{$overlap->label}\".";
-            }
-        }
-
         return null;
     }
 }

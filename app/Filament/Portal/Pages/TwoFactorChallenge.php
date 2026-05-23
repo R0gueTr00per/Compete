@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Admin\Pages;
+namespace App\Filament\Portal\Pages;
 
 use App\Filament\Shared\Pages\BaseTwoFactorChallenge;
 

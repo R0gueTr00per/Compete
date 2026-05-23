@@ -38,8 +38,14 @@ class OrgAdminPanelProvider extends PanelProvider
                 'Competitions',
                 'Competitors',
                 'System',
+                'Account',
             ])
             ->userMenuItems([
+                MenuItem::make()
+                    ->label('Two-Factor Auth')
+                    ->icon('heroicon-o-shield-check')
+                    ->url(fn () => \App\Filament\OrgAdmin\Pages\TwoFactorSetup::getUrl()),
+
                 MenuItem::make()
                     ->label('My Profile')
                     ->icon('heroicon-o-user-circle')
@@ -53,10 +59,12 @@ class OrgAdminPanelProvider extends PanelProvider
                 NavigationItem::make('My Profile')
                     ->icon('heroicon-o-user-circle')
                     ->url('/portal/profile')
+                    ->group('Account')
                     ->sort(100),
                 NavigationItem::make('Competitor Portal')
                     ->icon('heroicon-o-globe-alt')
                     ->url('/portal')
+                    ->group('Account')
                     ->sort(101),
             ])
             ->discoverResources(in: app_path('Filament/OrgAdmin/Resources'), for: 'App\\Filament\\OrgAdmin\\Resources')
@@ -82,6 +90,7 @@ class OrgAdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\EnsureTwoFactorAuthenticated::class,
             ])
             ->globalSearch(false)
             ->sidebarCollapsibleOnDesktop()

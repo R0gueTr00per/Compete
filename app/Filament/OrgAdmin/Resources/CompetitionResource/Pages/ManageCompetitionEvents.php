@@ -281,7 +281,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
             Section::make('Division')->columns(2)->schema([
                 Select::make('competition_event_id')
                     ->label('Event type')
-                    ->options(fn () => $this->getRecord()->competitionEvents()->pluck('name', 'id'))
+                    ->options(fn () => $this->getRecord()->competitionEvents()->orderBy('name')->pluck('name', 'id'))
                     ->required()
                     ->searchable()
                     ->live()

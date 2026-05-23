@@ -2,8 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Filament\Admin\Pages\TwoFactorChallenge;
-use App\Filament\Admin\Pages\TwoFactorSetup;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,20 +12,21 @@ class EnsureTwoFactorAuthenticated
     {
         $user = $request->user();
 
-        if (! $user || ! $user->hasRole('system_admin')) {
+        if (! $user) {
             return $next($request);
         }
 
-        // Exempt the 2FA pages themselves to avoid redirect loops
+        $panelId = filament()->getCurrentPanel()->getId();
+
         if ($request->routeIs(
-            TwoFactorChallenge::getRouteName('admin'),
-            TwoFactorSetup::getRouteName('admin'),
+            "filament.{$panelId}.pages.two-factor-challenge",
+            "filament.{$panelId}.pages.two-factor-setup",
         )) {
             return $next($request);
         }
 
         if ($user->hasTwoFactorEnabled() && ! $request->session()->get('2fa_authenticated')) {
-            return redirect()->to(TwoFactorChallenge::getUrl(panel: 'admin'));
+            return redirect()->route("filament.{$panelId}.pages.two-factor-challenge");
         }
 
         return $next($request);

@@ -4,6 +4,7 @@ namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
 use App\Models\Division;
 use App\Models\WeightClass;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -25,15 +26,23 @@ class WeightClassesRelationManager extends RelationManager
             TextInput::make('label')
                 ->required()
                 ->maxLength(50)
-                ->placeholder('e.g. Flyweight'),
+                ->placeholder('e.g. Flyweight')
+                ->columnSpanFull(),
 
             TextInput::make('max_kg')
-                ->label('Max weight (kg)')
+                ->label('Weight (kg)')
                 ->numeric()
                 ->nullable()
                 ->suffix('kg')
-                ->helperText('Leave blank for the open/heavyweight class.'),
-        ]);
+                ->helperText('Leave blank for the open/unlimited class.'),
+
+            Radio::make('weight_type')
+                ->label('Type')
+                ->options(['under' => 'Under', 'over' => 'And over'])
+                ->descriptions(['under' => '(exclusive — e.g. Under 80 kg)', 'over' => '(inclusive — e.g. 80 kg and over)'])
+                ->default('under')
+                ->required(),
+        ])->columns(2);
     }
 
     public function table(Table $table): Table
@@ -88,16 +97,18 @@ class WeightClassesRelationManager extends RelationManager
         $query = WeightClass::where('competition_id', $this->getOwnerRecord()->id)
             ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId));
 
+        $type = $data['weight_type'] ?? 'under';
+
         $duplicate = $maxKg === null
             ? $query->whereNull('max_kg')->first()
-            : $query->where('max_kg', $maxKg)->first();
+            : $query->where('max_kg', $maxKg)->where('weight_type', $type)->first();
 
         if (! $duplicate) {
             return null;
         }
 
         return $maxKg === null
-            ? "An open/heavyweight class already exists (\"{$duplicate->label}\")."
-            : "A weight class with max {$maxKg} kg already exists (\"{$duplicate->label}\").";
+            ? "An open/unlimited class already exists (\"{$duplicate->label}\")."
+            : "A '{$type}' class with {$maxKg} kg already exists (\"{$duplicate->label}\").";
     }
 }
