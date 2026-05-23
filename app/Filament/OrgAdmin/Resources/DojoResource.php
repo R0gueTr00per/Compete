@@ -87,6 +87,7 @@ class DojoResource extends Resource
                     ->options(
                         User::whereHas('ownedProfiles')
                             ->get()
+                            ->sortBy(fn (User $u) => $u->getFilamentName())
                             ->mapWithKeys(fn (User $u) => [$u->id => $u->getFilamentName()])
                             ->toArray()
                     ),

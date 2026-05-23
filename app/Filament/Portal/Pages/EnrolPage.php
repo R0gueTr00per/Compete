@@ -26,6 +26,7 @@ class EnrolPage extends Page implements HasForms
 {
     use InteractsWithForms;
 
+    protected static ?string $title           = 'Enrol';
     protected static ?string $navigationIcon  = 'heroicon-o-pencil-square';
     protected static ?string $navigationLabel = 'Enrol';
     protected static string  $view            = 'filament.portal.pages.enrol-page';

@@ -8,6 +8,7 @@ use Livewire\Attributes\Url;
 
 class CompetitionResultsPage extends Page
 {
+    protected static ?string $title           = 'Results';
     protected static ?string $navigationIcon  = 'heroicon-o-trophy';
     protected static ?string $navigationLabel = 'Results';
     protected static string  $view            = 'filament.portal.pages.competition-results-page';

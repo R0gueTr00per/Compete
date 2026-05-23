@@ -1,9 +1,5 @@
 <x-filament-panels::page>
-    @php
-        $profiles               = $this->getProfiles();
-        $instructorDojos        = $this->getInstructorDojos();
-        $instructorCompetitions = $instructorDojos->isNotEmpty() ? $this->getInstructorCompetitions() : collect();
-    @endphp
+    @php $profiles = $this->getProfiles(); @endphp
 
     @forelse ($profiles as $profile)
         @php $enrolments = $this->getEnrolmentsForProfile($profile); @endphp
@@ -156,8 +152,8 @@
                                             <p class="font-medium text-sm text-gray-900 dark:text-white">
                                                 {{ $ee->competitionEvent->event_code }}
                                                 — {{ $ee->competitionEvent->name }}
-                                                @if ($ee->competitionEvent->location_label)
-                                                    <span class="text-gray-400 font-normal">({{ $ee->competitionEvent->location_label }})</span>
+                                                @if ($ee->division?->location_label)
+                                                    <span class="text-gray-400 font-normal">({{ $ee->division->location_label }})</span>
                                                 @endif
                                             </p>
                                             @if ($ee->division)
@@ -227,89 +223,4 @@
         </div>
     @endif
 
-    {{-- Instructor view --}}
-    @if ($instructorDojos->isNotEmpty())
-        <div class="mt-6">
-            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-3">
-                My Dojo{{ $instructorDojos->count() !== 1 ? 's' : '' }}
-            </h2>
-
-            @foreach ($instructorDojos as $dojo)
-                @php
-                    $dojoCompetitions = $instructorCompetitions->filter(
-                        fn ($c) => $c->enrolments->where('dojo_name', $dojo->name)->isNotEmpty()
-                    );
-                @endphp
-                <x-filament::section class="mb-4">
-                    <x-slot name="heading">{{ $dojo->name }}</x-slot>
-
-                    @if ($dojoCompetitions->isEmpty())
-                        <p class="text-sm text-gray-500 py-2">No active competitions with enrolments from this dojo.</p>
-                    @else
-                        @foreach ($dojoCompetitions as $competition)
-                            @php
-                                $dojoEnrolments = $competition->enrolments->where('dojo_name', $dojo->name)->sortBy(
-                                    fn ($e) => $e->competitor?->surname ?? ''
-                                );
-                            @endphp
-                            <div class="mb-4">
-                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                                    {{ $competition->name }}
-                                    &mdash; {{ $competition->competition_date->format('d M Y') }}
-                                </p>
-                                <div class="divide-y divide-gray-100 dark:divide-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                                    @foreach ($dojoEnrolments as $enrolment)
-                                        @php
-                                            $name       = $enrolment->competitor?->full_name ?? '—';
-                                            $eventCount = $enrolment->activeEvents->count();
-                                        @endphp
-                                        <div x-data="{ open: false }" class="px-4 py-3">
-                                            <button
-                                                type="button"
-                                                x-on:click="open = !open"
-                                                class="flex w-full items-center justify-between gap-2 text-left">
-                                                <span class="text-sm font-medium text-gray-900 dark:text-white">
-                                                    {{ $name }}
-                                                    <span class="ml-1 text-xs font-normal text-gray-500 dark:text-gray-400">({{ $eventCount }} {{ Str::plural('event', $eventCount) }})</span>
-                                                </span>
-                                                <x-heroicon-m-chevron-down
-                                                    x-bind:class="open ? 'rotate-180' : ''"
-                                                    class="h-4 w-4 text-gray-400 shrink-0 transition-transform" />
-                                            </button>
-                                            <div x-show="open" x-collapse class="mt-2">
-                                                <div class="flex flex-col gap-1">
-                                                    @foreach ($enrolment->activeEvents as $ee)
-                                                        <span class="text-xs text-gray-500 dark:text-gray-400">
-                                                            {{ $ee->competitionEvent->event_code }} — {{ $ee->competitionEvent->name }}
-                                                            @if ($ee->division)
-                                                                <span class="text-gray-400">({{ $ee->division->full_label }})</span>
-                                                            @endif
-                                                            @if ($ee->result && ($ee->result->placement || $ee->result->disqualified))
-                                                                <span class="font-medium text-primary-600 dark:text-primary-400">
-                                                                    @if ($ee->result->disqualified)
-                                                                        DQ
-                                                                    @else
-                                                                        @switch($ee->result->placement)
-                                                                            @case(1) 1st @break
-                                                                            @case(2) 2nd @break
-                                                                            @case(3) 3rd @break
-                                                                            @default {{ $ee->result->placement }}th
-                                                                        @endswitch
-                                                                    @endif
-                                                                </span>
-                                                            @endif
-                                                        </span>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endforeach
-                    @endif
-                </x-filament::section>
-            @endforeach
-        </div>
-    @endif
 </x-filament-panels::page>

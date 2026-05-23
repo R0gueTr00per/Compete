@@ -94,7 +94,9 @@
       "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/WeightClassesRelationManager.php)",
       "Bash(xargs wc -l)",
       "Bash(php -l app/Models/CompetitionEvent.php)",
-      "Bash(php -l \"app/Filament/OrgAdmin/Pages/Scoring.php\")"
+      "Bash(php -l \"app/Filament/OrgAdmin/Pages/Scoring.php\")",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Recurse -Filter \"*Result*\" -Include \"*.php\")",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

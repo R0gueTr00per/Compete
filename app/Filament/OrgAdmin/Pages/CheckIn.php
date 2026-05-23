@@ -90,7 +90,7 @@ class CheckIn extends Page
         }
 
         return $query->get()
-            ->sortBy(fn ($e) => $e->competitor?->surname ?? '');
+            ->sortBy(fn ($e) => ($e->competitor?->first_name ?? '') . ' ' . ($e->competitor?->surname ?? ''));
     }
 
     public function checkIn(int $enrolmentId): void

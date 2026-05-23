@@ -26,6 +26,7 @@ class ProfilesPage extends Page implements HasForms
 {
     use InteractsWithForms;
 
+    protected static ?string $title           = 'Profiles';
     protected static ?string $navigationIcon  = 'heroicon-o-user-group';
     protected static ?string $navigationLabel = 'Profiles';
     protected static string  $view            = 'filament.portal.pages.profiles-page';

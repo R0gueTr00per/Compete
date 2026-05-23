@@ -7,7 +7,8 @@ use Filament\Pages\Page;
 
 class MyEnrolmentsPage extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static ?string $title           = 'My Enrolments';
+    protected static ?string $navigationIcon  = 'heroicon-o-clipboard-document-list';
     protected static ?string $navigationLabel = 'My Enrolments';
     protected static string $view = 'filament.portal.pages.my-enrolments-page';
     protected static ?string $slug = 'my-enrolments';
