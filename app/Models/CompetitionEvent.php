@@ -21,6 +21,10 @@ class CompetitionEvent extends Model
         'scoring_method',
         'tournament_format',
         'manual_pairing',
+        'bracket_sort',
+        'bracket_first_round_order',
+        'bracket_prefer_different_dojo',
+        'bracket_avoid_repeat_matchups',
         'judge_count',
         'target_score',
         'default_score',
@@ -32,8 +36,10 @@ class CompetitionEvent extends Model
     protected function casts(): array
     {
         return [
-            'requires_partner' => 'boolean',
-            'manual_pairing'   => 'boolean',
+            'requires_partner'              => 'boolean',
+            'manual_pairing'               => 'boolean',
+            'bracket_prefer_different_dojo'    => 'boolean',
+            'bracket_avoid_repeat_matchups' => 'boolean',
         ];
     }
 

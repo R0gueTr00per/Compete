@@ -417,9 +417,12 @@ class Scoring extends Page
     {
         if (! $this->division_id) return collect();
 
+        $division = Division::with('competitionEvent')->find($this->division_id);
+        $filter   = $division?->competitionEvent?->division_filter ?? '';
+
         $rows = EnrolmentEvent::where('division_id', $this->division_id)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-            ->with(['enrolment.competitor'])
+            ->with(['enrolment.competitor', 'enrolment.rank'])
             ->get()->toBase();
 
         [$active, $absent] = $rows->partition(fn ($ee) => ! $ee->removed);
@@ -427,11 +430,43 @@ class Scoring extends Page
         $map = fn ($ee, bool $isAbsent) => (object) [
             'ee_id'  => $ee->id,
             'name'   => $ee->enrolment->competitor?->full_name ?? '(unknown)',
+            'info'   => $this->buildRollcallInfo($ee, $filter),
             'absent' => $isAbsent,
         ];
 
         return $active->map(fn ($ee) => $map($ee, false))->sortBy('name')
             ->merge($absent->map(fn ($ee) => $map($ee, true))->sortBy('name'));
+    }
+
+    private function buildRollcallInfo(EnrolmentEvent $ee, string $filter): string
+    {
+        $parts = [];
+
+        if (str_contains($filter, 'age')) {
+            $age = $ee->enrolment->competitor?->age;
+            if ($age !== null) $parts[] = $age . 'yo';
+        }
+
+        if (str_contains($filter, 'weight')) {
+            $kg = $ee->enrolment->weight_kg;
+            if ($kg) $parts[] = $kg . 'kg';
+        }
+
+        if (str_contains($filter, 'rank')) {
+            $rank = $ee->enrolment->rank?->name;
+            if ($rank) $parts[] = $rank;
+        }
+
+        if (str_contains($filter, 'sex')) {
+            $gender = $ee->enrolment->competitor?->gender;
+            if ($gender) $parts[] = match ($gender) {
+                'M' => 'Male',
+                'F' => 'Female',
+                default => $gender,
+            };
+        }
+
+        return $parts ? implode(', ', $parts) : '';
     }
 
     public function getSelectedDivision(): ?Division
@@ -448,15 +483,18 @@ class Scoring extends Page
 
         $division = $this->getSelectedDivision();
 
+        $filter = $division?->competitionEvent?->division_filter ?? '';
+
         return EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
             ->with([
                 'enrolment.competitor',
+                'enrolment.rank',
                 'result.judgeScores',
             ])
             ->get()->toBase()
-            ->map(function (EnrolmentEvent $ee) use ($division) {
+            ->map(function (EnrolmentEvent $ee) use ($division, $filter) {
                 $result = $ee->result
                     ?? app(ScoringService::class)->getOrCreateResult($ee);
 
@@ -491,6 +529,7 @@ class Scoring extends Page
                     'ee'     => $ee,
                     'result' => $result,
                     'name'   => $this->resolveEeName($ee),
+                    'info'   => $this->buildRollcallInfo($ee, $filter),
                 ];
             })
             ->when(
@@ -557,7 +596,7 @@ class Scoring extends Page
         $competitors = EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-            ->with('enrolment.competitor')
+            ->with('enrolment.competitor', 'enrolment.rank')
             ->get()->toBase();
 
         $n = $competitors->count();
@@ -567,11 +606,17 @@ class Scoring extends Page
         }
 
         $division = $this->getSelectedDivision();
+        $event    = $division?->competitionEvent;
 
-        if ($division?->competitionEvent?->manual_pairing) {
-            $this->pairingCompetitorList = $competitors
-                ->map(fn ($ee) => ['ee_id' => $ee->id, 'name' => $this->resolveEeName($ee)])
-                ->sortBy('name')
+        if ($event?->manual_pairing) {
+            $ordered = $this->buildBracketOrder($competitors, $event);
+            $filter  = $event?->division_filter ?? '';
+            $this->pairingCompetitorList = $ordered
+                ->map(function ($ee) use ($filter) {
+                    $name = $this->resolveEeName($ee);
+                    $info = $this->buildRollcallInfo($ee, $filter);
+                    return ['ee_id' => $ee->id, 'name' => $name, 'info' => $info];
+                })
                 ->values()
                 ->toArray();
             $this->manualPairings = array_fill(0, (int) ceil($n / 2), ['home' => '', 'away' => '']);
@@ -579,8 +624,8 @@ class Scoring extends Page
             return;
         }
 
-        $sorted = $competitors->sortBy(fn ($ee) => $this->resolveEeName($ee))->values();
-        app(BracketService::class)->generate($division, $sorted);
+        $ordered = $this->buildBracketOrder($competitors, $event);
+        app(BracketService::class)->generate($division, $ordered);
 
         $this->bracketExists = true;
         Notification::make()->success()->title("Bracket generated for {$n} competitors.")->send();
@@ -872,6 +917,10 @@ class Scoring extends Page
         }
         // grand_final: no downstream — just clear the result below
 
+        // Un-DQ both competitors so the match can be re-scored cleanly
+        $eeIds = array_filter([$match->home_enrolment_event_id, $match->away_enrolment_event_id]);
+        Result::whereIn('enrolment_event_id', $eeIds)->where('disqualified', true)->update(['disqualified' => false]);
+
         $match->update(['home_result' => null, 'home_score' => null, 'away_score' => null]);
         $this->applyBracketPlacements();
         Notification::make()->success()->title('Result cleared.')->send();
@@ -1047,16 +1096,34 @@ class Scoring extends Page
         $all = RoundRobinMatch::where('division_id', $this->division_id)
             ->with([
                 'homeEnrolmentEvent.enrolment.competitor',
+                'homeEnrolmentEvent.enrolment.rank',
                 'awayEnrolmentEvent.enrolment.competitor',
+                'awayEnrolmentEvent.enrolment.rank',
             ])
             ->orderBy('bracket')->orderBy('round')->orderBy('bracket_slot')
             ->get();
 
+        $division = $this->getSelectedDivision();
+        $filter   = $division?->competitionEvent?->division_filter ?? '';
+
         $eeNames = [];
+        $eeInfo  = [];
         foreach ($all as $m) {
             foreach ([$m->homeEnrolmentEvent, $m->awayEnrolmentEvent] as $ee) {
                 if ($ee && ! isset($eeNames[$ee->id])) {
                     $eeNames[$ee->id] = $this->resolveEeName($ee);
+                    $eeInfo[$ee->id]  = $this->buildRollcallInfo($ee, $filter);
+                }
+            }
+        }
+
+        // Count how many scored matches each competitor appears in.
+        // A match is only undoable if its winner appears in exactly one scored match (itself).
+        $scoredAppearances = [];
+        foreach ($all as $m) {
+            if ($m->home_result !== null && ! $m->isBye()) {
+                foreach ([$m->home_enrolment_event_id, $m->away_enrolment_event_id] as $eeId) {
+                    if ($eeId) $scoredAppearances[$eeId] = ($scoredAppearances[$eeId] ?? 0) + 1;
                 }
             }
         }
@@ -1075,22 +1142,29 @@ class Scoring extends Page
                         : '0';
                 }
             }
+            $winner   = $m->winnerId();
+            $canUndo  = $m->home_result !== null
+                && $winner
+                && ($scoredAppearances[$winner] ?? 0) <= 1;
             $map[$m->bracket][$m->round][] = (object) [
                 'id'          => $m->id,
                 'slot'        => $m->bracket_slot,
                 'home_id'     => $m->home_enrolment_event_id,
                 'away_id'     => $m->away_enrolment_event_id,
                 'home_name'   => isset($eeNames[$m->home_enrolment_event_id]) ? $eeNames[$m->home_enrolment_event_id] : '—',
+                'home_info'   => $eeInfo[$m->home_enrolment_event_id] ?? '',
                 'away_name'   => $m->away_enrolment_event_id
                     ? ($eeNames[$m->away_enrolment_event_id] ?? '—')
                     : ($m->home_result === null ? 'Waiting...' : 'BYE'),
+                'away_info'   => $m->away_enrolment_event_id ? ($eeInfo[$m->away_enrolment_event_id] ?? '') : '',
                 'home_result' => $m->home_result,
                 'home_score'  => $m->home_score,
                 'away_score'  => $m->away_score,
                 'is_bye'      => $m->isBye(),
                 'is_pending'  => $m->isPending() && ! $m->isBye(),
-                'winner_id'   => $m->winnerId(),
+                'winner_id'   => $winner,
                 'loser_id'    => $m->loserId(),
+                'can_undo'    => $canUndo,
             ];
         }
 
@@ -1101,6 +1175,125 @@ class Scoring extends Page
     {
         if (! $ee) return '—';
         return $ee->enrolment->competitor?->full_name ?? '—';
+    }
+
+    private function buildBracketOrder(\Illuminate\Support\Collection $competitors, ?\App\Models\CompetitionEvent $event): \Illuminate\Support\Collection
+    {
+        // Step 1: base sort order
+        $sorted = match ($event?->bracket_sort ?? 'first_name') {
+            'surname'            => $competitors->sortBy(fn ($ee) => strtolower($ee->enrolment->competitor?->surname ?? '')),
+            'registration_order' => $competitors->sortBy(fn ($ee) => $ee->enrolment->created_at),
+            'random'             => $competitors->shuffle(),
+            default              => $competitors->sortBy(fn ($ee) => strtolower($ee->enrolment->competitor?->first_name ?? '')),
+        };
+        $sorted = $sorted->values();
+
+        // Step 2: first-round ordering (mutually exclusive)
+        $sorted = match ($event?->bracket_first_round_order) {
+            'seed_by_rank'       => $this->applyRankSeeding($sorted),
+            'match_similar_age'  => $competitors->sortBy(fn ($ee) => $ee->enrolment->competitor?->age ?? 0)->values(),
+            'match_similar_weight' => $competitors->sortBy(fn ($ee) => (float) ($ee->enrolment->weight_kg ?? 0))->values(),
+            default              => $sorted,
+        };
+
+        if ($event?->bracket_prefer_different_dojo) {
+            $sorted = $this->applyPreferDifferentDojo($sorted);
+        }
+
+        if ($event?->bracket_avoid_repeat_matchups) {
+            $sorted = $this->applyAvoidRepeatMatchups($sorted);
+        }
+
+        return $sorted;
+    }
+
+    private function applyRankSeeding(\Illuminate\Support\Collection $competitors): \Illuminate\Support\Collection
+    {
+        // Sort highest sort_order first (best rank = top seed), then interleave high-low
+        $ranked = $competitors->sortByDesc(fn ($ee) => $ee->enrolment->rank?->sort_order ?? 0)->values();
+
+        $result = [];
+        $lo     = 0;
+        $hi     = $ranked->count() - 1;
+
+        while ($lo <= $hi) {
+            $result[] = $ranked[$lo++];
+            if ($lo <= $hi) {
+                $result[] = $ranked[$hi--];
+            }
+        }
+
+        return collect($result);
+    }
+
+    private function applyPreferDifferentDojo(\Illuminate\Support\Collection $competitors): \Illuminate\Support\Collection
+    {
+        $arr = $competitors->all();
+        $n   = count($arr);
+
+        for ($i = 0; $i < $n - 2; $i += 2) {
+            $dojoA = $arr[$i]->enrolment->dojo_name ?? null;
+            $dojoB = $arr[$i + 1]->enrolment->dojo_name ?? null;
+
+            if ($dojoA && $dojoB && $dojoA === $dojoB) {
+                // Swap the second of this pair with the first of the next pair
+                [$arr[$i + 1], $arr[$i + 2]] = [$arr[$i + 2], $arr[$i + 1]];
+            }
+        }
+
+        return collect($arr);
+    }
+
+    private function applyAvoidRepeatMatchups(\Illuminate\Support\Collection $competitors): \Illuminate\Support\Collection
+    {
+        if (! $this->competition_id || $competitors->isEmpty()) return $competitors;
+
+        // Map ee_id → competitor_profile_id for the current division's competitors
+        $profileById = $competitors->keyBy('id')->map(fn ($ee) => $ee->enrolment->competitor_id);
+        $profileIds  = $profileById->values()->unique();
+        $currentDivisionId = $competitors->first()->division_id;
+
+        // Find EEs for the same profiles in OTHER divisions of this competition
+        $otherEeMap = EnrolmentEvent::with('enrolment')
+            ->whereHas('enrolment', fn ($q) =>
+                $q->where('competition_id', $this->competition_id)
+                  ->whereIn('competitor_id', $profileIds)
+            )
+            ->where('division_id', '!=', $currentDivisionId)
+            ->get()
+            ->keyBy('id')
+            ->map(fn ($ee) => $ee->enrolment->competitor_id);
+
+        if ($otherEeMap->isEmpty()) return $competitors;
+
+        // Collect profile_id pairs that have already faced each other
+        $priorPairs = RoundRobinMatch::whereIn('home_enrolment_event_id', $otherEeMap->keys())
+            ->whereIn('away_enrolment_event_id', $otherEeMap->keys())
+            ->get()
+            ->mapWithKeys(function ($match) use ($otherEeMap) {
+                $a = $otherEeMap[$match->home_enrolment_event_id] ?? null;
+                $b = $otherEeMap[$match->away_enrolment_event_id] ?? null;
+                if (! $a || ! $b) return [];
+                $key = min($a, $b) . '_' . max($a, $b);
+                return [$key => true];
+            });
+
+        if ($priorPairs->isEmpty()) return $competitors;
+
+        // Best-effort: for each pair, if they've already met, swap with the next element
+        $arr = $competitors->all();
+        $n   = count($arr);
+
+        for ($i = 0; $i < $n - 2; $i += 2) {
+            $a = $profileById[$arr[$i]->id] ?? null;
+            $b = $profileById[$arr[$i + 1]->id] ?? null;
+
+            if ($a && $b && $priorPairs->has(min($a, $b) . '_' . max($a, $b))) {
+                [$arr[$i + 1], $arr[$i + 2]] = [$arr[$i + 2], $arr[$i + 1]];
+            }
+        }
+
+        return collect($arr);
     }
 
     public function getScoringMethod(): ?string
@@ -1219,8 +1412,8 @@ class Scoring extends Page
         $label = $result->disqualified ? 'Disqualified.' : 'Disqualification removed.';
         Notification::make()->title($label)->warning()->send();
 
-        // For first_to_n bracket: auto-advance pending match to the opponent when DQ'd
-        if ($result->disqualified && $this->isTournament() && $this->getScoringMethod() === 'first_to_n') {
+        // For first_to_n / win_loss bracket: auto-advance pending match to the opponent when DQ'd
+        if ($result->disqualified && $this->isTournament() && in_array($this->getScoringMethod(), ['first_to_n', 'win_loss'])) {
             $eeId = $result->enrolment_event_id;
             $match = RoundRobinMatch::where('division_id', $this->division_id)
                 ->whereNull('home_result')

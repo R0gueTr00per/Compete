@@ -286,15 +286,20 @@ class DivisionAssignmentService
             $eventMap = [];
             foreach ($source->competitionEvents->sortBy('running_order') as $event) {
                 $new = $target->competitionEvents()->create([
-                    'name'                 => $event->name,
-                    'running_order'        => $event->running_order,
-                    'target_score'         => $event->target_score,
-                    'scoring_method'       => $event->scoring_method,
-                    'tournament_format'    => $event->tournament_format,
-                    'division_filter'      => $event->division_filter,
-                    'judge_count'          => $event->judge_count,
-                    'requires_partner'     => $event->requires_partner,
-                    'status'               => 'scheduled',
+                    'name'                          => $event->name,
+                    'running_order'                 => $event->running_order,
+                    'target_score'                  => $event->target_score,
+                    'scoring_method'                => $event->scoring_method,
+                    'tournament_format'             => $event->tournament_format,
+                    'division_filter'               => $event->division_filter,
+                    'judge_count'                   => $event->judge_count,
+                    'requires_partner'              => $event->requires_partner,
+                    'manual_pairing'               => $event->manual_pairing,
+                    'bracket_sort'                 => $event->bracket_sort,
+                    'bracket_first_round_order'    => $event->bracket_first_round_order,
+                    'bracket_prefer_different_dojo'    => $event->bracket_prefer_different_dojo,
+                    'bracket_avoid_repeat_matchups' => $event->bracket_avoid_repeat_matchups,
+                    'status'                        => 'scheduled',
                 ]);
                 $eventMap[$event->id] = $new->id;
             }

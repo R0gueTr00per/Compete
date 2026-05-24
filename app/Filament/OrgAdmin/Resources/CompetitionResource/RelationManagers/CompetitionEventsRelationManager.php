@@ -2,6 +2,8 @@
 
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -9,6 +11,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Illuminate\Support\HtmlString;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Illuminate\Validation\Rules\Unique;
@@ -41,7 +44,7 @@ class CompetitionEventsRelationManager extends RelationManager
 
                 TextInput::make('event_code')
                     ->label('Event code')
-                    ->helperText('Short prefix used for division codes (e.g. PS for Point Sparring).')
+                    ->helperText('Short prefix for division codes (e.g. PS).')
                     ->required()
                     ->maxLength(10)
                     ->unique(
@@ -55,38 +58,31 @@ class CompetitionEventsRelationManager extends RelationManager
                 Select::make('division_filter')
                     ->label('Division filter')
                     ->options([
-                        'age_rank_sex'  => 'Age + rank + sex',
-                        'age_sex'       => 'Age + sex',
-                        'age_rank'      => 'Age + rank',
-                        'age_only'      => 'Age only',
-                        'weight_sex'    => 'Weight + sex',
-                        'age_weight'    => 'Age + weight',
+                        'age_rank_sex'   => 'Age + rank + sex',
+                        'age_sex'        => 'Age + sex',
+                        'age_rank'       => 'Age + rank',
+                        'age_only'       => 'Age only',
+                        'weight_sex'     => 'Weight + sex',
+                        'age_weight'     => 'Age + weight',
                         'age_weight_sex' => 'Age + weight + sex',
                     ])
                     ->required()
-                    ->columnSpanFull(),
+                    ->live(),
 
                 Select::make('tournament_format')
                     ->label('Tournament format')
                     ->options([
-                        'once_off'           => 'Single performance (all perform, ranked by score)',
+                        'once_off'           => 'Single performance',
                         'round_robin'        => 'Round robin',
                         'single_elimination' => 'Single elimination bracket',
                         'double_elimination' => 'Double elimination bracket',
                         'repechage'          => 'Single elimination with repechage',
-                        'se_3rd_place'       => 'Single elimination with 3rd place playoff',
+                        'se_3rd_place'       => 'SE with 3rd place playoff',
                     ])
+                    ->helperText('Single performance: all compete, ranked by score.')
                     ->default('once_off')
                     ->required()
-                    ->live()
-                    ->columnSpanFull(),
-
-                Toggle::make('manual_pairing')
-                    ->label('Manual pairing')
-                    ->helperText('User manually assigns Round 1 matchups instead of automatic alphabetical sorting. Not available for round robin or single performance events.')
-                    ->columnSpanFull()
-                    ->inline(false)
-                    ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['once_off', 'round_robin', null])),
+                    ->live(),
 
                 Select::make('scoring_method')
                     ->label('Scoring method')
@@ -122,9 +118,77 @@ class CompetitionEventsRelationManager extends RelationManager
 
                 Toggle::make('requires_partner')
                     ->label('Requires partner')
-                    ->helperText('Competitors must nominate a partner when enrolling in this event.')
+                    ->helperText('Competitors must nominate a partner when enrolling.'),
+
+                Section::make('Bracket Options')
+                    ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['once_off', 'round_robin', null]))
                     ->columnSpanFull()
-                    ->inline(false),
+                    ->schema([
+                        Radio::make('bracket_sort')
+                            ->label('Build division brackets using')
+                            ->options([
+                                'first_name'         => 'First name',
+                                'surname'            => 'Surname',
+                                'registration_order' => 'Registration order',
+                                'random'             => 'Randomised',
+                            ])
+                            ->default('first_name')
+                            ->columnSpanFull(),
+
+                        Section::make('First-round matching options')
+                            ->compact()
+                            ->columnSpanFull()
+                            ->schema([
+                                Toggle::make('manual_pairing')
+                                    ->label('Manual pairing')
+                                    ->helperText('Manually assign first-round matchups. Disables all options below.')
+                                    ->live()
+                                    ->afterStateUpdated(function (bool $state, Set $set) {
+                                        if ($state) {
+                                            $set('bracket_first_round_order', null);
+                                            $set('bracket_prefer_different_dojo', false);
+                                            $set('bracket_avoid_repeat_matchups', false);
+                                        }
+                                    })
+                                    ->columnSpanFull(),
+
+                                Select::make('bracket_first_round_order')
+                                    ->label('First-round ordering')
+                                    ->placeholder('None')
+                                    ->options(function (Get $get) {
+                                        $filter = $get('division_filter');
+                                        $opts   = [];
+                                        if (in_array($filter, ['age_rank_sex', 'age_rank'])) {
+                                            $opts['seed_by_rank'] = 'Seed by rank';
+                                        }
+                                        if (in_array($filter, ['age_rank_sex', 'age_sex', 'age_rank', 'age_only', 'age_weight', 'age_weight_sex'])) {
+                                            $opts['match_similar_age'] = 'Match similar age';
+                                        }
+                                        if (in_array($filter, ['weight_sex', 'age_weight', 'age_weight_sex'])) {
+                                            $opts['match_similar_weight'] = 'Match similar weight';
+                                        }
+                                        return $opts;
+                                    })
+                                    ->helperText('Seed by rank: top seeds placed apart. Match similar age/weight: closest competitors paired together.')
+                                    ->disabled(fn (Get $get) => (bool) $get('manual_pairing'))
+                                    ->columnSpanFull(),
+
+                                Toggle::make('bracket_prefer_different_dojo')
+                                    ->label('Prefer different dojo/club')
+                                    ->helperText('Avoids same-dojo pairings in round 1.')
+                                    ->disabled(fn (Get $get) => (bool) $get('manual_pairing')),
+
+                                Toggle::make('bracket_avoid_repeat_matchups')
+                                    ->label('Avoid repeat matchups')
+                                    ->helperText('Avoids re-pairing competitors who have already met in this competition.')
+                                    ->disabled(fn (Get $get) => (bool) $get('manual_pairing')),
+                            ]),
+
+                        Placeholder::make('bracket_options_note')
+                            ->hiddenLabel()
+                            ->content(new HtmlString('<p class="text-sm text-gray-500">Note: Changes take effect on the next scored event. Already-generated brackets are unaffected.</p>'))
+                            ->columnSpanFull(),
+                    ]),
             ]),
         ]);
     }

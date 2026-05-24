@@ -169,6 +169,7 @@
                         $method         = $this->getScoringMethod();
                         $judges         = $this->getJudgeCount();
                         $isReadOnly     = $div->status === 'complete';
+                        $targetScore    = $method === 'first_to_n' ? $this->getTargetScore() : null;
                         $totalCheckedIn = \App\Models\EnrolmentEvent::where('division_id', $this->division_id)
                             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
                             ->count();
@@ -243,6 +244,9 @@
                                             @endif
                                             <span class="text-sm {{ $confirmed ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400' }}">
                                                 {{ $rc->name }}
+                                                @if ($rc->info)
+                                                    <span class="font-normal text-gray-400 dark:text-gray-500">({{ $rc->info }})</span>
+                                                @endif
                                             </span>
                                         </li>
                                     @endforeach
@@ -276,7 +280,16 @@
                                 @if (! $hasBracket)
                                     @if ($this->manualPairingMode)
                                         {{-- Manual pairing wizard --}}
-                                        @php $isOddPairing = (count($this->pairingCompetitorList) % 2 !== 0); @endphp
+                                        @php
+                                            $isOddPairing = (count($this->pairingCompetitorList) % 2 !== 0);
+                                            $usedPairingIds = collect($this->manualPairings)
+                                                ->flatMap(fn ($p) => [
+                                                    isset($p['home']) && $p['home'] !== '' ? (int) $p['home'] : null,
+                                                    isset($p['away']) && $p['away'] !== '' && $p['away'] !== 'bye' ? (int) $p['away'] : null,
+                                                ])
+                                                ->filter()
+                                                ->all();
+                                        @endphp
                                         <div class="space-y-2">
                                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
                                                 Assign each competitor to a Round 1 matchup.
@@ -286,25 +299,52 @@
                                             </p>
 
                                             @foreach ($this->manualPairings as $slotIdx => $pair)
+                                                @php
+                                                    $slotHomeId = isset($pair['home']) && $pair['home'] !== '' ? (int) $pair['home'] : null;
+                                                    $slotAwayId = isset($pair['away']) && $pair['away'] !== '' && $pair['away'] !== 'bye' ? (int) $pair['away'] : null;
+                                                @endphp
                                                 <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 px-3 py-2.5">
                                                     <p class="text-xs font-medium text-gray-400 mb-2">Match {{ $slotIdx + 1 }}</p>
-                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                    <div class="flex items-center gap-2 flex-wrap"
+                                                         x-data="{
+                                                             shorten(sel) {
+                                                                 const s = sel.options[sel.selectedIndex];
+                                                                 if (s && s.value && s.dataset.name) s.textContent = s.dataset.name;
+                                                             },
+                                                             restore(sel) {
+                                                                 Array.from(sel.options).forEach(o => {
+                                                                     if (o.dataset.name) o.textContent = o.dataset.info ? o.dataset.name + ' (' + o.dataset.info + ')' : o.dataset.name;
+                                                                 });
+                                                             }
+                                                         }"
+                                                         x-init="
+                                                             shorten($refs.home); shorten($refs.away);
+                                                             $wire.$watch('manualPairings', () => $nextTick(() => { shorten($refs.home); shorten($refs.away); }));
+                                                         ">
                                                         <select wire:model.live="manualPairings.{{ $slotIdx }}.home"
+                                                            x-ref="home"
+                                                            x-on:mousedown="restore($el)"
                                                             class="flex-1 min-w-32 rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white py-1.5 px-2">
                                                             <option value="">— Select competitor —</option>
                                                             @foreach ($this->pairingCompetitorList as $comp)
-                                                                <option value="{{ $comp['ee_id'] }}">{{ $comp['name'] }}</option>
+                                                                @if (! in_array($comp['ee_id'], $usedPairingIds) || $comp['ee_id'] === $slotHomeId)
+                                                                    <option value="{{ $comp['ee_id'] }}" data-name="{{ $comp['name'] }}" data-info="{{ $comp['info'] }}">{{ $comp['name'] }}{{ $comp['info'] ? ' (' . $comp['info'] . ')' : '' }}</option>
+                                                                @endif
                                                             @endforeach
                                                         </select>
                                                         <span class="text-xs text-gray-400 shrink-0">vs</span>
                                                         <select wire:model.live="manualPairings.{{ $slotIdx }}.away"
+                                                            x-ref="away"
+                                                            x-on:mousedown="restore($el)"
                                                             class="flex-1 min-w-32 rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-gray-900 dark:text-white py-1.5 px-2">
                                                             <option value="">— Select competitor —</option>
                                                             @if ($isOddPairing)
                                                                 <option value="bye">Bye (advances automatically)</option>
                                                             @endif
                                                             @foreach ($this->pairingCompetitorList as $comp)
-                                                                <option value="{{ $comp['ee_id'] }}">{{ $comp['name'] }}</option>
+                                                                @if (! in_array($comp['ee_id'], $usedPairingIds) || $comp['ee_id'] === $slotAwayId)
+                                                                    <option value="{{ $comp['ee_id'] }}" data-name="{{ $comp['name'] }}" data-info="{{ $comp['info'] }}">{{ $comp['name'] }}{{ $comp['info'] ? ' (' . $comp['info'] . ')' : '' }}</option>
+                                                                @endif
                                                             @endforeach
                                                         </select>
                                                     </div>
@@ -432,16 +472,24 @@
                                                             {{ ! $pending ? 'border-success-200 dark:border-success-800 bg-success-50 dark:bg-success-900/20' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900' }}">
 
                                                             {{-- Names row --}}
-                                                            <div class="flex items-center gap-2">
-                                                                <span class="flex-1 min-w-0 font-medium truncate
-                                                                    {{ $homeWon ? 'text-success-700 dark:text-success-400' : ($awayWon ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white') }}">
-                                                                    @if ($homeWon)🏆 @endif{{ $match->home_name }}
-                                                                </span>
-                                                                <span class="text-xs text-gray-400 shrink-0">vs</span>
-                                                                <span class="flex-1 min-w-0 text-right font-medium truncate
-                                                                    {{ $awayWon ? 'text-success-700 dark:text-success-400' : ($homeWon ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-white') }}">
-                                                                    {{ $match->away_name }}@if ($awayWon) 🏆@endif
-                                                                </span>
+                                                            <div class="flex items-start gap-2">
+                                                                <div class="flex-1 min-w-0">
+                                                                    <div class="font-medium truncate {{ $homeWon ? 'text-success-700 dark:text-success-400' : ($awayWon ? 'text-gray-400' : 'text-gray-900 dark:text-white') }}">
+                                                                        @if ($homeWon)🏆 @endif<span class="{{ $awayWon ? 'line-through' : '' }}">{{ $match->home_name }}</span>@if ($homeResult?->disqualified) <span class="text-xs font-normal text-danger-600">[DQ]</span>@endif
+                                                                    </div>
+                                                                    @if ($match->home_info)
+                                                                        <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->home_info }}</div>
+                                                                    @endif
+                                                                </div>
+                                                                <span class="text-xs text-gray-400 shrink-0 mt-0.5">vs</span>
+                                                                <div class="flex-1 min-w-0 text-right">
+                                                                    <div class="font-medium truncate {{ $awayWon ? 'text-success-700 dark:text-success-400' : ($homeWon ? 'text-gray-400' : 'text-gray-900 dark:text-white') }}">
+                                                                        @if ($awayResult?->disqualified) <span class="text-xs font-normal text-danger-600">[DQ]</span> @endif<span class="{{ $homeWon ? 'line-through' : '' }}">{{ $match->away_name }}</span>@if ($awayWon) 🏆@endif
+                                                                    </div>
+                                                                    @if ($match->away_info)
+                                                                        <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->away_info }}</div>
+                                                                    @endif
+                                                                </div>
                                                             </div>
 
                                                             {{-- Controls row --}}
@@ -462,7 +510,7 @@
                                                                                         class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-2.5 px-1"
                                                                                         placeholder="0" />
                                                                                     <button type="button"
-                                                                                        x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); i.value=v+1; i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
                                                                                         class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">+</button>
                                                                                     @if ($homeResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
@@ -485,7 +533,7 @@
                                                                                         class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-2.5 px-1"
                                                                                         placeholder="0" />
                                                                                     <button type="button"
-                                                                                        x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); i.value=v+1; i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
                                                                                         class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">+</button>
                                                                                     @if ($awayResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
@@ -500,7 +548,7 @@
                                                                                 wire:click="recordBracketScore({{ $match->id }})">Save</x-filament::button>
                                                                         </div>
                                                                         {{-- Desktop: compact row --}}
-                                                                        <div class="hidden sm:flex items-center justify-center gap-2 mt-2">
+                                                                        <div class="hidden sm:flex items-center justify-center flex-wrap gap-2 mt-2">
                                                                             @if ($homeResult && ! $isReadOnly)
                                                                                 <x-filament::button size="xs"
                                                                                     color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
@@ -508,17 +556,33 @@
                                                                                     {{ $homeResult->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                                 </x-filament::button>
                                                                             @endif
-                                                                            <input type="number" step="any" min="0"
-                                                                                @if ($targetScore) max="{{ $targetScore }}" @endif
-                                                                                wire:model="bracketScoreInput.{{ $match->id }}.home"
-                                                                                class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
-                                                                                placeholder="0" />
+                                                                            <div class="flex items-center gap-1">
+                                                                                <button type="button"
+                                                                                    x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
+                                                                                <input type="number" step="any" min="0"
+                                                                                    @if ($targetScore) max="{{ $targetScore }}" @endif
+                                                                                    wire:model="bracketScoreInput.{{ $match->id }}.home"
+                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                                    placeholder="0" />
+                                                                                <button type="button"
+                                                                                    x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                            </div>
                                                                             <span class="text-xs text-gray-400 shrink-0">—</span>
-                                                                            <input type="number" step="any" min="0"
-                                                                                @if ($targetScore) max="{{ $targetScore }}" @endif
-                                                                                wire:model="bracketScoreInput.{{ $match->id }}.away"
-                                                                                class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
-                                                                                placeholder="0" />
+                                                                            <div class="flex items-center gap-1">
+                                                                                <button type="button"
+                                                                                    x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
+                                                                                <input type="number" step="any" min="0"
+                                                                                    @if ($targetScore) max="{{ $targetScore }}" @endif
+                                                                                    wire:model="bracketScoreInput.{{ $match->id }}.away"
+                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                                    placeholder="0" />
+                                                                                <button type="button"
+                                                                                    x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                            </div>
                                                                             @if ($awayResult && ! $isReadOnly)
                                                                                 <x-filament::button size="xs"
                                                                                     color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
@@ -565,7 +629,7 @@
                                                                             {{ (float)$match->home_score + 0 }} — {{ (float)$match->away_score + 0 }}
                                                                         </span>
                                                                     @endif
-                                                                    @if (! $isReadOnly)
+                                                                    @if (! $isReadOnly && $match->can_undo)
                                                                         <x-filament::button size="xs" color="gray"
                                                                             wire:click="clearBracketResult({{ $match->id }})">
                                                                             Undo
@@ -733,6 +797,9 @@
                                                             <span class="ml-1 text-xs text-danger-600">DQ</span>
                                                         @endif
                                                     </p>
+                                                    @if ($row->info)
+                                                        <p class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</p>
+                                                    @endif
                                                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                         @if (in_array($method, ['judges_total', 'judges_average']))
                                                             @if ($isSaved)
@@ -935,10 +1002,15 @@
                                                     $isSaved = in_array($result->id, $this->savedResultIds);
                                                 @endphp
                                                 <tr class="{{ $result->disqualified ? 'opacity-50' : '' }}">
-                                                    <td class="py-2 pr-4 font-medium text-gray-900 dark:text-white">
-                                                        {{ $row->name }}
-                                                        @if ($result->disqualified)
-                                                            <span class="ml-1 text-xs text-danger-600">DQ</span>
+                                                    <td class="py-2 pr-4">
+                                                        <div class="font-medium text-gray-900 dark:text-white">
+                                                            {{ $row->name }}
+                                                            @if ($result->disqualified)
+                                                                <span class="ml-1 text-xs text-danger-600">DQ</span>
+                                                            @endif
+                                                        </div>
+                                                        @if ($row->info)
+                                                            <div class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</div>
                                                         @endif
                                                     </td>
 
@@ -960,11 +1032,19 @@
                                                                         {{ number_format((float) ($this->judgeScores[$result->id][$j] ?? 0), 1) }}
                                                                     </span>
                                                                 @else
-                                                                    <input type="number" step="0.1" min="0" max="10"
-                                                                        wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                        class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1 {{ $isSaved ? 'opacity-50' : '' }}"
-                                                                        placeholder="0.0"
-                                                                        @if ($isSaved) disabled @endif />
+                                                                    <div class="flex items-center gap-1" x-data="{}">
+                                                                        <button type="button"
+                                                                            x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||0)-0.1)*10)/10; i.value=Math.max(0,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                            class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
+                                                                        <input type="number" step="0.1" min="0" max="10"
+                                                                            wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
+                                                                            class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1 {{ $isSaved ? 'opacity-50' : '' }}"
+                                                                            placeholder="0.0"
+                                                                            @if ($isSaved) disabled @endif />
+                                                                        <button type="button"
+                                                                            x-on:click="const i=$el.previousElementSibling; const v=Math.round((parseFloat(i.value||0)+0.1)*10)/10; i.value=Math.min(10,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                            class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                    </div>
                                                                 @endif
                                                             </td>
                                                         @endfor
@@ -1003,10 +1083,16 @@
                                                                 </span>
                                                             @else
                                                                 <div class="flex items-center gap-1">
+                                                                    <button type="button"
+                                                                        x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                        class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
                                                                     <input type="number" min="0"
                                                                         wire:model="pointsInput.{{ $result->id }}"
-                                                                        class="w-16 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                        class="w-12 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
                                                                         placeholder="0" />
+                                                                    <button type="button"
+                                                                        x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                        class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
                                                                     <x-filament::button size="xs" color="primary"
                                                                         wire:click="savePoints({{ $result->id }})">
                                                                         Save
@@ -1140,6 +1226,9 @@
                                                         <div class="px-3 py-3 flex items-center gap-2">
                                                             <div class="min-w-0 flex-1">
                                                                 <p class="font-medium text-sm text-gray-900 dark:text-white truncate">{{ $row->name }}</p>
+                                                                @if ($row->info)
+                                                                    <p class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</p>
+                                                                @endif
                                                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                                     @if ($tbSaved)
                                                                         Total: <strong>{{ $tbDisplay }}</strong>
@@ -1237,7 +1326,12 @@
                                                                     : '—';
                                                             @endphp
                                                             <tr class="{{ ($tbSaved && ! $isReadOnly) ? 'opacity-60' : '' }}">
-                                                                <td class="py-2 pr-4 font-medium text-gray-900 dark:text-white">{{ $row->name }}</td>
+                                                                <td class="py-2 pr-4">
+                                                                    <div class="font-medium text-gray-900 dark:text-white">{{ $row->name }}</div>
+                                                                    @if ($row->info)
+                                                                        <div class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</div>
+                                                                    @endif
+                                                                </td>
                                                                 @for ($j = 1; $j <= $judges; $j++)
                                                                     <td class="py-2 pr-2">
                                                                         @if ($isReadOnly)
@@ -1341,7 +1435,12 @@
                                                     <tbody class="divide-y divide-warning-100 dark:divide-warning-900/40">
                                                         @foreach ($tbGroup->sortByDesc(fn ($row) => (float) $row->result->tiebreaker_score) as $tbRow)
                                                             <tr>
-                                                                <td class="py-2 pr-4 font-medium text-gray-900 dark:text-white">{{ $tbRow->name }}</td>
+                                                                <td class="py-2 pr-4">
+                                                                    <div class="font-medium text-gray-900 dark:text-white">{{ $tbRow->name }}</div>
+                                                                    @if ($tbRow->info)
+                                                                        <div class="text-xs text-gray-400 dark:text-gray-500">{{ $tbRow->info }}</div>
+                                                                    @endif
+                                                                </td>
                                                                 @for ($j = 1; $j <= $judges; $j++)
                                                                     <td class="py-2 pr-2">
                                                                         <span class="text-sm text-gray-700 dark:text-gray-300">

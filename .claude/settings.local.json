@@ -263,7 +263,14 @@
       "Bash(php -l app/Filament/Admin/Pages/TwoFactorChallenge.php)",
       "Bash(php -l app/Filament/Admin/Pages/TwoFactorSetup.php)",
       "Bash(php -l database/migrations/2026_05_21_000001_add_two_factor_to_users_table.php)",
-      "Bash(php -l app/Models/User.php)"
+      "Bash(php -l app/Models/User.php)",
+      "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8001)",
+      "Bash(node -e \"const { chromium } = require\\('playwright'\\); \\(async \\(\\) => { const b = await chromium.launch\\(\\); const p = await b.newPage\\(\\); await p.setViewportSize\\({width:375,height:812}\\); await p.goto\\('http://127.0.0.1:8001/manage/login'\\); await p.screenshot\\({path:'/tmp/mobile-login.png'}\\); await b.close\\(\\); console.log\\('done'\\); }\\)\\(\\).catch\\(e=>console.error\\(e\\)\\);\")",
+      "Bash(npx playwright *)",
+      "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php)",
+      "Bash(grep -n 'full_name\\\\|resolveEeName\\\\|$row\\\\->name\\\\|competitor.*name\\\\|->name' resources/views/filament/admin/pages/scoring.blade.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

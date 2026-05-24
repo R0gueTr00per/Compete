@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Division;
+use App\Models\Result;
 use App\Models\RoundRobinMatch;
 use Illuminate\Support\Collection;
 
@@ -439,27 +440,79 @@ class BracketService
 
         if ($semiLosers->isEmpty()) return;
 
-        // Create or update the 3rd place match as each semi-final loser becomes known
+        // Exclude DQ'd competitors — they should not play for 3rd place
+        $dqEeIds = Result::whereIn('enrolment_event_id', $semiLosers->all())
+            ->where('disqualified', true)
+            ->pluck('enrolment_event_id')
+            ->toArray();
+        $eligible = $semiLosers->reject(fn ($id) => in_array($id, $dqEeIds))->values();
+
         $existing = RoundRobinMatch::where('division_id', $divisionId)
             ->where('bracket', 'repechage')
             ->where('bracket_slot', 1)
             ->first();
 
-        if (! $existing) {
-            RoundRobinMatch::create([
-                'division_id'             => $divisionId,
-                'home_enrolment_event_id' => $semiLosers[0],
-                'away_enrolment_event_id' => $semiLosers->get(1),
-                'home_result'             => null,
-                'round'                   => 1,
-                'bracket'                 => 'repechage',
-                'bracket_slot'            => 1,
-            ]);
-        } elseif ($existing->away_enrolment_event_id === null && $semiLosers->count() >= 2) {
-            // Second semi-final just finished — fill in the away slot
-            $newLoser = $semiLosers->first(fn ($id) => $id !== $existing->home_enrolment_event_id);
-            if ($newLoser) {
-                $existing->update(['away_enrolment_event_id' => $newLoser]);
+        $bothSemisScored = $semiLosers->count() === 2;
+
+        if ($bothSemisScored) {
+            // Both semis done — resolve 3rd place now
+            if ($eligible->isEmpty()) return; // Both losers DQ'd — no 3rd place match
+
+            if ($eligible->count() === 1) {
+                // One loser DQ'd — sole eligible loser wins 3rd automatically
+                $soleLoserId = $eligible[0];
+                if (! $existing) {
+                    RoundRobinMatch::create([
+                        'division_id'             => $divisionId,
+                        'home_enrolment_event_id' => $soleLoserId,
+                        'away_enrolment_event_id' => null,
+                        'home_result'             => 'win',
+                        'round'                   => 1,
+                        'bracket'                 => 'repechage',
+                        'bracket_slot'            => 1,
+                    ]);
+                } else {
+                    // Existing match may hold the DQ'd loser — replace with eligible one
+                    $existing->update([
+                        'home_enrolment_event_id' => $soleLoserId,
+                        'away_enrolment_event_id' => null,
+                        'home_result'             => 'win',
+                    ]);
+                }
+                return;
+            }
+
+            // Both losers eligible — normal 3rd place match
+            if (! $existing) {
+                RoundRobinMatch::create([
+                    'division_id'             => $divisionId,
+                    'home_enrolment_event_id' => $eligible[0],
+                    'away_enrolment_event_id' => $eligible->get(1),
+                    'home_result'             => null,
+                    'round'                   => 1,
+                    'bracket'                 => 'repechage',
+                    'bracket_slot'            => 1,
+                ]);
+            } elseif ($existing->away_enrolment_event_id === null) {
+                $newLoser = $eligible->first(fn ($id) => $id !== $existing->home_enrolment_event_id);
+                if ($newLoser) {
+                    $existing->update(['away_enrolment_event_id' => $newLoser]);
+                }
+            }
+        } else {
+            // Only the first semi is done — seat the loser if eligible, wait for second semi
+            if ($eligible->isEmpty()) return; // First loser is DQ'd — wait for second semi
+
+            if (! $existing) {
+                RoundRobinMatch::create([
+                    'division_id'             => $divisionId,
+                    'home_enrolment_event_id' => $eligible[0],
+                    'away_enrolment_event_id' => null,
+                    'home_result'             => null,
+                    'round'                   => 1,
+                    'bracket'                 => 'repechage',
+                    'bracket_slot'            => 1,
+                ]);
             }
         }
     }

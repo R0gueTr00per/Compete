@@ -102,7 +102,9 @@
       "Bash(xargs grep -l \"sortable-col\\\\|schedulingBoard\\\\|SortableJS\\\\|Sortable.create\")",
       "Bash(Get-Content storage/logs/laravel.log -Tail 60)",
       "Bash(xargs grep -l \"search\")",
-      "Bash(php -r \"echo base_path\\('resources/views/vendor/filament-tables/components/search-field.blade.php'\\);\")"
+      "Bash(php -r \"echo base_path\\('resources/views/vendor/filament-tables/components/search-field.blade.php'\\);\")",
+      "Bash(Get-ChildItem -Path app -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",
