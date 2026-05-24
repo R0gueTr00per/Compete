@@ -157,7 +157,8 @@ class CompetitionEventsRelationManager extends RelationManager
                         'repechage'          => 'primary',
                         'se_3rd_place'       => 'success',
                         default              => 'gray',
-                    }),
+                    })
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('scoring_method')
                     ->label('Scoring')
@@ -167,7 +168,8 @@ class CompetitionEventsRelationManager extends RelationManager
                         'first_to_n'     => 'First to N (' . ($record->target_score ?? '?') . ')',
                         'win_loss'       => 'Win / Loss',
                         default          => $state ?? '—',
-                    }),
+                    })
+                    ->visibleFrom('sm'),
             ])
             ->defaultSort('name')
             ->paginated(false)

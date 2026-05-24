@@ -62,7 +62,7 @@
                         @if ($competition->location_name)
                             &mdash; {{ $competition->location_name }}
                         @endif
-                        &bull; {{ $competition->enrolments_count }} enrolment{{ $competition->enrolments_count !== 1 ? 's' : '' }}
+                        <br class="sm:hidden"><span class="hidden sm:inline"> &bull; </span>{{ $competition->enrolments_count }} enrolment{{ $competition->enrolments_count !== 1 ? 's' : '' }}
                         @if (in_array($competition->status, ['check_in', 'running']))
                             &bull; {{ $competition->checkins_count }} checked in
                         @endif

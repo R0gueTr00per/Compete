@@ -23,11 +23,14 @@
                         type="text"
                         wire:model.live.debounce.300ms="search"
                         placeholder="Search competitor name…"
-                        class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-sm text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
+                        inputmode="search"
+                        enterkeyhint="search"
+                        x-on:keydown.enter="$el.blur()"
+                        class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-base text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
                     />
                     @if ($this->search)
                         <button
-                            wire:click="$set('search', null)"
+                            wire:click="$set('search', '')"
                             class="pr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                             aria-label="Clear search"
                         >

@@ -365,7 +365,8 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 TextColumn::make('competitionEvent.name')
                     ->label('Event type')
                     ->sortable()
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('label')
                     ->label('Division')

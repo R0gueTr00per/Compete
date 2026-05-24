@@ -106,17 +106,20 @@ class OrganisationResource extends Resource
                     ->label('Sub-domain')
                     ->formatStateUsing(fn (string $state) => $state . '.' . config('app.domain', 'kompetic.com'))
                     ->color('gray')
-                    ->searchable(),
+                    ->searchable()
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('memberships_count')
                     ->label('Users')
                     ->counts('memberships')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('competitions_count')
                     ->label('Competitions')
                     ->counts('competitions')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('status')
                     ->badge()

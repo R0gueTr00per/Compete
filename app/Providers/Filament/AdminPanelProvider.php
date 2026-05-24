@@ -117,6 +117,9 @@ class AdminPanelProvider extends PanelProvider
                     .fi-topbar *:hover { color: #ffffff !important; }
                     .fi-topbar svg, .fi-topbar svg * { color: rgba(255,255,255,0.85) !important; fill: currentColor; }
                     .fi-topbar .fi-breadcrumbs-item-separator { opacity: 0.4; }
+                    @media (max-width: 1023px) {
+                        .fi-topbar-open-sidebar-btn, .fi-topbar-close-sidebar-btn { order: -1; }
+                    }
 
                     /* All dropdown/filter panels (topbar + page filters + schedule/user screens) */
                     .fi-dropdown-panel { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; }
@@ -158,6 +161,37 @@ class AdminPanelProvider extends PanelProvider
                     .ncm-btn-stay { padding:0.5rem 1rem; border:1px solid #d1d5db; border-radius:0.5rem; font-size:0.875rem; font-weight:500; color:#374151; background:#fff; cursor:pointer; }
                     .ncm-btn-leave { padding:0.5rem 1rem; border:none; border-radius:0.5rem; font-size:0.875rem; font-weight:500; color:#fff; background:#dc2626; cursor:pointer; }
                 </style>')
+            )
+            ->renderHook(
+                'panels::body.end',
+                fn () => new \Illuminate\Support\HtmlString('<script>
+                    (function () {
+                        function patchSearchInputs() {
+                            document.querySelectorAll(".fi-ta-search-field input").forEach(function (el) {
+                                el.setAttribute("inputmode", "search");
+                                el.setAttribute("enterkeyhint", "search");
+                                if (!el._searchPatched) {
+                                    el._searchPatched = true;
+                                    el.addEventListener("keydown", function (e) {
+                                        if (e.key === "Enter") { el.blur(); }
+                                    });
+                                }
+                            });
+                        }
+                        patchSearchInputs();
+                        document.addEventListener("livewire:navigated", patchSearchInputs);
+                        new MutationObserver(function (mutations) {
+                            mutations.forEach(function (m) {
+                                m.addedNodes.forEach(function (n) {
+                                    if (n.nodeType === 1) {
+                                        if (n.matches && n.matches(".fi-ta-search-field input")) patchSearchInputs();
+                                        else if (n.querySelector && n.querySelector(".fi-ta-search-field input")) patchSearchInputs();
+                                    }
+                                });
+                            });
+                        }).observe(document.body, { childList: true, subtree: true });
+                    })();
+                </script>')
             )
             ->renderHook(
                 'panels::body.end',

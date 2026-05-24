@@ -145,25 +145,26 @@ class CompetitorResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('first_name')
-                    ->searchable()
-                    ->sortable(),
-
-                TextColumn::make('surname')
-                    ->searchable()
-                    ->sortable(),
+                    ->label('Name')
+                    ->getStateUsing(fn (CompetitorProfile $record) => $record->first_name . ' ' . $record->surname)
+                    ->searchable(query: fn ($query, $search) => $query->where('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"))
+                    ->sortable(query: fn ($query, string $direction) => $query->orderBy('first_name', $direction)->orderBy('surname', $direction)),
 
                 TextColumn::make('profile_type')
                     ->label('Type')
                     ->badge()
                     ->color(fn (string $state) => $state === 'child' ? 'warning' : 'info')
-                    ->formatStateUsing(fn (string $state) => ucfirst($state)),
+                    ->formatStateUsing(fn (string $state) => ucfirst($state))
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('date_of_birth')
                     ->label('DOB')
                     ->date('d M Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('age')
                     ->label('Age')
@@ -174,7 +175,8 @@ class CompetitorResource extends Resource
                 TextColumn::make('gender')
                     ->badge()
                     ->color(fn (string $state) => $state === 'M' ? 'info' : 'danger')
-                    ->formatStateUsing(fn (string $state) => $state === 'M' ? 'Male' : 'Female'),
+                    ->formatStateUsing(fn (string $state) => $state === 'M' ? 'Male' : 'Female')
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('owner.email')
                     ->label('Managed by')
@@ -189,7 +191,8 @@ class CompetitorResource extends Resource
                             : null)
                         : null
                     )
-                    ->color('primary'),
+                    ->color('primary')
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('owner.status')
                     ->label('Account')
@@ -199,11 +202,13 @@ class CompetitorResource extends Resource
                         'pending'  => 'warning',
                         'inactive' => 'danger',
                         default    => 'gray',
-                    }),
+                    })
+                    ->visibleFrom('sm'),
 
                 IconColumn::make('is_active')
                     ->label('Active')
-                    ->boolean(),
+                    ->boolean()
+                    ->visibleFrom('sm'),
             ])
             ->modifyQueryUsing(fn ($query) => $query->orderBy('first_name')->orderBy('surname'))
             ->filters([

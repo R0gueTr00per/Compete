@@ -280,6 +280,32 @@ class Scoring extends Page
         $this->clearScoringMemory();
     }
 
+    public function jumpToNextIncomplete(): void
+    {
+        $incomplete = $this->getDivisionList()
+            ->filter(fn ($item) => $item->division->status !== 'complete');
+
+        if ($incomplete->isEmpty()) return;
+
+        if ($this->division_id && $this->panelOpen) {
+            $ids        = $incomplete->map(fn ($item) => $item->division->id)->values();
+            $currentPos = $ids->search($this->division_id);
+
+            $nextId = ($currentPos !== false && $currentPos < $ids->count() - 1)
+                ? $ids->get($currentPos + 1)
+                : $ids->first();
+        } else {
+            $nextId = $incomplete->first()->division->id;
+        }
+
+        if ($nextId === $this->division_id && $this->panelOpen) {
+            $this->dispatch('scroll-to-division', divisionId: $nextId);
+            return;
+        }
+
+        $this->selectDivision($nextId);
+    }
+
     public function toggleRollcallPresent(int $eeId): void
     {
         if (in_array($eeId, $this->rollcallPresent)) {
@@ -1487,6 +1513,7 @@ class Scoring extends Page
 
         Division::find($this->division_id)?->update(['status' => 'complete']);
         Notification::make()->title('Division marked complete.')->success()->send();
+        $this->panelOpen = false;
     }
 
     public function updatedCompetitionId(): void

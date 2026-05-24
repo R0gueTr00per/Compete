@@ -11,7 +11,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\EditAction;
-use Filament\Tables\Columns\ColumnGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -80,30 +79,30 @@ class OfficialRoleResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')->label('Role')->sortable()->searchable(),
-                ColumnGroup::make('Admin Portal Access when competition is active')
-                    ->columns([
-                        TextColumn::make('can_access_enrolments')
-                            ->label('Enrolments')
-                            ->html()
-                            ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
-                            ->alignment(\Filament\Support\Enums\Alignment::Center),
-                        TextColumn::make('can_access_checkin')
-                            ->label('Check-in')
-                            ->html()
-                            ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
-                            ->alignment(\Filament\Support\Enums\Alignment::Center),
-                        TextColumn::make('can_access_create_enrolment')
-                            ->label('Create Enrolment')
-                            ->html()
-                            ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
-                            ->alignment(\Filament\Support\Enums\Alignment::Center),
-                        TextColumn::make('can_access_scoring')
-                            ->label('Scoring')
-                            ->html()
-                            ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
-                            ->alignment(\Filament\Support\Enums\Alignment::Center),
-                    ])
-                    ->alignment(\Filament\Support\Enums\Alignment::Center),
+                TextColumn::make('can_access_enrolments')
+                    ->label('Enrolments')
+                    ->html()
+                    ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
+                    ->alignment(\Filament\Support\Enums\Alignment::Center)
+                    ->visibleFrom('sm'),
+                TextColumn::make('can_access_checkin')
+                    ->label('Check-in')
+                    ->html()
+                    ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
+                    ->alignment(\Filament\Support\Enums\Alignment::Center)
+                    ->visibleFrom('sm'),
+                TextColumn::make('can_access_create_enrolment')
+                    ->label('Create Enrolment')
+                    ->html()
+                    ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
+                    ->alignment(\Filament\Support\Enums\Alignment::Center)
+                    ->visibleFrom('sm'),
+                TextColumn::make('can_access_scoring')
+                    ->label('Scoring')
+                    ->html()
+                    ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
+                    ->alignment(\Filament\Support\Enums\Alignment::Center)
+                    ->visibleFrom('sm'),
             ])
             ->defaultSort('name')
             ->actions([

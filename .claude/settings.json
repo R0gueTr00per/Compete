@@ -98,7 +98,11 @@
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\" -Recurse -Filter \"*Result*\" -Include \"*.php\")",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\" -Recurse -Directory)",
-      "Bash(php -l storage/framework/views/*.php)"
+      "Bash(php -l storage/framework/views/*.php)",
+      "Bash(xargs grep -l \"sortable-col\\\\|schedulingBoard\\\\|SortableJS\\\\|Sortable.create\")",
+      "Bash(Get-Content storage/logs/laravel.log -Tail 60)",
+      "Bash(xargs grep -l \"search\")",
+      "Bash(php -r \"echo base_path\\('resources/views/vendor/filament-tables/components/search-field.blade.php'\\);\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

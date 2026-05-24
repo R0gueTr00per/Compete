@@ -66,6 +66,7 @@ class EnrolmentResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultPaginationPageOption(25)
             ->modifyQueryUsing(fn ($query) => $query->with('competitor'))
             ->header(view('filament.admin.partials.enrolment-competition-header'))
             ->columns([
@@ -88,7 +89,8 @@ class EnrolmentResource extends Resource
 
                 TextColumn::make('weight_kg')
                     ->label('Weight')
-                    ->formatStateUsing(fn ($state) => $state ? number_format((float) $state, 1) . ' kg' : '—'),
+                    ->formatStateUsing(fn ($state) => $state ? number_format((float) $state, 1) . ' kg' : '—')
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('enrolled_at')
                     ->label('Enrolled')
@@ -113,6 +115,7 @@ class EnrolmentResource extends Resource
                 TextColumn::make('payment_status')
                     ->label('Payment')
                     ->badge()
+                    ->visibleFrom('sm')
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         'received'    => 'Paid',
                         'outstanding' => 'Outstanding',
@@ -410,7 +413,7 @@ class EnrolmentResource extends Resource
                         ->visible(fn (Enrolment $record) => $record->payment_status === 'received'),
 
                     HistoryTableAction::make(),
-                ]),
+                ])->dropdownPlacement('bottom-start'),
             ])
             ->defaultSort('enrolled_at', 'desc');
     }

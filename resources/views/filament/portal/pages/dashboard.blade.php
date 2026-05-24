@@ -55,7 +55,7 @@
                         @endif
                     </div>
 
-                    <dl class="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                    <dl class="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 text-sm">
                         <div>
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Date of birth</dt>
                             <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $profile->date_of_birth->format('d M Y') }} (age {{ $profile->age }})</dd>
@@ -147,7 +147,7 @@
 
                             <div class="divide-y divide-gray-100 dark:divide-slate-700 px-4">
                                 @foreach ($enrolment->activeEvents as $ee)
-                                    <div class="py-3 flex items-start justify-between gap-4">
+                                    <div class="py-3.5 flex items-start justify-between gap-4 leading-relaxed">
                                         <div>
                                             <p class="font-medium text-sm text-gray-900 dark:text-white">
                                                 {{ $ee->competitionEvent->event_code }}

@@ -56,9 +56,9 @@ class RankBandsRelationManager extends RelationManager
             ->recordTitleAttribute('label')
             ->columns([
                 TextColumn::make('label'),
-                TextColumn::make('fromRank.name')->label('From rank')->default('—'),
-                TextColumn::make('toRank.name')->label('To rank')->default('—'),
-                TextColumn::make('description')->default('—'),
+                TextColumn::make('fromRank.name')->label('From rank')->default('—')->visibleFrom('sm'),
+                TextColumn::make('toRank.name')->label('To rank')->default('—')->visibleFrom('sm'),
+                TextColumn::make('description')->default('—')->visibleFrom('sm'),
             ])
             ->defaultSort('sort_order')
             ->reorderable('sort_order')

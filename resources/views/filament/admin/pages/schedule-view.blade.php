@@ -51,15 +51,30 @@
                 <p class="text-center text-gray-400 py-12">No divisions scheduled yet.</p>
             </x-filament::section>
         @else
-            <div class="w-full overflow-x-auto pb-4">
-            <div class="flex gap-4 items-start" style="min-width: max-content;">
-                @foreach ($locations as $location)
-                    @if ($divisions->has($location))
-                        <div class="flex-none w-64">
-                            <h2 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 pb-2 border-b-2 border-gray-200 dark:border-gray-700">
-                                {{ $location }}
-                            </h2>
+            @php
+                $activeLocations = $locations->filter(fn ($l) => $divisions->has($l))->values();
+                $firstLocation   = $activeLocations->first() ?? '';
+            @endphp
+            <div x-data="{ activeTab: @js($firstLocation) }">
 
+                {{-- Mobile: tab bar (hidden on sm+) --}}
+                <div class="sm:hidden mb-3 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                    @foreach ($activeLocations as $location)
+                        <button
+                            type="button"
+                            @click="activeTab = @js($location)"
+                            :class="activeTab === @js($location)
+                                ? 'bg-primary-600 text-white border-primary-600'
+                                : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600'"
+                            class="shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap"
+                        >{{ $location }}</button>
+                    @endforeach
+                </div>
+
+                {{-- Mobile: single active column (hidden on sm+) --}}
+                <div class="sm:hidden">
+                    @foreach ($activeLocations as $location)
+                        <div x-show="activeTab === @js($location)" x-cloak>
                             <div class="space-y-2">
                                 @foreach ($divisions[$location] as $div)
                                     @php
@@ -70,7 +85,7 @@
                                             default                                 => 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600',
                                         };
                                     @endphp
-                                    <div class="rounded-md border px-3 py-2 shadow-sm cursor-pointer {{ $cardClass }}">
+                                    <div class="rounded-md border px-3 py-2 shadow-sm {{ $cardClass }}">
                                         <div class="flex items-center justify-between gap-2">
                                             <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
                                             @if ($div->active_enrolment_events_count > 0)
@@ -100,9 +115,62 @@
                                 @endforeach
                             </div>
                         </div>
-                    @endif
-                @endforeach
-            </div>
+                    @endforeach
+                </div>
+
+                {{-- Desktop: side-by-side columns (hidden on mobile) --}}
+                <div class="hidden sm:block w-full overflow-x-auto pb-4">
+                    <div class="flex gap-4 items-start" style="min-width: max-content;">
+                        @foreach ($activeLocations as $location)
+                            <div class="flex-none w-64">
+                                <h2 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 pb-2 border-b-2 border-gray-200 dark:border-gray-700">
+                                    {{ $location }}
+                                </h2>
+
+                                <div class="space-y-2">
+                                    @foreach ($divisions[$location] as $div)
+                                        @php
+                                            $cardClass = match(true) {
+                                                $div->status === 'complete'              => 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700',
+                                                $div->active_enrolment_events_count >= 2 => 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-300 dark:border-indigo-700',
+                                                $div->location_label !== null           => 'bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-700',
+                                                default                                 => 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600',
+                                            };
+                                        @endphp
+                                        <div class="rounded-md border px-3 py-2 shadow-sm cursor-pointer {{ $cardClass }}">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
+                                                @if ($div->active_enrolment_events_count > 0)
+                                                    <span class="text-xs text-gray-500">{{ $div->active_enrolment_events_count }} <x-heroicon-m-user class="inline h-3 w-3 text-gray-400" /></span>
+                                                @elseif ($div->status === 'complete')
+                                                    <x-heroicon-m-check-circle class="h-4 w-4 text-green-600" />
+                                                @endif
+                                            </div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ $div->competitionEvent->name }}</div>
+                                            <div class="text-xs text-gray-700 dark:text-gray-300 mt-0.5">{{ $div->label }}</div>
+                                            @if ($div->status === 'complete')
+                                                @php
+                                                    $placements = $div->activeEnrolmentEvents
+                                                        ->filter(fn ($ee) => $ee->result?->placement)
+                                                        ->sortBy(fn ($ee) => $ee->result->placement)
+                                                        ->take(3);
+                                                @endphp
+                                                @foreach ($placements as $ee)
+                                                    @php
+                                                        $pName = $ee->enrolment->competitor?->full_name ?? '—';
+                                                        $medal = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . '.' };
+                                                    @endphp
+                                                    <div class="text-xs text-gray-700 dark:text-gray-300 mt-0.5">{{ $medal }} {{ $pName }}</div>
+                                                @endforeach
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
             </div>
         @endif
     @endif

@@ -1,1 +1,6 @@
 @tailwind utilities;
+
+/* Prevent iOS zoom on search inputs (font-size must be >= 16px) */
+.fi-ta-search-field input {
+    font-size: 1rem;
+}

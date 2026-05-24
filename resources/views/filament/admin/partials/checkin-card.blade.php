@@ -21,20 +21,26 @@
     <div class="flex items-center justify-between gap-3 mb-3">
         <div>
             <p class="font-semibold text-gray-900 dark:text-white text-base">{{ $fullName }}</p>
-            <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+            <dl class="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 @if ($profile?->date_of_birth)
-                    <span class="text-xs text-gray-500">Age: <strong>{{ $profile->age }}</strong></span>
+                    <div class="flex gap-1 text-xs text-gray-500">
+                        <dt>Age:</dt>
+                        <dd class="font-semibold">{{ $profile->age }}</dd>
+                    </div>
                 @endif
                 @if ($enrolment->weight_kg)
-                    <span class="text-xs text-gray-500">Enrolled weight: <strong>{{ number_format($enrolment->weight_kg, 1) }} kg</strong></span>
+                    <div class="flex gap-1 text-xs text-gray-500">
+                        <dt>Weight:</dt>
+                        <dd class="font-semibold">{{ number_format($enrolment->weight_kg, 1) }} kg</dd>
+                    </div>
                 @endif
                 @if ($dojoLabel)
-                    <span class="text-xs text-gray-400">{{ $dojoLabel }}</span>
+                    <div class="col-span-2 text-xs text-gray-400">{{ $dojoLabel }}</div>
                 @endif
                 @if ($enrolment->rank_id)
-                    <span class="text-xs text-gray-400">{{ $enrolment->display_rank }}</span>
+                    <div class="text-xs text-gray-400">{{ $enrolment->display_rank }}</div>
                 @endif
-            </div>
+            </dl>
         </div>
 
         <div class="shrink-0">

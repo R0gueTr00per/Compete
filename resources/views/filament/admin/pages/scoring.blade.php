@@ -52,6 +52,16 @@
                 animation: scoring-row-pulse .8s ease-out forwards;
             }
         </style>
+        @php $incompleteCount = $divisionList->filter(fn ($item) => $item->division->status !== 'complete')->count(); @endphp
+        @if ($incompleteCount > 0)
+            <div class="flex justify-end mb-2">
+                <button wire:click="jumpToNextIncomplete"
+                    class="inline-flex items-center gap-1 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+                    <x-heroicon-m-arrow-down-circle class="w-3.5 h-3.5" />
+                    Next incomplete ({{ $incompleteCount }})
+                </button>
+            </div>
+        @endif
         <div class="space-y-1 mb-4"
             x-on:scroll-to-division.window="
                 let el = document.getElementById('division-row-' + $event.detail.divisionId);
@@ -135,10 +145,10 @@
                     </div>
 
                     <div class="flex items-center gap-3 shrink-0">
-                        <span class="text-xs text-gray-500">
-                            {{ $item->checked_in_count }} checked in
+                        <span class="text-xs text-gray-500 flex flex-col sm:flex-row sm:gap-1 items-end sm:items-center">
+                            <span>{{ $item->checked_in_count }} checked in</span>
                             @if ($item->scoring_started || $item->competitors_count !== $item->checked_in_count || $div->status === 'complete')
-                                &middot; {{ $item->competitors_count }} competing
+                                <span><span class="hidden sm:inline">&middot; </span>{{ $item->competitors_count }} competing</span>
                             @endif
                         </span>
 

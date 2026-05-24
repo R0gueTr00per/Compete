@@ -179,7 +179,8 @@ class CompetitionResource extends Resource
 
                 TextColumn::make('competition_date')
                     ->date('d M Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('status')
                     ->badge()

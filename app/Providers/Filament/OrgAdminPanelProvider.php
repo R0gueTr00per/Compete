@@ -138,6 +138,9 @@ class OrgAdminPanelProvider extends PanelProvider
                     .fi-topbar *:hover { color: #ffffff !important; }
                     .fi-topbar svg, .fi-topbar svg * { color: rgba(255,255,255,0.85) !important; fill: currentColor; }
                     .fi-topbar .fi-breadcrumbs-item-separator { opacity: 0.4; }
+                    @media (max-width: 1023px) {
+                        .fi-topbar-open-sidebar-btn, .fi-topbar-close-sidebar-btn { order: -1; }
+                    }
 
                     /* All dropdown/filter panels (topbar + page filters) */
                     .fi-dropdown-panel { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; }
@@ -174,13 +177,44 @@ class OrgAdminPanelProvider extends PanelProvider
                     $tenant = app('tenant');
                     if (! $tenant) return '';
                     return new \Illuminate\Support\HtmlString(
-                        '<div style="display:flex;align-items:center;padding:0 1rem 0 0.5rem;gap:0.5rem;flex-shrink:0;">' .
-                        '<div style="width:1px;height:1.25rem;background:rgba(255,255,255,0.25);"></div>' .
-                        '<span style="font-size:0.875rem;font-weight:600;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22rem;">' .
+                        '<div class="fi-topbar-org-name" style="display:flex;align-items:center;padding:0 0.75rem 0 0.25rem;gap:0.5rem;min-width:0;">' .
+                        '<div style="flex-shrink:0;width:1px;height:1.25rem;background:rgba(255,255,255,0.25);"></div>' .
+                        '<span style="font-size:0.875rem;font-weight:600;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">' .
                         e($tenant->name) .
                         '</span></div>'
                     );
                 }
+            )
+            ->renderHook(
+                'panels::body.end',
+                fn () => new \Illuminate\Support\HtmlString('<script>
+                    (function () {
+                        function patchSearchInputs() {
+                            document.querySelectorAll(".fi-ta-search-field input").forEach(function (el) {
+                                el.setAttribute("inputmode", "search");
+                                el.setAttribute("enterkeyhint", "search");
+                                if (!el._searchPatched) {
+                                    el._searchPatched = true;
+                                    el.addEventListener("keydown", function (e) {
+                                        if (e.key === "Enter") { el.blur(); }
+                                    });
+                                }
+                            });
+                        }
+                        patchSearchInputs();
+                        document.addEventListener("livewire:navigated", patchSearchInputs);
+                        new MutationObserver(function (mutations) {
+                            mutations.forEach(function (m) {
+                                m.addedNodes.forEach(function (n) {
+                                    if (n.nodeType === 1) {
+                                        if (n.matches && n.matches(".fi-ta-search-field input")) patchSearchInputs();
+                                        else if (n.querySelector && n.querySelector(".fi-ta-search-field input")) patchSearchInputs();
+                                    }
+                                });
+                            });
+                        }).observe(document.body, { childList: true, subtree: true });
+                    })();
+                </script>')
             )
             ->renderHook(
                 'panels::body.end',

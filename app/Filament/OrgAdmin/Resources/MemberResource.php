@@ -87,18 +87,22 @@ class MemberResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('user.email')
                     ->label('Email')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->limit(30)
+                    ->tooltip(fn ($record) => $record->user?->email),
 
                 TextColumn::make('role')
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'administrator' => 'warning',
                         default         => 'gray',
-                    }),
+                    })
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('status')
                     ->badge()
@@ -113,7 +117,8 @@ class MemberResource extends Resource
                 TextColumn::make('joined_at')
                     ->label('Joined')
                     ->date()
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
             ])
             ->headerActions([
                 Action::make('add_user')
@@ -301,7 +306,7 @@ class MemberResource extends Resource
 
                             Notification::make()->title('User deleted')->success()->send();
                         }),
-                ])->tooltip('More actions'),
+                ])->tooltip('More actions')->dropdownPlacement('bottom-start'),
             ])
             ->filters([
                 SelectFilter::make('role')

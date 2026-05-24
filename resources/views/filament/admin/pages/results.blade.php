@@ -35,11 +35,14 @@
                             type="text"
                             wire:model.live.debounce.300ms="search"
                             placeholder="Search…"
-                            class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-sm text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
+                            inputmode="search"
+                            enterkeyhint="search"
+                            x-on:keydown.enter="$el.blur()"
+                            class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-base text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
                         />
                         @if ($this->search)
                             <button
-                                wire:click="$set('search', null)"
+                                wire:click="$set('search', '')"
                                 class="pr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
                                 aria-label="Clear search"
                             >
@@ -154,7 +157,27 @@
         @if ($tally->isEmpty())
             <p class="text-center text-gray-400 py-12">No medal results yet for this competition.</p>
         @else
-            <div class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+            {{-- Mobile: card list --}}
+            <div class="block sm:hidden space-y-2">
+                @foreach ($tally as $row)
+                    <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 flex items-center gap-3">
+                        <span class="shrink-0 text-sm font-bold text-gray-400 dark:text-gray-500 w-6 text-right">{{ $row['rank'] }}</span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $row['name'] }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $row['dojo'] }}</p>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-2 text-sm">
+                            @if ($row['gold']) <span class="font-semibold text-yellow-600 dark:text-yellow-400">🥇 {{ $row['gold'] }}</span> @endif
+                            @if ($row['silver']) <span class="font-semibold text-gray-500 dark:text-gray-300">🥈 {{ $row['silver'] }}</span> @endif
+                            @if ($row['bronze']) <span class="font-semibold text-amber-700 dark:text-amber-500">🥉 {{ $row['bronze'] }}</span> @endif
+                            @if (!$row['gold'] && !$row['silver'] && !$row['bronze']) <span class="text-xs text-gray-400">—</span> @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Desktop: table --}}
+            <div class="hidden sm:block rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
@@ -164,7 +187,6 @@
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥇</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥈</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥉</th>
-                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">Total</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
@@ -176,7 +198,6 @@
                                 <td class="px-4 py-2 text-center font-semibold {{ $row['gold'] > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['gold'] ?: '—' }}</td>
                                 <td class="px-4 py-2 text-center font-semibold {{ $row['silver'] > 0 ? 'text-gray-500 dark:text-gray-300' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['silver'] ?: '—' }}</td>
                                 <td class="px-4 py-2 text-center font-semibold {{ $row['bronze'] > 0 ? 'text-amber-700 dark:text-amber-500' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['bronze'] ?: '—' }}</td>
-                                <td class="px-4 py-2 text-center text-gray-700 dark:text-gray-300">{{ $row['gold'] + $row['silver'] + $row['bronze'] }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -190,7 +211,24 @@
         @if ($tally->isEmpty())
             <p class="text-center text-gray-400 py-12">No medal results yet for this competition.</p>
         @else
-            <div class="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+            {{-- Mobile: card list --}}
+            <div class="block sm:hidden space-y-2">
+                @foreach ($tally as $row)
+                    <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 flex items-center gap-3">
+                        <span class="shrink-0 text-sm font-bold text-gray-400 dark:text-gray-500 w-6 text-right">{{ $row['rank'] }}</span>
+                        <p class="flex-1 min-w-0 text-sm font-medium text-gray-900 dark:text-white truncate">{{ $row['name'] }}</p>
+                        <div class="shrink-0 flex items-center gap-2 text-sm">
+                            @if ($row['gold']) <span class="font-semibold text-yellow-600 dark:text-yellow-400">🥇 {{ $row['gold'] }}</span> @endif
+                            @if ($row['silver']) <span class="font-semibold text-gray-500 dark:text-gray-300">🥈 {{ $row['silver'] }}</span> @endif
+                            @if ($row['bronze']) <span class="font-semibold text-amber-700 dark:text-amber-500">🥉 {{ $row['bronze'] }}</span> @endif
+                            @if (!$row['gold'] && !$row['silver'] && !$row['bronze']) <span class="text-xs text-gray-400">—</span> @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Desktop: table --}}
+            <div class="hidden sm:block rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
@@ -199,7 +237,6 @@
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥇</span></th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥈</span></th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥉</span></th>
-                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">Total</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-slate-700">
@@ -210,7 +247,6 @@
                                 <td class="px-4 py-2 text-center font-semibold {{ $row['gold'] > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['gold'] ?: '—' }}</td>
                                 <td class="px-4 py-2 text-center font-semibold {{ $row['silver'] > 0 ? 'text-gray-500 dark:text-gray-300' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['silver'] ?: '—' }}</td>
                                 <td class="px-4 py-2 text-center font-semibold {{ $row['bronze'] > 0 ? 'text-amber-700 dark:text-amber-500' : 'text-gray-300 dark:text-gray-600' }}">{{ $row['bronze'] ?: '—' }}</td>
-                                <td class="px-4 py-2 text-center text-gray-700 dark:text-gray-300">{{ $row['gold'] + $row['silver'] + $row['bronze'] }}</td>
                             </tr>
                         @endforeach
                     </tbody>

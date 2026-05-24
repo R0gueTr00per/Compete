@@ -146,6 +146,9 @@ class PortalPanelProvider extends PanelProvider
                     .fi-topbar *:hover { color: #ffffff !important; }
                     .fi-topbar svg, .fi-topbar svg * { color: rgba(255,255,255,0.85) !important; fill: currentColor; }
                     .fi-topbar .fi-breadcrumbs-item-separator { opacity: 0.4; }
+                    @media (max-width: 1023px) {
+                        .fi-topbar-open-sidebar-btn, .fi-topbar-close-sidebar-btn { order: -1; }
+                    }
 
                     /* All dropdown/filter panels (topbar + page filters) */
                     .fi-dropdown-panel { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; }
@@ -181,9 +184,9 @@ class PortalPanelProvider extends PanelProvider
                     $tenant = app('tenant');
                     if (! $tenant) return '';
                     return new \Illuminate\Support\HtmlString(
-                        '<div style="display:flex;align-items:center;padding:0 1rem 0 0.5rem;gap:0.5rem;flex-shrink:0;">' .
-                        '<div style="width:1px;height:1.25rem;background:rgba(255,255,255,0.25);"></div>' .
-                        '<span style="font-size:0.875rem;font-weight:600;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22rem;">' .
+                        '<div class="fi-topbar-org-name" style="display:flex;align-items:center;padding:0 0.75rem 0 0.25rem;gap:0.5rem;min-width:0;">' .
+                        '<div style="flex-shrink:0;width:1px;height:1.25rem;background:rgba(255,255,255,0.25);"></div>' .
+                        '<span style="font-size:0.875rem;font-weight:600;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">' .
                         e($tenant->name) .
                         '</span></div>'
                     );

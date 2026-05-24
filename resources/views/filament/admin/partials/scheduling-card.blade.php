@@ -22,7 +22,7 @@
 <div
     data-id="{{ $div->id }}"
     data-division="{{ $divisionData }}"
-    class="group relative mb-1.5 rounded-md border shadow-sm transition-colors cursor-grab hover:shadow-md
+    class="group relative mb-1.5 rounded-md border shadow-sm transition-colors sm:cursor-grab hover:shadow-md
         {{ $colorClass }}"
 >
     {{-- Mobile: code only --}}
