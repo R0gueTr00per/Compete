@@ -115,7 +115,20 @@
                     </div>
                 @endif
 
-                <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                <div class="flex gap-4 items-start">
+                    <div class="shrink-0">
+                        @if ($profile->profile_photo)
+                            <img src="{{ asset('storage/' . $profile->profile_photo) }}"
+                                 alt="Profile photo"
+                                 class="w-14 h-18 rounded-lg object-cover border-2 border-gray-200 dark:border-gray-600" />
+                        @else
+                            <div class="w-14 h-18 rounded-lg bg-gray-100 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center" style="width:3.5rem;height:4.5rem;">
+                                <x-heroicon-o-user class="w-7 h-7 text-gray-400 dark:text-gray-500" />
+                            </div>
+                        @endif
+                    </div>
+
+                <dl class="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
                     @if ($profile->date_of_birth)
                         <div>
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Date of birth</dt>
@@ -135,6 +148,7 @@
                         </div>
                     @endif
                 </dl>
+                </div>
             </x-filament::section>
         @empty
             <x-filament::section>

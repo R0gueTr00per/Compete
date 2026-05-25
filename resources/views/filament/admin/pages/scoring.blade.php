@@ -51,6 +51,14 @@
             .scoring-row-pulse {
                 animation: scoring-row-pulse .8s ease-out forwards;
             }
+            input[type=number]::-webkit-outer-spin-button,
+            input[type=number]::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            input[type=number] {
+                -moz-appearance: textfield;
+            }
         </style>
         @php $incompleteCount = $divisionList->filter(fn ($item) => $item->division->status !== 'complete')->count(); @endphp
         @if ($incompleteCount > 0)

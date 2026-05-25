@@ -96,7 +96,10 @@ class ProfilesPage extends Page implements HasForms
                             ->disk('public')
                             ->directory('profile-photos')
                             ->visibility('public')
-                            ->maxSize(2048),
+                            ->maxSize(2048)
+                            ->afterStateHydrated(fn ($component, $state) =>
+                                $component->state($state && ! is_array($state) ? [$state] : ($state ?: []))
+                            ),
                     ]),
             ])
             ->statePath('data');
@@ -195,6 +198,21 @@ class ProfilesPage extends Page implements HasForms
             return;
         }
 
+        // Only block deactivation, not reactivation
+        if ($profile->is_active) {
+            $enrolledInActive = $profile->enrolments()
+                ->whereHas('competition', fn ($q) => $q->whereIn('status', ['open', 'closed', 'check_in', 'running']))
+                ->exists();
+
+            if ($enrolledInActive) {
+                Notification::make()
+                    ->title('Cannot deactivate — this profile is enrolled in an active competition.')
+                    ->warning()
+                    ->send();
+                return;
+            }
+        }
+
         $profile->update(['is_active' => ! $profile->is_active]);
 
         $label = $profile->is_active ? 'activated' : 'deactivated';
@@ -253,6 +271,19 @@ class ProfilesPage extends Page implements HasForms
                 if (! $profile) {
                     return;
                 }
+
+                $enrolledInActive = $profile->enrolments()
+                    ->whereHas('competition', fn ($q) => $q->whereIn('status', ['open', 'closed', 'check_in', 'running']))
+                    ->exists();
+
+                if ($enrolledInActive) {
+                    Notification::make()
+                        ->title('Cannot deactivate — this profile is enrolled in an active competition.')
+                        ->warning()
+                        ->send();
+                    return;
+                }
+
                 $profile->update(['is_active' => false]);
                 Notification::make()->title('Profile deactivated.')->success()->send();
             });

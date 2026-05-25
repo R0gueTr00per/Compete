@@ -3,7 +3,6 @@
 namespace App\Filament\Portal\Pages;
 
 use App\Models\Competition;
-use App\Models\Enrolment;
 use Filament\Pages\Dashboard as BaseDashboard;
 
 class Dashboard extends BaseDashboard
@@ -18,6 +17,14 @@ class Dashboard extends BaseDashboard
             ->get();
     }
 
+    public function getActiveCompetitions()
+    {
+        return Competition::whereIn('status', ['open', 'closed', 'check_in', 'running'])
+            ->where('organisation_id', app('tenant')?->id)
+            ->orderBy('competition_date')
+            ->get();
+    }
+
     public function getEnrolmentsForProfile(\App\Models\CompetitorProfile $profile)
     {
         return $profile->enrolments()
@@ -27,8 +34,8 @@ class Dashboard extends BaseDashboard
                 'activeEvents.division',
                 'activeEvents.result',
             ])
-            ->orderByDesc('enrolled_at')
-            ->get();
+            ->get()
+            ->keyBy('competition_id');
     }
 
 }

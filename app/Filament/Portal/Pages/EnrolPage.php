@@ -34,6 +34,7 @@ class EnrolPage extends Page implements HasForms
 
     #[Url]
     public ?int    $profile_id          = null;
+    #[Url]
     public ?int    $competition_id      = null;
     public ?string $dojo_type           = null;
     public ?string $dojo_name           = null;
@@ -51,14 +52,15 @@ class EnrolPage extends Page implements HasForms
             ->where('profile_complete', true)
             ->get();
 
-        // Auto-select only if not already set via URL param
         if (! $this->profile_id && $activeProfiles->count() === 1) {
             $this->profile_id = $activeProfiles->first()->id;
         }
 
-        $open = Competition::where('status', 'open')->where('organisation_id', app('tenant')?->id)->orderBy('competition_date')->first();
-        if ($open) {
-            $this->competition_id = $open->id;
+        if (! $this->competition_id) {
+            $open = Competition::where('status', 'open')->where('organisation_id', app('tenant')?->id)->orderBy('competition_date')->first();
+            if ($open) {
+                $this->competition_id = $open->id;
+            }
         }
     }
 
@@ -123,22 +125,15 @@ class EnrolPage extends Page implements HasForms
                                 return [];
                             }
                             $profile = $this->getSelectedProfile();
-                            $enrolledDraftIds = $profile
-                                ? $profile->enrolments()
-                                    ->whereHas('competition', fn ($q) => $q->where('status', 'draft'))
-                                    ->pluck('competition_id')
+                            $enrolledIds = $profile
+                                ? $profile->enrolments()->pluck('competition_id')
                                 : collect();
 
-                            return Competition::where(fn ($q) => $q
-                                    ->where('status', 'open')
-                                    ->orWhereIn('id', $enrolledDraftIds)
-                                )
+                            return Competition::where('status', 'open')
+                                ->whereNotIn('id', $enrolledIds)
                                 ->where('organisation_id', app('tenant')?->id)
                                 ->orderBy('competition_date')
-                                ->get()
-                                ->mapWithKeys(fn ($c) => [
-                                    $c->id => $c->name . ($c->status === 'draft' ? ' (Draft — locked)' : ''),
-                                ]);
+                                ->pluck('name', 'id');
                         })
                         ->required()
                         ->live()
@@ -191,8 +186,7 @@ class EnrolPage extends Page implements HasForms
                         ->afterStateUpdated(function () {
                             $this->details_confirmed = false;
                             $this->selected_entries  = [];
-                        })
-                        ->columnSpanFull(),
+                        }),
 
                     TextInput::make('weight_kg')
                         ->label('Weight (kg)')
@@ -247,30 +241,16 @@ class EnrolPage extends Page implements HasForms
             ->orderBy('running_order')
             ->get();
 
-        $existingEnrolment = $competition->enrolments()
-            ->where('competitor_profile_id', $this->profile_id)
-            ->with('activeEvents.division')
-            ->first();
-
-        $disabledKeys = [];
-        if ($existingEnrolment) {
-            foreach ($existingEnrolment->activeEvents as $ee) {
-                $disabledKeys[] = $ee->division_id
-                    ? "d{$ee->division_id}"
-                    : "e{$ee->competition_event_id}";
-            }
-        }
-
         $ctx             = $this->buildCtx();
         $divisionService = app(DivisionAssignmentService::class);
         $options         = [];
-        $partnerEventMap = []; // eventId => event name for requires_partner events
+        $partnerEventMap = [];
 
         foreach ($events as $event) {
             $eligible = $ctx ? $divisionService->getEligibleDivisions($event, $ctx) : collect();
 
             foreach ($eligible as $division) {
-                $label = "{$event->event_code} — {$event->name}: {$division->label}";
+                $label = "{$division->code} — {$event->name}: {$division->label}";
                 if ($this->isDivisionOpen($division)) {
                     $label .= ' (Open)';
                 }
@@ -290,22 +270,11 @@ class EnrolPage extends Page implements HasForms
             ];
         }
 
-        $availableKeys = array_diff(array_keys($options), $disabledKeys);
-        if (empty($availableKeys)) {
-            return [
-                Placeholder::make('all_enrolled')
-                    ->label('')
-                    ->content('You are already enrolled in all eligible divisions for this competition.'),
-            ];
-        }
-
         $components = [
             CheckboxList::make('selected_entries')
                 ->label('Select divisions to enter')
                 ->options($options)
-                ->disableOptionWhen(fn (string $value) => in_array($value, $disabledKeys))
-                ->live()
-                ->helperText($disabledKeys ? 'Greyed-out entries are already in your enrolment.' : null),
+                ->live(),
         ];
 
         // Partner selects for events that require a partner
@@ -357,17 +326,11 @@ class EnrolPage extends Page implements HasForms
             return '';
         }
 
-        $existingCount = $competition->enrolments()
-            ->where('competitor_profile_id', $this->profile_id)
-            ->withCount('activeEvents')
-            ->first()?->active_events_count ?? 0;
+        $count  = count($this->selected_entries);
+        $isLate = $competition->isLateEnrolment();
 
-        $newCount = count($this->selected_entries);
-        $total    = $existingCount + $newCount;
-        $isLate   = $competition->isLateEnrolment();
-
-        $fee   = app(EnrolmentService::class)->calculateFee($competition, $total, $isLate);
-        $lines = ["**{$newCount} new event entr" . ($newCount === 1 ? 'y' : 'ies') . "** added to your enrolment."];
+        $fee   = app(EnrolmentService::class)->calculateFee($competition, $count, $isLate);
+        $lines = ["**{$count} event entr" . ($count === 1 ? 'y' : 'ies') . "** selected."];
         if ($isLate) {
             $lines[] = "Late surcharge of \${$competition->late_surcharge} applies.";
         }
@@ -447,6 +410,11 @@ class EnrolPage extends Page implements HasForms
         $competition = Competition::find($this->competition_id);
         if (! $competition || ! $competition->isEnrolmentOpen()) {
             Notification::make()->title('Enrolment is not currently open for this competition.')->danger()->send();
+            return;
+        }
+
+        if ($competition->enrolments()->where('competitor_profile_id', $profile->id)->exists()) {
+            Notification::make()->title('This profile is already enrolled in this competition.')->danger()->send();
             return;
         }
 

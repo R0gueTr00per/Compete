@@ -1,5 +1,8 @@
 <x-filament-panels::page>
-    @php $profiles = $this->getProfiles(); @endphp
+    @php
+        $profiles           = $this->getProfiles();
+        $activeCompetitions = $this->getActiveCompetitions();
+    @endphp
 
     @forelse ($profiles as $profile)
         @php $enrolments = $this->getEnrolmentsForProfile($profile); @endphp
@@ -42,7 +45,7 @@
                 </div>
             @else
                 {{-- Profile details --}}
-                <div class="flex gap-6 items-start mb-4">
+                <div class="flex gap-6 items-start mb-5">
                     <div class="shrink-0">
                         @if ($profile->profile_photo)
                             <img src="{{ asset('storage/' . $profile->profile_photo) }}"
@@ -73,46 +76,68 @@
                     </dl>
                 </div>
 
-                {{-- Enrolments for this profile --}}
-                @if ($enrolments->isEmpty())
-                    <p class="text-center text-gray-500 py-4">Not yet enrolled in any competitions.</p>
-                    @if ($profile->is_active)
-                        <div class="flex justify-center mt-2">
-                            <x-filament::button href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}" tag="a">
-                                Enrol now
-                            </x-filament::button>
-                        </div>
-                    @endif
+                {{-- Active competitions --}}
+                @if ($activeCompetitions->isEmpty())
+                    <p class="text-center text-gray-500 py-4">No active competitions at this time.</p>
                 @else
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Enrolments</h3>
-                        @if ($profile->is_active)
-                            <x-filament::button href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}" tag="a" color="primary" size="sm" icon="heroicon-o-plus">
-                                Enrol in a competition
-                            </x-filament::button>
-                        @endif
-                    </div>
+                    <div class="space-y-3">
+                        @foreach ($activeCompetitions as $competition)
+                            @php
+                                $enrolment      = $enrolments->get($competition->id);
+                                $isEnrolled     = $enrolment !== null;
+                                $enrolmentOpen  = $competition->isEnrolmentOpen();
+                                $showSchedule   = in_array($competition->status, ['check_in', 'running', 'complete']);
 
-                    @foreach ($enrolments as $enrolment)
-                        @php
-                            $isDraft      = $enrolment->competition->status === 'draft';
-                            $showSchedule = ! $isDraft;
-                        @endphp
-                        <div class="mb-4 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 overflow-hidden">
-                            <div class="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between gap-3">
-                                <div>
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-white">
-                                        {{ $enrolment->competition->name }}
-                                        @if ($isDraft)
-                                            <span class="ml-2 inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-300">Draft</span>
+                                $statusLabel = match($competition->status) {
+                                    'open'     => 'Open',
+                                    'closed'   => 'Enrolments closed',
+                                    'check_in' => 'Check-in',
+                                    'running'  => 'In progress',
+                                    default    => ucfirst($competition->status),
+                                };
+                                $statusClass = match($competition->status) {
+                                    'open'     => 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400',
+                                    'closed'   => 'bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400',
+                                    'check_in' => 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400',
+                                    'running'  => 'bg-danger-100 dark:bg-danger-900/30 text-danger-700 dark:text-danger-400',
+                                    default    => 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
+                                };
+                            @endphp
+
+                            <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 overflow-hidden">
+                                {{-- Competition header --}}
+                                <div class="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between gap-3">
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white">
+                                            {{ $competition->name }}
+                                        </p>
+                                        <p class="text-xs text-gray-500 mt-0.5">
+                                            {{ $competition->competition_date->format('d M Y') }}
+                                            @if ($competition->location_name)
+                                                &mdash; {{ $competition->location_name }}
+                                            @endif
+                                        </p>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        @if ($isEnrolled && $showSchedule)
+                                            <x-filament::button
+                                                href="{{ route('filament.portal.pages.schedule-page') }}?competition_id={{ $competition->id }}"
+                                                tag="a" color="warning" size="sm" icon="heroicon-o-calendar-days">
+                                                Schedule
+                                            </x-filament::button>
                                         @endif
-                                    </p>
-                                    <p class="text-xs text-gray-500 mt-0.5">
-                                        {{ $enrolment->competition->competition_date->format('d M Y') }}
-                                        @if ($enrolment->competition->location_name)
-                                            &mdash; {{ $enrolment->competition->location_name }}
+                                        @if (! $isEnrolled || ! $enrolmentOpen)
+                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $statusClass }}">
+                                                {{ $statusLabel }}
+                                            </span>
                                         @endif
-                                        &bull; Fee: <strong>${{ number_format($enrolment->fee_calculated, 2) }}</strong>
+                                    </div>
+                                </div>
+
+                                @if ($isEnrolled)
+                                    {{-- Enrolment summary row --}}
+                                    <div class="px-4 py-2 border-b border-gray-100 dark:border-slate-700 text-xs text-gray-500">
+                                        Fee: <strong class="text-gray-700 dark:text-gray-300">${{ number_format($enrolment->fee_calculated, 2) }}</strong>
                                         @if ($enrolment->is_late)
                                             <span class="text-warning-600">(includes late surcharge)</span>
                                         @endif
@@ -127,79 +152,89 @@
                                         @elseif ($enrolment->guest_style)
                                             &bull; {{ $enrolment->guest_style }} (guest)
                                         @endif
-                                    </p>
-                                </div>
-                                @if ($showSchedule)
-                                    <x-filament::button
-                                        href="{{ route('filament.portal.pages.schedule-page') }}?competition_id={{ $enrolment->competition->id }}"
-                                        tag="a" color="warning" size="sm" icon="heroicon-o-calendar-days">
-                                        Schedule
-                                    </x-filament::button>
+                                    </div>
+
+                                    {{-- Enrolled events --}}
+                                    <div class="divide-y divide-gray-100 dark:divide-slate-700 px-4">
+                                        @forelse ($enrolment->activeEvents as $ee)
+                                            <div class="py-3.5 flex items-start justify-between gap-4 leading-relaxed">
+                                                <div>
+                                                    <p class="font-medium text-sm text-gray-900 dark:text-white">
+                                                        {{ $ee->competitionEvent->name }}
+                                                        @if ($ee->division?->location_label)
+                                                            <span class="text-gray-400 font-normal">({{ $ee->division->location_label }})</span>
+                                                        @endif
+                                                    </p>
+                                                    @if ($ee->division)
+                                                        <p class="text-xs text-gray-500 mt-0.5">{{ $ee->division->full_label }}</p>
+                                                    @else
+                                                        <p class="text-xs text-gray-400 mt-0.5">Division to be confirmed</p>
+                                                    @endif
+                                                    @if ($ee->competitionEvent->requires_partner)
+                                                        <p class="text-xs mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">
+                                                            Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending partner enrolment' }}
+                                                        </p>
+                                                    @endif
+                                                </div>
+
+                                                <div class="text-right text-sm shrink-0">
+                                                    @if ($ee->result)
+                                                        @if ($ee->result->disqualified)
+                                                            <span class="text-danger-600 font-semibold text-xs">DQ</span>
+                                                        @elseif ($ee->result->placement)
+                                                            <span class="font-bold text-primary-600">
+                                                                @switch($ee->result->placement)
+                                                                    @case(1) 🥇 1st @break
+                                                                    @case(2) 🥈 2nd @break
+                                                                    @case(3) 🥉 3rd @break
+                                                                    @default {{ $ee->result->placement }}th
+                                                                @endswitch
+                                                            </span>
+                                                        @endif
+                                                        @if ($ee->result->win_loss)
+                                                            <p class="text-xs {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">
+                                                                {{ ucfirst($ee->result->win_loss) }}
+                                                            </p>
+                                                        @endif
+                                                        @if (! $ee->result->placement && ! $ee->result->win_loss && ! $ee->result->total_score && ! $ee->result->disqualified)
+                                                            <span class="text-gray-400 text-xs">Result pending</span>
+                                                        @endif
+                                                    @else
+                                                        <span class="text-gray-400 text-xs">Result pending</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <p class="py-3 text-xs text-gray-400">No events in this enrolment.</p>
+                                        @endforelse
+                                    </div>
+                                    <p class="px-4 py-2 text-xs text-gray-400 italic border-t border-gray-100 dark:border-slate-700">Organisers reserve the right to merge or cancel any event on the day.</p>
+
+                                @elseif ($enrolmentOpen && $profile->is_active)
+                                    <div class="px-4 py-4 flex justify-center">
+                                        <x-filament::button
+                                            href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}&competition_id={{ $competition->id }}"
+                                            tag="a" color="primary" size="sm" icon="heroicon-o-plus">
+                                            Enrol now
+                                        </x-filament::button>
+                                    </div>
+
+                                @else
+                                    <div class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                                        @if ($competition->status === 'closed')
+                                            Enrolments are now closed for this competition.
+                                        @elseif ($competition->status === 'check_in')
+                                            This competition is in the check-in phase.
+                                        @elseif ($competition->status === 'running')
+                                            This competition is currently underway.
+                                        @else
+                                            Enrolments are not currently open.
+                                        @endif
+                                    </div>
                                 @endif
                             </div>
-
-                            @if ($isDraft)
-                                <div class="px-4 py-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                    <x-heroicon-o-lock-closed class="w-4 h-4 shrink-0" />
-                                    This competition is back in Draft — enrolments are currently locked.
-                                </div>
-                            @endif
-
-                            <div class="divide-y divide-gray-100 dark:divide-slate-700 px-4">
-                                @foreach ($enrolment->activeEvents as $ee)
-                                    <div class="py-3.5 flex items-start justify-between gap-4 leading-relaxed">
-                                        <div>
-                                            <p class="font-medium text-sm text-gray-900 dark:text-white">
-                                                {{ $ee->competitionEvent->event_code }}
-                                                — {{ $ee->competitionEvent->name }}
-                                                @if ($ee->division?->location_label)
-                                                    <span class="text-gray-400 font-normal">({{ $ee->division->location_label }})</span>
-                                                @endif
-                                            </p>
-                                            @if ($ee->division)
-                                                <p class="text-xs text-gray-500 mt-0.5">{{ $ee->division->full_label }}</p>
-                                            @else
-                                                <p class="text-xs text-gray-400 mt-0.5">Division to be confirmed</p>
-                                            @endif
-                                            @if ($ee->competitionEvent->requires_partner)
-                                                <p class="text-xs mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">
-                                                    Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending partner enrolment' }}
-                                                </p>
-                                            @endif
-                                        </div>
-
-                                        <div class="text-right text-sm shrink-0">
-                                            @if ($ee->result)
-                                                @if ($ee->result->disqualified)
-                                                    <span class="text-danger-600 font-semibold text-xs">DQ</span>
-                                                @elseif ($ee->result->placement)
-                                                    <span class="font-bold text-primary-600">
-                                                        @switch($ee->result->placement)
-                                                            @case(1) 🥇 1st @break
-                                                            @case(2) 🥈 2nd @break
-                                                            @case(3) 🥉 3rd @break
-                                                            @default {{ $ee->result->placement }}th
-                                                        @endswitch
-                                                    </span>
-                                                @endif
-                                                @if ($ee->result->win_loss)
-                                                    <p class="text-xs {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">
-                                                        {{ ucfirst($ee->result->win_loss) }}
-                                                    </p>
-                                                @endif
-                                                @if (! $ee->result->placement && ! $ee->result->win_loss && ! $ee->result->total_score && ! $ee->result->disqualified)
-                                                    <span class="text-gray-400 text-xs">Result pending</span>
-                                                @endif
-                                            @else
-                                                <span class="text-gray-400 text-xs">Result pending</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                @endforeach
-                            </div>
-                            <p class="px-4 py-2 text-xs text-gray-400 italic border-t border-gray-100 dark:border-slate-700">Organisers reserve the right to merge or cancel any event on the day.</p>
-                        </div>
-                    @endforeach
+                        @endforeach
+                    </div>
                 @endif
             @endif
         </x-filament::section>
@@ -215,12 +250,10 @@
     @endforelse
 
     {{-- Manage child profiles link --}}
-    @if ($profiles->where('profile_type', 'child')->isNotEmpty() || true)
-        <div class="mb-6 text-right">
-            <x-filament::button href="{{ route('filament.portal.pages.profiles') }}" tag="a" color="gray" size="sm" icon="heroicon-o-users">
-                Manage profiles
-            </x-filament::button>
-        </div>
-    @endif
+    <div class="mb-6 text-right">
+        <x-filament::button href="{{ route('filament.portal.pages.profiles') }}" tag="a" color="gray" size="sm" icon="heroicon-o-users">
+            Manage profiles
+        </x-filament::button>
+    </div>
 
 </x-filament-panels::page>

@@ -42,92 +42,57 @@ class Dashboard extends BaseDashboard
             ->get();
     }
 
-    public function advanceStatusAction(): Action
+    public function setStatusAction(): Action
     {
-        return Action::make('advanceStatus')
-            ->requiresConfirmation(function (array $arguments) {
+        $statusLabels = [
+            'draft'    => 'Draft',
+            'open'     => 'Open',
+            'closed'   => 'Closed',
+            'check_in' => 'Check-in',
+            'running'  => 'Running',
+            'complete' => 'Complete',
+        ];
+
+        return Action::make('setStatus')
+            ->requiresConfirmation()
+            ->modalHeading(fn (array $arguments) =>
+                'Set to ' . ($statusLabels[$arguments['targetStatus'] ?? ''] ?? 'Unknown'))
+            ->modalDescription(function (array $arguments) use ($statusLabels) {
                 $competition = Competition::find($arguments['competitionId'] ?? null);
-                if (! $competition || $competition->status !== 'draft') {
-                    return true;
-                }
-                return $competition->allDivisions()
-                    ->whereNull('divisions.location_label')
-                    ->whereNotIn('divisions.status', ['combined'])
-                    ->count() > 0;
-            })
-            ->modalHeading(fn (array $arguments) => match (Competition::find($arguments['competitionId'] ?? null)?->status) {
-                'draft'    => 'Open Enrolments',
-                'open'     => 'Close Enrolments',
-                'closed'   => 'Begin Check-ins',
-                'check_in' => 'Start Competition',
-                'running'  => 'Conclude Competition',
-                default    => 'Advance Status',
-            })
-            ->modalDescription(function (array $arguments) {
-                $competition = Competition::find($arguments['competitionId'] ?? null);
-                if (! $competition) {
-                    return '';
-                }
-                return match ($competition->status) {
-                    'draft' => (function () use ($competition) {
-                        $unscheduled = $competition->allDivisions()
+                $target = $arguments['targetStatus'] ?? null;
+                if (! $competition || ! $target) return '';
+
+                return match ([$competition->status, $target]) {
+                    ['draft', 'open'] => (function () use ($competition) {
+                        $n = $competition->allDivisions()
                             ->whereNull('divisions.location_label')
                             ->whereNotIn('divisions.status', ['combined'])
                             ->count();
-                        return "{$unscheduled} division(s) have not been assigned to a location. Open for enrolment anyway?";
+                        return "{$n} division(s) have not been assigned to a location. Open for enrolment anyway?";
                     })(),
-                    'open'     => 'Close enrolments for this competition?',
-                    'closed'   => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
-                    'check_in' => (function () use ($competition) {
-                        $completedDivisions = $competition->allDivisions()
-                            ->where('divisions.status', 'complete')
-                            ->count();
+                    ['open',     'closed']   => 'Close enrolments for this competition?',
+                    ['closed',   'check_in'] => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
+                    ['check_in', 'running']  => (function () use ($competition) {
+                        $done = $competition->allDivisions()->where('divisions.status', 'complete')->count();
                         $msg = 'This will start the competition. Undo check-in will be disabled and scoring will become active.';
-                        if ($completedDivisions > 0) {
-                            $msg .= " Warning: {$completedDivisions} division(s) are already marked as complete.";
-                        }
-                        return $msg;
+                        return $done > 0 ? $msg . " Warning: {$done} division(s) are already marked as complete." : $msg;
                     })(),
-                    'running' => (function () use ($competition) {
-                        $incomplete = $competition->allDivisions()
-                            ->whereNotIn('divisions.status', ['complete', 'combined'])
-                            ->count();
+                    ['running',  'complete'] => (function () use ($competition) {
+                        $n = $competition->allDivisions()->whereNotIn('divisions.status', ['complete', 'combined'])->count();
                         $msg = 'Conclude this competition? Results will become visible to competitors.';
-                        if ($incomplete > 0) {
-                            $msg = "Warning: {$incomplete} division(s) have not been completed. " . $msg;
-                        }
-                        return $msg;
+                        return $n > 0 ? "Warning: {$n} division(s) have not been completed. " . $msg : $msg;
                     })(),
-                    default   => 'Are you sure?',
+                    default => 'Move competition to ' . ($statusLabels[$target] ?? $target) . '?',
                 };
             })
-            ->modalSubmitActionLabel(fn (array $arguments) => match (Competition::find($arguments['competitionId'] ?? null)?->status) {
-                'draft'    => 'Open Enrolments',
-                'open'     => 'Close Enrolments',
-                'closed'   => 'Begin Check-ins',
-                'check_in' => 'Start Competition',
-                'running'  => 'Conclude Competition',
-                default    => 'Confirm',
-            })
+            ->modalSubmitActionLabel(fn (array $arguments) =>
+                'Set to ' . ($statusLabels[$arguments['targetStatus'] ?? ''] ?? 'Unknown'))
             ->action(function (array $arguments) {
                 $competition = Competition::find($arguments['competitionId'] ?? null);
-                if (! $competition) {
-                    return;
-                }
-
-                $next = match ($competition->status) {
-                    'draft'    => 'open',
-                    'open'     => 'closed',
-                    'closed'   => 'check_in',
-                    'check_in' => 'running',
-                    'running'  => 'complete',
-                    default    => null,
-                };
-
-                if ($next) {
-                    $competition->update(['status' => $next]);
-                    Notification::make()->title('Competition status updated.')->success()->send();
-                }
+                $target = $arguments['targetStatus'] ?? null;
+                if (! $competition || ! $target || $competition->status === $target) return;
+                $competition->update(['status' => $target]);
+                Notification::make()->title('Competition status updated.')->success()->send();
             });
     }
 }

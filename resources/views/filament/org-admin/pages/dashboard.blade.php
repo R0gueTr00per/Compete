@@ -24,21 +24,6 @@
                         'complete' => 'bg-gray-100/60 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40',
                         default    => 'bg-gray-100/60 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40',
                     };
-                    $nextLabel = match ($competition->status) {
-                        'draft'    => 'Open Enrolments',
-                        'open'     => 'Close Enrolments',
-                        'closed'   => 'Begin Check-ins',
-                        'check_in' => 'Start Competition',
-                        'running'  => 'Conclude Competition',
-                        default    => null,
-                    };
-                    $nextColor = match ($competition->status) {
-                        'running'  => 'info',
-                        'check_in' => 'warning',
-                        'open'     => 'success',
-                        default    => 'gray',
-                    };
-
                     $enrolmentsColor = in_array($competition->status, ['open', 'closed']) ? 'success' : 'gray';
                     $checkInColor    = match ($competition->status) {
                         'check_in' => 'primary',
@@ -73,17 +58,53 @@
                         @endif
                     </x-slot>
 
-                    <div class="flex flex-wrap gap-2">
-                        @if ($isOrgAdmin && $nextLabel)
-                            <x-filament::button
-                                size="sm"
-                                :color="$nextColor"
-                                x-on:click="$wire.mountAction('advanceStatus', {competitionId: {{ $competition->id }}})"
-                            >
-                                {{ $nextLabel }}
-                            </x-filament::button>
-                        @endif
+                    @php
+                        $allStatuses  = ['draft', 'open', 'closed', 'check_in', 'running', 'complete'];
+                        $stepLabels   = ['draft' => 'Draft', 'open' => 'Open', 'closed' => 'Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $currentIdx   = array_search($competition->status, $allStatuses);
+                    @endphp
+                    <div class="flex items-start w-full mb-4 overflow-x-auto">
+                        @foreach ($allStatuses as $i => $step)
+                            @php
+                                $isPast      = $i < $currentIdx;
+                                $isCurrent   = $i === $currentIdx;
+                                $label       = $stepLabels[$step];
+                                $isClickable = $isOrgAdmin && ! $isCurrent;
+                            @endphp
+                            <div class="flex flex-col items-center flex-1 min-w-0">
+                                @if ($isClickable)
+                                    <button
+                                        type="button"
+                                        class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-colors {{ $isPast ? 'bg-primary-500 text-white hover:bg-primary-600' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-primary-200 dark:hover:bg-primary-800' }}"
+                                        x-on:click="$wire.mountAction('setStatus', { competitionId: {{ $competition->id }}, targetStatus: '{{ $step }}' })"
+                                        title="Set to {{ $label }}"
+                                    >
+                                        @if ($isPast)
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                        @else
+                                            {{ $i + 1 }}
+                                        @endif
+                                    </button>
+                                @else
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold {{ $isCurrent ? 'bg-primary-500 ring-4 ring-primary-200 dark:ring-primary-800 text-white' : ($isPast ? 'bg-primary-500 text-white' : 'bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500') }}">
+                                        @if ($isPast)
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                        @else
+                                            {{ $i + 1 }}
+                                        @endif
+                                    </div>
+                                @endif
+                                <span class="mt-1 text-xs text-center leading-tight font-medium whitespace-nowrap {{ $isCurrent ? 'text-primary-600 dark:text-primary-400' : ($isPast ? 'text-primary-500 dark:text-primary-500' : 'text-gray-400 dark:text-gray-500') }}">
+                                    {{ $label }}
+                                </span>
+                            </div>
+                            @unless ($loop->last)
+                                <div class="flex-shrink-0 w-6 h-0.5 mt-4 self-start {{ $isPast ? 'bg-primary-400' : 'bg-gray-200 dark:bg-gray-700' }}"></div>
+                            @endunless
+                        @endforeach
+                    </div>
 
+                    <div class="flex flex-wrap gap-2">
                         @if ($isOrgAdmin && $competition->status === 'draft')
                             <x-filament::button
                                 size="sm"

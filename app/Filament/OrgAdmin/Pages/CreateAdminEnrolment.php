@@ -334,7 +334,7 @@ class CreateAdminEnrolment extends Page implements HasForms
             $eligible = $ctx ? $divisionService->getEligibleDivisions($event, $ctx) : collect();
 
             foreach ($eligible as $division) {
-                $options["d{$division->id}"] = "{$event->event_code} — {$event->name}: {$division->label}";
+                $options["d{$division->id}"] = "{$division->code} — {$event->name}: {$division->label}";
             }
         }
 

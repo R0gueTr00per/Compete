@@ -270,7 +270,8 @@
       "Bash(node -e \"const { chromium } = require\\('playwright'\\); \\(async \\(\\) => { const b = await chromium.launch\\(\\); const p = await b.newPage\\(\\); await p.setViewportSize\\({width:375,height:812}\\); await p.goto\\('http://127.0.0.1:8001/manage/login'\\); await p.screenshot\\({path:'/tmp/mobile-login.png'}\\); await b.close\\(\\); console.log\\('done'\\); }\\)\\(\\).catch\\(e=>console.error\\(e\\)\\);\")",
       "Bash(npx playwright *)",
       "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php)",
-      "Bash(grep -n 'full_name\\\\|resolveEeName\\\\|$row\\\\->name\\\\|competitor.*name\\\\|->name' resources/views/filament/admin/pages/scoring.blade.php)"
+      "Bash(grep -n 'full_name\\\\|resolveEeName\\\\|$row\\\\->name\\\\|competitor.*name\\\\|->name' resources/views/filament/admin/pages/scoring.blade.php)",
+      "Bash(xargs grep -l -i \"openai\\\\|claude\\\\|ai\\\\|insight\\\\|gpt\\\\|anthropic\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",
