@@ -41,4 +41,8 @@ return [
         'redirect' => env('APP_URL') . '/auth/google/callback',
     ],
 
+    'google_ai' => [
+        'api_key' => env('GOOGLE_AI_API_KEY'),
+    ],
+
 ];

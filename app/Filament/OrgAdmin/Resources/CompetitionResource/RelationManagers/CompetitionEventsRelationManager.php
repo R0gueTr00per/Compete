@@ -239,14 +239,14 @@ class CompetitionEventsRelationManager extends RelationManager
             ->paginated(false)
             ->headerActions([
                 CreateAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft'),
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning'),
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft'),
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning'),
 
                 DeleteAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
                     ->modalDescription(function ($record) {
                         if ($record->enrolmentEvents()->exists()) {
                             $enrolCount = $record->enrolmentEvents()->count();

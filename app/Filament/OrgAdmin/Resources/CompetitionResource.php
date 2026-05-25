@@ -107,7 +107,7 @@ class CompetitionResource extends Resource
                 ->schema([
                     Select::make('status')
                         ->options([
-                            'draft'    => 'Draft',
+                            'planning'    => 'Planning',
                             'open'     => 'Open for enrolment',
                             'closed'   => 'Closed',
                             'check_in' => 'Check-in',
@@ -115,7 +115,7 @@ class CompetitionResource extends Resource
                             'complete' => 'Complete',
                         ])
                         ->required()
-                        ->default('draft'),
+                        ->default('planning'),
                 ]),
 
             Section::make('Fees')
@@ -185,7 +185,7 @@ class CompetitionResource extends Resource
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (string $state) => match ($state) {
-                        'draft'    => 'Draft',
+                        'planning'    => 'Planning',
                         'open'     => 'Open',
                         'closed'   => 'Closed',
                         'check_in' => 'Check-in',
@@ -194,7 +194,7 @@ class CompetitionResource extends Resource
                         default    => ucfirst($state),
                     })
                     ->color(fn (string $state) => match ($state) {
-                        'draft'    => 'gray',
+                        'planning'    => 'gray',
                         'open'     => 'success',
                         'closed'   => 'gray',
                         'check_in' => 'warning',
@@ -213,7 +213,7 @@ class CompetitionResource extends Resource
             ->filters([
                 SelectFilter::make('status')
                     ->options([
-                        'draft'    => 'Draft',
+                        'planning'    => 'Planning',
                         'open'     => 'Open',
                         'closed'   => 'Closed',
                         'check_in' => 'Check-in',
@@ -246,7 +246,7 @@ class CompetitionResource extends Resource
                         ->url(fn (Competition $record) => route('filament.org-admin.resources.enrolments.index') . '?competition_id=' . $record->id),
                     Action::make('advance')
                         ->label(fn (Competition $record) => match ($record->status) {
-                            'draft'    => 'Open Enrolments',
+                            'planning'    => 'Open Enrolments',
                             'open'     => 'Close Enrolments',
                             'closed'   => 'Begin Check-ins',
                             'check_in' => 'Start Competition',
@@ -254,7 +254,7 @@ class CompetitionResource extends Resource
                             default    => 'Advance',
                         })
                         ->icon(fn (Competition $record) => match ($record->status) {
-                            'draft'    => 'heroicon-o-lock-open',
+                            'planning'    => 'heroicon-o-lock-open',
                             'open'     => 'heroicon-o-lock-closed',
                             'closed'   => 'heroicon-o-clipboard-document-check',
                             'check_in' => 'heroicon-o-play',
@@ -262,7 +262,7 @@ class CompetitionResource extends Resource
                             default    => 'heroicon-o-arrow-right',
                         })
                         ->color(fn (Competition $record) => match ($record->status) {
-                            'draft'    => 'success',
+                            'planning'    => 'success',
                             'open'     => 'warning',
                             'closed'   => 'primary',
                             'check_in' => 'info',
@@ -270,7 +270,7 @@ class CompetitionResource extends Resource
                             default    => 'gray',
                         })
                         ->requiresConfirmation(fn (Competition $record) =>
-                            $record->status !== 'draft' ||
+                            $record->status !== 'planning' ||
                             $record->allDivisions()
                                 ->whereNull('divisions.location_label')
                                 ->whereNotIn('divisions.status', ['combined'])
@@ -278,7 +278,7 @@ class CompetitionResource extends Resource
                         )
                         ->modalDescription(function (Competition $record) {
                             return match ($record->status) {
-                                'draft' => (function () use ($record) {
+                                'planning' => (function () use ($record) {
                                     $unscheduled = $record->allDivisions()
                                         ->whereNull('divisions.location_label')
                                         ->whereNotIn('divisions.status', ['combined'])
@@ -303,7 +303,7 @@ class CompetitionResource extends Resource
                         })
                         ->visible(fn (Competition $record) => $record->status !== 'complete')
                         ->action(fn (Competition $record) => $record->update(['status' => match ($record->status) {
-                            'draft'    => 'open',
+                            'planning'    => 'open',
                             'open'     => 'closed',
                             'closed'   => 'check_in',
                             'check_in' => 'running',
@@ -343,7 +343,7 @@ class CompetitionResource extends Resource
                                 'fee_first_event'      => $record->fee_first_event,
                                 'fee_additional_event' => $record->fee_additional_event,
                                 'late_surcharge'       => $record->late_surcharge,
-                                'status'               => 'draft',
+                                'status'               => 'planning',
                                 'copied_from_id'       => $record->id,
                             ]);
 
@@ -470,6 +470,8 @@ class CompetitionResource extends Resource
             'events'    => Pages\ManageCompetitionEvents::route('/{record}/events'),
             'schedule'  => Pages\ManageCompetitionSchedule::route('/{record}/schedule'),
             'officials' => Pages\ManageCompetitionOfficials::route('/{record}/officials'),
+            'insights'  => Pages\ManageCompetitionInsights::route('/{record}/insights'),
+            'tasks'     => Pages\ManageCompetitionTasks::route('/{record}/tasks'),
         ];
     }
 }

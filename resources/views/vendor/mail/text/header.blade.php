@@ -1,0 +1,2 @@
+KOMPETIC — Tournament Management
+{{ $url }}

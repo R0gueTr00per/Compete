@@ -84,7 +84,7 @@ class PortalPanelProvider extends PanelProvider
             ])
             ->sidebarCollapsibleOnDesktop()
             ->authGuard('web')
-            ->navigationGroups(['Admin'])
+            ->navigationGroups(['Admin', 'Account'])
             ->navigationItems([
                 NavigationItem::make('Manage Panel')
                     ->url('/manage')

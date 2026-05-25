@@ -3,6 +3,8 @@
 namespace App\Filament\OrgAdmin\Pages;
 
 use App\Models\Competition;
+use App\Models\CompetitionInsight;
+use App\Models\CompetitionTask;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Dashboard as BaseDashboard;
@@ -38,14 +40,33 @@ class Dashboard extends BaseDashboard
             ->withCount('competitionEvents as events_count')
             ->withCount('allDivisions as total_divisions_count')
             ->withCount(['allDivisions as completed_divisions_count' => fn ($q) => $q->where('divisions.status', 'complete')])
+            ->withCount(['tasks as pending_tasks_count' => fn ($q) => $q->where('completed', false)])
+            ->with(['tasks' => fn ($q) => $q->where('completed', false)->orderBy('sort_order')])
             ->orderBy('competition_date')
             ->get();
+    }
+
+    public function markTaskComplete(int $taskId): void
+    {
+        $task = CompetitionTask::find($taskId);
+        if (! $task) return;
+
+        $competition = Competition::where('organisation_id', app('tenant')?->id)
+            ->find($task->competition_id);
+        if (! $competition) return;
+
+        $task->update(['completed' => true, 'completed_at' => now()]);
+    }
+
+    public function getInsightsForCompetition(int $competitionId): ?CompetitionInsight
+    {
+        return CompetitionInsight::where('competition_id', $competitionId)->first();
     }
 
     public function setStatusAction(): Action
     {
         $statusLabels = [
-            'draft'    => 'Draft',
+            'planning'    => 'Planning',
             'open'     => 'Open',
             'closed'   => 'Closed',
             'check_in' => 'Check-in',
@@ -63,7 +84,7 @@ class Dashboard extends BaseDashboard
                 if (! $competition || ! $target) return '';
 
                 return match ([$competition->status, $target]) {
-                    ['draft', 'open'] => (function () use ($competition) {
+                    ['planning', 'open'] => (function () use ($competition) {
                         $n = $competition->allDivisions()
                             ->whereNull('divisions.location_label')
                             ->whereNotIn('divisions.status', ['combined'])
@@ -93,6 +114,7 @@ class Dashboard extends BaseDashboard
                 if (! $competition || ! $target || $competition->status === $target) return;
                 $competition->update(['status' => $target]);
                 Notification::make()->title('Competition status updated.')->success()->send();
+                $this->dispatch('competition-status-changed', competitionId: $competition->id, newStatus: $target);
             });
     }
 }

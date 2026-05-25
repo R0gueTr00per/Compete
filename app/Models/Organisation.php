@@ -15,6 +15,7 @@ class Organisation extends Model
         'name',
         'slug',
         'status',
+        'ai_context',
         'created_by_user_id',
     ];
 

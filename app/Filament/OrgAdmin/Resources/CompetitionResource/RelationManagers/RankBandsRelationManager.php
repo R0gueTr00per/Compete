@@ -64,7 +64,7 @@ class RankBandsRelationManager extends RelationManager
             ->reorderable('sort_order')
             ->headerActions([
                 CreateAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['sort_order'] = (RankBand::where('competition_id', $this->getOwnerRecord()->id)->max('sort_order') ?? 0) + 1;
                         return $data;
@@ -72,10 +72,10 @@ class RankBandsRelationManager extends RelationManager
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft'),
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning'),
 
                 DeleteAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'draft')
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
                     ->before(fn ($record) => Division::where('rank_band_id', $record->id)->delete())
                     ->modalDescription(function ($record) {
                         $count = Division::where('rank_band_id', $record->id)->count();

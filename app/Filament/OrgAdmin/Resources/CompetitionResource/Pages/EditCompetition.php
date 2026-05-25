@@ -66,6 +66,22 @@ class EditCompetition extends EditRecord
                     ]);
                 }),
 
+            Action::make('tasks')
+                ->label(function () {
+                    $pending = $this->record->tasks()->where('completed', false)->count();
+                    return 'Tasks' . ($pending > 0 ? " ({$pending})" : '');
+                })
+                ->icon('heroicon-o-clipboard-document-check')
+                ->color(fn () => $this->record->tasks()->where('completed', false)->exists() ? 'warning' : 'gray')
+                ->url(fn () => CompetitionResource::getUrl('tasks', ['record' => $this->record])),
+
+            Action::make('insights')
+                ->label('AI Insights')
+                ->icon('heroicon-o-sparkles')
+                ->color('primary')
+                ->visible(fn () => in_array($this->record->status, ['open', 'closed', 'check_in', 'running', 'complete']))
+                ->url(fn () => CompetitionResource::getUrl('insights', ['record' => $this->record])),
+
             Action::make('history')
                 ->label('History')
                 ->icon('heroicon-o-clock')

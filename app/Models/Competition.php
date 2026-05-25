@@ -115,6 +115,16 @@ class Competition extends Model
         return $this->belongsTo(Competition::class, 'copied_from_id');
     }
 
+    public function insight(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(CompetitionInsight::class);
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(CompetitionTask::class)->orderBy('sort_order');
+    }
+
     public function isEnrolmentOpen(): bool
     {
         if ($this->status !== 'open') {

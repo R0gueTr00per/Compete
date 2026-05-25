@@ -71,6 +71,7 @@ class OrgAdminPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/OrgAdmin/Pages'), for: 'App\\Filament\\OrgAdmin\\Pages')
             ->pages([
                 \App\Filament\OrgAdmin\Pages\Dashboard::class,
+                \App\Filament\OrgAdmin\Pages\OrganisationSettings::class,
             ])
             ->discoverWidgets(in: app_path('Filament/OrgAdmin/Widgets'), for: 'App\\Filament\\OrgAdmin\\Widgets')
             ->widgets([
