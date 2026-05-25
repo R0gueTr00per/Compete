@@ -4,3 +4,9 @@
 .fi-ta-search-field input {
     font-size: 1rem;
 }
+
+/* Sidebar layout: prevent sidebar from collapsing in flex so it pushes content */
+@media (min-width: 1024px) {
+    .fi-sidebar { flex-shrink: 0; }
+    .fi-main-ctn { min-width: 0; }
+}

@@ -2,7 +2,7 @@
     {{-- Competition selector + filters --}}
     <div class="mb-5 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>
-        <x-filament::input.wrapper>
+        <x-filament::input.wrapper class="dark:bg-gray-900">
             <select wire:model.live="competition_id"
                 class="w-full block border-0 bg-transparent dark:bg-gray-900 py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
                 <option value="">— Select competition —</option>
@@ -62,7 +62,7 @@
                     </select>
                     <select wire:model.live="selectedDojo"
                         style="width: 13rem" class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1 px-2 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
-                        <option value="">— All dojos —</option>
+                        <option value="">— All Dojos/Clubs —</option>
                         @foreach ($this->getDojoOptions() as $dojo)
                             <option value="{{ $dojo }}">{{ $dojo }}</option>
                         @endforeach

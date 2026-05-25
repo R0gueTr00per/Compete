@@ -56,6 +56,7 @@ class ManageCompetitionInsights extends Page
                 ->requiresConfirmation(fn () => $this->getRecord()->insight !== null)
                 ->modalHeading('Refresh AI Insights')
                 ->modalDescription('This will regenerate insights using the latest competition data.')
+                ->modalWidth('sm')
                 ->modalSubmitActionLabel('Refresh')
                 ->action(function () {
                     if (! config('services.google_ai.api_key')) {
@@ -93,6 +94,7 @@ class ManageCompetitionInsights extends Page
                 ->requiresConfirmation()
                 ->modalHeading('Email insights')
                 ->modalDescription(fn () => 'Send these insights to ' . auth()->user()->email . '?')
+                ->modalWidth('sm')
                 ->modalSubmitActionLabel('Send')
                 ->action(function () {
                     $insight = $this->getRecord()->insight;

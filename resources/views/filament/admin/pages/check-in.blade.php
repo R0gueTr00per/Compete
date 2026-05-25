@@ -4,10 +4,10 @@
         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="flex-1">
-                <x-filament::input.wrapper>
+                <x-filament::input.wrapper class="dark:bg-slate-900">
                     <select
                         wire:model.live="competition_id"
-                        class="w-full block border-0 bg-transparent py-1.5 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6"
+                        class="w-full block border-0 bg-transparent py-1.5 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6 dark:bg-slate-900"
                     >
                         <option value="">— Select competition —</option>
                         @foreach ($this->getCompetitions() as $id => $name)

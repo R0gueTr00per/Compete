@@ -96,10 +96,7 @@ class ProfilesPage extends Page implements HasForms
                             ->disk('public')
                             ->directory('profile-photos')
                             ->visibility('public')
-                            ->maxSize(2048)
-                            ->afterStateHydrated(fn ($component, $state) =>
-                                $component->state($state && ! is_array($state) ? [$state] : ($state ?: []))
-                            ),
+                            ->maxSize(2048),
                     ]),
             ])
             ->statePath('data');

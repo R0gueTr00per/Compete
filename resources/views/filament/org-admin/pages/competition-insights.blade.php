@@ -32,6 +32,7 @@
                         <x-slot name="heading">
                             <div class="flex items-center justify-between w-full gap-2">
                                 <span class="text-gray-800 dark:text-gray-100 font-semibold">{{ $headingText }}</span>
+                                @if (str_starts_with($heading, '##'))
                                 <button
                                     wire:click="openCreateTaskModal(@js($headingText), @js($body))"
                                     class="flex-shrink-0 inline-flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
@@ -40,6 +41,7 @@
                                     <x-heroicon-o-plus-circle class="w-3.5 h-3.5" />
                                     Task
                                 </button>
+                                @endif
                             </div>
                         </x-slot>
 

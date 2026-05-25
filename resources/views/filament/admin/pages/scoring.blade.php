@@ -3,9 +3,9 @@
     <div class="mb-5 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>
         <div class="flex flex-wrap gap-3">
-            <x-filament::input.wrapper class="flex-1 min-w-48">
+            <x-filament::input.wrapper class="flex-1 min-w-48 dark:bg-slate-900">
                 <select wire:model.live="competition_id"
-                    class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
+                    class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0 dark:bg-slate-900">
                     <option value="">— Select competition —</option>
                     @foreach ($this->getCompetitions() as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
@@ -50,6 +50,13 @@
             }
             .scoring-row-pulse {
                 animation: scoring-row-pulse .8s ease-out forwards;
+            }
+            @keyframes event-header-pulse {
+                0%, 100% { filter: drop-shadow(0 0 3px var(--primary-glow, #818cf8)); }
+                50%       { filter: drop-shadow(0 0 9px var(--primary-glow, #818cf8)) drop-shadow(0 0 2px var(--primary-glow, #818cf8)); }
+            }
+            .event-header-pulse-active {
+                animation: event-header-pulse 2.5s ease-in-out infinite;
             }
             input[type=number]::-webkit-outer-spin-button,
             input[type=number]::-webkit-inner-spin-button {
@@ -136,7 +143,7 @@
                     class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
                         {{ $rowClass }}
                         {{ $selected
-                            ? 'ring-2 ring-primary-500 hover:ring-primary-600'
+                            ? 'ring-2 ring-primary-500 hover:ring-primary-600 event-header-pulse-active'
                             : 'hover:border-primary-300 dark:hover:border-primary-600' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">

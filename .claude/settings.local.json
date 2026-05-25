@@ -289,7 +289,12 @@
       "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource/Pages/ManageCompetitionInsights.php\")",
       "Bash(php -l \"app/Filament/OrgAdmin/Pages/Dashboard.php\")",
       "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource.php\")",
-      "PowerShell(Get-ChildItem \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\\" | Where-Object { $_.Name -match \"2026\" } | Select-Object -Last 3 -ExpandProperty Name)"
+      "PowerShell(Get-ChildItem \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\\" | Where-Object { $_.Name -match \"2026\" } | Select-Object -Last 3 -ExpandProperty Name)",
+      "Bash(xargs ls -lt)",
+      "Bash(xargs grep -l \"fi-section-content\")",
+      "Bash(xargs grep -l \"fi-btn\")",
+      "Bash(xargs grep -l \"fi-topbar-open-sidebar-btn\\\\|topbar.start\")",
+      "Bash(git checkout *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

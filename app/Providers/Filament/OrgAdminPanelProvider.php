@@ -225,6 +225,19 @@ class OrgAdminPanelProvider extends PanelProvider
                     $loginUrl       = '/portal/login?reason=session_expired';
 
                     return new \Illuminate\Support\HtmlString('<script>
+                        document.addEventListener("alpine:initialized", function () {
+                            var BREAKPOINT = 1280;
+                            function syncSidebar() {
+                                if (window.innerWidth < BREAKPOINT) {
+                                    Alpine.store("sidebar").close();
+                                } else {
+                                    Alpine.store("sidebar").open();
+                                }
+                            }
+                            window.addEventListener("resize", syncSidebar);
+                            syncSidebar();
+                        });
+
                         window.addEventListener("livewire:page-expired", function () {
                             window.location.href = ' . json_encode($loginUrl) . ';
                         });

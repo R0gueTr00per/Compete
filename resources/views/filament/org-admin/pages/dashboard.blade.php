@@ -29,6 +29,11 @@
         .chevron-entering      { animation: chevron-enter 850ms ease-out both; }
         .chevron-partial-left  { clip-path: polygon(0 0, 100% 50%, 0 100%); }
         .chevron-partial-right { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%); }
+        @keyframes icon-shimmer {
+            0%, 100% { filter: brightness(1) drop-shadow(0 0 0px currentColor); }
+            50%       { filter: brightness(1.6) drop-shadow(0 0 3px currentColor); }
+        }
+        .icon-shimmer { animation: icon-shimmer 2.5s ease-in-out infinite; }
     </style>
 
     @if ($competitions->isEmpty())
@@ -201,38 +206,55 @@
                         @endif
                     </div>
 
-                    <div class="overflow-x-auto" style="-ms-overflow-style: none; scrollbar-width: none;">
-                        <div class="inline-flex gap-2 sm:flex sm:flex-wrap pb-0.5 sm:pb-0">
-                            @if ($isOrgAdmin && $competition->status === 'planning')
-                                <x-filament::button size="sm" color="gray" tag="a" href="{{ route('filament.org-admin.resources.competitions.edit', $competition) }}">
-                                    <span class="whitespace-nowrap">Edit competition</span>
-                                </x-filament::button>
-                            @endif
+                    @php
+                        $hideOnMobile = match ($competition->status) {
+                            'planning'  => ['scheduling', 'scoring'],
+                            'open'      => ['scoring'],
+                            'closed'    => ['scoring'],
+                            'check_in'  => ['scheduling'],
+                            'running'   => ['scheduling'],
+                            'complete'  => ['checkin'],
+                            default     => ['scoring'],
+                        };
+                    @endphp
+                    <div class="flex flex-wrap gap-2">
+                        @if ($isOrgAdmin && $competition->status === 'planning')
+                            <x-filament::button size="sm" color="gray" tag="a" href="{{ route('filament.org-admin.resources.competitions.edit', $competition) }}">
+                                Edit competition
+                            </x-filament::button>
+                        @endif
 
-                            @if ($isOrgAdmin || $officialRole?->can_access_enrolments)
+                        @if ($isOrgAdmin || $officialRole?->can_access_enrolments)
+                            <div class="{{ in_array('enrolments', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$enrolmentsColor" tag="a" href="{{ route('filament.org-admin.resources.enrolments.index') }}?competition_id={{ $competition->id }}">
-                                    <span class="whitespace-nowrap">Enrolments</span>
+                                    Enrolments
                                 </x-filament::button>
-                            @endif
+                            </div>
+                        @endif
 
-                            @if ($isOrgAdmin || $officialRole?->can_access_checkin)
+                        @if ($isOrgAdmin || $officialRole?->can_access_checkin)
+                            <div class="{{ in_array('checkin', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$checkInColor" tag="a" href="{{ route('filament.org-admin.pages.check-in') }}?competition_id={{ $competition->id }}">
-                                    <span class="whitespace-nowrap">Check-in</span>
+                                    Check-in
                                 </x-filament::button>
-                            @endif
+                            </div>
+                        @endif
 
-                            @if ($isOrgAdmin)
+                        @if ($isOrgAdmin)
+                            <div class="{{ in_array('scheduling', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$schedulingColor" tag="a" href="{{ route('filament.org-admin.resources.competitions.schedule', $competition) }}">
-                                    <span class="whitespace-nowrap">Scheduling</span>
+                                    Scheduling
                                 </x-filament::button>
-                            @endif
+                            </div>
+                        @endif
 
-                            @if ($isOrgAdmin || $officialRole?->can_access_scoring)
+                        @if ($isOrgAdmin || $officialRole?->can_access_scoring)
+                            <div class="{{ in_array('scoring', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$scoringColor" tag="a" href="{{ route('filament.org-admin.pages.scoring') }}?competition_id={{ $competition->id }}">
-                                    <span class="whitespace-nowrap">Scoring</span>
+                                    Scoring
                                 </x-filament::button>
-                            @endif
-                        </div>
+                            </div>
+                        @endif
                     </div>
 
                     {{-- AI Insights summary (open+ competitions, org admin only) --}}
@@ -250,15 +272,16 @@
                                         ->filter(fn ($l) => preg_match('/^\s*[-*]/', $l))
                                         ->take(3)
                                         ->map(function ($l) {
-                                            $text = trim(preg_replace('/^\s*[-*]\s*/', '', $l));
-                                            return preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $text);
+                                            preg_match_all('/\*\*(.+?)\*\*/', $l, $bolds);
+                                            return implode(', ', array_map(fn ($s) => rtrim($s, ':'), $bolds[1]));
                                         })
+                                        ->filter()
                                         ->values();
                                 @endphp
                                 <div class="flex flex-col gap-2">
                                     <div class="flex-1 min-w-0">
                                         <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
-                                            <x-heroicon-o-sparkles class="w-3.5 h-3.5" />
+                                            <x-heroicon-o-sparkles class="w-3.5 h-3.5 icon-shimmer" />
                                             AI Insights
                                             <span class="font-normal opacity-70">&bull; {{ $insight->generated_at->diffForHumans() }}</span>
                                             <a href="{{ $insightsUrl }}" class="ml-auto text-xs font-normal text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap">
@@ -268,7 +291,7 @@
                                         @if ($bulletLines->isNotEmpty())
                                             <ul class="space-y-1">
                                                 @foreach ($bulletLines as $line)
-                                                    <li class="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1.5 {{ $loop->iteration > 2 ? 'hidden sm:flex' : '' }}">
+                                                    <li class="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1.5">
                                                         <span class="text-primary-500 mt-0.5 flex-shrink-0">•</span>
                                                         <span class="line-clamp-1 sm:line-clamp-none">{!! $line !!}</span>
                                                     </li>
@@ -304,7 +327,7 @@
                         <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/60">
                             <div class="flex items-center justify-between gap-3 mb-1.5">
                                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                                    <x-heroicon-o-clipboard-document-check class="w-3.5 h-3.5" />
+                                    <x-heroicon-o-clipboard-document-check class="w-3.5 h-3.5 icon-shimmer" />
                                     Tasks
                                 </p>
                                 <a href="{{ $tasksUrl }}" class="text-xs text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap">
