@@ -269,7 +269,7 @@
                                     preg_match('/## ✅ Action Items\s*([\s\S]*?)(?=\n## |$)/u', $insight->content, $matches);
                                     $actionSection = trim($matches[1] ?? '');
                                     $bulletLines = collect(explode("\n", $actionSection))
-                                        ->filter(fn ($l) => preg_match('/^\s*[-*]/', $l))
+                                        ->filter(fn ($l) => preg_match('/^[-*]/', $l))
                                         ->take(3)
                                         ->map(function ($l) {
                                             preg_match_all('/\*\*(.+?)\*\*/', $l, $bolds);
