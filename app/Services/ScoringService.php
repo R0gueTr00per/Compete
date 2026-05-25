@@ -70,6 +70,10 @@ class ScoringService
      */
     public function autoRankDivision(Division $division): void
     {
+        if ($division->placement_override_mode) {
+            return;
+        }
+
         $results = Result::where('division_id', $division->id)
             ->where('disqualified', false)
             ->get();

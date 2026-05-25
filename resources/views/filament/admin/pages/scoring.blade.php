@@ -189,6 +189,7 @@
                             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
                             ->count();
                         $competitorCount = $rows->count();
+                        $usedPlacements  = $rows->pluck('result.placement')->filter()->values()->all();
                     @endphp
                     <div class="mb-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-800 p-4">
 
@@ -838,7 +839,7 @@
 
                                                 @if ($result->placement && (
                                                     $method === 'win_loss' ||
-                                                    (in_array($method, ['judges_total', 'judges_average']) && $isSaved) ||
+                                                    (in_array($method, ['judges_total', 'judges_average']) && ($result->total_score !== null || $result->placement_overridden)) ||
                                                     ($method === 'first_to_n' && $result->total_score !== null)
                                                 ))
                                                     <div class="shrink-0">
@@ -932,7 +933,9 @@
                                                                 class="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white px-2 py-2">
                                                                 <option value="">—</option>
                                                                 @for ($p = 1; $p <= $rows->count(); $p++)
-                                                                    <option value="{{ $p }}" {{ ($result->placement == $p) ? 'selected' : '' }}>{{ $p }}</option>
+                                                                    @if (! in_array($p, $usedPlacements) || $result->placement == $p)
+                                                                        <option value="{{ $p }}" {{ $result->placement == $p ? 'selected' : '' }}>{{ $p }}</option>
+                                                                    @endif
                                                                 @endfor
                                                             </select>
                                                         </div>
@@ -1124,13 +1127,15 @@
                                                                 class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white px-1 py-0.5 w-14">
                                                                 <option value="">—</option>
                                                                 @for ($p = 1; $p <= $rows->count(); $p++)
-                                                                    <option value="{{ $p }}" {{ ($result->placement == $p) ? 'selected' : '' }}>{{ $p }}</option>
+                                                                    @if (! in_array($p, $usedPlacements) || $result->placement == $p)
+                                                                        <option value="{{ $p }}" {{ $result->placement == $p ? 'selected' : '' }}>{{ $p }}</option>
+                                                                    @endif
                                                                 @endfor
                                                             </select>
                                                         @else
                                                             @if ($result->placement && (
                                                                 $method === 'win_loss' ||
-                                                                (in_array($method, ['judges_total', 'judges_average']) && $isSaved) ||
+                                                                (in_array($method, ['judges_total', 'judges_average']) && ($result->total_score !== null || $result->placement_overridden)) ||
                                                                 ($method === 'first_to_n' && $result->total_score !== null)
                                                             ))
                                                                 <span class="font-bold {{ $result->placement_overridden ? 'text-warning-600' : '' }}">

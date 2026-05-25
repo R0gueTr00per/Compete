@@ -24,7 +24,12 @@ class Division extends Model
         'running_order',
         'location_label',
         'status',
+        'placement_override_mode',
         'combined_into_id',
+    ];
+
+    protected $casts = [
+        'placement_override_mode' => 'boolean',
     ];
 
     public function getActivitylogOptions(): LogOptions

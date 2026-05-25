@@ -246,6 +246,8 @@ class Scoring extends Page
 
         $division = Division::find($divisionId);
 
+        $this->placementOverrideMode = (bool) $division?->placement_override_mode;
+
         if ($division?->status === 'complete') {
             $this->rollcallMode = false;
             return;
@@ -352,6 +354,8 @@ class Scoring extends Page
             // rollcallPresent is intentionally preserved so previous ticks are still shown.
             $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
             RoundRobinMatch::where('division_id', $this->division_id)->delete();
+
+            Division::find($this->division_id)?->update(['placement_override_mode' => false]);
 
             $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
             Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
@@ -523,6 +527,10 @@ class Scoring extends Page
 
                 if (! isset($this->pointsInput[$result->id]) && $result->total_score !== null) {
                     $this->pointsInput[$result->id] = (int) $result->total_score;
+                }
+
+                if (! isset($this->placementInput[$result->id]) && $result->placement_overridden && $result->placement !== null) {
+                    $this->placementInput[$result->id] = $result->placement;
                 }
 
                 return (object) [
@@ -1367,7 +1375,15 @@ class Scoring extends Page
         $result    = Result::find($resultId);
         $placement = (int) ($this->placementInput[$resultId] ?? 0);
 
-        if (! $result || $placement < 1) return;
+        if (! $result) return;
+
+        if ($placement < 1) {
+            if ($result->placement_overridden) {
+                $result->forceFill(['placement' => null, 'placement_overridden' => false])->save();
+                Notification::make()->title('Placement cleared.')->success()->send();
+            }
+            return;
+        }
 
         $service = app(ScoringService::class);
         $service->overridePlacement($result, $placement);
@@ -1393,7 +1409,18 @@ class Scoring extends Page
     {
         $this->placementOverrideMode = ! $this->placementOverrideMode;
 
-        if (! $this->placementOverrideMode) {
+        $division = Division::find($this->division_id);
+        if (! $division) return;
+
+        $division->placement_override_mode = $this->placementOverrideMode;
+        $division->save();
+
+        if ($this->placementOverrideMode) {
+            // Null out stale auto-ranked placements so non-set competitors start blank.
+            Result::where('division_id', $division->id)
+                ->where('placement_overridden', false)
+                ->update(['placement' => null]);
+        } else {
             foreach ($this->getCompetitorRows() as $row) {
                 app(ScoringService::class)->clearPlacementOverride($row->result);
             }
@@ -1451,6 +1478,8 @@ class Scoring extends Page
     {
         if (! $this->division_id) return;
 
+        Division::find($this->division_id)?->update(['placement_override_mode' => false]);
+
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
@@ -1476,6 +1505,8 @@ class Scoring extends Page
         RoundRobinMatch::where('division_id', $this->division_id)->delete();
 
         EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
+
+        Division::find($this->division_id)?->update(['placement_override_mode' => false]);
 
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
