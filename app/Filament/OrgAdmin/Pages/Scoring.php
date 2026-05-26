@@ -250,6 +250,11 @@ class Scoring extends Page
 
         if ($division?->status === 'complete') {
             $this->rollcallMode = false;
+            $eeIds = EnrolmentEvent::where('division_id', $divisionId)->pluck('id');
+            $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
+                ->whereNotNull('total_score')
+                ->pluck('id')
+                ->toArray();
             return;
         }
 
@@ -1815,7 +1820,6 @@ class Scoring extends Page
 
         Division::find($this->division_id)?->update(['status' => 'complete']);
         Notification::make()->title('Division marked complete.')->success()->send();
-        $this->panelOpen = false;
     }
 
     public function updatedCompetitionId(): void

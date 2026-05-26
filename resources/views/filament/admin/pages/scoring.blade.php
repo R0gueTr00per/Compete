@@ -147,7 +147,7 @@
                     id="division-row-{{ $div->id }}"
                     wire:key="division-{{ $div->id }}"
                     wire:click="selectDivision({{ $div->id }})"
-                    class="division-enter flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
+                    class="{{ $selected ? '' : 'division-enter' }} flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
                         {{ $rowClass }}
                         {{ $selected
                             ? 'ring-2 ring-primary-500 hover:ring-primary-600 event-header-pulse-active'
@@ -1528,14 +1528,16 @@
                             @endif
 
                             {{-- Head judge override when tiebreaker also ties --}}
-                            @if ($stillTied->isNotEmpty() && ! $isReadOnly)
+                            @if ($stillTied->isNotEmpty())
                                 <div class="mt-3 rounded-lg border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 p-4">
                                     <p class="text-sm font-semibold text-danger-800 dark:text-danger-300 mb-1">
                                         Still tied after sudden death — head judge decides
                                     </p>
+                                    @if (! $isReadOnly)
                                     <p class="text-xs text-danger-600 dark:text-danger-400 mb-3">
                                         Select a place for each competitor, then press <strong>Save</strong>. All places must be saved before the division can be marked complete.
                                     </p>
+                                    @endif
                                     @foreach ($stillTied as $group)
                                         @php
                                             $groupTotalScore = (float) $group->first()->result->total_score;
@@ -1579,10 +1581,12 @@
                                                             @endswitch
                                                             <span class="text-xs text-warning-600 dark:text-warning-400">(ov)</span>
                                                         </span>
-                                                        <x-filament::button size="xs" color="gray"
-                                                            wire:click="headJudgeUndoPlacement({{ $row->result->id }})">
-                                                            Undo
-                                                        </x-filament::button>
+                                                        @if (! $isReadOnly)
+                                                            <x-filament::button size="xs" color="gray"
+                                                                wire:click="headJudgeUndoPlacement({{ $row->result->id }})">
+                                                                Undo
+                                                            </x-filament::button>
+                                                        @endif
                                                     @else
                                                         <select wire:model="placementInput.{{ $row->result->id }}"
                                                             class="shrink-0 rounded border border-warning-300 dark:border-warning-600 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white px-2 py-1.5">
