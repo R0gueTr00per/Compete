@@ -51,6 +51,12 @@ class EnrolmentConfirmedNotification extends Notification implements ShouldQueue
             $message->line("**Venue:** {$competition->location_name}");
         }
 
-        return $message->action('View my enrolments', url('/portal'));
+        if ($this->enrolment->checkin_code) {
+            $message
+                ->line("**Check-in code:** `{$this->enrolment->checkin_code}`")
+                ->line('Your QR code is available on the competitor portal — show it at the check-in desk for a fast scan.');
+        }
+
+        return $message->action('View my enrolments & QR code', url('/portal'));
     }
 }

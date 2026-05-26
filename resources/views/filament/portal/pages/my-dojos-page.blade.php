@@ -73,10 +73,43 @@
                                             {{ $name }}
                                             <span class="ml-1 text-xs text-gray-400 dark:text-gray-500">({{ $eventCount }} {{ Str::plural('event', $eventCount) }})</span>
                                         </span>
-                                        <x-heroicon-m-chevron-down
-                                            x-bind:class="open ? 'rotate-180' : ''"
-                                            class="h-4 w-4 text-gray-400 shrink-0 transition-transform" />
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            @if ($enrolment->payment_status === 'received')
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400">
+                                                    Paid ${{ number_format($enrolment->payment_amount ?? $enrolment->fee_calculated, 2) }}
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400">
+                                                    Owes ${{ number_format($enrolment->fee_calculated, 2) }}
+                                                </span>
+                                            @endif
+                                            <x-heroicon-m-chevron-down
+                                                x-bind:class="open ? 'rotate-180' : ''"
+                                                class="h-4 w-4 text-gray-400 transition-transform" />
+                                        </div>
                                     </button>
+
+                                    {{-- Payment form --}}
+                                    @if ($enrolment->payment_status !== 'received')
+                                        <div class="mt-2 flex items-center gap-2">
+                                            <span class="text-xs text-gray-500 dark:text-gray-400">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                inputmode="decimal"
+                                                wire:model="paymentAmounts.{{ $enrolment->id }}"
+                                                placeholder="{{ number_format($enrolment->fee_calculated, 2) }}"
+                                                class="w-24 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                            />
+                                            <button
+                                                type="button"
+                                                wire:click="recordPayment({{ $enrolment->id }})"
+                                                class="rounded-md bg-success-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
+                                                Record payment
+                                            </button>
+                                        </div>
+                                    @endif
 
                                     {{-- Events --}}
                                     <div x-show="open" x-collapse class="mt-2 pl-2 flex flex-col gap-1.5">

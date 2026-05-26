@@ -104,9 +104,9 @@
                                 };
                             @endphp
 
-                            <div class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 overflow-hidden">
+                            <div x-data="{ qrOpen: false }" class="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 overflow-hidden">
                                 {{-- Competition header --}}
-                                <div class="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between gap-3">
+                                <div class="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between gap-3 bg-gray-100 dark:bg-slate-900">
                                     <div>
                                         <p class="text-sm font-semibold text-gray-900 dark:text-white">
                                             {{ $competition->name }}
@@ -127,9 +127,22 @@
                                             </x-filament::button>
                                         @endif
                                         @if (! $isEnrolled || ! $enrolmentOpen)
-                                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $statusClass }}">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {{ $statusClass }}">
+                                                @if (in_array($competition->status, ['check_in', 'running']))
+                                                    <span class="relative flex h-2 w-2 shrink-0">
+                                                        <span class="live-ping absolute inline-flex h-full w-full rounded-full {{ $competition->status === 'running' ? 'bg-danger-400' : 'bg-primary-400' }} opacity-75"></span>
+                                                        <span class="relative inline-flex h-2 w-2 rounded-full {{ $competition->status === 'running' ? 'bg-danger-500' : 'bg-primary-500' }}"></span>
+                                                    </span>
+                                                @endif
                                                 {{ $statusLabel }}
                                             </span>
+                                        @endif
+                                        {{-- Small QR button in header — desktop only --}}
+                                        @if ($isEnrolled && in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
+                                            <button x-on:click="qrOpen = true"
+                                                class="hidden sm:flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors overflow-hidden p-0.5 shrink-0">
+                                                <x-qr-code :value="url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code" :size="28" />
+                                            </button>
                                         @endif
                                     </div>
                                 </div>
@@ -154,35 +167,36 @@
                                         @endif
                                     </div>
 
-                                    {{-- Enrolled events --}}
+                                    {{-- QR (mobile only — desktop has the header button) --}}
+                                    @if (in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
+                                        <div x-on:click="qrOpen = true" class="qr-reveal sm:hidden flex flex-col items-center gap-1 px-3 py-3 border-b border-gray-100 dark:border-slate-700 cursor-pointer active:opacity-70 transition-opacity">
+                                            <p class="text-xs text-gray-400 dark:text-gray-500">Check-in QR <span class="text-gray-300 dark:text-gray-600">&middot; tap to enlarge</span></p>
+                                            <x-qr-code :value="url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code" :size="128" />
+                                            <span class="text-xs font-mono font-semibold tracking-widest text-gray-600 dark:text-gray-400">{{ $enrolment->checkin_code }}</span>
+                                        </div>
+                                    @endif
+
+                                    {{-- Events list --}}
                                     <div class="divide-y divide-gray-100 dark:divide-slate-700 px-4">
                                         @forelse ($enrolment->activeEvents as $ee)
-                                            <div class="py-3.5 flex items-start justify-between gap-4 leading-relaxed">
-                                                <div>
-                                                    <p class="font-medium text-sm text-gray-900 dark:text-white">
-                                                        {{ $ee->competitionEvent->name }}
-                                                        @if ($ee->division?->location_label)
-                                                            <span class="text-gray-400 font-normal">({{ $ee->division->location_label }})</span>
+                                            <div class="py-2 sm:py-1">
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $ee->competitionEvent->name }}</p>
+                                                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                                                        @if ($ee->division)
+                                                            {{ $ee->division->label }}
+                                                            @if ($ee->division->location_label)
+                                                                ({{ $ee->division->location_label }})
+                                                            @endif
+                                                        @else
+                                                            TBC
                                                         @endif
-                                                    </p>
-                                                    @if ($ee->division)
-                                                        <p class="text-xs text-gray-500 mt-0.5">{{ $ee->division->full_label }}</p>
-                                                    @else
-                                                        <p class="text-xs text-gray-400 mt-0.5">Division to be confirmed</p>
-                                                    @endif
-                                                    @if ($ee->competitionEvent->requires_partner)
-                                                        <p class="text-xs mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">
-                                                            Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending partner enrolment' }}
-                                                        </p>
-                                                    @endif
-                                                </div>
-
-                                                <div class="text-right text-sm shrink-0">
+                                                    </span>
                                                     @if ($ee->result)
                                                         @if ($ee->result->disqualified)
                                                             <span class="text-danger-600 font-semibold text-xs">DQ</span>
                                                         @elseif ($ee->result->placement)
-                                                            <span class="font-bold text-primary-600">
+                                                            <span class="font-bold text-xs text-primary-600">
                                                                 @switch($ee->result->placement)
                                                                     @case(1) 🥇 1st @break
                                                                     @case(2) 🥈 2nd @break
@@ -190,25 +204,46 @@
                                                                     @default {{ $ee->result->placement }}th
                                                                 @endswitch
                                                             </span>
-                                                        @endif
-                                                        @if ($ee->result->win_loss)
-                                                            <p class="text-xs {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">
+                                                        @elseif ($ee->result->win_loss)
+                                                            <span class="text-xs {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">
                                                                 {{ ucfirst($ee->result->win_loss) }}
-                                                            </p>
-                                                        @endif
-                                                        @if (! $ee->result->placement && ! $ee->result->win_loss && ! $ee->result->total_score && ! $ee->result->disqualified)
-                                                            <span class="text-gray-400 text-xs">Result pending</span>
+                                                            </span>
+                                                        @elseif (! $ee->result->total_score)
+                                                            <span class="text-gray-400 text-xs">Pending</span>
                                                         @endif
                                                     @else
-                                                        <span class="text-gray-400 text-xs">Result pending</span>
+                                                        <span class="text-gray-400 text-xs">Pending</span>
                                                     @endif
                                                 </div>
+                                                @if ($ee->competitionEvent->requires_partner)
+                                                    <p class="text-xs mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">
+                                                        Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}
+                                                    </p>
+                                                @endif
                                             </div>
                                         @empty
                                             <p class="py-3 text-xs text-gray-400">No events in this enrolment.</p>
                                         @endforelse
                                     </div>
+
                                     <p class="px-4 py-2 text-xs text-gray-400 italic border-t border-gray-100 dark:border-slate-700">Organisers reserve the right to merge or cancel any event on the day.</p>
+
+                                    {{-- QR modal (fullscreen on mobile, centered box on desktop) --}}
+                                    @if (in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
+                                        <div x-show="qrOpen" x-cloak x-transition.opacity
+                                             x-on:click="qrOpen = false"
+                                             class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4">
+                                            <div class="flex flex-col items-center justify-center gap-4
+                                                        w-full h-full bg-white dark:bg-slate-900
+                                                        sm:w-64 sm:h-auto sm:rounded-2xl sm:p-6 sm:shadow-xl">
+                                                <p class="font-semibold text-gray-900 dark:text-white">{{ $profile->full_name }}</p>
+                                                <p class="text-xs text-gray-500 -mt-2">{{ $competition->name }}</p>
+                                                <x-qr-code :value="url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code" :size="240" />
+                                                <span class="text-2xl font-mono font-bold tracking-widest text-gray-700 dark:text-gray-300">{{ $enrolment->checkin_code }}</span>
+                                                <p class="text-xs text-gray-400 dark:text-gray-500">Tap anywhere to close</p>
+                                            </div>
+                                        </div>
+                                    @endif
 
                                 @elseif ($enrolmentOpen && $profile->is_active)
                                     <div class="px-4 py-4 flex justify-center">

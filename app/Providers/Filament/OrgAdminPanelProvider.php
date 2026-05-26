@@ -99,6 +99,7 @@ class OrgAdminPanelProvider extends PanelProvider
             ->renderHook(
                 'panels::head.end',
                 fn () => new \Illuminate\Support\HtmlString(
+                    '<script src="' . asset('js/jsqr.js') . '"></script>' .
                     '<link rel="stylesheet" href="' . \Illuminate\Support\Facades\Vite::asset('resources/css/filament-app.css') . '">' .
                     '<style>
                     :root {
@@ -185,6 +186,66 @@ class OrgAdminPanelProvider extends PanelProvider
                         '</span></div>'
                     );
                 }
+            )
+            ->renderHook(
+                'panels::body.end',
+                fn () => new \Illuminate\Support\HtmlString('<script>
+                    document.addEventListener("alpine:init", function () {
+                        Alpine.data("qrScanner", function () {
+                            return {
+                                scanning: false,
+                                stream: null,
+                                error: null,
+                                startScan: async function () {
+                                    this.error = null;
+                                    try {
+                                        this.stream = await navigator.mediaDevices.getUserMedia({
+                                            video: { facingMode: { ideal: "environment" } },
+                                        });
+                                        this.$refs.video.srcObject = this.stream;
+                                        await this.$refs.video.play();
+                                        this.scanning = true;
+                                        this.tick();
+                                    } catch (e) {
+                                        this.error = "Camera access denied or unavailable.";
+                                    }
+                                },
+                                stopScan: function () {
+                                    this.scanning = false;
+                                    if (this.stream) {
+                                        this.stream.getTracks().forEach(function (t) { t.stop(); });
+                                        this.stream = null;
+                                    }
+                                },
+                                tick: function () {
+                                    if (!this.scanning) return;
+                                    var self = this;
+                                    var video = this.$refs.video;
+                                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                                        var canvas = this.$refs.canvas;
+                                        canvas.width = video.videoWidth;
+                                        canvas.height = video.videoHeight;
+                                        var ctx = canvas.getContext("2d");
+                                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                        var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                        var result = window.jsQR(imageData.data, canvas.width, canvas.height, { inversionAttempts: "dontInvert" });
+                                        if (result) {
+                                            self.onDetected(result.data);
+                                            return;
+                                        }
+                                    }
+                                    requestAnimationFrame(function () { self.tick(); });
+                                },
+                                onDetected: function (value) {
+                                    var match = value.match(/[?&]code=([A-Z0-9]+)/i);
+                                    var code = match ? match[1].toUpperCase() : value.toUpperCase();
+                                    this.stopScan();
+                                    this.$dispatch("qr-scanned", { code: code });
+                                },
+                            };
+                        });
+                    });
+                </script>')
             )
             ->renderHook(
                 'panels::body.end',

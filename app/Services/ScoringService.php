@@ -83,22 +83,27 @@ class ScoringService
         $now     = now();
 
         if (in_array($method, ['judges_total', 'judges_average', 'first_to_n'])) {
-            $ranked    = $results->sortByDesc(fn ($r) => [$r->total_score ?? PHP_INT_MIN, $r->tiebreaker_score ?? PHP_INT_MIN])->values();
-            $place     = 1;
-            $prevScore = null;
-            $prevTb    = null;
-            $prevPlace = 1;
+            $ranked         = $results->sortByDesc(fn ($r) => [$r->total_score ?? PHP_INT_MIN, $r->tiebreaker_score ?? PHP_INT_MIN])->values();
+            $place          = 1;
+            $prevScore      = null;
+            $prevTb         = null;
+            $prevPlace      = 1;
+            $prevOverridden = false;
             foreach ($ranked as $i => $result) {
                 if (! $result->placement_overridden) {
                     $sameAsPrev    = $i > 0
+                        && ! $prevOverridden
                         && (float) ($result->total_score ?? PHP_INT_MIN) === (float) ($prevScore ?? PHP_INT_MIN)
                         && (float) ($result->tiebreaker_score ?? PHP_INT_MIN) === (float) ($prevTb ?? PHP_INT_MIN);
                     $assignedPlace = $sameAsPrev ? $prevPlace : $place;
                     $updates[]     = ['id' => $result->id, 'placement' => $assignedPlace, 'updated_at' => $now];
                     $prevPlace     = $assignedPlace;
+                } else {
+                    $prevPlace = $place;
                 }
-                $prevScore = $result->total_score;
-                $prevTb    = $result->tiebreaker_score;
+                $prevScore      = $result->total_score;
+                $prevTb         = $result->tiebreaker_score;
+                $prevOverridden = $result->placement_overridden;
                 $place++;
             }
         } elseif ($method === 'win_loss') {

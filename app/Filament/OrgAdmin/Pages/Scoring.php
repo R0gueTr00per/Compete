@@ -578,11 +578,21 @@ class Scoring extends Page
 
         if ($rows->isEmpty()) return false;
 
+        if (in_array($method, ['judges_total', 'judges_average'])) {
+            if (! $rows->every(fn ($row) => $row->result->disqualified || $row->result->total_score !== null)) {
+                return false;
+            }
+            $stillTied = $this->getStillTiedAfterTiebreaker();
+            if ($stillTied->isNotEmpty()) {
+                return $stillTied->every(fn ($group) => $group->every(fn ($r) => $r->result->placement_overridden));
+            }
+            return true;
+        }
+
         return $rows->every(fn ($row) => $row->result->disqualified || match ($method) {
-            'judges_total', 'judges_average' => $row->result->total_score !== null,
-            'win_loss'                       => $row->result->win_loss !== null,
-            'first_to_n'                     => $row->result->total_score !== null,
-            default                          => true,
+            'win_loss'   => $row->result->win_loss !== null,
+            'first_to_n' => $row->result->total_score !== null,
+            default      => true,
         });
     }
 
@@ -1349,6 +1359,34 @@ class Scoring extends Page
 
     public function undoJudgeScores(int $resultId): void
     {
+        $result = Result::find($resultId);
+        if ($result) {
+            $service      = app(ScoringService::class);
+            $hasTiebreaker = $result->tiebreaker_score !== null;
+
+            if ($hasTiebreaker) {
+                $service->clearTiebreakerScore($result);
+                unset($this->tiebreakerJudgeInputs[$resultId]);
+            }
+
+            // Clear any head-judge placement overrides on same-score peers
+            $eeIds   = EnrolmentEvent::where('division_id', $result->division_id)->pluck('id');
+            $cleared = Result::whereIn('enrolment_event_id', $eeIds)
+                ->where('total_score', $result->total_score)
+                ->where('placement_overridden', true)
+                ->pluck('id');
+
+            if ($cleared->isNotEmpty()) {
+                Result::whereIn('id', $cleared)->update(['placement_overridden' => false]);
+                foreach ($cleared as $rid) {
+                    unset($this->placementInput[$rid]);
+                }
+                if (! $hasTiebreaker) {
+                    $service->autoRankDivision(Division::find($result->division_id));
+                }
+            }
+        }
+
         $this->savedResultIds = array_values(array_diff($this->savedResultIds, [$resultId]));
     }
 
@@ -1394,6 +1432,32 @@ class Scoring extends Page
         }
 
         Notification::make()->title('Placement overridden.')->warning()->send();
+    }
+
+    public function headJudgeSavePlacement(int $resultId): void
+    {
+        $result    = Result::find($resultId);
+        $placement = (int) ($this->placementInput[$resultId] ?? 0);
+
+        if (! $result || $placement < 1) {
+            Notification::make()->title('Select a place first.')->warning()->send();
+            return;
+        }
+
+        $service = app(ScoringService::class);
+        $service->overridePlacement($result, $placement);
+        $service->autoRankDivision(Division::find($result->division_id));
+        Notification::make()->title('Placement saved.')->success()->send();
+    }
+
+    public function headJudgeUndoPlacement(int $resultId): void
+    {
+        $result = Result::find($resultId);
+        if (! $result) return;
+
+        app(ScoringService::class)->clearPlacementOverride($result);
+        unset($this->placementInput[$resultId]);
+        Notification::make()->title('Placement cleared.')->success()->send();
     }
 
     public function clearOverride(int $resultId): void
@@ -1640,6 +1704,20 @@ class Scoring extends Page
     {
         $result = Result::find($resultId);
         if (! $result) return;
+
+        // Clear head-judge placement overrides on this result and same-score peers
+        $eeIds   = EnrolmentEvent::where('division_id', $result->division_id)->pluck('id');
+        $cleared = Result::whereIn('enrolment_event_id', $eeIds)
+            ->where('total_score', $result->total_score)
+            ->where('placement_overridden', true)
+            ->pluck('id');
+
+        if ($cleared->isNotEmpty()) {
+            Result::whereIn('id', $cleared)->update(['placement_overridden' => false]);
+            foreach ($cleared as $rid) {
+                unset($this->placementInput[$rid]);
+            }
+        }
 
         unset($this->tiebreakerJudgeInputs[$resultId]);
         app(ScoringService::class)->clearTiebreakerScore($result);

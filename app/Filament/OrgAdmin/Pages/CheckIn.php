@@ -28,6 +28,10 @@ class CheckIn extends Page
 
     #[Url]
     public ?int $competition_id = null;
+
+    #[Url]
+    public ?string $code = null;
+
     public string $search = '';
     public array $weights = [];
     public array $paymentAmounts = [];
@@ -35,6 +39,17 @@ class CheckIn extends Page
 
     public function mount(): void
     {
+        if ($this->code) {
+            $this->code = strtoupper(trim($this->code));
+        }
+
+        if ($this->code && ! $this->competition_id) {
+            $enrolment = Enrolment::where('checkin_code', $this->code)->first();
+            if ($enrolment) {
+                $this->competition_id = $enrolment->competition_id;
+            }
+        }
+
         if ($this->competition_id) {
             return;
         }
@@ -55,6 +70,32 @@ class CheckIn extends Page
         if ($competition) {
             $this->competition_id = $competition->id;
         }
+    }
+
+    public function updatedCode(): void
+    {
+        $this->code = strtoupper(trim($this->code ?? '')) ?: null;
+
+        if ($this->code) {
+            if (! $this->competition_id) {
+                $enrolment = Enrolment::where('checkin_code', $this->code)->first();
+                if ($enrolment) {
+                    $this->competition_id = $enrolment->competition_id;
+                }
+            }
+
+            if (Enrolment::where('checkin_code', $this->code)
+                ->where('competition_id', $this->competition_id)
+                ->exists()
+            ) {
+                $this->dispatch('checkin-code-matched');
+            }
+        }
+    }
+
+    public function clearCode(): void
+    {
+        $this->code = null;
     }
 
     public function getCompetitions(): array
@@ -82,7 +123,9 @@ class CheckIn extends Page
             ])
             ->whereHas('activeEvents');
 
-        if ($this->search) {
+        if ($this->code) {
+            $query->where('checkin_code', $this->code);
+        } elseif ($this->search) {
             $query->whereHas('competitor', fn ($q) =>
                 $q->where('surname', 'like', '%' . $this->search . '%')
                   ->orWhere('first_name', 'like', '%' . $this->search . '%')
@@ -129,6 +172,9 @@ class CheckIn extends Page
 
         app(CheckInService::class)->checkIn($enrolment);
         Notification::make()->title('Checked in.')->success()->send();
+
+        $this->code = null;
+        $this->dispatch('checkin-complete', id: $enrolmentId);
     }
 
     public function recordPayment(int $enrolmentId): void
@@ -149,23 +195,45 @@ class CheckIn extends Page
 
         unset($this->paymentAmounts[$enrolmentId]);
         Notification::make()->title('Payment recorded.')->success()->send();
+        $this->dispatch('payment-recorded', id: $enrolmentId);
     }
 
     public function undoCheckIn(int $enrolmentId): void
     {
-        $competition = Competition::find($this->competition_id);
-        if ($competition?->status === 'running') {
-            Notification::make()->title('Cannot undo check-in — competition is running.')->danger()->send();
-            return;
-        }
-
         $enrolment = Enrolment::find($enrolmentId);
         if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
             return;
         }
 
+        $hasScores = $enrolment->activeEvents()
+            ->whereHas('result', fn ($q) => $q
+                ->whereNotNull('total_score')
+                ->orWhereNotNull('win_loss')
+                ->orWhereHas('judgeScores')
+            )
+            ->exists();
+
+        if ($hasScores) {
+            Notification::make()
+                ->title('Cannot undo — scores already recorded for this competitor.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $competition = Competition::find($this->competition_id);
+
         app(CheckInService::class)->undoCheckIn($enrolment);
-        Notification::make()->title('Check-in reversed.')->warning()->send();
+
+        $notification = Notification::make()->title('Check-in reversed.');
+
+        if ($competition?->status === 'running') {
+            $notification->body('Competition is running — verify this competitor has not yet been called.')->warning();
+        } else {
+            $notification->warning();
+        }
+
+        $notification->send();
     }
 
     public function confirmWeight(int $enrolmentId): void

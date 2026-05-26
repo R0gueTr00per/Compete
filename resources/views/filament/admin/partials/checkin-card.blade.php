@@ -15,7 +15,7 @@
     $paymentOutstanding = $enrolment->isPaymentOutstanding();
 @endphp
 
-<div class="rounded-xl border {{ $checkedIn ? 'border-success-200 dark:border-success-800' : 'border-gray-200 dark:border-slate-700' }} bg-white dark:bg-slate-900 shadow-sm p-4">
+<div data-enrolment-id="{{ $enrolment->id }}" class="rounded-xl border {{ $checkedIn ? 'border-success-200 dark:border-success-800' : 'border-gray-200 dark:border-slate-700' }} bg-white dark:bg-slate-900 shadow-sm p-4">
 
     {{-- Header row: name + check-in button --}}
     <div class="flex items-center justify-between gap-3 mb-3">
@@ -50,11 +50,9 @@
                         <x-heroicon-s-check-circle class="w-4 h-4" />
                         {{ $enrolment->checked_in_at?->format('H:i') }}
                     </span>
-                    @if ($competitionStatus !== 'running')
-                        <x-filament::button size="xs" color="gray" wire:click="undoCheckIn({{ $enrolment->id }})">
-                            Undo
-                        </x-filament::button>
-                    @endif
+                    <x-filament::button size="xs" color="gray" wire:click="undoCheckIn({{ $enrolment->id }})">
+                        Undo
+                    </x-filament::button>
                 </div>
             @else
                 <x-filament::button size="sm" color="success" wire:click="checkIn({{ $enrolment->id }})">
@@ -93,7 +91,7 @@
                 </div>
             @elseif ($weightDone)
                 @php $confirmedKg = $enrolment->activeEvents->firstWhere(fn($ee) => $ee->weight_confirmed_kg)?->weight_confirmed_kg; @endphp
-                <p class="text-xs text-success-600 font-medium">✓ Weight confirmed: {{ number_format($confirmedKg, 1) }} kg</p>
+                <p class="text-xs text-success-600 font-medium weight-confirm-enter">✓ Weight confirmed: {{ number_format($confirmedKg, 1) }} kg</p>
             @else
                 <p class="text-sm text-gray-500 mb-2">Check-in Weight</p>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">

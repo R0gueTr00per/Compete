@@ -58,6 +58,13 @@
             .event-header-pulse-active {
                 animation: event-header-pulse 2.5s ease-in-out infinite;
             }
+            @keyframes division-row-enter {
+                from { opacity: 0; transform: translateY(-5px); }
+                to   { opacity: 1; transform: translateY(0); }
+            }
+            .division-enter {
+                animation: division-row-enter 0.18s ease-out both;
+            }
             input[type=number]::-webkit-outer-spin-button,
             input[type=number]::-webkit-inner-spin-button {
                 -webkit-appearance: none;
@@ -140,11 +147,12 @@
                     id="division-row-{{ $div->id }}"
                     wire:key="division-{{ $div->id }}"
                     wire:click="selectDivision({{ $div->id }})"
-                    class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
+                    class="division-enter flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
                         {{ $rowClass }}
                         {{ $selected
                             ? 'ring-2 ring-primary-500 hover:ring-primary-600 event-header-pulse-active'
                             : 'hover:border-primary-300 dark:hover:border-primary-600' }}"
+                    style="animation-delay: {{ min($loop->index * 40, 320) }}ms"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="font-mono text-sm font-bold shrink-0 {{ $textClass }}">{{ $div->code }}</span>
@@ -790,9 +798,10 @@
                                 <div class="sm:hidden space-y-2">
                                     @foreach ($rows as $row)
                                         @php
-                                            $result     = $row->result;
-                                            $isSaved    = in_array($result->id, $this->savedResultIds);
-                                            $rawScores  = array_filter(array_values($this->judgeScores[$result->id] ?? []), fn ($v) => $v !== null && $v !== '');
+                                            $result           = $row->result;
+                                            $isSaved          = in_array($result->id, $this->savedResultIds);
+                                            $inTiebreakerFlow = $result->tiebreaker_score !== null || $result->placement_overridden;
+                                            $rawScores        = array_filter(array_values($this->judgeScores[$result->id] ?? []), fn ($v) => $v !== null && $v !== '');
                                             $scoreCount = count($rawScores);
                                             $liveTotal  = in_array($method, ['judges_total', 'judges_average']) && $scoreCount > 0
                                                 ? ($method === 'judges_average'
@@ -944,7 +953,8 @@
                                                     <div class="flex gap-2 pt-1">
                                                         @if ($isSaved)
                                                             <x-filament::button color="gray" class="flex-1"
-                                                                wire:click="undoJudgeScores({{ $result->id }})">Undo</x-filament::button>
+                                                                wire:click="undoJudgeScores({{ $result->id }})"
+                                                                :disabled="$inTiebreakerFlow">Undo</x-filament::button>
                                                         @else
                                                             <x-filament::button color="primary" class="flex-1"
                                                                 wire:click="saveJudgeScores({{ $result->id }})"
@@ -952,7 +962,8 @@
                                                         @endif
                                                         <x-filament::button
                                                             color="{{ $result->disqualified ? 'gray' : 'danger' }}"
-                                                            wire:click="toggleDisqualify({{ $result->id }})">
+                                                            wire:click="toggleDisqualify({{ $result->id }})"
+                                                            :disabled="$inTiebreakerFlow">
                                                             {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
                                                         </x-filament::button>
                                                     </div>
@@ -1034,10 +1045,11 @@
 
                                                     @if (in_array($method, ['judges_total', 'judges_average']))
                                                         @php
-                                                            $isSaved    = in_array($result->id, $this->savedResultIds);
-                                                            $rawScores  = array_filter(array_values($this->judgeScores[$result->id] ?? []), fn ($v) => $v !== null && $v !== '');
-                                                            $scoreCount = count($rawScores);
-                                                            $liveTotal  = $scoreCount > 0
+                                                            $isSaved          = in_array($result->id, $this->savedResultIds);
+                                                            $inTiebreakerFlow = $result->tiebreaker_score !== null || $result->placement_overridden;
+                                                            $rawScores        = array_filter(array_values($this->judgeScores[$result->id] ?? []), fn ($v) => $v !== null && $v !== '');
+                                                            $scoreCount       = count($rawScores);
+                                                            $liveTotal        = $scoreCount > 0
                                                                 ? ($method === 'judges_average'
                                                                     ? round(array_sum($rawScores) / $scoreCount, 1)
                                                                     : round(array_sum($rawScores), 1))
@@ -1050,18 +1062,20 @@
                                                                         {{ number_format((float) ($this->judgeScores[$result->id][$j] ?? 0), 1) }}
                                                                     </span>
                                                                 @else
-                                                                    <div class="flex items-center gap-1" x-data="{}">
+                                                                    <div class="flex items-center gap-1 {{ $isSaved ? 'opacity-50' : '' }}" x-data="{}">
                                                                         <button type="button"
                                                                             x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||0)-0.1)*10)/10; i.value=Math.max(0,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                            class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
+                                                                            class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform"
+                                                                            @if ($isSaved) disabled @endif>−</button>
                                                                         <input type="number" step="0.1" min="0" max="10"
                                                                             wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                            class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1 {{ $isSaved ? 'opacity-50' : '' }}"
+                                                                            class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
                                                                             placeholder="0.0"
                                                                             @if ($isSaved) disabled @endif />
                                                                         <button type="button"
                                                                             x-on:click="const i=$el.previousElementSibling; const v=Math.round((parseFloat(i.value||0)+0.1)*10)/10; i.value=Math.min(10,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                            class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                            class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform"
+                                                                            @if ($isSaved) disabled @endif>+</button>
                                                                     </div>
                                                                 @endif
                                                             </td>
@@ -1161,7 +1175,8 @@
                                                                 @if (in_array($method, ['judges_total', 'judges_average']))
                                                                     @if ($isSaved)
                                                                         <x-filament::button size="xs" color="gray"
-                                                                            wire:click="undoJudgeScores({{ $result->id }})">
+                                                                            wire:click="undoJudgeScores({{ $result->id }})"
+                                                                            :disabled="$inTiebreakerFlow">
                                                                             Undo
                                                                         </x-filament::button>
                                                                     @else
@@ -1173,7 +1188,8 @@
                                                                 @endif
                                                                 <x-filament::button size="xs"
                                                                     color="{{ $result->disqualified ? 'gray' : 'danger' }}"
-                                                                    wire:click="toggleDisqualify({{ $result->id }})">
+                                                                    wire:click="toggleDisqualify({{ $result->id }})"
+                                                                    :disabled="$inTiebreakerFlow ?? false">
                                                                     {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                 </x-filament::button>
                                                             </div>
@@ -1235,8 +1251,8 @@
                                                 @foreach ($group as $row)
                                                     @php
                                                         $result    = $row->result;
-                                                        $tbSaved   = $result->tiebreaker_score !== null;
-                                                        $tbDisplay = $tbSaved ? number_format((float) $result->tiebreaker_score, 1) : '—';
+                                                        $tbSaved   = $result->tiebreaker_score !== null || $result->placement_overridden;
+                                                        $tbDisplay = $result->tiebreaker_score !== null ? number_format((float) $result->tiebreaker_score, 1) : '—';
                                                     @endphp
                                                     <div wire:key="tb-mobile-{{ $result->id }}"
                                                          x-data="{ open: false }"
@@ -1250,7 +1266,9 @@
                                                                     <p class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</p>
                                                                 @endif
                                                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                                                    @if ($tbSaved)
+                                                                    @if ($result->placement_overridden)
+                                                                        <span class="text-warning-600 dark:text-warning-400">Place assigned (ov)</span>
+                                                                    @elseif ($tbSaved)
                                                                         Total: <strong>{{ $tbDisplay }}</strong>
                                                                         · <span class="text-success-600 dark:text-success-400">Saved</span>
                                                                     @else
@@ -1267,14 +1285,19 @@
                                                                         @case(3) <span class="text-3xl leading-none">🥉</span> @break
                                                                         @default <span class="text-base font-bold text-gray-500 dark:text-gray-400">#{{ $result->placement }}</span>
                                                                     @endswitch
+                                                                    @if ($result->placement_overridden)
+                                                                        <span class="text-xs text-warning-600">(ov)</span>
+                                                                    @endif
                                                                 </div>
                                                             @endif
 
                                                             @if (! $isReadOnly)
                                                                 <div class="shrink-0">
-                                                                    @if ($tbSaved)
+                                                                    @if ($result->placement_overridden)
+                                                                        {{-- locked by head judge, no action --}}
+                                                                    @elseif ($tbSaved)
                                                                         <x-filament::button size="xs" color="gray"
-                                                                            wire:click="clearTiebreakerScore({{ $result->id }})">Clear</x-filament::button>
+                                                                            wire:click="clearTiebreakerScore({{ $result->id }})">Undo</x-filament::button>
                                                                     @else
                                                                         <button x-on:click="open = !open"
                                                                             class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-warning-50 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400">
@@ -1340,12 +1363,12 @@
                                                         @foreach ($group as $row)
                                                             @php
                                                                 $result    = $row->result;
-                                                                $tbSaved   = $result->tiebreaker_score !== null;
-                                                                $tbDisplay = $tbSaved
+                                                                $tbSaved   = $result->tiebreaker_score !== null || $result->placement_overridden;
+                                                                $tbDisplay = $result->tiebreaker_score !== null
                                                                     ? number_format((float) $result->tiebreaker_score, 1)
                                                                     : '—';
                                                             @endphp
-                                                            <tr class="{{ ($tbSaved && ! $isReadOnly) ? 'opacity-60' : '' }}">
+                                                            <tr>
                                                                 <td class="py-2 pr-4">
                                                                     <div class="font-medium text-gray-900 dark:text-white">{{ $row->name }}</div>
                                                                     @if ($row->info)
@@ -1354,16 +1377,23 @@
                                                                 </td>
                                                                 @for ($j = 1; $j <= $judges; $j++)
                                                                     <td class="py-2 pr-2">
-                                                                        @if ($isReadOnly)
-                                                                            <span class="text-sm text-gray-700 dark:text-gray-300">
+                                                                        @if ($isReadOnly || $tbSaved)
+                                                                            <span class="text-sm text-gray-700 dark:text-gray-300 {{ $tbSaved ? 'opacity-50' : '' }}">
                                                                                 {{ number_format((float) ($this->tiebreakerJudgeInputs[$result->id][$j] ?? 0), 1) }}
                                                                             </span>
                                                                         @else
-                                                                            <input type="number" step="0.1" min="0" max="10"
-                                                                                wire:model="tiebreakerJudgeInputs.{{ $result->id }}.{{ $j }}"
-                                                                                class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
-                                                                                placeholder="0.0"
-                                                                                @if ($tbSaved) disabled @endif />
+                                                                            <div class="flex items-center gap-1" x-data="{}">
+                                                                                <button type="button"
+                                                                                    x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||0)-0.1)*10)/10; i.value=Math.max(0,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
+                                                                                <input type="number" step="0.1" min="0" max="10"
+                                                                                    wire:model="tiebreakerJudgeInputs.{{ $result->id }}.{{ $j }}"
+                                                                                    class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                                    placeholder="0.0" />
+                                                                                <button type="button"
+                                                                                    x-on:click="const i=$el.previousElementSibling; const v=Math.round((parseFloat(i.value||0)+0.1)*10)/10; i.value=Math.min(10,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                            </div>
                                                                         @endif
                                                                     </td>
                                                                 @endfor
@@ -1371,27 +1401,31 @@
                                                                     <span class="font-semibold">{{ $tbDisplay }}</span>
                                                                 </td>
                                                                 <td class="py-2 pr-4">
-                                                                    @if ($tbSaved && $result->placement)
+                                                                    @if ($result->placement)
                                                                         @switch($result->placement)
                                                                             @case(1) <span class="text-2xl leading-none">🥇</span> @break
                                                                             @case(2) <span class="text-2xl leading-none">🥈</span> @break
                                                                             @case(3) <span class="text-2xl leading-none">🥉</span> @break
-                                                                            @default {{ $result->placement }}
+                                                                            @default <span class="{{ $result->placement_overridden ? 'text-warning-600' : '' }}">{{ $result->placement }}</span>
                                                                         @endswitch
+                                                                        @if ($result->placement_overridden)
+                                                                            <span class="text-xs font-normal text-warning-600">(ov)</span>
+                                                                        @endif
                                                                     @else
                                                                         <span class="text-gray-400">—</span>
                                                                     @endif
                                                                 </td>
                                                                 @if (! $isReadOnly)
                                                                     <td class="py-2">
-                                                                        @if ($tbSaved)
-                                                                            <div class="flex items-center gap-1.5">
-                                                                                <span class="text-xs text-success-600 dark:text-success-400 font-medium">✓ Saved</span>
-                                                                                <x-filament::button size="xs" color="gray"
-                                                                                    wire:click="clearTiebreakerScore({{ $result->id }})">
-                                                                                    Clear
-                                                                                </x-filament::button>
-                                                                            </div>
+                                                                        @if ($result->placement_overridden)
+                                                                            <x-filament::button size="xs" color="gray" disabled>
+                                                                                Undo
+                                                                            </x-filament::button>
+                                                                        @elseif ($tbSaved)
+                                                                            <x-filament::button size="xs" color="gray"
+                                                                                wire:click="clearTiebreakerScore({{ $result->id }})">
+                                                                                Undo
+                                                                            </x-filament::button>
                                                                         @else
                                                                             <x-filament::button size="xs" color="warning"
                                                                                 wire:click="saveTiebreakerScores({{ $result->id }})">
@@ -1500,23 +1534,70 @@
                                         Still tied after sudden death — head judge decides
                                     </p>
                                     <p class="text-xs text-danger-600 dark:text-danger-400 mb-3">
-                                        Use the placement override below for each tied competitor to manually assign the final ranking.
+                                        Select a place for each competitor, then press <strong>Save</strong>. All places must be saved before the division can be marked complete.
                                     </p>
                                     @foreach ($stillTied as $group)
+                                        @php
+                                            $groupTotalScore = (float) $group->first()->result->total_score;
+                                            $groupTbScore    = (float) $group->first()->result->tiebreaker_score;
+                                            $groupIds        = $group->map(fn ($r) => $r->result->id)->all();
+                                            $startPos        = $this->getCompetitorRows()
+                                                ->filter(fn ($r) => ! $r->result->disqualified && ! in_array($r->result->id, $groupIds))
+                                                ->filter(fn ($r) => $r->result->total_score !== null && (
+                                                    (float) $r->result->total_score > $groupTotalScore
+                                                    || ((float) $r->result->total_score === $groupTotalScore
+                                                        && (float) ($r->result->tiebreaker_score ?? PHP_INT_MIN) > $groupTbScore)
+                                                ))
+                                                ->count() + 1;
+                                            $endPos = $startPos + $group->count() - 1;
+                                        @endphp
                                         <p class="text-xs font-medium text-danger-700 dark:text-danger-400 mb-2">
                                             Tied: {{ $group->pluck('name')->join(' vs ') }}
                                         </p>
-                                        <div class="space-y-1.5">
+                                        <div class="space-y-2">
                                             @foreach ($group as $row)
+                                                @php
+                                                    $isOverridden         = $row->result->placement_overridden;
+                                                    $otherGroupPlacements = $group
+                                                        ->filter(fn ($r) => $r->result->id !== $row->result->id && $r->result->placement_overridden)
+                                                        ->map(fn ($r) => $r->result->placement)
+                                                        ->filter()
+                                                        ->values()
+                                                        ->all();
+                                                    $currentVal = isset($this->placementInput[$row->result->id]) && $this->placementInput[$row->result->id] !== ''
+                                                        ? (int) $this->placementInput[$row->result->id] : null;
+                                                @endphp
                                                 <div class="flex items-center gap-2">
-                                                    <span class="text-sm text-gray-900 dark:text-white w-36 shrink-0">{{ $row->name }}</span>
-                                                    <x-filament::input type="number" min="1"
-                                                        wire:model="placementInput.{{ $row->result->id }}"
-                                                        class="w-12" placeholder="#" />
-                                                    <x-filament::button size="xs" color="danger"
-                                                        wire:click="overridePlacement({{ $row->result->id }})">
-                                                        Set place
-                                                    </x-filament::button>
+                                                    <span class="text-sm text-gray-900 dark:text-white min-w-0 flex-1 truncate">{{ $row->name }}</span>
+                                                    @if ($isOverridden)
+                                                        <span class="shrink-0 flex items-center gap-1 text-sm">
+                                                            @switch($row->result->placement)
+                                                                @case(1) <span>🥇</span> @break
+                                                                @case(2) <span>🥈</span> @break
+                                                                @case(3) <span>🥉</span> @break
+                                                                @default <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $row->result->placement }}</span>
+                                                            @endswitch
+                                                            <span class="text-xs text-warning-600 dark:text-warning-400">(ov)</span>
+                                                        </span>
+                                                        <x-filament::button size="xs" color="gray"
+                                                            wire:click="headJudgeUndoPlacement({{ $row->result->id }})">
+                                                            Undo
+                                                        </x-filament::button>
+                                                    @else
+                                                        <select wire:model="placementInput.{{ $row->result->id }}"
+                                                            class="shrink-0 rounded border border-warning-300 dark:border-warning-600 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white px-2 py-1.5">
+                                                            <option value="">— Place —</option>
+                                                            @for ($p = $startPos; $p <= $endPos; $p++)
+                                                                @if (! in_array($p, $otherGroupPlacements) || $currentVal === $p)
+                                                                    <option value="{{ $p }}" {{ $currentVal === $p ? 'selected' : '' }}>{{ $p }}</option>
+                                                                @endif
+                                                            @endfor
+                                                        </select>
+                                                        <x-filament::button size="xs" color="warning"
+                                                            wire:click="headJudgeSavePlacement({{ $row->result->id }})">
+                                                            Save
+                                                        </x-filament::button>
+                                                    @endif
                                                 </div>
                                             @endforeach
                                         </div>

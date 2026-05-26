@@ -294,7 +294,10 @@
       "Bash(xargs grep -l \"fi-section-content\")",
       "Bash(xargs grep -l \"fi-btn\")",
       "Bash(xargs grep -l \"fi-topbar-open-sidebar-btn\\\\|topbar.start\")",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(xargs grep -l \"enrolment\")",
+      "mcp__jira__jira_batch_create_issues",
+      "mcp__jira__jira_delete_issue"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

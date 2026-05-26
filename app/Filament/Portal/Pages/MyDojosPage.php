@@ -3,6 +3,8 @@
 namespace App\Filament\Portal\Pages;
 
 use App\Models\Competition;
+use App\Models\Enrolment;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 
 class MyDojosPage extends Page
@@ -13,6 +15,8 @@ class MyDojosPage extends Page
     protected static string  $view            = 'filament.portal.pages.my-dojos-page';
     protected static ?string $slug            = 'my-dojos';
     protected static ?int    $navigationSort  = 10;
+
+    public array $paymentAmounts = [];
 
     public static function canAccess(): bool
     {
@@ -40,5 +44,28 @@ class MyDojosPage extends Page
             ])
             ->orderBy('competition_date', 'desc')
             ->get();
+    }
+
+    public function recordPayment(int $enrolmentId): void
+    {
+        $enrolment = Enrolment::find($enrolmentId);
+
+        $dojoNames = auth()->user()->instructorOf()->pluck('name');
+        if (! $enrolment || ! $dojoNames->contains($enrolment->dojo_name)) {
+            return;
+        }
+
+        $amount = isset($this->paymentAmounts[$enrolmentId])
+            ? (float) $this->paymentAmounts[$enrolmentId]
+            : null;
+
+        $enrolment->forceFill([
+            'payment_status' => 'received',
+            'payment_amount' => $amount ?? $enrolment->fee_calculated,
+        ])->save();
+
+        unset($this->paymentAmounts[$enrolmentId]);
+
+        Notification::make()->title('Payment recorded.')->success()->send();
     }
 }

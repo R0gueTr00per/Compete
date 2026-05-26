@@ -10,3 +10,31 @@
     .fi-sidebar { flex-shrink: 0; }
     .fi-main-ctn { min-width: 0; }
 }
+
+/* ── Shared animations ── */
+@keyframes card-enter {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes payment-flash {
+    0%   { box-shadow: none; }
+    20%  { box-shadow: 0 0 0 5px rgba(34,197,94,0.45); }
+    100% { box-shadow: none; }
+}
+@keyframes weight-confirm-enter {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes qr-reveal {
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes live-ping {
+    75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+
+.card-entering        { animation: card-enter          0.35s ease-out both; }
+.payment-flashing     { animation: payment-flash        1.1s ease-out both; }
+.weight-confirm-enter { animation: weight-confirm-enter 0.3s  ease-out both; }
+.qr-reveal            { animation: qr-reveal            0.45s ease-out both; }
+.live-ping            { animation: live-ping            1.6s  cubic-bezier(0,0,0.2,1) infinite; }

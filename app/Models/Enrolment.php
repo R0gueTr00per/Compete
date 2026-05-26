@@ -19,6 +19,7 @@ class Enrolment extends Model
         'is_late',
         'is_official_discount',
         'status',
+        'checkin_code',
         'checked_in',
         'checked_in_at',
         'rank_id',
@@ -50,6 +51,29 @@ class Enrolment extends Model
     public function getDisplayRankAttribute(): string
     {
         return $this->rank?->name ?? '—';
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $enrolment) {
+            if (empty($enrolment->checkin_code)) {
+                $enrolment->checkin_code = static::generateUniqueCheckinCode();
+            }
+        });
+    }
+
+    private static function generateUniqueCheckinCode(): string
+    {
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        $len = strlen($alphabet);
+        do {
+            $code = '';
+            for ($i = 0; $i < 8; $i++) {
+                $code .= $alphabet[random_int(0, $len - 1)];
+            }
+        } while (static::where('checkin_code', $code)->exists());
+
+        return $code;
     }
 
     public function getActivitylogOptions(): LogOptions
