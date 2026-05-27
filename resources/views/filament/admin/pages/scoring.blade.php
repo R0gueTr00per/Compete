@@ -276,11 +276,6 @@
                                     @endforeach
                                 </ul>
 
-                                <div class="mt-4 flex justify-end">
-                                    <x-filament::button color="primary" wire:click="toggleRollcall" icon="heroicon-m-arrow-right" icon-position="after">
-                                        Begin Scoring
-                                    </x-filament::button>
-                                </div>
                             @endif
 
                         @else
@@ -531,7 +526,7 @@
                                                                                     <input type="number" step="any" min="0"
                                                                                         @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                         wire:model="bracketScoreInput.{{ $match->id }}.home"
-                                                                                        class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-2.5 px-1"
+                                                                                        class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-1"
                                                                                         placeholder="0" />
                                                                                     <button type="button"
                                                                                         x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
@@ -554,7 +549,7 @@
                                                                                     <input type="number" step="any" min="0"
                                                                                         @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                         wire:model="bracketScoreInput.{{ $match->id }}.away"
-                                                                                        class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-2.5 px-1"
+                                                                                        class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-1"
                                                                                         placeholder="0" />
                                                                                     <button type="button"
                                                                                         x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
@@ -587,7 +582,7 @@
                                                                                 <input type="number" step="any" min="0"
                                                                                     @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                     wire:model="bracketScoreInput.{{ $match->id }}.home"
-                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
                                                                                     placeholder="0" />
                                                                                 <button type="button"
                                                                                     x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
@@ -601,7 +596,7 @@
                                                                                 <input type="number" step="any" min="0"
                                                                                     @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                     wire:model="bracketScoreInput.{{ $match->id }}.away"
-                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
                                                                                     placeholder="0" />
                                                                                 <button type="button"
                                                                                     x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
@@ -649,7 +644,7 @@
                                                             @else
                                                                 <div class="mt-1 flex items-center justify-center gap-2">
                                                                     @if ($isScored && $match->home_score !== null)
-                                                                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                                                                        <span class="text-base font-medium text-gray-700 dark:text-gray-200">
                                                                             {{ (float)$match->home_score + 0 }} — {{ (float)$match->away_score + 0 }}
                                                                         </span>
                                                                     @endif
@@ -782,10 +777,10 @@
                                                 <p class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white"><span class="text-2xl leading-none">🥇</span> {{ $bracketPlacements[1] }}</p>
                                             @endif
                                             @if (! $onlyTwoCompetitors && isset($bracketPlacements[2]))
-                                                <p class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mt-1"><span class="text-2xl leading-none">🥈</span> {{ $bracketPlacements[2] }}</p>
+                                                <p class="flex items-center gap-2 text-base text-gray-700 dark:text-gray-300 mt-1"><span class="text-2xl leading-none">🥈</span> {{ $bracketPlacements[2] }}</p>
                                             @endif
                                             @if (! $onlyTwoCompetitors && isset($bracketPlacements[3]))
-                                                <p class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mt-1"><span class="text-2xl leading-none">🥉</span> {{ $bracketPlacements[3] }}</p>
+                                                <p class="flex items-center gap-2 text-base text-gray-700 dark:text-gray-300 mt-1"><span class="text-2xl leading-none">🥉</span> {{ $bracketPlacements[3] }}</p>
                                             @endif
                                         </div>
                                     @endif
@@ -825,7 +820,7 @@
                                                     @if ($row->info)
                                                         <p class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</p>
                                                     @endif
-                                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                                                         @if (in_array($method, ['judges_total', 'judges_average']))
                                                             @if ($isSaved)
                                                                 Total: <strong>{{ $liveTotal !== null ? number_format($liveTotal, 1) : '—' }}</strong>
@@ -889,7 +884,7 @@
                                                                     {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                 </x-filament::button>
                                                                 <button x-on:click="open = !open"
-                                                                    class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium {{ $ftnSaved ? 'bg-success-50 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400' }}">
+                                                                    class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-base font-medium {{ $ftnSaved ? 'bg-success-50 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400' }}">
                                                                     <x-heroicon-m-pencil-square class="w-4 h-4" />
                                                                     <span x-show="!open">{{ $ftnSaved ? 'Edit' : 'Score' }}</span>
                                                                     <span x-show="open" x-cloak>Close</span>
@@ -897,7 +892,7 @@
                                                             </div>
                                                         @else
                                                             <button x-on:click="open = !open"
-                                                                class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium {{ $isSaved ? 'bg-success-50 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400' }}">
+                                                                class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-base font-medium {{ $isSaved ? 'bg-success-50 text-success-700 dark:bg-success-900/30 dark:text-success-400' : 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400' }}">
                                                                 <x-heroicon-m-pencil-square class="w-4 h-4" />
                                                                 <span x-show="!open">{{ $isSaved ? 'Edit' : 'Score' }}</span>
                                                                 <span x-show="open" x-cloak>Close</span>
@@ -917,7 +912,7 @@
                                                             <div class="flex items-center gap-2">
                                                                 <input x-ref="inp" type="number" step="0.1" min="0" max="10"
                                                                     wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-2.5 px-3 {{ $isSaved ? 'opacity-50' : '' }}"
+                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 {{ $isSaved ? 'opacity-50' : '' }}"
                                                                     placeholder="0.0"
                                                                     @if ($isSaved) disabled @endif />
                                                                 @if (! $isSaved)
@@ -939,7 +934,7 @@
                                                             <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Override placement</label>
                                                             <select wire:model="placementInput.{{ $result->id }}"
                                                                 wire:change="overridePlacement({{ $result->id }})"
-                                                                class="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white px-2 py-2">
+                                                                class="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-base text-gray-900 dark:text-white px-2 py-2">
                                                                 <option value="">—</option>
                                                                 @for ($p = 1; $p <= $rows->count(); $p++)
                                                                     @if (! in_array($p, $usedPlacements) || $result->placement == $p)
@@ -983,7 +978,7 @@
                                                                 class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">−</button>
                                                             <input type="number" min="0"
                                                                 wire:model="pointsInput.{{ $result->id }}"
-                                                                class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-2.5 px-3"
+                                                                class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3"
                                                                 placeholder="0" />
                                                             <button type="button"
                                                                 x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); i.value=v+1; i.dispatchEvent(new Event('input',{bubbles:true}));"
@@ -1004,7 +999,7 @@
 
                                 {{-- Desktop: original table --}}
                                 <div class="hidden sm:block overflow-x-auto">
-                                    <table class="w-full text-sm">
+                                    <table class="w-full text-base">
                                         <thead>
                                             <tr class="border-b border-gray-200 dark:border-slate-700 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                                                 <th class="pb-2 pr-4">Competitor</th>
@@ -1058,7 +1053,7 @@
                                                         @for ($j = 1; $j <= $judges; $j++)
                                                             <td class="py-2 pr-2">
                                                                 @if ($isReadOnly)
-                                                                    <span class="text-sm text-gray-700 dark:text-gray-300">
+                                                                    <span class="text-base text-gray-700 dark:text-gray-300">
                                                                         {{ number_format((float) ($this->judgeScores[$result->id][$j] ?? 0), 1) }}
                                                                     </span>
                                                                 @else
@@ -1069,7 +1064,7 @@
                                                                             @if ($isSaved) disabled @endif>−</button>
                                                                         <input type="number" step="0.1" min="0" max="10"
                                                                             wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                            class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                            class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
                                                                             placeholder="0.0"
                                                                             @if ($isSaved) disabled @endif />
                                                                         <button type="button"
@@ -1089,7 +1084,7 @@
                                                     @elseif ($method === 'win_loss')
                                                         <td class="py-2 pr-4">
                                                             @if ($isReadOnly)
-                                                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                <span class="text-base font-medium text-gray-700 dark:text-gray-300">
                                                                     {{ ucfirst($result->win_loss ?? '—') }}
                                                                 </span>
                                                             @else
@@ -1110,7 +1105,7 @@
                                                     @elseif ($method === 'first_to_n')
                                                         <td class="py-2 pr-4">
                                                             @if ($isReadOnly)
-                                                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                <span class="text-base font-medium text-gray-700 dark:text-gray-300">
                                                                     {{ $result->total_score !== null ? (int) $result->total_score : '—' }}
                                                                 </span>
                                                             @else
@@ -1120,7 +1115,7 @@
                                                                         class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
                                                                     <input type="number" min="0"
                                                                         wire:model="pointsInput.{{ $result->id }}"
-                                                                        class="w-12 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                        class="w-12 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
                                                                         placeholder="0" />
                                                                     <button type="button"
                                                                         x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
@@ -1138,7 +1133,7 @@
                                                         @if (! $isReadOnly && $this->placementOverrideMode)
                                                             <select wire:model="placementInput.{{ $result->id }}"
                                                                 wire:change="overridePlacement({{ $result->id }})"
-                                                                class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white px-1 py-0.5 w-14">
+                                                                class="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-base text-gray-900 dark:text-white px-1 py-0.5 w-14">
                                                                 <option value="">—</option>
                                                                 @for ($p = 1; $p <= $rows->count(); $p++)
                                                                     @if (! in_array($p, $usedPlacements) || $result->placement == $p)
@@ -1265,7 +1260,7 @@
                                                                 @if ($row->info)
                                                                     <p class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</p>
                                                                 @endif
-                                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                                                <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                                                                     @if ($result->placement_overridden)
                                                                         <span class="text-warning-600 dark:text-warning-400">Place assigned (ov)</span>
                                                                     @elseif ($tbSaved)
@@ -1300,7 +1295,7 @@
                                                                             wire:click="clearTiebreakerScore({{ $result->id }})">Undo</x-filament::button>
                                                                     @else
                                                                         <button x-on:click="open = !open"
-                                                                            class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-warning-50 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400">
+                                                                            class="flex items-center gap-1.5 rounded-lg px-3 py-2 text-base font-medium bg-warning-50 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400">
                                                                             <x-heroicon-m-pencil-square class="w-4 h-4" />
                                                                             <span x-show="!open">Score</span>
                                                                             <span x-show="open" x-cloak>Close</span>
@@ -1320,7 +1315,7 @@
                                                                         <div class="flex items-center gap-2">
                                                                             <input x-ref="inp" type="number" step="0.1" min="0" max="10"
                                                                                 wire:model="tiebreakerJudgeInputs.{{ $result->id }}.{{ $j }}"
-                                                                                class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-2.5 px-3"
+                                                                                class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3"
                                                                                 placeholder="0.0" />
                                                                             <div class="flex gap-1 shrink-0">
                                                                                 <button type="button"
@@ -1347,7 +1342,7 @@
 
                                             {{-- Desktop: table --}}
                                             <div class="hidden sm:block overflow-x-auto">
-                                                <table class="w-full text-sm">
+                                                <table class="w-full text-base">
                                                     <thead>
                                                         <tr class="border-b border-warning-200 dark:border-warning-700 text-left text-xs font-medium text-warning-700 dark:text-warning-400 uppercase tracking-wide">
                                                             <th class="pb-2 pr-4">Competitor</th>
@@ -1378,7 +1373,7 @@
                                                                 @for ($j = 1; $j <= $judges; $j++)
                                                                     <td class="py-2 pr-2">
                                                                         @if ($isReadOnly || $tbSaved)
-                                                                            <span class="text-sm text-gray-700 dark:text-gray-300 {{ $tbSaved ? 'opacity-50' : '' }}">
+                                                                            <span class="text-base text-gray-700 dark:text-gray-300 {{ $tbSaved ? 'opacity-50' : '' }}">
                                                                                 {{ number_format((float) ($this->tiebreakerJudgeInputs[$result->id][$j] ?? 0), 1) }}
                                                                             </span>
                                                                         @else
@@ -1388,7 +1383,7 @@
                                                                                     class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
                                                                                 <input type="number" step="0.1" min="0" max="10"
                                                                                     wire:model="tiebreakerJudgeInputs.{{ $result->id }}.{{ $j }}"
-                                                                                    class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-1"
+                                                                                    class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
                                                                                     placeholder="0.0" />
                                                                                 <button type="button"
                                                                                     x-on:click="const i=$el.previousElementSibling; const v=Math.round((parseFloat(i.value||0)+0.1)*10)/10; i.value=Math.min(10,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
@@ -1475,7 +1470,7 @@
                                                 {{ $tbGroup->pluck('name')->join(', ') }}
                                             </p>
                                             <div class="overflow-x-auto">
-                                                <table class="w-full text-sm">
+                                                <table class="w-full text-base">
                                                     <thead>
                                                         <tr class="border-b border-warning-200 dark:border-warning-700 text-left text-xs font-medium text-warning-700 dark:text-warning-400 uppercase tracking-wide">
                                                             <th class="pb-2 pr-4">Competitor</th>
@@ -1497,7 +1492,7 @@
                                                                 </td>
                                                                 @for ($j = 1; $j <= $judges; $j++)
                                                                     <td class="py-2 pr-2">
-                                                                        <span class="text-sm text-gray-700 dark:text-gray-300">
+                                                                        <span class="text-base text-gray-700 dark:text-gray-300">
                                                                             {{ number_format((float) ($this->tiebreakerJudgeInputs[$tbRow->result->id][$j] ?? 0), 1) }}
                                                                         </span>
                                                                     </td>
@@ -1589,7 +1584,7 @@
                                                         @endif
                                                     @else
                                                         <select wire:model="placementInput.{{ $row->result->id }}"
-                                                            class="shrink-0 rounded border border-warning-300 dark:border-warning-600 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-white px-2 py-1.5">
+                                                            class="shrink-0 rounded border border-warning-300 dark:border-warning-600 bg-white dark:bg-slate-900 text-base text-gray-900 dark:text-white px-2 py-1.5">
                                                             <option value="">— Place —</option>
                                                             @for ($p = $startPos; $p <= $endPos; $p++)
                                                                 @if (! in_array($p, $otherGroupPlacements) || $currentVal === $p)
@@ -1627,6 +1622,13 @@
                                     @endif
                                 </div>
                                 <div class="flex items-center gap-2">
+                                    @if ($this->rollcallMode)
+                                        <x-filament::button color="primary" size="sm"
+                                            wire:click="toggleRollcall"
+                                            icon="heroicon-m-arrow-right" icon-position="after">
+                                            Begin Scoring
+                                        </x-filament::button>
+                                    @endif
                                     @if (! $this->rollcallMode)
                                         <x-filament::button color="gray" size="sm"
                                             x-on:click="$dispatch('open-modal', { id: 'confirm-rollcall-return' })"
@@ -1643,14 +1645,29 @@
                                 </div>
                             </div>
                         @else
-                            <div class="mt-4 flex items-center justify-between gap-3">
-                                <x-filament::button color="gray" size="sm" wire:click="deselectDivision">
-                                    Close
-                                </x-filament::button>
-                                <x-filament::button color="warning" size="sm"
-                                    x-on:click="$dispatch('open-modal', { id: 'confirm-reactivate-division' })">
-                                    Re-activate scoring
-                                </x-filament::button>
+                            <div class="mt-4 flex flex-col gap-2">
+                                @if ($div->completed_at)
+                                    @php
+                                        $completedUser = $div->completedBy;
+                                        $completedName = $completedUser?->selfProfile?->full_name;
+                                        $completedDisplay = $completedName
+                                            ? "{$completedName} ({$completedUser->email})"
+                                            : ($completedUser?->email ?? 'Unknown');
+                                    @endphp
+                                    <p class="text-center text-xs text-gray-500 dark:text-gray-400">
+                                        Completed by {{ $completedDisplay }}
+                                        on {{ $div->completed_at->format('d M Y \a\t g:i A') }}
+                                    </p>
+                                @endif
+                                <div class="flex items-center justify-between gap-3">
+                                    <x-filament::button color="gray" size="sm" wire:click="deselectDivision">
+                                        Close
+                                    </x-filament::button>
+                                    <x-filament::button color="warning" size="sm"
+                                        x-on:click="$dispatch('open-modal', { id: 'confirm-reactivate-division' })">
+                                        Re-activate scoring
+                                    </x-filament::button>
+                                </div>
                             </div>
                         @endif
                     </div>

@@ -139,7 +139,7 @@ class Scoring extends Page
               ->whereIn('status', ['scheduled', 'running', 'complete'])
         )
         ->whereNotNull('location_label')
-        ->with(['competitionEvent'])
+        ->with(['competitionEvent', 'completedBy.selfProfile'])
         ->withCount([
             'enrolmentEvents as checked_in_count' => fn ($q) => $q->whereHas(
                 'enrolment', fn ($q2) => $q2->where('status', 'checked_in')
@@ -334,10 +334,18 @@ class Scoring extends Page
                 ->pluck('id');
 
             $activePresent = collect($this->rollcallPresent)->intersect($activeEeIds);
+            if ($activePresent->count() === 0) {
+                Notification::make()
+                    ->title('0 competitor(s) marked present')
+                    ->body('At least 2 competitors are needed to score. Click Begin Scoring again to proceed anyway.')
+                    ->warning()
+                    ->send();
+                return;
+            }
             if ($activePresent->count() < 2 && ! $this->confirmLowCompetitorCount) {
                 $this->confirmLowCompetitorCount = true;
                 Notification::make()
-                    ->title('Only ' . $activePresent->count() . ' competitor(s) marked present')
+                    ->title($activePresent->count() . ' competitor(s) marked present')
                     ->body('At least 2 competitors are needed to score. Click Begin Scoring again to proceed anyway.')
                     ->warning()
                     ->send();
@@ -1733,7 +1741,11 @@ class Scoring extends Page
     {
         if (! $this->division_id) return;
 
-        Division::find($this->division_id)?->update(['status' => 'assigned']);
+        Division::find($this->division_id)?->update([
+            'status'       => 'assigned',
+            'completed_at' => null,
+            'completed_by' => null,
+        ]);
 
         // Pre-populate savedResultIds so the tiebreaker gate works immediately
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
@@ -1818,7 +1830,11 @@ class Scoring extends Page
             }
         }
 
-        Division::find($this->division_id)?->update(['status' => 'complete']);
+        Division::find($this->division_id)?->update([
+            'status'       => 'complete',
+            'completed_at' => now(),
+            'completed_by' => auth()->id(),
+        ]);
         Notification::make()->title('Division marked complete.')->success()->send();
     }
 

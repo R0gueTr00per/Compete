@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Models\User;
 
 class Division extends Model
 {
@@ -26,10 +27,13 @@ class Division extends Model
         'status',
         'placement_override_mode',
         'combined_into_id',
+        'completed_at',
+        'completed_by',
     ];
 
     protected $casts = [
         'placement_override_mode' => 'boolean',
+        'completed_at'            => 'datetime',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -109,6 +113,11 @@ class Division extends Model
     public function combinedInto(): BelongsTo
     {
         return $this->belongsTo(Division::class, 'combined_into_id');
+    }
+
+    public function completedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'completed_by');
     }
 
     public function enrolmentEvents(): HasMany
