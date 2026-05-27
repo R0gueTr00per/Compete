@@ -31,15 +31,21 @@ class CompetitionEvent extends Model
         'division_filter',
         'requires_partner',
         'status',
+        'awarded_places_2',
+        'awarded_places_3',
+        'awarded_places_4plus',
     ];
 
     protected function casts(): array
     {
         return [
             'requires_partner'              => 'boolean',
-            'manual_pairing'               => 'boolean',
-            'bracket_prefer_different_dojo'    => 'boolean',
+            'manual_pairing'                => 'boolean',
+            'bracket_prefer_different_dojo' => 'boolean',
             'bracket_avoid_repeat_matchups' => 'boolean',
+            'awarded_places_2'              => 'integer',
+            'awarded_places_3'              => 'integer',
+            'awarded_places_4plus'          => 'integer',
         ];
     }
 

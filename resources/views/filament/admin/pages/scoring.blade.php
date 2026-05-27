@@ -217,8 +217,14 @@
                                     Scoring
                                 </span>
                             </div>
-                            @if (! $this->rollcallMode && ! $this->isTournament())
-                                <div class="flex items-center gap-1">
+                            <div class="flex items-center gap-2">
+                                @if (! $this->rollcallMode)
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                        <x-heroicon-m-trophy class="w-3 h-3 shrink-0" />
+                                        {{ $this->getAwardedPlacesLabel() }}
+                                    </span>
+                                @endif
+                                @if (! $this->rollcallMode && ! $this->isTournament())
                                     @if (in_array($this->getScoringMethod(), ['judges_total', 'judges_average']))
                                         <x-filament::button size="xs" color="gray"
                                             x-on:click="$dispatch('open-modal', { id: 'confirm-reset-scores' })">
@@ -230,8 +236,8 @@
                                         wire:click="togglePlacementOverrideMode">
                                         {{ $this->placementOverrideMode ? 'Auto (clear overrides)' : 'Override placements' }}
                                     </x-filament::button>
-                                </div>
-                            @endif
+                                @endif
+                            </div>
                         </div>
                         @endif
 

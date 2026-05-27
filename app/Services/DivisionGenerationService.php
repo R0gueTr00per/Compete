@@ -114,6 +114,14 @@ class DivisionGenerationService
                 }
                 break;
 
+            case 'rank_sex':
+                foreach ($rankBands as $rb) {
+                    foreach (['M', 'F'] as $sex) {
+                        $rows[] = $this->row(null, $rb->id, null, $sex);
+                    }
+                }
+                break;
+
             case 'weight_sex':
                 foreach ($weightClasses as $wc) {
                     foreach (['M', 'F'] as $sex) {

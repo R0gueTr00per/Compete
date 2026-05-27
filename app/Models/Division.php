@@ -29,11 +29,13 @@ class Division extends Model
         'combined_into_id',
         'completed_at',
         'completed_by',
+        'awarded_places',
     ];
 
     protected $casts = [
         'placement_override_mode' => 'boolean',
         'completed_at'            => 'datetime',
+        'awarded_places'          => 'integer',
     ];
 
     public function getActivitylogOptions(): LogOptions

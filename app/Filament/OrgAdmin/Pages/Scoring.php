@@ -358,6 +358,16 @@ class Scoring extends Page
                 EnrolmentEvent::whereIn('id', $absentIds)->update(['removed' => true]);
             }
 
+            $presentCount = $activePresent->count();
+            $division     = Division::with('competitionEvent')->find($this->division_id);
+            $event        = $division?->competitionEvent;
+            $awardedPlaces = match (true) {
+                $presentCount <= 2  => $event?->awarded_places_2    ?? 2,
+                $presentCount === 3 => $event?->awarded_places_3    ?? 3,
+                default             => $event?->awarded_places_4plus ?? 3,
+            };
+            $division?->update(['awarded_places' => $awardedPlaces]);
+
             if (! in_array($this->division_id, $this->completedRollcallDivisions)) {
                 $this->completedRollcallDivisions[] = $this->division_id;
             }
@@ -368,7 +378,7 @@ class Scoring extends Page
             $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
             RoundRobinMatch::where('division_id', $this->division_id)->delete();
 
-            Division::find($this->division_id)?->update(['placement_override_mode' => false]);
+            Division::find($this->division_id)?->update(['placement_override_mode' => false, 'awarded_places' => null]);
 
             $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
             Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
@@ -1004,7 +1014,15 @@ class Scoring extends Page
 
     private function applyBracketPlacements(): void
     {
-        $service = app(ScoringService::class);
+        $service         = app(ScoringService::class);
+        $division        = Division::with('competitionEvent')->find($this->division_id);
+        $competitorCount = EnrolmentEvent::where('division_id', $this->division_id)->where('removed', false)->count();
+        $event           = $division?->competitionEvent;
+        $cap             = match (true) {
+            $competitorCount <= 2  => $event?->awarded_places_2    ?? 2,
+            $competitorCount === 3 => $event?->awarded_places_3    ?? 3,
+            default               => $event?->awarded_places_4plus ?? 3,
+        };
         $matches = RoundRobinMatch::where('division_id', $this->division_id)
             ->whereNotNull('home_result')
             ->get();
@@ -1047,7 +1065,7 @@ class Scoring extends Page
                     $rank += $countAtRank;
                     $countAtRank = 0;
                 }
-                $this->setBracketPlacement((int) $eeId, $rank, $service);
+                $this->setBracketPlacement((int) $eeId, $rank, $service, $cap);
                 $prevWins = $wins;
                 $countAtRank++;
             }
@@ -1056,43 +1074,43 @@ class Scoring extends Page
             $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
             $wbFinal      = $matches->where('bracket', 'winners')->where('round', $wbFinalRound)->first();
             if ($wbFinal?->winnerId()) {
-                $this->setBracketPlacement($wbFinal->winnerId(), 1, $service);
-                if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service);
+                $this->setBracketPlacement($wbFinal->winnerId(), 1, $service, $cap);
+                if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service, $cap);
             }
             // 3rd: winner of 3rd-place match; fall back to lone semi-final loser if no match was created
             $repFinal = $matches->where('bracket', 'repechage')->sortByDesc('round')->first();
             if ($repFinal?->winnerId()) {
-                $this->setBracketPlacement($repFinal->winnerId(), 3, $service);
+                $this->setBracketPlacement($repFinal->winnerId(), 3, $service, $cap);
                 if ($repFinal->loserId()) {
-                    $this->setBracketPlacement($repFinal->loserId(), 4, $service);
+                    $this->setBracketPlacement($repFinal->loserId(), 4, $service, $cap);
                 }
             } elseif ($wbFinalRound >= 2) {
                 foreach ($matches->where('bracket', 'winners')->where('round', $wbFinalRound - 1) as $semi) {
-                    if ($semi->loserId()) $this->setBracketPlacement($semi->loserId(), 3, $service);
+                    if ($semi->loserId()) $this->setBracketPlacement($semi->loserId(), 3, $service, $cap);
                 }
             }
             return;
         } elseif ($format === 'double_elimination') {
             $gf = $matches->firstWhere('bracket', 'grand_final');
             if ($gf?->winnerId()) {
-                $this->setBracketPlacement($gf->winnerId(), 1, $service);
-                if ($gf->loserId()) $this->setBracketPlacement($gf->loserId(), 2, $service);
+                $this->setBracketPlacement($gf->winnerId(), 1, $service, $cap);
+                if ($gf->loserId()) $this->setBracketPlacement($gf->loserId(), 2, $service, $cap);
             }
         } elseif ($format === 'repechage') {
             // WB final determines 1st/2nd; repechage bracket winner gets 3rd.
             $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
             $wbFinal      = $matches->where('bracket', 'winners')->where('round', $wbFinalRound)->first();
             if ($wbFinal?->winnerId()) {
-                $this->setBracketPlacement($wbFinal->winnerId(), 1, $service);
-                if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service);
+                $this->setBracketPlacement($wbFinal->winnerId(), 1, $service, $cap);
+                if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service, $cap);
             }
             $repMatches   = $matches->where('bracket', 'repechage');
             $maxRepRound  = $repMatches->max('round');
             $repFinal     = $repMatches->where('round', $maxRepRound)->first();
             if ($repFinal?->winnerId()) {
-                $this->setBracketPlacement($repFinal->winnerId(), 3, $service);
+                $this->setBracketPlacement($repFinal->winnerId(), 3, $service, $cap);
                 if ($repFinal->loserId()) {
-                    $this->setBracketPlacement($repFinal->loserId(), 4, $service);
+                    $this->setBracketPlacement($repFinal->loserId(), 4, $service, $cap);
                 }
             }
         } else {
@@ -1100,20 +1118,21 @@ class Scoring extends Page
             $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
             $wbFinal = $matches->where('bracket', 'winners')->where('round', $wbFinalRound)->first();
             if ($wbFinal?->winnerId()) {
-                $this->setBracketPlacement($wbFinal->winnerId(), 1, $service);
-                if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service);
+                $this->setBracketPlacement($wbFinal->winnerId(), 1, $service, $cap);
+                if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service, $cap);
             }
 
             if ($wbFinalRound >= 2) {
                 foreach ($matches->where('bracket', 'winners')->where('round', $wbFinalRound - 1) as $semi) {
-                    if ($semi->loserId()) $this->setBracketPlacement($semi->loserId(), 3, $service);
+                    if ($semi->loserId()) $this->setBracketPlacement($semi->loserId(), 3, $service, $cap);
                 }
             }
         }
     }
 
-    private function setBracketPlacement(int $eeId, int $placement, ScoringService $service): void
+    private function setBracketPlacement(int $eeId, int $placement, ScoringService $service, int $cap = 3): void
     {
+        if ($placement > $cap) return;
         $ee = EnrolmentEvent::with('result')->find($eeId);
         if (! $ee) return;
         $result = $ee->result ?? $service->getOrCreateResult($ee);
@@ -1325,6 +1344,32 @@ class Scoring extends Page
         }
 
         return collect($arr);
+    }
+
+    public function getAwardedPlacesLabel(): string
+    {
+        if (! $this->division_id) return '';
+
+        $division = Division::with('competitionEvent')->find($this->division_id);
+        if (! $division) return '';
+
+        $count = EnrolmentEvent::where('division_id', $this->division_id)
+            ->where('removed', false)
+            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->count();
+
+        $event = $division->competitionEvent;
+        $cap   = match (true) {
+            $count <= 2  => $event->awarded_places_2    ?? 2,
+            $count === 3 => $event->awarded_places_3    ?? 3,
+            default      => $event->awarded_places_4plus ?? 3,
+        };
+
+        return match ($cap) {
+            1       => '1st only',
+            2       => '1st & 2nd',
+            default => 'Podium',
+        };
     }
 
     public function getScoringMethod(): ?string

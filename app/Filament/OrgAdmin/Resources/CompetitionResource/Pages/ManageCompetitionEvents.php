@@ -332,14 +332,14 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                     ->options(fn () => $this->getRecord()->rankBands()->pluck('label', 'id'))
                     ->nullable()
                     ->searchable()
-                    ->visible($filterIncludes(['age_rank_sex', 'age_rank'])),
+                    ->visible($filterIncludes(['age_rank_sex', 'age_rank', 'rank_sex'])),
 
                 Select::make('sex')
                     ->label('Sex')
                     ->options(['M' => 'Male', 'F' => 'Female', 'mixed' => 'Mixed'])
                     ->required()
                     ->default('mixed')
-                    ->visible($filterIncludes(['age_rank_sex', 'age_sex', 'weight_sex', 'age_weight_sex'])),
+                    ->visible($filterIncludes(['age_rank_sex', 'age_sex', 'weight_sex', 'age_weight_sex', 'rank_sex'])),
 
                 Select::make('weight_class_id')
                     ->label('Weight class')

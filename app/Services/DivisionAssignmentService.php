@@ -84,6 +84,7 @@ class DivisionAssignmentService
             'age_rank_sex'   => $this->crossProduct($ageBands, $rankBands, $sexes),
             'age_sex'        => $this->crossProductAgeAndSex($ageBands, $sexes),
             'weight_sex'     => $this->crossProductWeightAndSex($weightClasses, $sexes),
+            'rank_sex'       => $this->crossProductRankAndSex($rankBands, $sexes),
             'age_rank'       => $this->crossProductAgeAndRank($ageBands, $rankBands),
             'age_only'       => $this->crossProductAgeOnly($ageBands),
             'age_weight'     => $this->crossProductAgeAndWeight($ageBands, $weightClasses),
@@ -167,6 +168,23 @@ class DivisionAssignmentService
                     'weight_class_id' => $wc->id,
                     'sex'            => $sex,
                     'label'          => "{$wc->label} / " . ($sex === 'M' ? 'Male' : 'Female'),
+                ];
+            }
+        }
+        return $result;
+    }
+
+    private function crossProductRankAndSex($rankBands, array $sexes): array
+    {
+        $result = [];
+        foreach ($rankBands as $rank) {
+            foreach ($sexes as $sex) {
+                $result[] = [
+                    'age_band_id'     => null,
+                    'rank_band_id'    => $rank->id,
+                    'weight_class_id' => null,
+                    'sex'             => $sex,
+                    'label'           => "{$rank->label} / " . ($sex === 'M' ? 'Male' : 'Female'),
                 ];
             }
         }
@@ -360,6 +378,7 @@ class DivisionAssignmentService
             'age_rank_sex'   => $this->assignAgeRankSex($compEvent->id, $sex, $ctx),
             'age_sex'        => $this->assignAgeSex($compEvent->id, $sex, $ctx),
             'weight_sex'     => $this->assignWeightSex($compEvent->id, $sex, $ctx),
+            'rank_sex'       => $this->assignRankSex($compEvent->id, $sex, $ctx),
             'age_rank'       => $this->assignAgeRank($compEvent->id, $ctx),
             'age_only'       => $this->assignAgeOnly($compEvent->id, $ctx),
             'age_weight'     => $this->assignAgeWeight($compEvent->id, $ctx),
@@ -493,6 +512,36 @@ class DivisionAssignmentService
         }
 
         return (clone $base)->whereNull('weight_class_id')->first();
+    }
+
+    private function assignRankSex(int $eventId, string $sex, $ctx): ?Division
+    {
+        foreach ([$sex, 'mixed'] as $trySex) {
+            $base = Division::where('competition_event_id', $eventId)
+                ->where('sex', $trySex)
+                ->whereIn('status', ['pending', 'assigned']);
+
+            $rank      = $this->normalizeRank($ctx);
+            $sortOrder = $this->resolveRankSortOrder($ctx);
+
+            if ($rank !== null || $sortOrder !== null) {
+                $candidates = (clone $base)
+                    ->whereNotNull('rank_band_id')
+                    ->with(['rankBand.fromRank', 'rankBand.toRank'])
+                    ->get();
+                $match = $candidates->first(fn ($d) => $this->divisionFitsRank($d, $ctx));
+                if ($match) {
+                    return $match;
+                }
+            }
+
+            $open = (clone $base)->whereNull('rank_band_id')->first();
+            if ($open) {
+                return $open;
+            }
+        }
+
+        return null;
     }
 
     private function assignAgeRank(int $eventId, $ctx): ?Division

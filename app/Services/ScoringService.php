@@ -118,9 +118,19 @@ class ScoringService
             }
         }
 
+        $event = $division->competitionEvent;
+        $cap   = match (true) {
+            $results->count() <= 2  => $event->awarded_places_2    ?? 2,
+            $results->count() === 3 => $event->awarded_places_3    ?? 3,
+            default                => $event->awarded_places_4plus ?? 3,
+        };
+
         foreach ($updates as $update) {
             Result::where('id', $update['id'])
-                ->update(['placement' => $update['placement'], 'updated_at' => $update['updated_at']]);
+                ->update([
+                    'placement'  => $update['placement'] <= $cap ? $update['placement'] : null,
+                    'updated_at' => $update['updated_at'],
+                ]);
         }
     }
 
