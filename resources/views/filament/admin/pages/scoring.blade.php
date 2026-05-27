@@ -1572,12 +1572,12 @@
                                                 <div class="flex items-center gap-2">
                                                     <span class="text-sm text-gray-900 dark:text-white min-w-0 flex-1 truncate">{{ $row->name }}</span>
                                                     @if ($isOverridden)
-                                                        <span class="shrink-0 flex items-center gap-1 text-sm">
+                                                        <span class="shrink-0 flex items-center gap-1">
                                                             @switch($row->result->placement)
-                                                                @case(1) <span>🥇</span> @break
-                                                                @case(2) <span>🥈</span> @break
-                                                                @case(3) <span>🥉</span> @break
-                                                                @default <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $row->result->placement }}</span>
+                                                                @case(1) <span class="text-2xl leading-none">🥇</span> @break
+                                                                @case(2) <span class="text-2xl leading-none">🥈</span> @break
+                                                                @case(3) <span class="text-2xl leading-none">🥉</span> @break
+                                                                @default <span class="text-base font-bold text-gray-500 dark:text-gray-400">#{{ $row->result->placement }}</span>
                                                             @endswitch
                                                             <span class="text-xs text-warning-600 dark:text-warning-400">(ov)</span>
                                                         </span>

@@ -40,6 +40,8 @@ class Dashboard extends BaseDashboard
             ->withCount('competitionEvents as events_count')
             ->withCount('allDivisions as total_divisions_count')
             ->withCount(['allDivisions as completed_divisions_count' => fn ($q) => $q->where('divisions.status', 'complete')])
+            ->withCount(['allDivisions as scheduled_divisions_count' => fn ($q) => $q->whereNotNull('divisions.location_label')->where('divisions.status', '!=', 'combined')])
+            ->withCount(['allDivisions as schedulable_divisions_count' => fn ($q) => $q->where('divisions.status', '!=', 'combined')])
             ->withCount(['tasks as pending_tasks_count' => fn ($q) => $q->where('completed', false)])
             ->with(['tasks' => fn ($q) => $q->where('completed', false)->orderBy('sort_order')])
             ->orderBy('competition_date')

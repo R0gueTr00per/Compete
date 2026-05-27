@@ -75,15 +75,6 @@
                         @if ($competition->location_name)
                             &mdash; {{ $competition->location_name }}
                         @endif
-                        <br class="sm:hidden"><span class="hidden sm:inline"> &bull; </span>{{ $competition->enrolments_count }} enrolment{{ $competition->enrolments_count !== 1 ? 's' : '' }}
-                        @if (in_array($competition->status, ['check_in', 'running']))
-                            &bull; {{ $competition->checkins_count }} checked in
-                        @endif
-                        @if ($competition->status === 'running')
-                            &bull; {{ $competition->total_divisions_count }} division{{ $competition->total_divisions_count !== 1 ? 's' : '' }} ({{ $competition->completed_divisions_count }} completed)
-                        @elseif ($competition->events_count > 0)
-                            &bull; {{ $competition->events_count }} event{{ $competition->events_count !== 1 ? 's' : '' }}
-                        @endif
                     </x-slot>
 
                     @php
@@ -205,6 +196,83 @@
                             <div class="chevron-partial-right bg-gray-200 dark:bg-gray-700 flex-shrink-0 h-14" style="width: 20px; z-index: 4; position: relative;"></div>
                         @endif
                     </div>
+
+                    {{-- Progress indicator --}}
+                    @php
+                        $showProgressBar = false;
+                        $progressPct     = null;
+                        $progressText    = '';
+                        $progressExtra   = '';
+                        $progressAbsent  = null;
+
+                        if ($competition->status === 'planning' && $competition->schedulable_divisions_count > 0) {
+                            $showProgressBar = true;
+                            $progressPct     = (int) round(($competition->scheduled_divisions_count / $competition->schedulable_divisions_count) * 100);
+                            $progressText    = $competition->scheduled_divisions_count . ' / ' . $competition->schedulable_divisions_count . ' divisions scheduled';
+                        } elseif (in_array($competition->status, ['open', 'closed'])) {
+                            $showProgressBar = true;
+                            $enrolled        = $competition->enrolments_count;
+                            $target          = $competition->target_competitors;
+                            if ($target) {
+                                $progressPct  = (int) round(($enrolled / $target) * 100);
+                                $progressText = $enrolled . ' / ' . $target . ' enrolled';
+                            } else {
+                                $progressText = $enrolled . ' enrolled';
+                            }
+                            if ($competition->status === 'open' && $competition->enrolment_due_date) {
+                                if ($competition->enrolment_due_date->isFuture()) {
+                                    $days          = (int) now()->diffInDays($competition->enrolment_due_date);
+                                    $progressExtra = '· ' . $days . ' ' . ($days === 1 ? 'day' : 'days') . ' to close';
+                                } else {
+                                    $progressExtra = '· enrolment closed';
+                                }
+                            }
+                        } elseif ($competition->status === 'check_in') {
+                            $showProgressBar = true;
+                            $checkedIn       = $competition->checkins_count;
+                            $enrolled        = $competition->enrolments_count;
+                            $progressPct     = $enrolled > 0 ? (int) round(($checkedIn / $enrolled) * 100) : null;
+                            $progressText    = $checkedIn . ' / ' . $enrolled . ' checked in';
+                            $absent          = $enrolled - $checkedIn;
+                            if ($absent > 0) {
+                                $progressAbsent = $absent . ' absent';
+                            }
+                        } elseif ($competition->status === 'running') {
+                            $showProgressBar = true;
+                            $completed       = $competition->completed_divisions_count;
+                            $total           = $competition->total_divisions_count;
+                            $progressPct     = $total > 0 ? (int) round(($completed / $total) * 100) : null;
+                            $progressText    = $completed . ' / ' . $total . ' divisions complete';
+                        }
+
+                        $barColor = match(true) {
+                            $progressPct === null => null,
+                            $progressPct >= 75    => '#22c55e',
+                            $progressPct >= 40    => '#fbbf24',
+                            default               => '#f87171',
+                        };
+                    @endphp
+                    @if ($showProgressBar)
+                        <div class="mb-3 flex items-center gap-3" wire:key="{{ $competition->id }}-progress">
+                            @if ($progressPct !== null)
+                                <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden min-w-0">
+                                    <div
+                                        class="h-full rounded-full transition-all duration-500"
+                                        style="width: {{ min($progressPct, 100) }}%; background-color: {{ $barColor }};"
+                                    ></div>
+                                </div>
+                            @endif
+                            <p class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 {{ $progressPct === null ? 'w-full' : '' }}">
+                                {{ $progressText }}
+                                @if ($progressExtra)
+                                    <span class="opacity-60 ml-1">{{ $progressExtra }}</span>
+                                @endif
+                                @if ($progressAbsent)
+                                    <span class="text-red-400 dark:text-red-400 ml-1 opacity-80">· {{ $progressAbsent }}</span>
+                                @endif
+                            </p>
+                        </div>
+                    @endif
 
                     @php
                         $hideOnMobile = match ($competition->status) {

@@ -26,6 +26,7 @@ class Competition extends Model
         'location_name',
         'location_address',
         'enrolment_due_date',
+        'target_competitors',
         'fee_first_event',
         'fee_additional_event',
         'late_surcharge',

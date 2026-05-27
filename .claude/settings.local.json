@@ -297,7 +297,9 @@
       "Bash(git checkout *)",
       "Bash(xargs grep -l \"enrolment\")",
       "mcp__jira__jira_batch_create_issues",
-      "mcp__jira__jira_delete_issue"
+      "mcp__jira__jira_delete_issue",
+      "Bash(xargs grep -l \"planning\\\\|check_in\\\\|running\")",
+      "mcp__jira__jira_get_all_projects"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

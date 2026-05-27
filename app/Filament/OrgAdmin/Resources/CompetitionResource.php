@@ -101,6 +101,12 @@ class CompetitionResource extends Resource
 
                     TextInput::make('location_address')
                         ->maxLength(500),
+
+                    TextInput::make('target_competitors')
+                        ->label('Target competitors')
+                        ->numeric()
+                        ->minValue(1)
+                        ->step(1),
                 ]),
 
             Section::make('Status')
