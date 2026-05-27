@@ -6,7 +6,7 @@ use App\Filament\OrgAdmin\Resources\CompetitionResource;
 use App\Models\Competition;
 use App\Models\Division;
 use Filament\Actions\Action;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Filament\Support\Enums\MaxWidth;

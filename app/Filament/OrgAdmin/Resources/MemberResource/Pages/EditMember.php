@@ -4,7 +4,7 @@ namespace App\Filament\OrgAdmin\Resources\MemberResource\Pages;
 
 use App\Filament\OrgAdmin\Resources\MemberResource;
 use App\Models\OrganisationMembership;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class EditMember extends EditRecord

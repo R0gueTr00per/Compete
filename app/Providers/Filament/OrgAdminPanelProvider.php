@@ -170,6 +170,7 @@ class OrgAdminPanelProvider extends PanelProvider
                     .dark .fi-section, .dark .fi-wi-stats-overview-stat, .dark .fi-ta-ctn { box-shadow: none !important; }
                     .fi-section-header, .fi-ta-header-cell, .fi-ta-header, .fi-ta-ctn thead, .fi-ta-ctn thead tr, .fi-ta-ctn thead th { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
                     .fi-modal-window { background-color: var(--app-card) !important; }
+                    .fi-no-notification { opacity: 0.88 !important; }
                     </style>'
                 )
             )

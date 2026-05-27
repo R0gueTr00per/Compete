@@ -7,7 +7,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Pages\Page;
 
 class OrganisationSettings extends Page implements HasForms

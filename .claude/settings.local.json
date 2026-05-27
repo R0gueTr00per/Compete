@@ -299,7 +299,10 @@
       "mcp__jira__jira_batch_create_issues",
       "mcp__jira__jira_delete_issue",
       "Bash(xargs grep -l \"planning\\\\|check_in\\\\|running\")",
-      "mcp__jira__jira_get_all_projects"
+      "mcp__jira__jira_get_all_projects",
+      "Bash(grep -rl \"use Filament\\\\\\\\\\\\\\\\Notifications\\\\\\\\\\\\\\\\Notification;\" x:\\\\Repos\\\\Compete\\\\app)",
+      "Bash(xargs grep -l \"fi-no\")",
+      "Bash(xargs grep -l \"placement\\\\|compete\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

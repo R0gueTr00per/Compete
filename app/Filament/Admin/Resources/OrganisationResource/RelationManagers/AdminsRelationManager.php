@@ -6,7 +6,7 @@ use App\Models\OrganisationMembership;
 use App\Models\User;
 use App\Notifications\OrgAdminInvitationNotification;
 use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;

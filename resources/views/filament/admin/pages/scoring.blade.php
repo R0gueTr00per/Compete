@@ -567,15 +567,15 @@
                                                                                 wire:click="recordBracketScore({{ $match->id }})">Save</x-filament::button>
                                                                         </div>
                                                                         {{-- Desktop: compact row --}}
-                                                                        <div class="hidden sm:flex items-center justify-center flex-wrap gap-2 mt-2">
-                                                                            @if ($homeResult && ! $isReadOnly)
-                                                                                <x-filament::button size="xs"
-                                                                                    color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
-                                                                                    wire:click="toggleDisqualify({{ $homeResult->id }})">
-                                                                                    {{ $homeResult->disqualified ? 'Un-DQ' : 'DQ' }}
-                                                                                </x-filament::button>
-                                                                            @endif
-                                                                            <div class="flex items-center gap-1">
+                                                                        <div class="hidden sm:flex items-center gap-2 mt-2">
+                                                                            <div class="flex-1 flex items-center justify-end gap-1">
+                                                                                @if ($homeResult && ! $isReadOnly)
+                                                                                    <x-filament::button size="xs"
+                                                                                        color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
+                                                                                        wire:click="toggleDisqualify({{ $homeResult->id }})">
+                                                                                        {{ $homeResult->disqualified ? 'Un-DQ' : 'DQ' }}
+                                                                                    </x-filament::button>
+                                                                                @endif
                                                                                 <button type="button"
                                                                                     x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
                                                                                     class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
@@ -589,7 +589,7 @@
                                                                                     class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
                                                                             </div>
                                                                             <span class="text-xs text-gray-400 shrink-0">—</span>
-                                                                            <div class="flex items-center gap-1">
+                                                                            <div class="flex-1 flex items-center gap-1">
                                                                                 <button type="button"
                                                                                     x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
                                                                                     class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
@@ -601,16 +601,16 @@
                                                                                 <button type="button"
                                                                                     x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
                                                                                     class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                                @if ($awayResult && ! $isReadOnly)
+                                                                                    <x-filament::button size="xs"
+                                                                                        color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
+                                                                                        wire:click="toggleDisqualify({{ $awayResult->id }})">
+                                                                                        {{ $awayResult->disqualified ? 'Un-DQ' : 'DQ' }}
+                                                                                    </x-filament::button>
+                                                                                @endif
+                                                                                <x-filament::button size="xs" color="success" class="shrink-0"
+                                                                                    wire:click="recordBracketScore({{ $match->id }})">Save</x-filament::button>
                                                                             </div>
-                                                                            @if ($awayResult && ! $isReadOnly)
-                                                                                <x-filament::button size="xs"
-                                                                                    color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
-                                                                                    wire:click="toggleDisqualify({{ $awayResult->id }})">
-                                                                                    {{ $awayResult->disqualified ? 'Un-DQ' : 'DQ' }}
-                                                                                </x-filament::button>
-                                                                            @endif
-                                                                            <x-filament::button size="xs" color="success" class="shrink-0"
-                                                                                wire:click="recordBracketScore({{ $match->id }})">Save</x-filament::button>
                                                                         </div>
                                                                     @endif
                                                                 @else

@@ -5,7 +5,7 @@ namespace App\Filament\OrgAdmin\Resources\CompetitionResource\Pages;
 use App\Filament\OrgAdmin\Resources\CompetitionResource;
 use App\Models\Competition;
 use App\Services\DivisionAssignmentService;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateCompetition extends CreateRecord

@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Notifications\AccountCreatedNotification;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;

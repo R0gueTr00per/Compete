@@ -5,7 +5,7 @@ namespace App\Filament\Shared\Pages;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Pages\Concerns\InteractsWithFormActions;
 use Filament\Pages\Page;
 use PragmaRX\Google2FALaravel\Facade as Google2FA;

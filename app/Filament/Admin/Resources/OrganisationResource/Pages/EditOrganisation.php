@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Notifications\OrgAdminInvitationNotification;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;

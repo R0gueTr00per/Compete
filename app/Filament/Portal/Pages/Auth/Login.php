@@ -4,7 +4,7 @@ namespace App\Filament\Portal\Pages\Auth;
 
 use App\Models\User;
 use Filament\Http\Responses\Auth\Contracts\LoginResponse;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Pages\Auth\Login as BaseLogin;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;

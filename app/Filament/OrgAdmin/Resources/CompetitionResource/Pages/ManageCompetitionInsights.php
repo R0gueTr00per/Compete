@@ -7,7 +7,7 @@ use App\Mail\CompetitionInsightsMail;
 use App\Models\CompetitionTask;
 use App\Services\CompetitionInsightService;
 use Filament\Actions\Action;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\Mail;

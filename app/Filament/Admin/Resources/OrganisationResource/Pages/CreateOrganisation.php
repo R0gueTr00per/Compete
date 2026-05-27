@@ -6,7 +6,7 @@ use App\Filament\Admin\Resources\OrganisationResource;
 use App\Models\OrganisationMembership;
 use App\Models\User;
 use App\Notifications\OrgAdminInvitationNotification;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateOrganisation extends CreateRecord

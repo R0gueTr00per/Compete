@@ -6,7 +6,7 @@ use App\Models\Competition;
 use App\Models\CompetitionInsight;
 use App\Models\CompetitionTask;
 use Filament\Actions\Action;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Pages\Dashboard as BaseDashboard;
 
 class Dashboard extends BaseDashboard

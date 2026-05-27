@@ -4,7 +4,7 @@ namespace App\Filament\Portal\Pages;
 
 use App\Models\Competition;
 use App\Models\Enrolment;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Pages\Page;
 
 class MyDojosPage extends Page

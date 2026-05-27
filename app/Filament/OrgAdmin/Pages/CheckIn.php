@@ -5,7 +5,7 @@ namespace App\Filament\OrgAdmin\Pages;
 use App\Models\Competition;
 use App\Models\Enrolment;
 use App\Services\CheckInService;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Pages\Page;
 use Livewire\Attributes\Url;
 

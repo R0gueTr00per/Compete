@@ -11,7 +11,7 @@ use App\Models\RoundRobinMatch;
 use App\Services\BracketService;
 use App\Services\EnrolmentService;
 use App\Services\ScoringService;
-use Filament\Notifications\Notification;
+use App\Notifications\Notification;
 use Filament\Pages\Page;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
