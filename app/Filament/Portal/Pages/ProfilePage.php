@@ -159,7 +159,7 @@ class ProfilePage extends Page implements HasForms
                     if (! $profile) return;
 
                     $enrolledInActive = $profile->enrolments()
-                        ->whereHas('competition', fn ($q) => $q->whereIn('status', ['open', 'closed', 'check_in', 'running']))
+                        ->whereHas('competition', fn ($q) => $q->whereIn('status', ['open', 'enrolments_closed', 'check_in', 'running']))
                         ->exists();
 
                     if ($enrolledInActive) {

@@ -34,6 +34,6 @@ class GenerateCompetitionInsightsJob implements ShouldQueue
             return;
         }
 
-        $service->generate($this->competition, $this->generation);
+        retry(2, fn () => $service->generate($this->competition, $this->generation), 2000);
     }
 }

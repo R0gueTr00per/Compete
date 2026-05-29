@@ -64,7 +64,7 @@
                     };
                     $enrolmentsColor = $competition->status === 'open'     ? 'success'  : 'gray';
                     $checkInColor    = $competition->status === 'check_in' ? 'primary'  : 'gray';
-                    $schedulingColor = $competition->status === 'closed'   ? 'primary'  : 'gray';
+                    $schedulingColor = $competition->status === 'enrolments_closed' ? 'primary' : 'gray';
                     $scoringColor    = $competition->status === 'running'  ? 'warning'  : 'gray';
                 @endphp
                 <x-filament::section>
@@ -84,10 +84,10 @@
                     </x-slot>
 
                     @php
-                        $allStatuses = ['planning', 'open', 'closed', 'check_in', 'running', 'complete'];
-                        $stepLine1   = ['planning' => 'Planning', 'open' => 'Open for', 'closed' => 'Enrolments', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
-                        $stepLine2   = ['planning' => '',        'open' => 'Enrolments', 'closed' => 'Closed',   'check_in' => '',          'running' => '',        'complete' => ''];
-                        $stepTitle   = ['planning' => 'Planning', 'open' => 'Open for Enrolments', 'closed' => 'Enrolments Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $allStatuses = ['planning', 'open', 'enrolments_closed', 'check_in', 'running', 'complete'];
+                        $stepLine1   = ['planning' => 'Planning', 'open' => 'Open for', 'enrolments_closed' => 'Enrolments', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $stepLine2   = ['planning' => '',        'open' => 'Enrolments', 'enrolments_closed' => 'Closed',   'check_in' => '',          'running' => '',        'complete' => ''];
+                        $stepTitle   = ['planning' => 'Planning', 'open' => 'Open for Enrolments', 'enrolments_closed' => 'Enrolments Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
                         $currentIdx  = (int) array_search($competition->status, $allStatuses);
                         $totalSteps  = count($allStatuses);
 
@@ -215,7 +215,7 @@
                             $showProgressBar = true;
                             $progressPct     = (int) round(($competition->scheduled_divisions_count / $competition->schedulable_divisions_count) * 100);
                             $progressText    = $competition->scheduled_divisions_count . ' / ' . $competition->schedulable_divisions_count . ' divisions scheduled';
-                        } elseif (in_array($competition->status, ['open', 'closed'])) {
+                        } elseif (in_array($competition->status, ['open', 'enrolments_closed'])) {
                             $showProgressBar = true;
                             $enrolled        = $competition->enrolments_count;
                             $target          = $competition->target_competitors;
@@ -284,7 +284,7 @@
                         $hideOnMobile = match ($competition->status) {
                             'planning'  => ['scheduling', 'scoring'],
                             'open'      => ['scoring'],
-                            'closed'    => ['scoring'],
+                            'enrolments_closed' => ['scoring'],
                             'check_in'  => ['scheduling'],
                             'running'   => ['scheduling'],
                             'complete'  => ['checkin'],

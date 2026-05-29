@@ -65,7 +65,7 @@ class CompetitionInsightService
             $data         = $this->buildCompleteDataContext($competition);
             $systemPrompt = $this->buildCompleteSystemPrompt($competition);
             $userPrompt   = $this->buildCompleteUserPrompt($data);
-        } elseif ($status === 'closed') {
+        } elseif ($status === 'enrolments_closed') {
             $data         = $this->buildDataContext($competition);
             $systemPrompt = $this->buildClosedSystemPrompt($competition);
             $userPrompt   = $this->buildClosedUserPrompt($data);
@@ -274,7 +274,7 @@ class CompetitionInsightService
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
 
-You provide structured insights to competition organisers while enrolments are open. Always respond using exactly these four section headings in markdown — no other headings:
+You provide structured insights to competition organisers while enrolments are open. Always respond using exactly these five section headings in markdown — no other headings:
 
 ## ✅ Action Items
 Check each of the following and raise a bullet point for every issue found — do not skip any that apply. Reference actual numbers in every bullet. Pair each issue with a concrete recommendation:
@@ -287,6 +287,9 @@ Check each of the following and raise a bullet point for every issue found — d
 - Enrolments in the last 7 days are very low compared to the last 30 days — velocity is slowing
 - Any single dojo representing more than 40% of total competitors — competitive balance concern
 - Large number of late enrolments relative to total
+
+## 🌟 What's Going Well
+Highlight 2–4 genuine positives: strong enrolment numbers, good dojo diversity, healthy divisions, strong payment collection, good enrolment velocity, or anything else that reflects well on the organiser's efforts. Be specific and reference actual numbers.
 
 ## 📊 Participation Patterns
 Summarise competitor demographics: age bands, rank distribution, gender balance, dojo spread. Note any imbalances or surprises.
@@ -448,10 +451,13 @@ PROMPT;
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
 
-You provide structured insights to help competition organisers prepare for an upcoming competition that is currently in the planning stage. Always respond using exactly these four section headings in markdown — no other headings:
+You provide structured insights to help competition organisers prepare for an upcoming competition that is currently in the planning stage. Always respond using exactly these five section headings in markdown — no other headings:
 
 ## ✅ Action Items
 List specific things requiring immediate attention before the competition can open for enrolments, ordered by urgency. Be direct and reference actual numbers. Pair every issue with a concrete recommendation.
+
+## 🌟 What's Going Well
+Highlight 2–4 genuine positives about the competition setup so far: events configured, divisions generated, bands set up, venue set, or any other solid foundations already in place. Be specific and encouraging.
 
 ## 🏗️ Structure Overview
 Summarise the event types and division setup: how many events, divisions generated, how many are scheduled to locations vs unscheduled. Comment on whether the structure looks complete.
@@ -532,10 +538,13 @@ PROMPT;
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
 
-You provide structured insights to help organisers prepare for a competition that has CLOSED for enrolments and is approaching competition day. Always respond using exactly these four section headings in markdown — no other headings:
+You provide structured insights to help organisers prepare for a competition that has CLOSED for enrolments and is approaching competition day. Always respond using exactly these five section headings in markdown — no other headings:
 
 ## ✅ Action Items
 List the most urgent tasks before competition day, ordered by priority. Reference actual numbers and pair every issue with a concrete recommendation.
+
+## 🌟 What's Going Well
+Highlight 2–4 genuine positives: strong final enrolment numbers, good payment collection rate, healthy division sizes, strong competitor turnout relative to target, or good dojo diversity. Be specific and reference actual numbers.
 
 ## 👥 Competitor & Division Readiness
 Summarise who is enrolled, any empty or at-risk divisions, check-in preparation notes. Highlight divisions with very few competitors that may not be viable to run.
@@ -658,13 +667,16 @@ PROMPT;
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
 
-You provide real-time insights to organisers during an active competition (check-in or running). Always respond using exactly these four section headings in markdown — no other headings:
+You provide real-time insights to organisers during an active competition (check-in or running). Always respond using exactly these five section headings in markdown — no other headings:
 
 ## ✅ Action Items
 Urgent items requiring immediate attention right now. Check each of the following and raise a bullet for every issue found:
 - Any event where check-in is zero (competitors enrolled but none checked in) — may indicate a no-show or check-in table issue
 - Outstanding payments that need collecting today
 - Any events with no active competitors (empty) that may still be on the run sheet
+
+## 🌟 What's Going Well
+Highlight 2–4 genuine positives about how the competition is running: strong check-in rates, good competitor turnout, events running smoothly, scoring progressing well, or strong payment collection. Keep it brief and encouraging.
 
 ## 🏃 Scoring Progress
 Report the scoring state for each event: how many divisions are scored vs remaining. State the counts factually — do not characterise low percentages as a problem, since competitions score sequentially and progress naturally increases throughout the day. Only flag an event if it has fallen notably behind all other events for no apparent reason.
@@ -771,7 +783,10 @@ PROMPT;
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
 
-You provide a retrospective analysis of a completed competition to help organisers understand outcomes and improve future events. Always respond using exactly these four section headings in markdown — no other headings:
+You provide a retrospective analysis of a completed competition to help organisers understand outcomes and improve future events. Always respond using exactly these five section headings in markdown — no other headings:
+
+## 🌟 Highlights
+Celebrate 3–5 genuine achievements from the event: strong turnout, well-run events, good payment collection, diverse participation, high check-in rates, or anything else the organiser should feel proud of. Be warm, specific, and reference actual numbers.
 
 ## 📊 Results Summary
 Overall participation vs targets. Competitor count, enrolment outcomes, demographic highlights. How did the event compare to expectations?

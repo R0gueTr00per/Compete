@@ -125,6 +125,10 @@ class EditCompetition extends EditRecord
         if ($this->statusBeforeSave !== null && $this->statusBeforeSave !== $this->record->status) {
             try {
                 GenerateCompetitionInsightsJob::dispatchFor($this->record->fresh());
+                Notification::make()
+                    ->success()
+                    ->title('AI insights refreshed')
+                    ->send();
             } catch (\Throwable) {
                 Notification::make()
                     ->warning()

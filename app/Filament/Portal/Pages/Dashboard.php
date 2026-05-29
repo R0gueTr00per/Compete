@@ -19,7 +19,7 @@ class Dashboard extends BaseDashboard
 
     public function getActiveCompetitions()
     {
-        return Competition::whereIn('status', ['open', 'closed', 'check_in', 'running'])
+        return Competition::whereIn('status', ['open', 'enrolments_closed', 'check_in', 'running'])
             ->where('organisation_id', app('tenant')?->id)
             ->orderBy('competition_date')
             ->get();

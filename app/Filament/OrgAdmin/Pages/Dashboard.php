@@ -35,11 +35,7 @@ class Dashboard extends BaseDashboard
     public function getActiveCompetitions()
     {
         return Competition::where('organisation_id', app('tenant')?->id)
-            ->whereNotIn('competitions.status', ['complete'])
-            ->where(function ($q) {
-                $q->where('competitions.status', '!=', 'closed')
-                  ->orWhere('competitions.competition_date', '>=', today());
-            })
+            ->whereRaw("(competitions.status != 'complete' OR competitions.competition_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY))")
             ->withCount('enrolments')
             ->withCount(['enrolments as checkins_count' => fn ($q) => $q->where('enrolments.status', 'checked_in')])
             ->withCount('competitionEvents as events_count')
@@ -73,12 +69,12 @@ class Dashboard extends BaseDashboard
     public function setStatusAction(): Action
     {
         $statusLabels = [
-            'planning'    => 'Planning',
-            'open'     => 'Open',
-            'closed'   => 'Closed',
-            'check_in' => 'Check-in',
-            'running'  => 'Running',
-            'complete' => 'Complete',
+            'planning'          => 'Planning',
+            'open'              => 'Open',
+            'enrolments_closed' => 'Enrolments Closed',
+            'check_in'          => 'Check-in',
+            'running'           => 'Running',
+            'complete'          => 'Complete',
         ];
 
         return Action::make('setStatus')
@@ -98,8 +94,8 @@ class Dashboard extends BaseDashboard
                             ->count();
                         return "{$n} division(s) have not been assigned to a location. Open for enrolment anyway?";
                     })(),
-                    ['open',     'closed']   => 'Close enrolments for this competition?',
-                    ['closed',   'check_in'] => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
+                    ['open',              'enrolments_closed'] => 'Close enrolments for this competition?',
+                    ['enrolments_closed', 'check_in']         => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
                     ['check_in', 'running']  => (function () use ($competition) {
                         $done = $competition->allDivisions()->where('divisions.status', 'complete')->count();
                         $msg = 'This will start the competition. Undo check-in will be disabled and scoring will become active.';
@@ -124,6 +120,10 @@ class Dashboard extends BaseDashboard
                 $this->dispatch('competition-status-changed', competitionId: $competition->id, newStatus: $target);
                 try {
                     GenerateCompetitionInsightsJob::dispatchFor($competition->fresh());
+                    Notification::make()
+                        ->success()
+                        ->title('AI insights refreshed')
+                        ->send();
                 } catch (\Throwable) {
                     Notification::make()
                         ->warning()

@@ -27,7 +27,7 @@ class ListEnrolments extends ListRecords
                 ->where('organisation_id', $orgId)
                 ->where('competition_date', $today)
                 ->first()
-                ?? Competition::whereIn('status', ['open', 'running', 'closed', 'complete'])
+                ?? Competition::whereIn('status', ['open', 'running', 'enrolments_closed', 'complete'])
                     ->where('organisation_id', $orgId)
                     ->orderByDesc('competition_date')
                     ->first();

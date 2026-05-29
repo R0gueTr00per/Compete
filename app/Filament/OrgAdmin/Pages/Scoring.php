@@ -110,7 +110,7 @@ class Scoring extends Page
 
     public function getCompetitions(): array
     {
-        return Competition::whereIn('status', ['open', 'running', 'closed', 'complete'])
+        return Competition::whereIn('status', ['open', 'running', 'enrolments_closed', 'complete'])
             ->where('organisation_id', app('tenant')?->id)
             ->orderBy('competition_date', 'desc')
             ->pluck('name', 'id')

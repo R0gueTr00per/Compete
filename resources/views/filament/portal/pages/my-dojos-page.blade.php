@@ -18,11 +18,11 @@
             $totalCompetitors = $enrolmentsByDojo->flatten()->count();
 
             $statusClass = match($competition->status) {
-                'open'     => 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400',
-                'closed'   => 'bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400',
-                'check_in' => 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400',
-                'running'  => 'bg-danger-100 dark:bg-danger-900/30 text-danger-700 dark:text-danger-400',
-                default    => 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
+                'open'              => 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400',
+                'enrolments_closed' => 'bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400',
+                'check_in'          => 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400',
+                'running'           => 'bg-danger-100 dark:bg-danger-900/30 text-danger-700 dark:text-danger-400',
+                default             => 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300',
             };
         @endphp
 

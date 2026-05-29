@@ -100,7 +100,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                     Select::make('competition_id')
                         ->label('Competition')
                         ->options(
-                            Competition::whereIn('status', ['open', 'running', 'closed'])
+                            Competition::whereIn('status', ['open', 'running', 'enrolments_closed'])
                                 ->where('organisation_id', app('tenant')?->id)
                                 ->orderByDesc('competition_date')
                                 ->pluck('name', 'id')

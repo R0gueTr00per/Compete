@@ -120,12 +120,12 @@ class CompetitionResource extends Resource
 
                                     Select::make('status')
                                         ->options([
-                                            'planning'    => 'Planning',
-                                            'open'     => 'Open for enrolment',
-                                            'closed'   => 'Closed',
-                                            'check_in' => 'Check-in',
-                                            'running'  => 'Running',
-                                            'complete' => 'Complete',
+                                            'planning'          => 'Planning',
+                                            'open'              => 'Open for enrolment',
+                                            'enrolments_closed' => 'Enrolments Closed',
+                                            'check_in'          => 'Check-in',
+                                            'running'           => 'Running',
+                                            'complete'          => 'Complete',
                                         ])
                                         ->required()
                                         ->default('planning'),
@@ -252,22 +252,22 @@ class CompetitionResource extends Resource
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (string $state) => match ($state) {
-                        'planning'    => 'Planning',
-                        'open'     => 'Open',
-                        'closed'   => 'Closed',
-                        'check_in' => 'Check-in',
-                        'running'  => 'Running',
-                        'complete' => 'Complete',
-                        default    => ucfirst($state),
+                        'planning'          => 'Planning',
+                        'open'              => 'Open',
+                        'enrolments_closed' => 'Enrolments Closed',
+                        'check_in'          => 'Check-in',
+                        'running'           => 'Running',
+                        'complete'          => 'Complete',
+                        default             => ucfirst($state),
                     })
                     ->color(fn (string $state) => match ($state) {
-                        'planning'    => 'gray',
-                        'open'     => 'success',
-                        'closed'   => 'gray',
-                        'check_in' => 'warning',
-                        'running'  => 'info',
-                        'complete' => 'primary',
-                        default    => 'gray',
+                        'planning'          => 'gray',
+                        'open'              => 'success',
+                        'enrolments_closed' => 'gray',
+                        'check_in'          => 'warning',
+                        'running'           => 'info',
+                        'complete'          => 'primary',
+                        default             => 'gray',
                     }),
 
                 TextColumn::make('enrolments_count')
@@ -280,12 +280,12 @@ class CompetitionResource extends Resource
             ->filters([
                 SelectFilter::make('status')
                     ->options([
-                        'planning'    => 'Planning',
-                        'open'     => 'Open',
-                        'closed'   => 'Closed',
-                        'check_in' => 'Check-in',
-                        'running'  => 'Running',
-                        'complete' => 'Complete',
+                        'planning'          => 'Planning',
+                        'open'              => 'Open',
+                        'enrolments_closed' => 'Enrolments Closed',
+                        'check_in'          => 'Check-in',
+                        'running'           => 'Running',
+                        'complete'          => 'Complete',
                     ]),
             ])
             ->actions([
@@ -313,28 +313,28 @@ class CompetitionResource extends Resource
                         ->url(fn (Competition $record) => route('filament.org-admin.resources.enrolments.index') . '?competition_id=' . $record->id),
                     Action::make('advance')
                         ->label(fn (Competition $record) => match ($record->status) {
-                            'planning'    => 'Open Enrolments',
-                            'open'     => 'Close Enrolments',
-                            'closed'   => 'Begin Check-ins',
-                            'check_in' => 'Start Competition',
-                            'running'  => 'Conclude Competition',
-                            default    => 'Advance',
+                            'planning'          => 'Open Enrolments',
+                            'open'              => 'Close Enrolments',
+                            'enrolments_closed' => 'Begin Check-ins',
+                            'check_in'          => 'Start Competition',
+                            'running'           => 'Conclude Competition',
+                            default             => 'Advance',
                         })
                         ->icon(fn (Competition $record) => match ($record->status) {
-                            'planning'    => 'heroicon-o-lock-open',
-                            'open'     => 'heroicon-o-lock-closed',
-                            'closed'   => 'heroicon-o-clipboard-document-check',
-                            'check_in' => 'heroicon-o-play',
-                            'running'  => 'heroicon-o-flag',
-                            default    => 'heroicon-o-arrow-right',
+                            'planning'          => 'heroicon-o-lock-open',
+                            'open'              => 'heroicon-o-lock-closed',
+                            'enrolments_closed' => 'heroicon-o-clipboard-document-check',
+                            'check_in'          => 'heroicon-o-play',
+                            'running'           => 'heroicon-o-flag',
+                            default             => 'heroicon-o-arrow-right',
                         })
                         ->color(fn (Competition $record) => match ($record->status) {
-                            'planning'    => 'success',
-                            'open'     => 'warning',
-                            'closed'   => 'primary',
-                            'check_in' => 'info',
-                            'running'  => 'danger',
-                            default    => 'gray',
+                            'planning'          => 'success',
+                            'open'              => 'warning',
+                            'enrolments_closed' => 'primary',
+                            'check_in'          => 'info',
+                            'running'           => 'danger',
+                            default             => 'gray',
                         })
                         ->requiresConfirmation(fn (Competition $record) =>
                             $record->status !== 'planning' ||
@@ -352,8 +352,8 @@ class CompetitionResource extends Resource
                                         ->count();
                                     return "{$unscheduled} division(s) have not been assigned to a location. Open for enrolment anyway?";
                                 })(),
-                                'open'     => 'Close enrolments for this competition?',
-                                'closed'   => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
+                                'open'              => 'Close enrolments for this competition?',
+                                'enrolments_closed' => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
                                 'check_in' => (function () use ($record) {
                                     $completedDivisions = $record->allDivisions()
                                         ->where('divisions.status', 'complete')
@@ -370,12 +370,12 @@ class CompetitionResource extends Resource
                         })
                         ->visible(fn (Competition $record) => $record->status !== 'complete')
                         ->action(fn (Competition $record) => $record->update(['status' => match ($record->status) {
-                            'planning'    => 'open',
-                            'open'     => 'closed',
-                            'closed'   => 'check_in',
-                            'check_in' => 'running',
-                            'running'  => 'complete',
-                            default    => $record->status,
+                            'planning'          => 'open',
+                            'open'              => 'enrolments_closed',
+                            'enrolments_closed' => 'check_in',
+                            'check_in'          => 'running',
+                            'running'           => 'complete',
+                            default             => $record->status,
                         }])),
                     Action::make('duplicate')
                         ->label('Duplicate competition')

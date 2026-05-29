@@ -98,7 +98,7 @@
 
     @if (! $this->competition_id)
         <p class="text-center text-gray-400 py-12">Select a competition to begin check-in.</p>
-    @elseif (! in_array(($competition = \App\Models\Competition::find($this->competition_id))?->status, ['closed', 'check_in', 'running']))
+    @elseif (! in_array(($competition = \App\Models\Competition::find($this->competition_id))?->status, ['enrolments_closed', 'check_in', 'running']))
         <p class="text-center text-gray-400 py-12">Check-in is not available yet — enrolments are still open or competition has not closed.</p>
     @else
         @php $enrolments = $this->getEnrolments(); @endphp
