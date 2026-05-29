@@ -31,7 +31,7 @@
             <div class="flex w-full items-center justify-between gap-3 px-4 py-3">
                 <div class="min-w-0">
                     <span class="font-semibold text-sm text-gray-900 dark:text-white">{{ $competition->name }}</span>
-                    <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{{ $competition->competition_date->format('d M Y') }}</span>
+                    <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{{ tenant_date($competition->competition_date) }}</span>
                     <span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $statusClass }}">
                         {{ match($competition->status) {
                             'enrolments_closed' => 'Enrolments Closed',
@@ -80,11 +80,11 @@
                                         <div class="flex items-center gap-2 shrink-0">
                                             @if ($enrolment->payment_status === 'received')
                                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400">
-                                                    Paid ${{ number_format($enrolment->payment_amount ?? $enrolment->fee_calculated, 2) }}
+                                                    Paid {{ tenant_money($enrolment->payment_amount ?? $enrolment->fee_calculated) }}
                                                 </span>
                                             @else
                                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400">
-                                                    Owes ${{ number_format($enrolment->fee_calculated, 2) }}
+                                                    Owes {{ tenant_money($enrolment->fee_calculated) }}
                                                 </span>
                                             @endif
                                             <x-heroicon-m-chevron-down

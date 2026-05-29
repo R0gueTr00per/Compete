@@ -37,7 +37,7 @@
 
 <h1>{{ $competition->name }} Results</h1>
 <p class="meta">
-  {{ \Carbon\Carbon::parse($competition->competition_date)->format('l, d F Y') }}
+  {{ tenant_date($competition->competition_date) }}
   @if ($competition->location_name) | {{ $competition->location_name }} @endif
   @if ($competition->location_address) — {{ $competition->location_address }} @endif
 </p>
@@ -84,7 +84,7 @@
 @endforeach
 
 <p style="margin-top:30px; font-size:9px; color:#999; text-align:right;">
-  Generated {{ now()->format('d M Y H:i') }} — Kompetic
+  Generated {{ tenant_datetime(now()) }} — Kompetic
 </p>
 </body>
 </html>

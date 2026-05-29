@@ -116,7 +116,7 @@ class MemberResource extends Resource
 
                 TextColumn::make('joined_at')
                     ->label('Joined')
-                    ->date()
+                    ->date(tenant_date_format())
                     ->sortable()
                     ->visibleFrom('sm'),
             ])

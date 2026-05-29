@@ -16,7 +16,19 @@ class Organisation extends Model
         'slug',
         'status',
         'ai_context',
+        'auto_email_insights',
+        'insights_auto_refresh',
+        'dashboard_closed_days',
+        'timezone',
+        'date_format',
+        'currency',
         'created_by_user_id',
+    ];
+
+    protected $casts = [
+        'auto_email_insights'   => 'boolean',
+        'insights_auto_refresh' => 'boolean',
+        'dashboard_closed_days' => 'integer',
     ];
 
     public function getRouteKeyName(): string

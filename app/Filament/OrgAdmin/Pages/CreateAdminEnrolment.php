@@ -160,7 +160,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                 ->columns(2)
                 ->schema([
                     Toggle::make('is_child_profile')
-                        ->label('This is a child profile (requires parent login account)')
+                        ->label('This is a family member profile (requires primary account login)')
                         ->live()
                         ->afterStateUpdated(function () {
                             $this->new_email        = null;
@@ -523,7 +523,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                     'owner_user_id'    => $parentUser->id,
                     'user_id'          => null,
                     'organisation_id'  => $org?->id,
-                    'profile_type'     => 'child',
+                    'profile_type'     => 'family_member',
                     'surname'          => $this->new_surname,
                     'first_name'       => $this->new_first_name,
                     'date_of_birth'    => $this->new_dob,

@@ -94,7 +94,7 @@ class EnrolmentResource extends Resource
 
                 TextColumn::make('enrolled_at')
                     ->label('Enrolled')
-                    ->dateTime('d M Y H:i')
+                    ->formatStateUsing(fn ($state) => $state ? tenant_datetime($state) : '—')
                     ->sortable()
                     ->visibleFrom('sm'),
 
@@ -107,7 +107,7 @@ class EnrolmentResource extends Resource
 
                 TextColumn::make('fee_calculated')
                     ->label('Fee')
-                    ->money('AUD')
+                    ->money(tenant_currency())
                     ->description(fn (Enrolment $record) => $record->is_official_discount ? 'officials discount' : null)
                     ->sortable()
                     ->visibleFrom('sm'),
@@ -383,9 +383,9 @@ class EnrolmentResource extends Resource
                         ->color('success')
                         ->form(fn (Enrolment $record) => [
                             TextInput::make('payment_amount')
-                                ->label('Amount received ($)')
+                                ->label('Amount received (' . tenant_currency() . ')')
                                 ->numeric()
-                                ->prefix('$')
+                                ->prefix(tenant_currency_symbol())
                                 ->default(fn () => $record->fee_calculated)
                                 ->required(),
                         ])

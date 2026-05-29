@@ -106,7 +106,7 @@ class EnrolPage extends Page implements HasForms
                         ->label('Select profile')
                         ->options(
                             $activeProfiles->mapWithKeys(fn ($p) => [
-                                $p->id => $p->full_name . ($p->isChild() ? ' (child)' : ''),
+                                $p->id => $p->full_name . ($p->isFamilyMember() ? ' (family member)' : ''),
                             ])
                         )
                         ->required()

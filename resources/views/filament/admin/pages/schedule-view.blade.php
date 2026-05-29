@@ -13,15 +13,15 @@
         {{-- Competition header --}}
         <x-filament::section>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
-                <span>{{ $competition->competition_date->format('l j F Y') }}</span>
+                <span>{{ tenant_date($competition->competition_date) }}</span>
                 @if ($competition->location_name)
                     <span>&middot; {{ $competition->location_name }}</span>
                 @endif
                 @if ($competition->start_time)
-                    <span>&middot; Starts {{ \Carbon\Carbon::parse($competition->start_time)->format('g:i a') }}</span>
+                    <span>&middot; Starts {{ tenant_time($competition->start_time) }}</span>
                 @endif
                 <span class="sm:ml-auto flex items-center gap-2 text-xs text-gray-400">
-                    Updated {{ now()->format('g:i a') }}
+                    Updated {{ tenant_time(now()) }}
                     <x-filament::button size="xs" color="gray" wire:click="$refresh">
                         Refresh
                     </x-filament::button>

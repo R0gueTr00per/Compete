@@ -46,7 +46,7 @@ class EditCompetitor extends EditRecord
                 ->label('Promote to own account')
                 ->icon('heroicon-o-arrow-up-circle')
                 ->color('success')
-                ->visible(fn () => $this->record->profile_type === 'child')
+                ->visible(fn () => $this->record->profile_type === 'family_member')
                 ->modalHeading('Promote to own account')
                 ->modalDescription('This will create a new login account for this competitor. They will receive an email with a link to set their password.')
                 ->modalSubmitActionLabel('Create account')

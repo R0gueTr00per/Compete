@@ -49,13 +49,13 @@ class CompetitorProfile extends Model
         return $this->belongsTo(Organisation::class);
     }
 
-    // The user who manages/owns this profile (parent for child profiles, self for self-profiles)
+    // The user who manages/owns this profile (primary account for family members, self for self-profiles)
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_user_id');
     }
 
-    // The profile's own login account (only set when the profile has graduated to its own account,
+    // The profile's own login account (only set when a family member profile has been promoted,
     // or for self-profiles where user_id == owner_user_id)
     public function account(): BelongsTo
     {
@@ -67,9 +67,9 @@ class CompetitorProfile extends Model
         return $this->hasMany(Enrolment::class, 'competitor_profile_id');
     }
 
-    public function isChild(): bool
+    public function isFamilyMember(): bool
     {
-        return $this->profile_type === 'child';
+        return $this->profile_type === 'family_member';
     }
 
     public function hasDedicatedAccount(): bool

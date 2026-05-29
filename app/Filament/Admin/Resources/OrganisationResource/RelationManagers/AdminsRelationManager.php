@@ -45,12 +45,12 @@ class AdminsRelationManager extends RelationManager
 
                 TextColumn::make('invited_at')
                     ->label('Invited')
-                    ->date()
+                    ->date(tenant_date_format())
                     ->sortable(),
 
                 TextColumn::make('joined_at')
                     ->label('Joined')
-                    ->date()
+                    ->date(tenant_date_format())
                     ->sortable(),
             ])
             ->headerActions([

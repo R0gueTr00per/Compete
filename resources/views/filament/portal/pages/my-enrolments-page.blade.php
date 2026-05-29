@@ -18,12 +18,12 @@
                 </x-slot>
 
                 <x-slot name="description">
-                    {{ $enrolment->competition->competition_date->format('d M Y') }}
+                    {{ tenant_date($enrolment->competition->competition_date) }}
                     @if ($enrolment->competition->location_name)
                         &mdash; {{ $enrolment->competition->location_name }}
                     @endif
                     &nbsp;&bull;&nbsp;
-                    Fee: <strong>${{ number_format($enrolment->fee_calculated, 2) }}</strong>
+                    Fee: <strong>{{ tenant_money($enrolment->fee_calculated) }}</strong>
                     @if ($enrolment->is_late)
                         <span class="text-warning-600">(includes late surcharge)</span>
                     @endif
@@ -31,14 +31,6 @@
 
                 <div class="divide-y divide-gray-100 dark:divide-gray-800">
                     @foreach ($enrolment->activeEvents as $ee)
-                        @php
-                            $coCompetitors = $ee->division
-                                ? $ee->division->activeEnrolmentEvents
-                                    ->filter(fn ($other) => $other->enrolment->competitor?->owner_user_id !== auth()->id()
-                                        && $other->enrolment->competitor?->user_id !== auth()->id())
-                                    ->sortBy(fn ($other) => $other->enrolment->competitor?->surname)
-                                : collect();
-                        @endphp
                         <div class="py-3">
                             <div class="flex items-start justify-between gap-4">
                                 <div>
@@ -85,35 +77,6 @@
                                 </div>
                             </div>
 
-                            {{-- Co-competitors in division --}}
-                            @if ($ee->division && $coCompetitors->isNotEmpty())
-                                <div class="mt-2 ml-0">
-                                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">
-                                        Also in this division ({{ $coCompetitors->count() }})
-                                    </p>
-                                    <div class="flex flex-wrap gap-x-4 gap-y-0.5">
-                                        @foreach ($coCompetitors as $other)
-                                            @php
-                                                $otherName = $other->enrolment->competitor?->full_name ?? '—';
-                                                $otherResult = $other->result;
-                                            @endphp
-                                            <span class="text-xs text-gray-500 dark:text-gray-400">
-                                                {{ $otherName }}
-                                                @if ($otherResult?->placement)
-                                                    <span class="text-primary-600 font-medium">
-                                                        @switch($otherResult->placement)
-                                                            @case(1) 🥇 @break
-                                                            @case(2) 🥈 @break
-                                                            @case(3) 🥉 @break
-                                                            @default ({{ $otherResult->placement }})
-                                                        @endswitch
-                                                    </span>
-                                                @endif
-                                            </span>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endif
                         </div>
                     @endforeach
                 </div>

@@ -3,7 +3,7 @@
     <div class="mb-5">
         <x-filament::input.wrapper>
             <select wire:model.live="competition_id"
-                class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
+                class="w-full block border-0 bg-transparent dark:bg-gray-900 py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
                 <option value="">— Select competition —</option>
                 @foreach ($this->getCompetitions() as $id => $name)
                     <option value="{{ $id }}">{{ $name }}</option>

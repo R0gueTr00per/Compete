@@ -57,7 +57,7 @@ class ProfilesRelationManager extends RelationManager
                         ->maxLength(30),
 
                     Radio::make('profile_type')
-                        ->options(['self' => 'Self', 'child' => 'Child'])
+                        ->options(['self' => 'Self', 'family_member' => 'Family Member'])
                         ->required()
                         ->inline(),
                 ]),
@@ -79,12 +79,12 @@ class ProfilesRelationManager extends RelationManager
                 TextColumn::make('profile_type')
                     ->label('Type')
                     ->badge()
-                    ->color(fn (string $state) => $state === 'child' ? 'warning' : 'info')
-                    ->formatStateUsing(fn (string $state) => ucfirst($state)),
+                    ->color(fn (string $state) => $state === 'family_member' ? 'warning' : 'info')
+                    ->formatStateUsing(fn (string $state) => $state === 'family_member' ? 'Family Member' : 'Self'),
 
                 TextColumn::make('date_of_birth')
                     ->label('DOB')
-                    ->date('d M Y'),
+                    ->date(tenant_date_format()),
 
                 TextColumn::make('age')
                     ->label('Age'),

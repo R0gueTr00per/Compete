@@ -126,7 +126,7 @@ class ProfilesPage extends Page implements HasForms
 
     public function startCreate(): void
     {
-        $this->form->fill(['profile_type' => 'child']);
+        $this->form->fill(['profile_type' => 'family_member']);
         $this->editing = 'new';
     }
 
@@ -168,7 +168,7 @@ class ProfilesPage extends Page implements HasForms
         if ($this->editing === 'new') {
             $profileData['owner_user_id']   = auth()->id();
             $profileData['is_active']       = true;
-            $profileData['profile_type']    = 'child';
+            $profileData['profile_type']    = 'family_member';
             $profileData['organisation_id'] = app('tenant')?->id;
 
             CompetitorProfile::create($profileData);
@@ -289,7 +289,7 @@ class ProfilesPage extends Page implements HasForms
     public function startGraduate(int $profileId): void
     {
         $profile = $this->authoriseProfile($profileId);
-        if (! $profile || ! $profile->isChild()) {
+        if (! $profile || ! $profile->isFamilyMember()) {
             return;
         }
 
@@ -302,7 +302,7 @@ class ProfilesPage extends Page implements HasForms
         $data    = $this->graduateForm->getState();
         $profile = $this->authoriseProfile($this->graduating_profile_id);
 
-        if (! $profile || ! $profile->isChild()) {
+        if (! $profile || ! $profile->isFamilyMember()) {
             return;
         }
 

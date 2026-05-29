@@ -5,6 +5,7 @@ namespace App\Filament\OrgAdmin\Resources\CompetitionResource\Pages;
 use App\Filament\OrgAdmin\Resources\CompetitionResource;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\AgeBandsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\CompetitionEventsRelationManager;
+use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\CompetitionMessagesRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\LocationsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\OfficialsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\RankBandsRelationManager;
@@ -31,6 +32,7 @@ class EditCompetition extends EditRecord
             AgeBandsRelationManager::class,
             RankBandsRelationManager::class,
             WeightClassesRelationManager::class,
+            CompetitionMessagesRelationManager::class,
         ];
     }
 
@@ -123,18 +125,20 @@ class EditCompetition extends EditRecord
     protected function afterSave(): void
     {
         if ($this->statusBeforeSave !== null && $this->statusBeforeSave !== $this->record->status) {
-            try {
-                GenerateCompetitionInsightsJob::dispatchFor($this->record->fresh());
-                Notification::make()
-                    ->success()
-                    ->title('AI insights refreshed')
-                    ->send();
-            } catch (\Throwable) {
-                Notification::make()
-                    ->warning()
-                    ->title('AI insights could not be generated')
-                    ->body('You can refresh them manually from the Insights page.')
-                    ->send();
+            if ($this->record->organisation->insights_auto_refresh ?? true) {
+                try {
+                    GenerateCompetitionInsightsJob::dispatchFor($this->record->fresh());
+                    Notification::make()
+                        ->success()
+                        ->title('AI insights refreshed')
+                        ->send();
+                } catch (\Throwable) {
+                    Notification::make()
+                        ->warning()
+                        ->title('AI insights could not be generated')
+                        ->body('You can refresh them manually from the Insights page.')
+                        ->send();
+                }
             }
         }
     }

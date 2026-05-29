@@ -81,7 +81,7 @@
                         </div>
                     </x-slot>
                     <x-slot name="description">
-                        {{ $competition->competition_date->format('d M Y') }}
+                        {{ tenant_date($competition->competition_date) }}
                         @if ($competition->location_name)
                             &mdash; {{ $competition->location_name }}
                         @endif

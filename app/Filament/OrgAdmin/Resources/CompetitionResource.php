@@ -147,39 +147,39 @@ class CompetitionResource extends Resource
                                 ->columns(3)
                                 ->schema([
                                     TextInput::make('fee_first_event')
-                                        ->label('First event fee ($)')
+                                        ->label('First event fee (' . tenant_currency() . ')')
                                         ->numeric()
                                         ->required()
-                                        ->prefix('$'),
+                                        ->prefix(tenant_currency_symbol()),
 
                                     TextInput::make('fee_additional_event')
-                                        ->label('Additional event fee ($)')
+                                        ->label('Additional event fee (' . tenant_currency() . ')')
                                         ->numeric()
                                         ->required()
-                                        ->prefix('$'),
+                                        ->prefix(tenant_currency_symbol()),
 
                                     TextInput::make('late_surcharge')
-                                        ->label('Late surcharge ($)')
+                                        ->label('Late surcharge (' . tenant_currency() . ')')
                                         ->numeric()
                                         ->required()
-                                        ->prefix('$'),
+                                        ->prefix(tenant_currency_symbol()),
                                 ]),
 
                             Section::make('Official Fees')
                                 ->columns(3)
                                 ->schema([
                                     TextInput::make('fee_official_first_event')
-                                        ->label('First event fee ($)')
+                                        ->label('First event fee (' . tenant_currency() . ')')
                                         ->numeric()
                                         ->nullable()
-                                        ->prefix('$')
+                                        ->prefix(tenant_currency_symbol())
                                         ->helperText('Leave blank to use standard fees for officials.'),
 
                                     TextInput::make('fee_official_additional_event')
-                                        ->label('Additional event fee ($)')
+                                        ->label('Additional event fee (' . tenant_currency() . ')')
                                         ->numeric()
                                         ->nullable()
-                                        ->prefix('$'),
+                                        ->prefix(tenant_currency_symbol()),
                                 ]),
                         ]),
 
@@ -245,7 +245,7 @@ class CompetitionResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('competition_date')
-                    ->date('d M Y')
+                    ->date(tenant_date_format())
                     ->sortable()
                     ->visibleFrom('sm'),
 

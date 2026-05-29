@@ -8,6 +8,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        require_once app_path('helpers.php');
+
         // Default binding so app('tenant') is always safe to call.
         // Must use bind() not instance(null) — isset() returns false for null,
         // causing the container to try resolving 'tenant' as a class name.

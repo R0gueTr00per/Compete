@@ -10,14 +10,14 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
             <h1 class="text-xl font-bold text-gray-900">{{ $competition->name }}</h1>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
-                <span>{{ \Carbon\Carbon::parse($competition->competition_date)->format('l j F Y') }}</span>
+                <span>{{ tenant_date($competition->competition_date) }}</span>
                 @if ($competition->location_name)
                     <span>&middot; {{ $competition->location_name }}</span>
                 @endif
                 @if ($competition->start_time)
-                    <span>&middot; Starts {{ \Carbon\Carbon::parse($competition->start_time)->format('g:i a') }}</span>
+                    <span>&middot; Starts {{ tenant_time($competition->start_time) }}</span>
                 @endif
-                <span class="sm:ml-auto text-xs text-gray-400">Auto-refreshes every 60 s &middot; Updated {{ now()->format('g:i a') }}</span>
+                <span class="sm:ml-auto text-xs text-gray-400">Auto-refreshes every 60 s &middot; Updated {{ tenant_time(now()) }}</span>
             </div>
         </div>
     </div>

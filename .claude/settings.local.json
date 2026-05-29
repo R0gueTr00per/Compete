@@ -314,7 +314,18 @@
       "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource/Pages/ManageCompetitionEvents.php\")",
       "Bash(php -l app/Jobs/GenerateCompetitionInsightsJob.php)",
       "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource/Pages/EditCompetition.php)",
-      "Bash(php -l app/Filament/OrgAdmin/Pages/Dashboard.php)"
+      "Bash(php -l app/Filament/OrgAdmin/Pages/Dashboard.php)",
+      "Bash(composer dump-autoload *)",
+      "Bash(php -l app/helpers.php)",
+      "Bash(php -l app/Models/Organisation.php)",
+      "Bash(php -l app/Models/CompetitionMessage.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Pages/OrganisationSettings.php)",
+      "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/CompetitionMessagesRelationManager.php\")",
+      "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 80)",
+      "Bash(dir x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\*competitor*)",
+      "Bash(git grep *)",
+      "Bash(dir x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\*profiles*)",
+      "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 50)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

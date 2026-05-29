@@ -123,6 +123,11 @@ class Competition extends Model
         return $this->hasOne(CompetitionInsight::class);
     }
 
+    public function portalMessages(): HasMany
+    {
+        return $this->hasMany(CompetitionMessage::class)->orderBy('created_at');
+    }
+
     public function tasks(): HasMany
     {
         return $this->hasMany(CompetitionTask::class)->orderBy('sort_order');

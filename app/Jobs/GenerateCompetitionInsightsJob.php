@@ -2,13 +2,16 @@
 
 namespace App\Jobs;
 
+use App\Mail\CompetitionInsightsMail;
 use App\Models\Competition;
+use App\Models\CompetitionInsight;
 use App\Services\CompetitionInsightService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 
 class GenerateCompetitionInsightsJob implements ShouldQueue
 {
@@ -34,6 +37,25 @@ class GenerateCompetitionInsightsJob implements ShouldQueue
             return;
         }
 
-        retry(2, fn () => $service->generate($this->competition, $this->generation), 2000);
+        $insight = retry(2, fn () => $service->generate($this->competition, $this->generation), 2000);
+
+        if ($insight && ($this->competition->organisation->auto_email_insights ?? true)) {
+            $this->emailOrgAdmins($insight);
+        }
+    }
+
+    private function emailOrgAdmins(CompetitionInsight $insight): void
+    {
+        $this->competition->organisation
+            ->memberships()
+            ->where('role', 'administrator')
+            ->where('status', 'active')
+            ->with('user')
+            ->get()
+            ->each(fn ($membership) =>
+                Mail::to($membership->user)->send(
+                    new CompetitionInsightsMail($this->competition, $insight)
+                )
+            );
     }
 }

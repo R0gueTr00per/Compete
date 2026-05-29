@@ -60,10 +60,10 @@
     @else
         <div class="flex items-center justify-between mb-4">
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                Manage your own profile and any child profiles you have registered.
+                Manage your own profile and any family members you have registered.
             </p>
             <x-filament::button wire:click="startCreate" icon="heroicon-o-plus" size="sm">
-                Add child profile
+                Add family member
             </x-filament::button>
         </div>
 
@@ -71,8 +71,8 @@
             <x-filament::section class="mb-4">
                 <x-slot name="heading">
                     {{ $profile->full_name }}
-                    @if ($profile->profile_type === 'child')
-                        <span class="ml-2 text-xs font-normal text-gray-400">(Child)</span>
+                    @if ($profile->profile_type === 'family_member')
+                        <span class="ml-2 text-xs font-normal text-gray-400">(Family Member)</span>
                     @else
                         <span class="ml-2 text-xs font-normal text-gray-400">(Self)</span>
                     @endif
@@ -95,12 +95,12 @@
                                 Activate
                             </x-filament::button>
                         @endif
-                        @if ($profile->profile_type === 'child' && ! $profile->hasDedicatedAccount())
+                        @if ($profile->profile_type === 'family_member' && ! $profile->hasDedicatedAccount())
                             <x-filament::button size="xs" color="primary" wire:click="startGraduate({{ $profile->id }})">
                                 Move to own account
                             </x-filament::button>
                         @endif
-                        @if ($profile->profile_type === 'child')
+                        @if ($profile->profile_type === 'family_member')
                             <x-filament::button size="xs" color="danger" wire:click="startDelete({{ $profile->id }})">
                                 Delete
                             </x-filament::button>
@@ -132,7 +132,7 @@
                     @if ($profile->date_of_birth)
                         <div>
                             <dt class="text-xs font-medium text-gray-500 uppercase tracking-wide">Date of birth</dt>
-                            <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $profile->date_of_birth->format('d M Y') }} (age {{ $profile->age }})</dd>
+                            <dd class="mt-0.5 text-gray-700 dark:text-gray-300">{{ tenant_date($profile->date_of_birth) }} (age {{ $profile->age }})</dd>
                         </div>
                     @endif
                     @if ($profile->gender)

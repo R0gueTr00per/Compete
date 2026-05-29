@@ -186,7 +186,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         $this->forceFill(['locked_until' => null])->save();
     }
 
-    // All profiles owned/managed by this user (own profile + child profiles)
+    // All profiles owned/managed by this user (own profile + family member profiles)
     public function ownedProfiles(): HasMany
     {
         return $this->hasMany(CompetitorProfile::class, 'owner_user_id');

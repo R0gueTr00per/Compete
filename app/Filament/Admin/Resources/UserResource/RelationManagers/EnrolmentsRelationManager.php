@@ -29,12 +29,12 @@ class EnrolmentsRelationManager extends RelationManager
 
                 TextColumn::make('enrolled_at')
                     ->label('Enrolled')
-                    ->date('d M Y')
+                    ->date(tenant_date_format())
                     ->sortable(),
 
                 TextColumn::make('fee_calculated')
                     ->label('Fee')
-                    ->money('AUD')
+                    ->money(tenant_currency())
                     ->placeholder('—'),
 
                 TextColumn::make('payment_status')

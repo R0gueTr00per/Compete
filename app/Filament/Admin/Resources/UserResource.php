@@ -136,14 +136,14 @@ class UserResource extends Resource
 
                 TextColumn::make('last_login_at')
                     ->label('Last login')
-                    ->dateTime('d M Y H:i')
+                    ->formatStateUsing(fn ($state) => $state ? tenant_datetime($state) : null)
                     ->sortable()
                     ->placeholder('Never')
                     ->visibleFrom('sm'),
 
                 TextColumn::make('created_at')
                     ->label('Registered')
-                    ->date('d M Y')
+                    ->date(tenant_date_format())
                     ->sortable()
                     ->visibleFrom('sm'),
             ])

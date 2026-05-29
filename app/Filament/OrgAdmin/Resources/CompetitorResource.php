@@ -91,14 +91,14 @@ class CompetitorResource extends Resource
 
                     Radio::make('profile_type')
                         ->label('Profile type')
-                        ->options(['self' => 'Self', 'child' => 'Child'])
+                        ->options(['self' => 'Self', 'family_member' => 'Family Member'])
                         ->required()
                         ->inline()
                         ->hiddenOn('edit'),
 
                     Placeholder::make('profile_type_display')
                         ->label('Profile type')
-                        ->content(fn (CompetitorProfile $record) => ucfirst($record->profile_type))
+                        ->content(fn (CompetitorProfile $record) => $record->profile_type === 'family_member' ? 'Family Member' : 'Self')
                         ->visibleOn('edit'),
 
                 ]),
@@ -156,13 +156,13 @@ class CompetitorResource extends Resource
                 TextColumn::make('profile_type')
                     ->label('Type')
                     ->badge()
-                    ->color(fn (string $state) => $state === 'child' ? 'warning' : 'info')
-                    ->formatStateUsing(fn (string $state) => ucfirst($state))
+                    ->color(fn (string $state) => $state === 'family_member' ? 'warning' : 'info')
+                    ->formatStateUsing(fn (string $state) => $state === 'family_member' ? 'Family Member' : 'Self')
                     ->visibleFrom('sm'),
 
                 TextColumn::make('date_of_birth')
                     ->label('DOB')
-                    ->date('d M Y')
+                    ->date(tenant_date_format())
                     ->sortable()
                     ->visibleFrom('sm'),
 
@@ -217,7 +217,7 @@ class CompetitorResource extends Resource
 
                 SelectFilter::make('profile_type')
                     ->label('Type')
-                    ->options(['self' => 'Self', 'child' => 'Child']),
+                    ->options(['self' => 'Self', 'family_member' => 'Family Member']),
 
                 TernaryFilter::make('is_active')
                     ->label('Active'),
@@ -257,7 +257,7 @@ class CompetitorResource extends Resource
                         ->label('Promote to own account')
                         ->icon('heroicon-o-arrow-up-circle')
                         ->color('success')
-                        ->visible(fn (CompetitorProfile $record) => $record->profile_type === 'child')
+                        ->visible(fn (CompetitorProfile $record) => $record->profile_type === 'family_member')
                         ->modalHeading('Promote to own account')
                         ->modalDescription('This will create a new login account for this competitor. They will receive an email with a link to set their password.')
                         ->modalSubmitActionLabel('Create account')

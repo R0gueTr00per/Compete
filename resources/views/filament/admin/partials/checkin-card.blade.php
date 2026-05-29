@@ -116,7 +116,7 @@
     @if ($paymentOutstanding)
         <div class="mb-3 p-3 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
             <p class="text-sm font-semibold text-warning-800 dark:text-warning-200 mb-2">
-                💰 Payment outstanding — ${{ number_format($enrolment->fee_calculated, 2) }}
+                💰 Payment outstanding — {{ tenant_money($enrolment->fee_calculated) }}
             </p>
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <x-filament::input.wrapper class="w-full sm:w-28">
@@ -139,7 +139,7 @@
             <x-heroicon-m-check-circle class="w-3.5 h-3.5 shrink-0" />
             Paid
             @if ($enrolment->payment_amount)
-                — ${{ number_format($enrolment->payment_amount, 2) }}
+                — {{ tenant_money($enrolment->payment_amount) }}
             @endif
         </div>
     @endif

@@ -1,13 +1,13 @@
 <x-mail::message>
 # AI Insights — {{ $competition->name }}
 
-**Date:** {{ $competition->competition_date->format('d M Y') }}
+**Date:** {{ tenant_date($competition->competition_date) }}
 **Status:** {{ match($competition->status) {
     'enrolments_closed' => 'Enrolments Closed',
     'check_in'          => 'Check-in',
     default             => ucfirst($competition->status),
 } }}
-**Generated:** {{ $insight->generated_at->format('d M Y, g:ia') }}
+**Generated:** {{ tenant_datetime($insight->generated_at) }}
 
 ---
 

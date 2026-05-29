@@ -34,8 +34,14 @@ class Dashboard extends BaseDashboard
 
     public function getActiveCompetitions()
     {
+        $days = (int) (app('tenant')?->dashboard_closed_days ?? 7);
+        $cutoff = now()->subDays($days)->toDateString();
+
         return Competition::where('organisation_id', app('tenant')?->id)
-            ->whereRaw("(competitions.status != 'complete' OR competitions.competition_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY))")
+            ->where(function ($q) use ($cutoff) {
+                $q->where('competitions.status', '!=', 'complete')
+                  ->orWhere('competitions.competition_date', '>=', $cutoff);
+            })
             ->withCount('enrolments')
             ->withCount(['enrolments as checkins_count' => fn ($q) => $q->where('enrolments.status', 'checked_in')])
             ->withCount('competitionEvents as events_count')
@@ -118,18 +124,20 @@ class Dashboard extends BaseDashboard
                 $competition->update(['status' => $target]);
                 Notification::make()->title('Competition status updated.')->success()->send();
                 $this->dispatch('competition-status-changed', competitionId: $competition->id, newStatus: $target);
-                try {
-                    GenerateCompetitionInsightsJob::dispatchFor($competition->fresh());
-                    Notification::make()
-                        ->success()
-                        ->title('AI insights refreshed')
-                        ->send();
-                } catch (\Throwable) {
-                    Notification::make()
-                        ->warning()
-                        ->title('AI insights could not be generated')
-                        ->body('You can refresh them manually from the Insights page.')
-                        ->send();
+                if ($competition->organisation->insights_auto_refresh ?? true) {
+                    try {
+                        GenerateCompetitionInsightsJob::dispatchFor($competition->fresh());
+                        Notification::make()
+                            ->success()
+                            ->title('AI insights refreshed')
+                            ->send();
+                    } catch (\Throwable) {
+                        Notification::make()
+                            ->warning()
+                            ->title('AI insights could not be generated')
+                            ->body('You can refresh them manually from the Insights page.')
+                            ->send();
+                    }
                 }
             });
     }
