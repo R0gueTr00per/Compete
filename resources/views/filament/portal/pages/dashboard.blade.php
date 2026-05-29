@@ -114,6 +114,12 @@
                                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $statusClass }}">
                                                 {{ $statusLabel }}
                                             </span>
+                                            @if ($isEnrolled && $enrolment->status === 'checked_in')
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-green-100/60 text-green-700 border-green-200/60 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40">
+                                                    <x-heroicon-m-check class="w-3 h-3" />
+                                                    Checked in
+                                                </span>
+                                            @endif
                                         </p>
                                         <p class="text-xs text-gray-500 mt-0.5">
                                             {{ tenant_date($competition->competition_date) }}
@@ -122,7 +128,7 @@
                                             @endif
                                         </p>
                                     </div>
-                                    <div class="flex items-center gap-2 shrink-0">
+                                    <div class="flex items-center gap-4 shrink-0">
                                         @if ($isEnrolled && $showSchedule)
                                             <x-filament::button
                                                 href="{{ route('filament.portal.pages.schedule-page') }}?competition_id={{ $competition->id }}"

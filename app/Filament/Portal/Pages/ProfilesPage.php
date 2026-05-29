@@ -96,7 +96,18 @@ class ProfilesPage extends Page implements HasForms
                             ->disk('public')
                             ->directory('profile-photos')
                             ->visibility('public')
-                            ->maxSize(2048),
+                            ->maxSize(2048)
+                            ->getUploadedFileUsing(function (string $file): ?array {
+                                if (! \Illuminate\Support\Facades\Storage::disk('public')->exists($file)) {
+                                    return null;
+                                }
+                                return [
+                                    'name' => basename($file),
+                                    'size' => 0,
+                                    'type' => null,
+                                    'url'  => asset('storage/' . $file),
+                                ];
+                            }),
                     ]),
             ])
             ->statePath('data');

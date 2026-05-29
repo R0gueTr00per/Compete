@@ -227,6 +227,7 @@ class CompetitionResource extends Resource
                                         ])
                                         ->columns(4)
                                         ->addActionLabel('Add field')
+                                        ->default([])
                                         ->reorderable()
                                         ->collapsible()
                                         ->itemLabel(fn (array $state): ?string => $state['label'] ?? null),
@@ -401,6 +402,7 @@ class CompetitionResource extends Resource
                         ->action(function (Competition $record, array $data, DivisionAssignmentService $svc) {
                             $new = Competition::create([
                                 'name'                 => $data['name'],
+                                'organisation_id'      => $record->organisation_id,
                                 'competition_date'     => $data['competition_date'],
                                 'start_time'           => $record->start_time,
                                 'checkin_time'         => $record->checkin_time,
@@ -411,6 +413,7 @@ class CompetitionResource extends Resource
                                 'fee_additional_event' => $record->fee_additional_event,
                                 'late_surcharge'       => $record->late_surcharge,
                                 'status'               => 'planning',
+                                'registration_fields'  => $record->registration_fields,
                                 'copied_from_id'       => $record->id,
                             ]);
 

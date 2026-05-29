@@ -28,11 +28,11 @@ class EditCompetition extends EditRecord
         return [
             LocationsRelationManager::class,
             OfficialsRelationManager::class,
+            CompetitionMessagesRelationManager::class,
             CompetitionEventsRelationManager::class,
             AgeBandsRelationManager::class,
             RankBandsRelationManager::class,
             WeightClassesRelationManager::class,
-            CompetitionMessagesRelationManager::class,
         ];
     }
 

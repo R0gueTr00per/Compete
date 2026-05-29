@@ -33,6 +33,7 @@ class CompetitionMessagesRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('message')
+            ->description('Messages displayed to competitors on their portal dashboard for this competition.')
             ->columns([
                 TextColumn::make('message')
                     ->limit(100)
