@@ -91,6 +91,7 @@ class ManageCompetitionSchedule extends Page
                 ->icon('heroicon-o-arrow-left')
                 ->color('gray')
                 ->url(fn () => CompetitionResource::getUrl('edit', ['record' => $this->getRecord()])),
+
         ];
     }
 

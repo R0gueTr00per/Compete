@@ -1,4 +1,10 @@
 <x-filament-panels::page>
+    @script
+    <script>
+        document.addEventListener('livewire:navigated', () => $wire.$refresh());
+    </script>
+    @endscript
+
     @php
         $competitions  = $this->getActiveCompetitions();
         $isOrgAdmin    = $this->isOrgAdmin();
@@ -325,8 +331,8 @@
                         @endif
                     </div>
 
-                    {{-- AI Insights summary (open+ competitions, org admin only) --}}
-                    @if ($isOrgAdmin && in_array($competition->status, ['open', 'closed', 'check_in', 'running', 'complete']))
+                    {{-- AI Insights summary (org admin only) --}}
+                    @if ($isOrgAdmin)
                         @php
                             $insight     = $this->getInsightsForCompetition($competition->id);
                             $insightsUrl = route('filament.org-admin.resources.competitions.insights', $competition);
@@ -341,7 +347,10 @@
                                         ->take(3)
                                         ->map(function ($l) {
                                             preg_match_all('/\*\*(.+?)\*\*/', $l, $bolds);
-                                            return implode(', ', array_map(fn ($s) => rtrim($s, ':'), $bolds[1]));
+                                            if (! empty($bolds[1])) {
+                                                return implode(', ', array_map(fn ($s) => rtrim($s, ':'), $bolds[1]));
+                                            }
+                                            return trim(preg_replace('/^[-*]\s*/', '', $l));
                                         })
                                         ->filter()
                                         ->values();
@@ -428,4 +437,6 @@
             @endforeach
         </div>
     @endif
+
+    <div wire:poll.10s class="hidden"></div>
 </x-filament-panels::page>

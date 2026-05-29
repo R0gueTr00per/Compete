@@ -7,16 +7,20 @@
     };
     $checkedIn  = $div->checked_in_count ?? 0;
     $enrolled   = $div->active_enrolment_events_count ?? 0;
+    $cap        = $div->max_competitors ?? null;
     $noneShowed = $enrolled > 0 && $checkedIn === 0 && $div->status !== 'complete';
+    $capPct     = ($cap && $cap > 0) ? min(100, (int) round(($enrolled / $cap) * 100)) : null;
+    $capColor   = $capPct === null ? null : ($capPct >= 100 ? '#22c55e' : ($capPct >= 60 ? '#fbbf24' : '#f87171'));
     $divisionData = json_encode([
-        'id'         => $div->id,
-        'code'       => $div->code,
-        'label'      => $div->label,
-        'event'      => $div->competitionEvent->name,
-        'status'     => $div->status,
-        'enrolled'   => $enrolled,
-        'checkedIn'  => $checkedIn,
-        'noneShowed' => $noneShowed,
+        'id'             => $div->id,
+        'code'           => $div->code,
+        'label'          => $div->label,
+        'event'          => $div->competitionEvent->name,
+        'status'         => $div->status,
+        'enrolled'       => $enrolled,
+        'checkedIn'      => $checkedIn,
+        'noneShowed'     => $noneShowed,
+        'maxCompetitors' => $cap,
     ]);
 @endphp
 <div
@@ -46,8 +50,12 @@
                     <x-heroicon-m-check-circle class="h-4 w-4 text-success-500" />
                 @else
                     @if($enrolled > 0)
-                        <span title="Enrolments" class="flex items-center gap-0.5 text-xs sched-text-meta tabular-nums">
-                            {{ $enrolled }}<x-heroicon-m-user class="h-3 w-3 sched-text-meta" />
+                        <span title="{{ $cap ? 'Enrolments / cap' : 'Enrolments' }}" class="flex items-center gap-0.5 text-xs sched-text-meta tabular-nums">
+                            {{ $enrolled }}@if($cap)<span class="opacity-60">/{{ $cap }}</span>@endif<x-heroicon-m-user class="h-3 w-3 sched-text-meta" />
+                        </span>
+                    @elseif($cap)
+                        <span title="Cap" class="flex items-center gap-0.5 text-xs sched-text-meta tabular-nums opacity-60">
+                            0/{{ $cap }}<x-heroicon-m-user class="h-3 w-3" />
                         </span>
                     @endif
                     @if($checkedIn > 0)
@@ -66,5 +74,11 @@
         <div class="text-xs mt-0.5 truncate sched-text-meta">
             {{ $div->label }}
         </div>
+
+        @if($capPct !== null)
+            <div class="mt-1.5 rounded-full overflow-hidden h-1 bg-gray-200 dark:bg-gray-700">
+                <div class="h-full rounded-full transition-all duration-500" style="width: {{ $capPct }}%; background-color: {{ $capColor }};"></div>
+            </div>
+        @endif
     </div>
 </div>

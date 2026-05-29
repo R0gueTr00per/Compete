@@ -2,6 +2,7 @@
 
 namespace App\Filament\OrgAdmin\Pages;
 
+use App\Jobs\GenerateCompetitionInsightsJob;
 use App\Models\Competition;
 use App\Models\CompetitionInsight;
 use App\Models\CompetitionTask;
@@ -117,6 +118,7 @@ class Dashboard extends BaseDashboard
                 $competition->update(['status' => $target]);
                 Notification::make()->title('Competition status updated.')->success()->send();
                 $this->dispatch('competition-status-changed', competitionId: $competition->id, newStatus: $target);
+                GenerateCompetitionInsightsJob::dispatchFor($competition->fresh());
             });
     }
 }

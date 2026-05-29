@@ -9,6 +9,7 @@ use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\Locatio
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\OfficialsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\RankBandsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\WeightClassesRelationManager;
+use App\Jobs\GenerateCompetitionInsightsJob;
 use App\Models\Division;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
@@ -18,16 +19,17 @@ class EditCompetition extends EditRecord
     protected static string $resource = CompetitionResource::class;
 
     public bool $confirmedStatusChange = false;
+    public ?string $statusBeforeSave = null;
 
     public function getRelationManagers(): array
     {
         return [
+            LocationsRelationManager::class,
+            OfficialsRelationManager::class,
             CompetitionEventsRelationManager::class,
             AgeBandsRelationManager::class,
             RankBandsRelationManager::class,
             WeightClassesRelationManager::class,
-            LocationsRelationManager::class,
-            OfficialsRelationManager::class,
         ];
     }
 
@@ -79,7 +81,7 @@ class EditCompetition extends EditRecord
                 ->label('AI Insights')
                 ->icon('heroicon-o-sparkles')
                 ->color('primary')
-                ->visible(fn () => in_array($this->record->status, ['open', 'closed', 'check_in', 'running', 'complete']))
+                ->visible(fn () => true)
                 ->url(fn () => CompetitionResource::getUrl('insights', ['record' => $this->record])),
 
             Action::make('history')
@@ -99,6 +101,7 @@ class EditCompetition extends EditRecord
 
     protected function beforeSave(): void
     {
+        $this->statusBeforeSave = $this->record->status;
         $newStatus = $this->data['status'] ?? null;
 
         if ($newStatus === 'open' && $this->record->status !== 'open' && ! $this->confirmedStatusChange) {
@@ -114,6 +117,13 @@ class EditCompetition extends EditRecord
         }
 
         $this->confirmedStatusChange = false;
+    }
+
+    protected function afterSave(): void
+    {
+        if ($this->statusBeforeSave !== null && $this->statusBeforeSave !== $this->record->status) {
+            GenerateCompetitionInsightsJob::dispatchFor($this->record->fresh());
+        }
     }
 
     public function confirmOpenWithUnscheduledAction(): Action

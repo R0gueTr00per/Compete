@@ -89,7 +89,9 @@
                                         <div class="flex items-center justify-between gap-2">
                                             <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
                                             @if ($div->active_enrolment_events_count > 0)
-                                                <span class="text-xs text-gray-500">{{ $div->active_enrolment_events_count }} <x-heroicon-m-user class="inline h-3 w-3 text-gray-400" /></span>
+                                                <span class="text-xs text-gray-500">
+                                                    {{ $div->active_enrolment_events_count }} <x-heroicon-m-user class="inline h-3 w-3 text-gray-400" />
+                                                </span>
                                             @elseif ($div->status === 'complete')
                                                 <x-heroicon-m-check-circle class="h-4 w-4 text-green-600" />
                                             @endif
@@ -141,7 +143,9 @@
                                             <div class="flex items-center justify-between gap-2">
                                                 <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
                                                 @if ($div->active_enrolment_events_count > 0)
-                                                    <span class="text-xs text-gray-500">{{ $div->active_enrolment_events_count }} <x-heroicon-m-user class="inline h-3 w-3 text-gray-400" /></span>
+                                                    <span class="text-xs text-gray-500">
+                                                        {{ $div->active_enrolment_events_count }} <x-heroicon-m-user class="inline h-3 w-3 text-gray-400" />
+                                                    </span>
                                                 @elseif ($div->status === 'complete')
                                                     <x-heroicon-m-check-circle class="h-4 w-4 text-green-600" />
                                                 @endif

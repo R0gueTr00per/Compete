@@ -218,16 +218,17 @@ class ManageCompetitionEvents extends ManageRelatedRecords
 
                     foreach ($previous->competitionEvents()->with('divisions.ageBand', 'divisions.rankBand', 'divisions.weightClass')->get() as $prevEvent) {
                         $newEvent = CompetitionEvent::create([
-                            'competition_id'       => $this->getRecord()->id,
-                            'name'                 => $prevEvent->name,
-                            'scoring_method'       => $prevEvent->scoring_method,
-                            'tournament_format'    => $prevEvent->tournament_format,
-                            'division_filter'      => $prevEvent->division_filter,
-                            'judge_count'          => $prevEvent->judge_count,
-                            'target_score'         => $prevEvent->target_score,
-                            'default_score'        => $prevEvent->default_score,
-                            'requires_partner'     => $prevEvent->requires_partner,
-                            'status'               => 'scheduled',
+                            'competition_id'          => $this->getRecord()->id,
+                            'name'                    => $prevEvent->name,
+                            'scoring_method'          => $prevEvent->scoring_method,
+                            'tournament_format'       => $prevEvent->tournament_format,
+                            'division_filter'         => $prevEvent->division_filter,
+                            'judge_count'             => $prevEvent->judge_count,
+                            'target_score'            => $prevEvent->target_score,
+                            'default_score'           => $prevEvent->default_score,
+                            'requires_partner'        => $prevEvent->requires_partner,
+                            'default_max_competitors' => $prevEvent->default_max_competitors,
+                            'status'                  => 'scheduled',
                         ]);
 
                         foreach ($prevEvent->divisions as $div) {
@@ -341,6 +342,12 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                     ->default('mixed')
                     ->visible($filterIncludes(['age_rank_sex', 'age_sex', 'weight_sex', 'age_weight_sex', 'rank_sex'])),
 
+                TextInput::make('max_competitors')
+                    ->label('Target competitors')
+                    ->numeric()
+                    ->nullable()
+                    ->minValue(1),
+
                 Select::make('weight_class_id')
                     ->label('Weight class')
                     ->options(fn () => $this->getRecord()->weightClasses()->get()->pluck('full_label', 'id'))
@@ -391,6 +398,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
             ->actions([
                 EditAction::make()
                     ->hidden(fn () => $this->getRecord()->status !== 'planning'),
+
                 DeleteAction::make()
                     ->hidden(fn () => $this->getRecord()->status !== 'planning'),
             ])

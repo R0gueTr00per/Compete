@@ -34,6 +34,7 @@ class CompetitionEvent extends Model
         'awarded_places_2',
         'awarded_places_3',
         'awarded_places_4plus',
+        'default_max_competitors',
     ];
 
     protected function casts(): array

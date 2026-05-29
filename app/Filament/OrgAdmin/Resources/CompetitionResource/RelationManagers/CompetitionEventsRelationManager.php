@@ -2,6 +2,7 @@
 
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
+use App\Models\CompetitionEvent;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
@@ -76,6 +77,20 @@ class CompetitionEventsRelationManager extends RelationManager
                     Toggle::make('requires_partner')
                         ->label('Requires partner')
                         ->helperText('Competitors must nominate a partner when enrolling.')
+                        ->columnSpanFull(),
+
+                    TextInput::make('default_max_competitors')
+                        ->label('Target number of competitors')
+                        ->helperText('Default target per division. Can be set per division on the Events page.')
+                        ->numeric()
+                        ->nullable()
+                        ->minValue(1),
+
+                    Toggle::make('update_divisions')
+                        ->label('Update all divisions to this target')
+                        ->helperText('Overwrites any per-division target already set.')
+                        ->default(false)
+                        ->hidden(fn (?CompetitionEvent $record) => !$record || !$record->divisions()->exists())
                         ->columnSpanFull(),
                 ]),
 
@@ -236,6 +251,8 @@ class CompetitionEventsRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
+        $shouldUpdateDivisions = false;
+
         return $table
             ->recordTitleAttribute('name')
             ->columns([
@@ -284,7 +301,21 @@ class CompetitionEventsRelationManager extends RelationManager
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning'),
+                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
+                    ->mutateFormDataUsing(function (array $data) use (&$shouldUpdateDivisions): array {
+                        $shouldUpdateDivisions = (bool) ($data['update_divisions'] ?? false);
+                        unset($data['update_divisions']);
+                        return $data;
+                    })
+                    ->after(function (CompetitionEvent $record) use (&$shouldUpdateDivisions): void {
+                        if ($shouldUpdateDivisions) {
+                            $count = $record->divisions()->update(['max_competitors' => $record->default_max_competitors]);
+                            Notification::make()
+                                ->success()
+                                ->title("{$count} division(s) updated to match the new target.")
+                                ->send();
+                        }
+                    }),
 
                 DeleteAction::make()
                     ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')

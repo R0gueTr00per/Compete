@@ -302,7 +302,19 @@
       "mcp__jira__jira_get_all_projects",
       "Bash(grep -rl \"use Filament\\\\\\\\\\\\\\\\Notifications\\\\\\\\\\\\\\\\Notification;\" x:\\\\Repos\\\\Compete\\\\app)",
       "Bash(xargs grep -l \"fi-no\")",
-      "Bash(xargs grep -l \"placement\\\\|compete\")"
+      "Bash(xargs grep -l \"placement\\\\|compete\")",
+      "Bash(xargs grep -l \"progress\")",
+      "Bash(xargs grep -l \"Division.*form\\\\|Division.*Form\")",
+      "Bash(xargs grep -l \"ManageCompetitionSchedule\\\\|ScheduleView\")",
+      "Bash(xargs grep -l \"max_competitors\\\\|competitor.*cap\\\\|enrollment.*cap\")",
+      "Bash(xargs grep -l \"DivisionResource\\\\|division.*resource\")",
+      "Bash(xargs grep -l \"division\\\\|Division\")",
+      "Bash(xargs grep -l \"division.*edit\\\\|edit.*division\")",
+      "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource/Pages/ManageCompetitionSchedule.php\")",
+      "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource/Pages/ManageCompetitionEvents.php\")",
+      "Bash(php -l app/Jobs/GenerateCompetitionInsightsJob.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitionResource/Pages/EditCompetition.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Pages/Dashboard.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

@@ -30,6 +30,7 @@ class Division extends Model
         'completed_at',
         'completed_by',
         'awarded_places',
+        'max_competitors',
     ];
 
     protected $casts = [

@@ -154,14 +154,26 @@
 
                     <div class="flex items-center gap-3 mb-2 text-xs text-gray-400 dark:text-gray-500">
                         <span class="capitalize" x-text="detailDivision?.status"></span>
-                        <span x-show="(detailDivision?.enrolled ?? 0) > 0">
-                            <span x-text="detailDivision?.enrolled"></span> enrolled
-                        </span>
+                        <template x-if="(detailDivision?.maxCompetitors ?? 0) > 0">
+                            <span>
+                                <span x-text="detailDivision?.enrolled ?? 0"></span>/<span x-text="detailDivision?.maxCompetitors"></span> cap
+                            </span>
+                        </template>
+                        <template x-if="!(detailDivision?.maxCompetitors) && (detailDivision?.enrolled ?? 0) > 0">
+                            <span><span x-text="detailDivision?.enrolled"></span> enrolled</span>
+                        </template>
                         <span x-show="(detailDivision?.checkedIn ?? 0) > 0" class="text-success-600 dark:text-success-400">
                             <span x-text="detailDivision?.checkedIn"></span> checked in
                         </span>
                         <span x-show="detailDivision?.noneShowed" class="text-warning-600 dark:text-warning-400">0 checked in</span>
                     </div>
+                    <template x-if="(detailDivision?.maxCompetitors ?? 0) > 0">
+                        <div class="rounded-full overflow-hidden h-1 bg-gray-200 dark:bg-gray-700 mb-2">
+                            <div class="h-full rounded-full transition-all duration-500"
+                                 :style="`width: ${Math.min(100, Math.round(((detailDivision?.enrolled ?? 0) / detailDivision.maxCompetitors) * 100))}%; background-color: ${(() => { const p = Math.round(((detailDivision?.enrolled ?? 0) / detailDivision.maxCompetitors) * 100); return p >= 100 ? '#f87171' : p >= 80 ? '#fbbf24' : '#22c55e'; })()}`">
+                            </div>
+                        </div>
+                    </template>
 
                     <template x-if="selectedLocation">
                         <button

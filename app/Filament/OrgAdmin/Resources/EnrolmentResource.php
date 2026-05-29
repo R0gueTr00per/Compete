@@ -177,7 +177,7 @@ class EnrolmentResource extends Resource
                         ->icon('heroicon-o-eye')
                         ->modalContent(fn (Enrolment $record) => view(
                             'filament.admin.enrolment-events-modal',
-                            ['enrolment' => $record->load(['activeEvents.competitionEvent', 'activeEvents.division'])]
+                            ['enrolment' => $record->load(['activeEvents.competitionEvent', 'activeEvents.division', 'competition'])]
                         ))
                         ->modalSubmitAction(false)
                         ->modalCancelActionLabel('Close'),

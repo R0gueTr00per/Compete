@@ -25,9 +25,8 @@ class ManageCompetitionInsights extends Page
         $this->record = $this->resolveRecord($record);
 
         abort_unless(
-            in_array($this->record->status, ['open', 'closed', 'check_in', 'running', 'complete']),
-            403,
-            'Insights are only available once a competition is open for enrolments.'
+            in_array($this->record->status, ['planning', 'open', 'closed', 'check_in', 'running', 'complete']),
+            403
         );
     }
 

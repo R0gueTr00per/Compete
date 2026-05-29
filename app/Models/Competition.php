@@ -34,6 +34,7 @@ class Competition extends Model
         'fee_official_additional_event',
         'status',
         'copied_from_id',
+        'registration_fields',
     ];
 
     protected function casts(): array
@@ -46,6 +47,7 @@ class Competition extends Model
             'late_surcharge'                => 'decimal:2',
             'fee_official_first_event'      => 'decimal:2',
             'fee_official_additional_event' => 'decimal:2',
+            'registration_fields'           => 'array',
         ];
     }
 

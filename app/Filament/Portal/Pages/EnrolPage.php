@@ -9,11 +9,13 @@ use App\Models\EnrolmentEvent;
 use App\Models\Rank;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -44,6 +46,7 @@ class EnrolPage extends Page implements HasForms
     public array   $selected_entries    = [];
     public array   $yakusuko_partners   = [];
     public bool    $details_confirmed   = false;
+    public array   $custom_fields       = [];
 
     public function mount(): void
     {
@@ -196,6 +199,13 @@ class EnrolPage extends Page implements HasForms
                         ->maxValue(250),
                 ]),
 
+            Section::make('Registration Questions')
+                ->visible(fn () => $this->competition_id !== null
+                    && $this->profile_id !== null
+                    && ! empty($this->getSelectedCompetition()?->registration_fields))
+                ->disabled(fn () => $this->details_confirmed)
+                ->schema(fn () => $this->buildRegistrationFieldSchema()),
+
             Section::make('Events')
                 ->visible(fn () => $this->details_confirmed)
                 ->schema(fn () => $this->buildEventSchema()),
@@ -308,6 +318,35 @@ class EnrolPage extends Page implements HasForms
         return $components;
     }
 
+    private function buildRegistrationFieldSchema(): array
+    {
+        $competition = $this->getSelectedCompetition();
+        if (! $competition || empty($competition->registration_fields)) {
+            return [];
+        }
+
+        return collect($competition->registration_fields)->map(function (array $field) {
+            $id       = $field['id'];
+            $label    = $field['label'] ?? 'Field';
+            $required = (bool) ($field['required'] ?? false);
+
+            $component = match ($field['type'] ?? 'text') {
+                'textarea' => Textarea::make("custom_fields.{$id}")->label($label)->maxLength(2000)->rows(3),
+                'checkbox' => Checkbox::make("custom_fields.{$id}")->label($label),
+                'select'   => Select::make("custom_fields.{$id}")->label($label)->options(
+                    collect($field['options'] ?? [])->pluck('value')->filter()->mapWithKeys(fn ($v) => [$v => $v])->all()
+                ),
+                default    => TextInput::make("custom_fields.{$id}")->label($label)->maxLength(500),
+            };
+
+            if ($required) {
+                $component->required();
+            }
+
+            return $component;
+        })->all();
+    }
+
     private function isDivisionOpen($division): bool
     {
         return $division->age_band_id === null
@@ -364,6 +403,16 @@ class EnrolPage extends Page implements HasForms
         }
 
         if (! $this->details_confirmed) {
+            $competition = $this->getSelectedCompetition();
+            foreach ($competition?->registration_fields ?? [] as $field) {
+                if (! empty($field['required'])) {
+                    $value = $this->custom_fields[$field['id']] ?? null;
+                    if ($value === null || $value === '' || $value === false) {
+                        Notification::make()->title('Please fill in "' . $field['label'] . '" to continue.')->warning()->send();
+                        return;
+                    }
+                }
+            }
             $this->details_confirmed = true;
             $this->selected_entries  = [];
             return;
@@ -430,11 +479,12 @@ class EnrolPage extends Page implements HasForms
         $competitionEventIds = array_keys($divisionsByEvent);
 
         $entryDetails = [
-            'dojo_type'   => $this->dojo_type,
-            'dojo_name'   => $this->dojo_type === 'lfp' ? $this->dojo_name : null,
-            'guest_style' => $this->dojo_type === 'guest' ? $this->guest_style : null,
-            'rank_id'     => $this->rank_id,
-            'weight_kg'   => $this->weight_kg,
+            'dojo_type'               => $this->dojo_type,
+            'dojo_name'               => $this->dojo_type === 'lfp' ? $this->dojo_name : null,
+            'guest_style'             => $this->dojo_type === 'guest' ? $this->guest_style : null,
+            'rank_id'                 => $this->rank_id,
+            'weight_kg'               => $this->weight_kg,
+            'custom_field_responses'  => ! empty($this->custom_fields) ? $this->custom_fields : null,
         ];
 
         $enrolment = app(EnrolmentService::class)->enrol(

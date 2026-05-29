@@ -13,13 +13,18 @@ use App\Models\JudgeScore;
 use App\Models\Result;
 use App\Services\DivisionAssignmentService;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Tabs;
+use Filament\Forms\Components\Tabs\Tab;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Illuminate\Support\Str;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
@@ -74,104 +79,160 @@ class CompetitionResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Section::make('Details')
-                ->columns(2)
-                ->schema([
-                    TextInput::make('name')
-                        ->required()
-                        ->maxLength(255)
-                        ->columnSpanFull(),
+            Tabs::make()
+                ->columnSpanFull()
+                ->tabs([
+                    Tab::make('Details')
+                        ->schema([
+                            Section::make()
+                                ->columns(2)
+                                ->schema([
+                                    TextInput::make('name')
+                                        ->required()
+                                        ->maxLength(255)
+                                        ->columnSpanFull(),
 
-                    DatePicker::make('competition_date')
-                        ->required(),
+                                    DatePicker::make('competition_date')
+                                        ->required(),
 
-                    DatePicker::make('enrolment_due_date')
-                        ->nullable(),
+                                    DatePicker::make('enrolment_due_date')
+                                        ->nullable(),
 
-                    TimePicker::make('start_time')
-                        ->required()
-                        ->seconds(false),
+                                    TimePicker::make('start_time')
+                                        ->required()
+                                        ->seconds(false),
 
-                    TimePicker::make('checkin_time')
-                        ->seconds(false)
-                        ->nullable(),
+                                    TimePicker::make('checkin_time')
+                                        ->seconds(false)
+                                        ->nullable(),
 
-                    TextInput::make('location_name')
-                        ->maxLength(255),
+                                    TextInput::make('location_name')
+                                        ->maxLength(255),
 
-                    TextInput::make('location_address')
-                        ->maxLength(500),
+                                    TextInput::make('location_address')
+                                        ->maxLength(500),
 
-                    TextInput::make('target_competitors')
-                        ->label('Target competitors')
-                        ->numeric()
-                        ->minValue(1)
-                        ->step(1),
+                                    TextInput::make('target_competitors')
+                                        ->label('Target competitors')
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->step(1),
+
+                                    Select::make('status')
+                                        ->options([
+                                            'planning'    => 'Planning',
+                                            'open'     => 'Open for enrolment',
+                                            'closed'   => 'Closed',
+                                            'check_in' => 'Check-in',
+                                            'running'  => 'Running',
+                                            'complete' => 'Complete',
+                                        ])
+                                        ->required()
+                                        ->default('planning'),
+                                ]),
+
+                            Section::make('Structure')
+                                ->visibleOn('create')
+                                ->schema([
+                                    Toggle::make('copy_previous_structure')
+                                        ->label('Copy structure from most recent competition')
+                                        ->helperText('Copies event types, age/rank/weight bands, and all divisions. Enrolments are not copied.')
+                                        ->default(true),
+                                ]),
+                        ]),
+
+                    Tab::make('Fees')
+                        ->schema([
+                            Section::make('Competitor Fees')
+                                ->columns(3)
+                                ->schema([
+                                    TextInput::make('fee_first_event')
+                                        ->label('First event fee ($)')
+                                        ->numeric()
+                                        ->required()
+                                        ->prefix('$'),
+
+                                    TextInput::make('fee_additional_event')
+                                        ->label('Additional event fee ($)')
+                                        ->numeric()
+                                        ->required()
+                                        ->prefix('$'),
+
+                                    TextInput::make('late_surcharge')
+                                        ->label('Late surcharge ($)')
+                                        ->numeric()
+                                        ->required()
+                                        ->prefix('$'),
+                                ]),
+
+                            Section::make('Official Fees')
+                                ->columns(3)
+                                ->schema([
+                                    TextInput::make('fee_official_first_event')
+                                        ->label('First event fee ($)')
+                                        ->numeric()
+                                        ->nullable()
+                                        ->prefix('$')
+                                        ->helperText('Leave blank to use standard fees for officials.'),
+
+                                    TextInput::make('fee_official_additional_event')
+                                        ->label('Additional event fee ($)')
+                                        ->numeric()
+                                        ->nullable()
+                                        ->prefix('$'),
+                                ]),
+                        ]),
+
+                    Tab::make('Registration Fields')
+                        ->schema([
+                            Section::make()
+                                ->description('Custom fields that competitors must fill in when enrolling.')
+                                ->schema([
+                                    Repeater::make('registration_fields')
+                                        ->label('')
+                                        ->schema([
+                                            Hidden::make('id')
+                                                ->default(fn () => (string) Str::uuid()),
+                                            TextInput::make('label')
+                                                ->label('Field label')
+                                                ->required()
+                                                ->maxLength(100)
+                                                ->columnSpan(2),
+                                            Select::make('type')
+                                                ->label('Type')
+                                                ->options([
+                                                    'text'     => 'Text',
+                                                    'textarea' => 'Paragraph',
+                                                    'checkbox' => 'Checkbox (yes/no)',
+                                                    'select'   => 'Dropdown',
+                                                ])
+                                                ->required()
+                                                ->live(),
+                                            Toggle::make('required')
+                                                ->label('Required')
+                                                ->default(false)
+                                                ->inline(false),
+                                            Repeater::make('options')
+                                                ->label('Dropdown options')
+                                                ->simple(
+                                                    TextInput::make('value')
+                                                        ->label('Option')
+                                                        ->required()
+                                                        ->maxLength(100),
+                                                )
+                                                ->visible(fn (Get $get) => $get('type') === 'select')
+                                                ->addActionLabel('Add option')
+                                                ->columnSpanFull()
+                                                ->reorderable(false),
+                                        ])
+                                        ->columns(4)
+                                        ->addActionLabel('Add field')
+                                        ->reorderable()
+                                        ->collapsible()
+                                        ->itemLabel(fn (array $state): ?string => $state['label'] ?? null),
+                                ]),
+                        ]),
                 ]),
-
-            Section::make('Status')
-                ->schema([
-                    Select::make('status')
-                        ->options([
-                            'planning'    => 'Planning',
-                            'open'     => 'Open for enrolment',
-                            'closed'   => 'Closed',
-                            'check_in' => 'Check-in',
-                            'running'  => 'Running',
-                            'complete' => 'Complete',
-                        ])
-                        ->required()
-                        ->default('planning'),
-                ]),
-
-            Section::make('Fees')
-                ->columns(3)
-                ->schema([
-                    TextInput::make('fee_first_event')
-                        ->label('First event fee ($)')
-                        ->numeric()
-                        ->required()
-                        ->prefix('$'),
-
-                    TextInput::make('fee_additional_event')
-                        ->label('Additional event fee ($)')
-                        ->numeric()
-                        ->required()
-                        ->prefix('$'),
-
-                    TextInput::make('late_surcharge')
-                        ->label('Late surcharge ($)')
-                        ->numeric()
-                        ->required()
-                        ->prefix('$'),
-                ]),
-
-            Section::make('Official Fees')
-                ->columns(3)
-                ->schema([
-                    TextInput::make('fee_official_first_event')
-                        ->label('First event fee ($)')
-                        ->numeric()
-                        ->nullable()
-                        ->prefix('$')
-                        ->helperText('Leave blank to use standard fees for officials.'),
-
-                    TextInput::make('fee_official_additional_event')
-                        ->label('Additional event fee ($)')
-                        ->numeric()
-                        ->nullable()
-                        ->prefix('$'),
-                ]),
-
-            Section::make('Structure')
-                ->visibleOn('create')
-                ->schema([
-                    Toggle::make('copy_previous_structure')
-                        ->label('Copy structure from most recent competition')
-                        ->helperText('Copies event types, age/rank/weight bands, and all divisions. Enrolments are not copied.')
-                        ->default(true),
-                ]),
-
         ]);
     }
 

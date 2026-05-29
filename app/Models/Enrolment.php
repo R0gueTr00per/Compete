@@ -27,6 +27,7 @@ class Enrolment extends Model
         'dojo_type',
         'dojo_name',
         'guest_style',
+        'custom_field_responses',
     ];
 
     protected function casts(): array
@@ -39,7 +40,8 @@ class Enrolment extends Model
             'payment_amount' => 'decimal:2',
             'checked_in'     => 'boolean',
             'checked_in_at'  => 'datetime',
-            'weight_kg'      => 'decimal:2',
+            'weight_kg'               => 'decimal:2',
+            'custom_field_responses'  => 'array',
         ];
     }
 
