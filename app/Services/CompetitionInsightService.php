@@ -93,7 +93,7 @@ class CompetitionInsightService
 
         // If a generation number was provided, verify we are still the latest request.
         // A newer dispatchFor() call will have incremented the counter past our number.
-        if ($generation > 0 && Cache::get("insights_gen_{$competition->id}") !== $generation) {
+        if ($generation > 0 && (int) Cache::get("insights_gen_{$competition->id}") !== $generation) {
             return null;
         }
 
@@ -678,6 +678,7 @@ Any payments still outstanding on competition day. Recommend whether these need 
 Rules:
 - This is an active competition — prioritise immediacy and actionability over speculation
 - Report counts and rates factually; do not frame normal in-progress states as problems
+- Format each Action Items bullet as: **Issue name**: explanation and recommendation
 - Reference actual numbers in every bullet
 - Pair every genuine issue with a concrete recommendation
 - If a section has nothing notable, say so in one sentence

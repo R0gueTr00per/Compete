@@ -76,11 +76,11 @@ class ManageCompetitionInsights extends Page
                             ->send();
 
                         $this->record->refresh();
-                    } catch (\Throwable $e) {
+                    } catch (\Throwable) {
                         Notification::make()
                             ->danger()
                             ->title('Failed to generate insights')
-                            ->body($e->getMessage())
+                            ->body('Please try again.')
                             ->send();
                     }
                 }),

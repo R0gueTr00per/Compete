@@ -36,6 +36,10 @@ class Dashboard extends BaseDashboard
     {
         return Competition::where('organisation_id', app('tenant')?->id)
             ->whereNotIn('competitions.status', ['complete'])
+            ->where(function ($q) {
+                $q->where('competitions.status', '!=', 'closed')
+                  ->orWhere('competitions.competition_date', '>=', today());
+            })
             ->withCount('enrolments')
             ->withCount(['enrolments as checkins_count' => fn ($q) => $q->where('enrolments.status', 'checked_in')])
             ->withCount('competitionEvents as events_count')
@@ -103,7 +107,7 @@ class Dashboard extends BaseDashboard
                     })(),
                     ['running',  'complete'] => (function () use ($competition) {
                         $n = $competition->allDivisions()->whereNotIn('divisions.status', ['complete', 'combined'])->count();
-                        $msg = 'Conclude this competition? Results will become visible to competitors.';
+                        $msg = 'Conclude this competition?';
                         return $n > 0 ? "Warning: {$n} division(s) have not been completed. " . $msg : $msg;
                     })(),
                     default => 'Move competition to ' . ($statusLabels[$target] ?? $target) . '?',
@@ -118,7 +122,15 @@ class Dashboard extends BaseDashboard
                 $competition->update(['status' => $target]);
                 Notification::make()->title('Competition status updated.')->success()->send();
                 $this->dispatch('competition-status-changed', competitionId: $competition->id, newStatus: $target);
-                GenerateCompetitionInsightsJob::dispatchFor($competition->fresh());
+                try {
+                    GenerateCompetitionInsightsJob::dispatchFor($competition->fresh());
+                } catch (\Throwable) {
+                    Notification::make()
+                        ->warning()
+                        ->title('AI insights could not be generated')
+                        ->body('You can refresh them manually from the Insights page.')
+                        ->send();
+                }
             });
     }
 }

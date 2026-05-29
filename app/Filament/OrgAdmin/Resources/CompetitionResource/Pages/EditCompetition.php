@@ -11,6 +11,7 @@ use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\RankBan
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\WeightClassesRelationManager;
 use App\Jobs\GenerateCompetitionInsightsJob;
 use App\Models\Division;
+use App\Notifications\Notification;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
 
@@ -122,7 +123,15 @@ class EditCompetition extends EditRecord
     protected function afterSave(): void
     {
         if ($this->statusBeforeSave !== null && $this->statusBeforeSave !== $this->record->status) {
-            GenerateCompetitionInsightsJob::dispatchFor($this->record->fresh());
+            try {
+                GenerateCompetitionInsightsJob::dispatchFor($this->record->fresh());
+            } catch (\Throwable) {
+                Notification::make()
+                    ->warning()
+                    ->title('AI insights could not be generated')
+                    ->body('You can refresh them manually from the Insights page.')
+                    ->send();
+            }
         }
     }
 
