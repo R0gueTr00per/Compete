@@ -679,10 +679,17 @@
                                         $bracketPlacements  = [];
                                         $onlyTwoCompetitors = false;
 
+                                        $placementCap = 3;
                                         if ($isComplete) {
                                             $wbRounds     = $bracketData['winners'] ?? [];
                                             $wbFinalRound = ! empty($wbRounds) ? max(array_keys($wbRounds)) : null;
                                             $onlyTwoCompetitors = ($wbFinalRound === 1);
+                                            $_capEvent    = $div->competitionEvent;
+                                            $placementCap = match (true) {
+                                                $competitorCount <= 2 => $_capEvent->awarded_places_2 ?? 2,
+                                                $competitorCount === 3 => $_capEvent->awarded_places_3 ?? 3,
+                                                default               => $_capEvent->awarded_places_4plus ?? 3,
+                                            };
 
                                             if ($format === 'double_elimination') {
                                                 $gf = collect($bracketData['grand_final'] ?? [])->flatten(1)->first();
@@ -782,10 +789,10 @@
                                             @if (isset($bracketPlacements[1]))
                                                 <p class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white"><span class="text-2xl leading-none">🥇</span> {{ $bracketPlacements[1] }}</p>
                                             @endif
-                                            @if (! $onlyTwoCompetitors && isset($bracketPlacements[2]))
+                                            @if (! $onlyTwoCompetitors && $placementCap >= 2 && isset($bracketPlacements[2]))
                                                 <p class="flex items-center gap-2 text-base text-gray-700 dark:text-gray-300 mt-1"><span class="text-2xl leading-none">🥈</span> {{ $bracketPlacements[2] }}</p>
                                             @endif
-                                            @if (! $onlyTwoCompetitors && isset($bracketPlacements[3]))
+                                            @if (! $onlyTwoCompetitors && $placementCap >= 3 && isset($bracketPlacements[3]))
                                                 <p class="flex items-center gap-2 text-base text-gray-700 dark:text-gray-300 mt-1"><span class="text-2xl leading-none">🥉</span> {{ $bracketPlacements[3] }}</p>
                                             @endif
                                         </div>
