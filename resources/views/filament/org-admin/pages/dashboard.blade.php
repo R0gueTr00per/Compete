@@ -51,9 +51,13 @@
             @foreach ($competitions as $competition)
                 @php
                     $statusLabel = match ($competition->status) {
-                        'planning'    => 'Planning',
-                        'check_in' => 'Check-in',
-                        default    => ucfirst($competition->status),
+                        'planning'          => 'Planning',
+                        'open'              => 'Open',
+                        'enrolments_closed' => 'Enrolments Closed',
+                        'check_in'          => 'Check-in',
+                        'running'           => 'Running',
+                        'complete'          => 'Complete',
+                        default             => ucfirst($competition->status),
                     };
                     $statusBadgeClass = match ($competition->status) {
                         'running'  => 'bg-blue-100/60 text-blue-700 border-blue-200/60 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40',

@@ -33,7 +33,11 @@
                     <span class="font-semibold text-sm text-gray-900 dark:text-white">{{ $competition->name }}</span>
                     <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{{ $competition->competition_date->format('d M Y') }}</span>
                     <span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $statusClass }}">
-                        {{ ucfirst(str_replace('_', ' ', $competition->status)) }}
+                        {{ match($competition->status) {
+                            'enrolments_closed' => 'Enrolments Closed',
+                            'check_in'          => 'Check-in',
+                            default             => ucfirst($competition->status),
+                        } }}
                     </span>
                 </div>
                 <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0">{{ $totalCompetitors }} {{ Str::plural('competitor', $totalCompetitors) }}</span>

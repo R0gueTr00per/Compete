@@ -2,7 +2,11 @@
 # AI Insights — {{ $competition->name }}
 
 **Date:** {{ $competition->competition_date->format('d M Y') }}
-**Status:** {{ ucfirst($competition->status) }}
+**Status:** {{ match($competition->status) {
+    'enrolments_closed' => 'Enrolments Closed',
+    'check_in'          => 'Check-in',
+    default             => ucfirst($competition->status),
+} }}
 **Generated:** {{ $insight->generated_at->format('d M Y, g:ia') }}
 
 ---

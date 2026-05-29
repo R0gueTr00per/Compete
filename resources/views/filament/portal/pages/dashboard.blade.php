@@ -90,7 +90,7 @@
 
                                 $statusLabel = match($competition->status) {
                                     'open'              => 'Open',
-                                    'enrolments_closed' => 'Enrolments closed',
+                                    'enrolments_closed' => 'Enrolments Closed',
                                     'check_in'          => 'Check-in',
                                     'running'           => 'In progress',
                                     default             => ucfirst($competition->status),
