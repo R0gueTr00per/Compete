@@ -325,7 +325,9 @@
       "Bash(dir x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\*competitor*)",
       "Bash(git grep *)",
       "Bash(dir x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\*profiles*)",
-      "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 50)"
+      "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 50)",
+      "Bash(xargs grep -l \"first_to_n\\\\|judges_total\\\\|judges_average\\\\|win_loss\")",
+      "Bash(xargs grep -l \"judge\\\\|score\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

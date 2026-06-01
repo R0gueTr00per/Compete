@@ -149,6 +149,32 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->nullable()
                         ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n'),
 
+                    TextInput::make('round_duration_seconds')
+                        ->label('Round duration')
+                        ->numeric()
+                        ->nullable()
+                        ->suffix('seconds')
+                        ->helperText('e.g. 180 = 3 minutes. Leave blank for no timer.')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'win_loss'])),
+
+                    TextInput::make('tiebreak_duration_seconds')
+                        ->label('Tiebreak duration')
+                        ->numeric()
+                        ->nullable()
+                        ->suffix('seconds')
+                        ->helperText('Duration of the tiebreak period when scores are tied at time expiry.')
+                        ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n'),
+
+                    Radio::make('tiebreak_mode')
+                        ->label('Tiebreak mode')
+                        ->options([
+                            'sudden_death' => 'Sudden death — first to score wins (inputs locked)',
+                            'overtime'     => 'Overtime — scoring continues; head judge if still tied at end',
+                        ])
+                        ->default('sudden_death')
+                        ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n')
+                        ->columnSpanFull(),
+
                     Section::make('Places Awarded')
                         ->columns(['default' => 1, 'sm' => 3])
                         ->columnSpanFull()

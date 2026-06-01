@@ -41,6 +41,300 @@
     @elseif ($divisionList->isEmpty())
         <p class="text-center text-gray-400 py-12">No divisions assigned to {{ $this->filter_location }}.</p>
     @else
+        {{-- Timer navigation warning modal --}}
+        <div x-data="{
+                open: false,
+                pendingId: null,
+                show(id) { this.pendingId = id; this.open = true; },
+                confirm() {
+                    const mid = Alpine.store('roundTimer').matchId;
+                    if (mid) window.dispatchEvent(new CustomEvent('timer-reset', { detail: { matchId: mid } }));
+                    this.open = false;
+                    $wire.selectDivision(this.pendingId);
+                    this.pendingId = null;
+                },
+                cancel() {
+                    this.open = false;
+                    this.pendingId = null;
+                    const divId = $wire.division_id;
+                    if (divId) window.dispatchEvent(new CustomEvent('scroll-to-division', { detail: { divisionId: divId } }));
+                }
+             }"
+             x-on:timer-nav-warn.window="show($event.detail.divisionId)">
+            <template x-if="open">
+                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                    <div class="rounded-xl border border-warning-300 bg-white dark:bg-slate-800 dark:border-warning-700 p-6 max-w-sm w-full shadow-xl">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white mb-1">Timer is running</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-5">A round timer is active. Current time will be reset if you navigate away.</p>
+                        <div class="flex gap-3 justify-end">
+                            <x-filament::button color="gray" size="sm" @click="cancel()">Stay here</x-filament::button>
+                            <x-filament::button color="warning" size="sm" @click="confirm()">Navigate away</x-filament::button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        {{-- Save while timer active confirmation modal --}}
+        <div x-data="{
+                open: false,
+                matchId: null,
+                show(id) { this.matchId = id; this.open = true; },
+                confirm() { this.open = false; $wire.recordBracketScore(this.matchId); this.matchId = null; },
+                cancel() { this.open = false; this.matchId = null; }
+             }"
+             x-on:save-confirm.window="show($event.detail.matchId)">
+            <template x-if="open">
+                <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                    <div class="rounded-xl border border-warning-300 bg-white dark:bg-slate-800 dark:border-warning-700 p-6 max-w-sm w-full shadow-xl">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white mb-1">Timer is still active</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-5">The round timer is running or paused. Save the score now and end the round?</p>
+                        <div class="flex gap-3 justify-end">
+                            <x-filament::button color="gray" size="sm" @click="cancel()">Cancel</x-filament::button>
+                            <x-filament::button color="success" size="sm" @click="confirm()">Save score</x-filament::button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        {{-- Alpine timer component definition --}}
+        <script>
+            (function _registerMatchTimer() {
+                const define = () => {
+                    if (!Alpine.store('roundTimer')) {
+                        Alpine.store('roundTimer', { running: false, active: false, sdActive: false, sdLocked: false, matchId: null });
+                    } else {
+                        const _s = Alpine.store('roundTimer');
+                        if (_s.sdActive === undefined) _s.sdActive = false;
+                        if (_s.active   === undefined) _s.active   = false;
+                        if (_s.sdLocked === undefined) _s.sdLocked = false;
+                    }
+
+                    Alpine.data('matchTimer', (matchId, duration, tbDuration, tbMode) => ({
+                    matchId,
+                    tbMode:            tbMode || 'sudden_death',
+                    // duration/tbDuration are in whole seconds (from PHP).
+                    // Internally track centiseconds (1/100 s) for sub-second display.
+                    durationCs:        duration   * 100,
+                    tbDurationCs:      tbDuration ? tbDuration * 100 : null,
+                    remainingCs:       null,
+                    phase:             'idle',
+                    interval:          null,
+                    startedAt:         null,
+                    remainingAtStartCs: null,
+                    sdNeeded:          false,
+                    overtimeTied:      false,
+                    _audioCtx:         null,
+                    _lastSave:         0,
+
+                    init() { this.restore(); },
+
+                    storageKey() { return 'timer_match_' + this.matchId; },
+
+                    get displaySeconds() {
+                        const cs   = this.remainingCs !== null ? this.remainingCs : this.durationCs;
+                        const secs = Math.floor(cs / 100);
+                        return Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+                    },
+                    get displayCentis() {
+                        const cs = this.remainingCs !== null ? this.remainingCs : this.durationCs;
+                        return '.' + String(cs % 100).padStart(2, '0');
+                    },
+
+                    save() {
+                        if (this.phase === 'idle' && !this.sdNeeded && !this.overtimeTied) { localStorage.removeItem(this.storageKey()); return; }
+                        this._lastSave = Date.now();
+                        localStorage.setItem(this.storageKey(), JSON.stringify({
+                            phase: this.phase,
+                            startedAt: this.startedAt,
+                            remainingAtStartCs: this.remainingAtStartCs,
+                            remainingCs: this.remainingCs,
+                            sdNeeded: this.sdNeeded,
+                            overtimeTied: this.overtimeTied,
+                        }));
+                    },
+
+                    restore() {
+                        const raw = localStorage.getItem(this.storageKey());
+                        if (!raw) return;
+                        const s = JSON.parse(raw);
+                        if (s.phase === 'running' || s.phase === 'tb_running') {
+                            const elapsedCs = Math.floor((Date.now() - s.startedAt) / 10);
+                            const rem = Math.max(0, s.remainingAtStartCs - elapsedCs);
+                            if (rem > 0) {
+                                this.phase              = s.phase;
+                                this.remainingCs        = rem;
+                                this.startedAt          = s.startedAt;
+                                this.remainingAtStartCs = s.remainingAtStartCs;
+                                this._tick();
+                                this._syncStore();
+                            } else {
+                                this.phase       = s.phase === 'running' ? 'expired' : 'tb_expired';
+                                this.remainingCs = 0;
+                                this.save();
+                            }
+                        } else {
+                            this.phase       = s.phase;
+                            this.remainingCs = s.remainingCs;
+                        }
+                        this.sdNeeded    = s.sdNeeded    ?? false;
+                        this.overtimeTied = s.overtimeTied ?? false;
+                    },
+
+                    start() {
+                        this._bell(3);
+                        this.remainingCs        = this.durationCs;
+                        this.phase              = 'running';
+                        this.startedAt          = Date.now();
+                        this.remainingAtStartCs = this.durationCs;
+                        this.save();
+                        this._syncStore();
+                        this._tick();
+                    },
+
+                    pause() {
+                        clearInterval(this.interval);
+                        this.phase = this.phase === 'running' ? 'paused' : 'tb_paused';
+                        this._syncStore();
+                        this.save();
+                    },
+
+                    resume() {
+                        this.phase              = this.phase === 'paused' ? 'running' : 'tb_running';
+                        this.startedAt          = Date.now();
+                        this.remainingAtStartCs = this.remainingCs;
+                        this.save();
+                        this._syncStore();
+                        this._tick();
+                    },
+
+                    reset() {
+                        clearInterval(this.interval);
+                        this.phase              = 'idle';
+                        this.remainingCs        = null;
+                        this.startedAt          = null;
+                        this.remainingAtStartCs = null;
+                        this.sdNeeded           = false;
+                        this.overtimeTied       = false;
+                        localStorage.removeItem(this.storageKey());
+                        this._syncStore();
+                    },
+
+                    startTiebreaker() {
+                        this._bell(1);
+                        this.sdNeeded           = false;
+                        clearInterval(this.interval);
+                        this.remainingCs        = this.tbDurationCs;
+                        this.phase              = 'tb_running';
+                        this.startedAt          = Date.now();
+                        this.remainingAtStartCs = this.tbDurationCs;
+                        this.save();
+                        this._syncStore();
+                        this._tick();
+                    },
+
+                    enterSdPrompt() {
+                        this.sdNeeded = true;
+                        this.save();
+                        this._syncStore();
+                    },
+
+                    enterOvertimeTied() {
+                        // If OT timer is already running/paused/expired, show Win buttons immediately.
+                        // Otherwise show the "Start Overtime" prompt (same as SD mode's sdNeeded).
+                        if (this.phase === 'tb_running' || this.phase === 'tb_paused' || this.phase === 'tb_expired') {
+                            this.overtimeTied = true;
+                        } else {
+                            this.sdNeeded = true;
+                        }
+                        this.save();
+                        this._syncStore();
+                    },
+
+                    _tick() {
+                        clearInterval(this.interval);
+                        this.interval = setInterval(() => {
+                            const elapsedCs = Math.floor((Date.now() - this.startedAt) / 10);
+                            const rem = Math.max(0, this.remainingAtStartCs - elapsedCs);
+                            this.remainingCs = rem;
+                            if (rem === 0) {
+                                clearInterval(this.interval);
+                                const wasRunning = this.phase === 'running';
+                                this.phase = wasRunning ? 'expired' : 'tb_expired';
+                                this._syncStore();
+                                this.save();
+                                this._bell(3);
+                                if (wasRunning) {
+                                    this.$wire.call('onTimerExpired', this.matchId);
+                                } else if (this.tbMode === 'overtime') {
+                                    this.$wire.call('onOvertimeExpired', this.matchId);
+                                }
+                                return;
+                            }
+                            if (Date.now() - this._lastSave >= 250) this.save();
+                        }, 20);
+                    },
+
+                    _syncStore() {
+                        const sdMode   = this.tbMode !== 'overtime';
+                        const running  = this.phase === 'running' || this.phase === 'tb_running';
+                        // OT tb_running/tb_paused don't block save (scoring continues normally)
+                        const active   = this.phase === 'running' || this.phase === 'paused'
+                            || (sdMode && (this.phase === 'tb_running' || this.phase === 'tb_paused'));
+                        // Win buttons appear as soon as tiebreak is triggered in either mode.
+                        const sdActive = this.sdNeeded || this.phase === 'tb_running' || this.phase === 'tb_paused' || this.phase === 'tb_expired' || this.overtimeTied;
+                        // SD: lock score inputs during tiebreak period
+                        const sdLocked = sdMode && (this.phase === 'tb_running' || this.phase === 'tb_paused');
+                        Alpine.store('roundTimer').running  = running;
+                        Alpine.store('roundTimer').active   = active;
+                        Alpine.store('roundTimer').sdActive = sdActive;
+                        Alpine.store('roundTimer').sdLocked = sdLocked;
+                        Alpine.store('roundTimer').matchId  = (active || sdActive) ? this.matchId : null;
+                    },
+
+                    _getAudioCtx() {
+                        if (!this._audioCtx) {
+                            this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        }
+                        if (this._audioCtx.state === 'suspended') this._audioCtx.resume();
+                        return this._audioCtx;
+                    },
+
+                    _bell(times) {
+                        try {
+                            const ctx = this._getAudioCtx();
+                            for (let i = 0; i < times; i++) {
+                                const t = ctx.currentTime + i * 0.42;
+                                // Four harmonics for a metallic bell tone
+                                [830, 1245, 1994, 2490].forEach((freq, h) => {
+                                    const osc  = ctx.createOscillator();
+                                    const gain = ctx.createGain();
+                                    osc.connect(gain);
+                                    gain.connect(ctx.destination);
+                                    osc.type = 'sine';
+                                    osc.frequency.value = freq;
+                                    const vol = 0.55 / (h + 1);
+                                    gain.gain.setValueAtTime(0, t);
+                                    gain.gain.linearRampToValueAtTime(vol, t + 0.008);
+                                    gain.gain.exponentialRampToValueAtTime(0.001, t + 2.2);
+                                    osc.start(t);
+                                    osc.stop(t + 2.2);
+                                });
+                            }
+                        } catch(e) {}
+                    },
+                    }));
+                };
+
+                if (window.Alpine && Alpine.data) {
+                    define();
+                } else {
+                    document.addEventListener('alpine:init', define);
+                }
+            })();
+        </script>
+
         {{-- Division list --}}
         <style>
             @keyframes scoring-row-pulse {
@@ -73,6 +367,11 @@
             input[type=number] {
                 -moz-appearance: textfield;
             }
+            @keyframes timer-expire-flash {
+                0%, 100% { opacity: 1; }
+                50%       { opacity: 0.35; }
+            }
+            .timer-expire-flash { animation: timer-expire-flash 0.7s ease-in-out infinite; }
         </style>
         @php $incompleteCount = $divisionList->filter(fn ($item) => $item->division->status !== 'complete')->count(); @endphp
         @if ($incompleteCount > 0)
@@ -146,7 +445,7 @@
                 <div
                     id="division-row-{{ $div->id }}"
                     wire:key="division-{{ $div->id }}"
-                    wire:click="selectDivision({{ $div->id }})"
+                    @click="$store.roundTimer.running ? $dispatch('timer-nav-warn', { divisionId: {{ $div->id }} }) : $wire.selectDivision({{ $div->id }})"
                     class="{{ $selected ? '' : 'division-enter' }} flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
                         {{ $rowClass }}
                         {{ $selected
@@ -292,11 +591,14 @@
                                 {{-- Tournament bracket scoring --}}
                                 @php
                                     $bracketData   = $this->getBracketData();
-                                    $format        = $this->getTournamentFormat();
-                                    $hasBracket    = $this->bracketExists;
-                                    $scoringMethod = $this->getScoringMethod();
-                                    $isScored      = in_array($scoringMethod, ['judges_total', 'judges_average', 'first_to_n']);
-                                    $targetScore   = $scoringMethod === 'first_to_n' ? $this->getTargetScore() : null;
+                                    $format           = $this->getTournamentFormat();
+                                    $hasBracket       = $this->bracketExists;
+                                    $scoringMethod    = $this->getScoringMethod();
+                                    $isScored         = in_array($scoringMethod, ['judges_total', 'judges_average', 'first_to_n']);
+                                    $targetScore      = $scoringMethod === 'first_to_n' ? $this->getTargetScore() : null;
+                                    $roundDuration    = in_array($scoringMethod, ['first_to_n', 'win_loss']) ? $this->getRoundDuration() : null;
+                                    $tbDuration       = $scoringMethod === 'first_to_n' ? $this->getTiebreakerDuration() : null;
+                                    $tbMode           = $scoringMethod === 'first_to_n' ? $this->getTiebreakerMode() : 'sudden_death';
                                 @endphp
 
                                 {{-- wire:key changes on any bracket structural change (new matches) or completion, forcing full replacement --}}
@@ -517,26 +819,98 @@
                                                                 </div>
                                                             </div>
 
+                                                            {{-- Round timer --}}
+                                                            @if ($roundDuration && $pending && $match->home_id && $match->away_id)
+                                                                <div x-data="matchTimer({{ $match->id }}, {{ $roundDuration }}, {{ $tbDuration ?? 'null' }}, '{{ $tbMode }}')"
+                                                                     x-on:timer-reset.window="if ($event.detail.matchId === matchId) reset()"
+                                                                     x-on:timer-tied.window="if ($event.detail.matchId === matchId) enterSdPrompt()"
+                                                                     x-on:overtime-tied.window="if ($event.detail.matchId === matchId) enterOvertimeTied()"
+                                                                     class="mt-2">
+                                                                    {{-- Timer bar --}}
+                                                                    <div class="flex items-center justify-between gap-2 rounded-lg px-3 py-2"
+                                                                         :class="{
+                                                                             'bg-success-50 dark:bg-success-900/20': phase === 'idle' || phase === 'running' || phase === 'paused',
+                                                                             'bg-warning-50 dark:bg-warning-900/20': phase === 'tb_running' || phase === 'tb_paused',
+                                                                             'bg-danger-50 dark:bg-danger-900/20': phase === 'expired' || phase === 'tb_expired',
+                                                                         }">
+                                                                        <div class="flex items-center gap-2">
+                                                                            <span class="flex items-baseline leading-none">
+                                                                                <span class="font-mono text-2xl font-bold tabular-nums"
+                                                                                      :class="{
+                                                                                          'text-success-700 dark:text-success-300': phase === 'idle' || phase === 'running',
+                                                                                          'text-warning-600 dark:text-warning-400': phase === 'paused' || phase === 'tb_running' || phase === 'tb_paused',
+                                                                                          'text-danger-600 dark:text-danger-400 timer-expire-flash': phase === 'expired' || phase === 'tb_expired',
+                                                                                      }"
+                                                                                      x-text="displaySeconds"></span><span class="font-mono text-xs font-medium tabular-nums text-gray-400 dark:text-gray-500 relative top-[5px]"
+                                                                                      :class="{ 'timer-expire-flash': phase === 'expired' || phase === 'tb_expired' }"
+                                                                                      x-text="displayCentis"></span>
+                                                                            </span>
+                                                                            <span x-show="phase === 'tb_running' || phase === 'tb_paused'"
+                                                                                  x-text="tbMode === 'overtime' ? 'Overtime' : 'Sudden Death'"
+                                                                                  class="text-xs font-semibold uppercase tracking-wide text-warning-600 dark:text-warning-400">
+                                                                            </span>
+                                                                            <span x-show="phase === 'expired'"
+                                                                                  class="text-xs font-semibold uppercase tracking-wide text-danger-600 dark:text-danger-400 timer-expire-flash">
+                                                                                Time Expired
+                                                                            </span>
+                                                                            <span x-show="phase === 'tb_expired'"
+                                                                                  x-text="tbMode === 'overtime' ? 'OT Expired' : 'SD Expired'"
+                                                                                  class="text-xs font-semibold uppercase tracking-wide text-danger-600 dark:text-danger-400 timer-expire-flash">
+                                                                            </span>
+                                                                        </div>
+                                                                        <div class="flex items-center gap-1.5">
+                                                                            <button type="button" x-show="phase === 'idle'" @click="start()"
+                                                                                    class="inline-flex items-center gap-1 rounded-md border border-green-700 bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 active:scale-95 transition-transform">
+                                                                                ▶ Start
+                                                                            </button>
+                                                                            <button type="button" x-show="phase === 'running' || phase === 'tb_running'" @click="pause()"
+                                                                                    class="inline-flex items-center gap-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-600 active:scale-95 transition-transform">
+                                                                                ⏸ Pause
+                                                                            </button>
+                                                                            <button type="button" x-show="phase === 'paused' || phase === 'tb_paused'" @click="resume()"
+                                                                                    class="inline-flex items-center gap-1 rounded-md border border-green-700 bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 active:scale-95 transition-transform">
+                                                                                ▶ Resume
+                                                                            </button>
+                                                                            @if ($tbDuration)
+                                                                                <button type="button" x-show="sdNeeded" @click="startTiebreaker()"
+                                                                                        class="inline-flex items-center gap-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-600 active:scale-95 transition-transform"
+                                                                                        x-text="tbMode === 'overtime' ? '⚡ Overtime' : '⚡ Sudden Death'">
+                                                                                </button>
+                                                                            @endif
+                                                                            <button type="button" x-show="phase === 'paused' || phase === 'tb_paused' || phase === 'expired' || phase === 'tb_expired'" @click="reset()"
+                                                                                    class="inline-flex items-center rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95 transition-transform">
+                                                                                ↺ Reset
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            @endif
+
                                                             {{-- Controls row --}}
                                                             @if ($pending)
                                                                 @if ($isScored)
                                                                     @if ($match->home_id && $match->away_id)
                                                                         {{-- Mobile: per-competitor rows with steppers --}}
-                                                                        <div class="sm:hidden mt-2 space-y-2">
+                                                                        <div class="sm:hidden mt-2 space-y-2"
+                                                                             x-data="{ get sdLocked() { return $store.roundTimer.sdLocked && $store.roundTimer.matchId === {{ $match->id }}; } }">
                                                                             <div class="space-y-1">
                                                                                 <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $match->home_name }}</p>
                                                                                 <div class="flex items-center gap-1">
                                                                                     <button type="button"
-                                                                                        x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">−</button>
+                                                                                        x-on:click="if(sdLocked) return; const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium transition-transform">−</button>
                                                                                     <input type="number" step="any" min="0"
                                                                                         @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                         wire:model="bracketScoreInput.{{ $match->id }}.home"
+                                                                                        x-bind:readonly="sdLocked"
+                                                                                        x-bind:class="sdLocked ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : ''"
                                                                                         class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-1"
                                                                                         placeholder="0" />
                                                                                     <button type="button"
-                                                                                        x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">+</button>
+                                                                                        x-on:click="if(sdLocked) return; const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium transition-transform">+</button>
                                                                                     @if ($homeResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
                                                                                             color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
@@ -545,21 +919,31 @@
                                                                                         </x-filament::button>
                                                                                     @endif
                                                                                 </div>
+                                                                                @if (! $isReadOnly)
+                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}" class="block">
+                                                                                        <x-filament::button size="xs" color="success" class="w-full"
+                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'home')">← Win</x-filament::button>
+                                                                                    </span>
+                                                                                @endif
                                                                             </div>
                                                                             <div class="space-y-1">
                                                                                 <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $match->away_name }}</p>
                                                                                 <div class="flex items-center gap-1">
                                                                                     <button type="button"
-                                                                                        x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">−</button>
+                                                                                        x-on:click="if(sdLocked) return; const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium transition-transform">−</button>
                                                                                     <input type="number" step="any" min="0"
                                                                                         @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                         wire:model="bracketScoreInput.{{ $match->id }}.away"
+                                                                                        x-bind:readonly="sdLocked"
+                                                                                        x-bind:class="sdLocked ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : ''"
                                                                                         class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-1"
                                                                                         placeholder="0" />
                                                                                     <button type="button"
-                                                                                        x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">+</button>
+                                                                                        x-on:click="if(sdLocked) return; const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium transition-transform">+</button>
                                                                                     @if ($awayResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
                                                                                             color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
@@ -568,13 +952,26 @@
                                                                                         </x-filament::button>
                                                                                     @endif
                                                                                 </div>
+                                                                                @if (! $isReadOnly)
+                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}" class="block">
+                                                                                        <x-filament::button size="xs" color="success" class="w-full"
+                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'away')">Win →</x-filament::button>
+                                                                                    </span>
+                                                                                @endif
                                                                             </div>
                                                                             <x-filament::button color="success" class="w-full"
-                                                                                wire:click="recordBracketScore({{ $match->id }})">Save</x-filament::button>
+                                                                                @click="$store.roundTimer.active && $store.roundTimer.matchId === {{ $match->id }} ? $dispatch('save-confirm', { matchId: {{ $match->id }} }) : $wire.recordBracketScore({{ $match->id }})">Save</x-filament::button>
                                                                         </div>
                                                                         {{-- Desktop: compact row --}}
-                                                                        <div class="hidden sm:flex items-center gap-2 mt-2">
+                                                                        <div class="hidden sm:flex items-center gap-2 mt-2"
+                                                                             x-data="{ get sdLocked() { return $store.roundTimer.sdLocked && $store.roundTimer.matchId === {{ $match->id }}; } }">
                                                                             <div class="flex-1 flex items-center justify-end gap-1">
+                                                                                @if (! $isReadOnly)
+                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}">
+                                                                                        <x-filament::button size="xs" color="success"
+                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'home')">← Win</x-filament::button>
+                                                                                    </span>
+                                                                                @endif
                                                                                 @if ($homeResult && ! $isReadOnly)
                                                                                     <x-filament::button size="xs"
                                                                                         color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
@@ -583,30 +980,38 @@
                                                                                     </x-filament::button>
                                                                                 @endif
                                                                                 <button type="button"
-                                                                                    x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
+                                                                                    x-on:click="if(sdLocked) return; const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium transition-transform">−</button>
                                                                                 <input type="number" step="any" min="0"
                                                                                     @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                     wire:model="bracketScoreInput.{{ $match->id }}.home"
+                                                                                    x-bind:readonly="sdLocked"
+                                                                                    x-bind:class="sdLocked ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : ''"
                                                                                     class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
                                                                                     placeholder="0" />
                                                                                 <button type="button"
-                                                                                    x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                                    x-on:click="if(sdLocked) return; const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium transition-transform">+</button>
                                                                             </div>
                                                                             <span class="text-xs text-gray-400 shrink-0">—</span>
                                                                             <div class="flex-1 flex items-center gap-1">
                                                                                 <button type="button"
-                                                                                    x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
+                                                                                    x-on:click="if(sdLocked) return; const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium transition-transform">−</button>
                                                                                 <input type="number" step="any" min="0"
                                                                                     @if ($targetScore) max="{{ $targetScore }}" @endif
                                                                                     wire:model="bracketScoreInput.{{ $match->id }}.away"
+                                                                                    x-bind:readonly="sdLocked"
+                                                                                    x-bind:class="sdLocked ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : ''"
                                                                                     class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
                                                                                     placeholder="0" />
                                                                                 <button type="button"
-                                                                                    x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                                    x-on:click="if(sdLocked) return; const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium transition-transform">+</button>
                                                                                 @if ($awayResult && ! $isReadOnly)
                                                                                     <x-filament::button size="xs"
                                                                                         color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
@@ -614,9 +1019,15 @@
                                                                                         {{ $awayResult->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                                     </x-filament::button>
                                                                                 @endif
-                                                                                <x-filament::button size="xs" color="success" class="shrink-0"
-                                                                                    wire:click="recordBracketScore({{ $match->id }})">Save</x-filament::button>
+                                                                                @if (! $isReadOnly)
+                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}">
+                                                                                        <x-filament::button size="xs" color="success"
+                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'away')">Win →</x-filament::button>
+                                                                                    </span>
+                                                                                @endif
                                                                             </div>
+                                                                            <x-filament::button size="xs" color="success" class="shrink-0 ml-auto"
+                                                                                @click="$store.roundTimer.active && $store.roundTimer.matchId === {{ $match->id }} ? $dispatch('save-confirm', { matchId: {{ $match->id }} }) : $wire.recordBracketScore({{ $match->id }})">Save</x-filament::button>
                                                                         </div>
                                                                     @endif
                                                                 @else

@@ -873,7 +873,13 @@ class Scoring extends Page
         }
 
         if ($homeScore === $awayScore) {
-            Notification::make()->title('Scores are tied — a winner cannot be determined.')->warning()->send();
+            if ($this->getTiebreakerMode() === 'overtime') {
+                Notification::make()->title('Scores are tied — continue overtime or use head judge override.')->warning()->send();
+                $this->dispatch('overtime-tied', matchId: $matchId);
+            } else {
+                Notification::make()->title('Scores are tied — use sudden death or head judge override.')->warning()->send();
+                $this->dispatch('timer-tied', matchId: $matchId);
+            }
             return;
         }
 
@@ -896,8 +902,61 @@ class Scoring extends Page
 
         app(BracketService::class)->advance($match->fresh());
         $this->applyBracketPlacements();
+        $this->dispatch('timer-reset', matchId: $matchId);
 
         Notification::make()->success()->title('Score recorded.')->send();
+    }
+
+    public function onTimerExpired(int $matchId): void
+    {
+        if ($this->getScoringMethod() !== 'first_to_n') return;
+
+        $homeScore = isset($this->bracketScoreInput[$matchId]['home']) && $this->bracketScoreInput[$matchId]['home'] !== ''
+            ? (float) $this->bracketScoreInput[$matchId]['home'] : 0.0;
+        $awayScore = isset($this->bracketScoreInput[$matchId]['away']) && $this->bracketScoreInput[$matchId]['away'] !== ''
+            ? (float) $this->bracketScoreInput[$matchId]['away'] : 0.0;
+
+        if ($homeScore === $awayScore) {
+            $this->dispatch('timer-tied', matchId: $matchId);
+        }
+    }
+
+    public function onOvertimeExpired(int $matchId): void
+    {
+        if ($this->getScoringMethod() !== 'first_to_n') return;
+
+        $homeScore = isset($this->bracketScoreInput[$matchId]['home']) && $this->bracketScoreInput[$matchId]['home'] !== ''
+            ? (float) $this->bracketScoreInput[$matchId]['home'] : 0.0;
+        $awayScore = isset($this->bracketScoreInput[$matchId]['away']) && $this->bracketScoreInput[$matchId]['away'] !== ''
+            ? (float) $this->bracketScoreInput[$matchId]['away'] : 0.0;
+
+        if ($homeScore === $awayScore) {
+            $this->dispatch('overtime-tied', matchId: $matchId);
+        }
+        // Not tied: scorer saves normally, no action needed
+    }
+
+    public function declareBracketWinner(int $matchId, string $side): void
+    {
+        $match = RoundRobinMatch::find($matchId);
+        if (! $match || $match->division_id !== $this->division_id) return;
+        if (! $match->isPending()) return;
+        if ($this->getScoringMethod() !== 'first_to_n') return;
+        if (! in_array($side, ['home', 'away'])) return;
+
+        $homeWins = $side === 'home';
+
+        $match->update([
+            'home_score'  => $homeWins ? 1 : 0,
+            'away_score'  => $homeWins ? 0 : 1,
+            'home_result' => $homeWins ? 'win' : 'loss',
+        ]);
+
+        app(BracketService::class)->advance($match->fresh());
+        $this->applyBracketPlacements();
+        $this->dispatch('timer-reset', matchId: $matchId);
+
+        Notification::make()->success()->title('Winner declared by head judge.')->send();
     }
 
     public function clearBracketResult(int $matchId): void
@@ -964,6 +1023,7 @@ class Scoring extends Page
 
         $match->update(['home_result' => null, 'home_score' => null, 'away_score' => null]);
         $this->applyBracketPlacements();
+        $this->dispatch('timer-reset', matchId: $matchId);
         Notification::make()->success()->title('Result cleared.')->send();
     }
 
@@ -1394,6 +1454,30 @@ class Scoring extends Page
         if (! $div) return null;
 
         return $div->competitionEvent->effectiveTargetScore();
+    }
+
+    public function getRoundDuration(): ?int
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return null;
+
+        return $div->competitionEvent->round_duration_seconds;
+    }
+
+    public function getTiebreakerDuration(): ?int
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return null;
+
+        return $div->competitionEvent->tiebreak_duration_seconds;
+    }
+
+    public function getTiebreakerMode(): string
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return 'sudden_death';
+
+        return $div->competitionEvent->getTiebreakerMode();
     }
 
     public function saveJudgeScores(int $resultId): void

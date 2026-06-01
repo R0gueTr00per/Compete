@@ -35,6 +35,9 @@ class CompetitionEvent extends Model
         'awarded_places_3',
         'awarded_places_4plus',
         'default_max_competitors',
+        'round_duration_seconds',
+        'tiebreak_duration_seconds',
+        'tiebreak_mode',
     ];
 
     protected function casts(): array
@@ -125,5 +128,20 @@ class CompetitionEvent extends Model
     public function isTournament(): bool
     {
         return in_array($this->effectiveTournamentFormat(), ['round_robin', 'single_elimination', 'double_elimination', 'repechage', 'se_3rd_place']);
+    }
+
+    public function hasTimer(): bool
+    {
+        return $this->round_duration_seconds !== null;
+    }
+
+    public function hasTiebreakerTimer(): bool
+    {
+        return $this->tiebreak_duration_seconds !== null;
+    }
+
+    public function getTiebreakerMode(): string
+    {
+        return $this->tiebreak_mode ?? 'sudden_death';
     }
 }
