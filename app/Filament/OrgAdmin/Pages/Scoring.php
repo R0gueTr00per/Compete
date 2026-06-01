@@ -604,6 +604,10 @@ class Scoring extends Page
         if ($rows->isEmpty()) return false;
 
         if (in_array($method, ['judges_total', 'judges_average'])) {
+            $allSaved = $rows->every(fn ($row) => $row->result->disqualified || in_array($row->result->id, $this->savedResultIds));
+            if (! $allSaved) {
+                return false;
+            }
             if (! $rows->every(fn ($row) => $row->result->disqualified || $row->result->total_score !== null)) {
                 return false;
             }
@@ -1612,7 +1616,6 @@ class Scoring extends Page
             unset($this->tiebreakerJudgeInputs[$resultId]);
         }
 
-        Notification::make()->title('Placement overridden.')->warning()->send();
     }
 
     public function headJudgeSavePlacement(int $resultId): void
@@ -1666,9 +1669,21 @@ class Scoring extends Page
                 ->where('placement_overridden', false)
                 ->update(['placement' => null]);
         } else {
+            // Clear all overrides and placements, then re-rank once.
+            Result::where('division_id', $division->id)
+                ->update(['placement_overridden' => false, 'placement' => null]);
+
+            $divisionResultIds = [];
             foreach ($this->getCompetitorRows() as $row) {
-                app(ScoringService::class)->clearPlacementOverride($row->result);
+                $id = $row->result->id;
+                unset($this->placementInput[$id]);
+                $divisionResultIds[] = $id;
             }
+
+            $this->savedResultIds = array_values(array_diff($this->savedResultIds, $divisionResultIds));
+
+            app(ScoringService::class)->autoRankDivision($division);
+
             Notification::make()->title('Auto-ranking restored.')->success()->send();
         }
     }

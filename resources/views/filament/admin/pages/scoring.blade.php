@@ -395,6 +395,7 @@
                 100% { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
             }
             .winner-halo { animation: winner-halo 0.55s ease-out 3; }
+            button { touch-action: manipulation; }
         </style>
         @php $incompleteCount = $divisionList->filter(fn ($item) => $item->division->status !== 'complete')->count(); @endphp
         @if ($incompleteCount > 0)
@@ -851,6 +852,7 @@
                                                                      x-on:timer-reset.window="if ($event.detail.matchId === matchId) reset()"
                                                                      x-on:timer-tied.window="if ($event.detail.matchId === matchId) enterSdPrompt()"
                                                                      x-on:overtime-tied.window="if ($event.detail.matchId === matchId) enterOvertimeTied()"
+                                                                     x-on:timer-pause.window="if ($event.detail.matchId === matchId && (phase === 'running' || phase === 'tb_running')) pause()"
                                                                      class="mt-2">
                                                                     {{-- Timer bar --}}
                                                                     <div class="flex items-center justify-between gap-2 rounded-lg px-3 py-2"
@@ -947,7 +949,8 @@
                                                                                     @if ($homeResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
                                                                                         color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
-                                                                                        wire:click="toggleDisqualify({{ $homeResult->id }})">
+                                                                                        wire:click="toggleDisqualify({{ $homeResult->id }})"
+                                                                                        @click="if ($store.roundTimer.running && $store.roundTimer.matchId === {{ $match->id }}) $dispatch('timer-pause', { matchId: {{ $match->id }} })">
                                                                                         {{ $homeResult->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                                     </x-filament::button>
                                                                                     @endif
@@ -981,7 +984,8 @@
                                                                                     @if ($awayResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
                                                                                         color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
-                                                                                        wire:click="toggleDisqualify({{ $awayResult->id }})">
+                                                                                        wire:click="toggleDisqualify({{ $awayResult->id }})"
+                                                                                        @click="if ($store.roundTimer.running && $store.roundTimer.matchId === {{ $match->id }}) $dispatch('timer-pause', { matchId: {{ $match->id }} })">
                                                                                         {{ $awayResult->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                                     </x-filament::button>
                                                                                     @endif
@@ -1041,7 +1045,8 @@
                                                                                     @if ($homeResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
                                                                                         color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
-                                                                                        wire:click="toggleDisqualify({{ $homeResult->id }})">
+                                                                                        wire:click="toggleDisqualify({{ $homeResult->id }})"
+                                                                                        @click="if ($store.roundTimer.running && $store.roundTimer.matchId === {{ $match->id }}) $dispatch('timer-pause', { matchId: {{ $match->id }} })">
                                                                                         {{ $homeResult->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                                     </x-filament::button>
                                                                                     @endif
@@ -1075,7 +1080,8 @@
                                                                                     @if ($awayResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
                                                                                         color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
-                                                                                        wire:click="toggleDisqualify({{ $awayResult->id }})">
+                                                                                        wire:click="toggleDisqualify({{ $awayResult->id }})"
+                                                                                        @click="if ($store.roundTimer.running && $store.roundTimer.matchId === {{ $match->id }}) $dispatch('timer-pause', { matchId: {{ $match->id }} })">
                                                                                         {{ $awayResult->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                                     </x-filament::button>
                                                                                     @endif

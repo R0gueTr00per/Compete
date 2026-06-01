@@ -73,7 +73,8 @@ class CompetitionResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->where('organisation_id', app('tenant')?->id);
+            ->where('organisation_id', app('tenant')?->id)
+            ->where('is_template', false);
     }
 
     public static function form(Form $form): Form
@@ -131,14 +132,7 @@ class CompetitionResource extends Resource
                                         ->default('planning'),
                                 ]),
 
-                            Section::make('Structure')
-                                ->visibleOn('create')
-                                ->schema([
-                                    Toggle::make('copy_previous_structure')
-                                        ->label('Copy structure from most recent competition')
-                                        ->helperText('Copies event types, age/rank/weight bands, and all divisions. Enrolments are not copied.')
-                                        ->default(true),
-                                ]),
+
                         ]),
 
                     Tab::make('Fees')
@@ -427,6 +421,48 @@ class CompetitionResource extends Resource
                             Notification::make()
                                 ->success()
                                 ->title("Competition duplicated: {$new->name}")
+                                ->send();
+                        }),
+                    Action::make('saveAsTemplate')
+                        ->label('Save as Template')
+                        ->icon('heroicon-o-bookmark')
+                        ->color('gray')
+                        ->form([
+                            TextInput::make('template_name')
+                                ->label('Template name')
+                                ->required()
+                                ->maxLength(255),
+                        ])
+                        ->fillForm(fn (Competition $record): array => [
+                            'template_name' => $record->name,
+                        ])
+                        ->action(function (Competition $record, array $data, DivisionAssignmentService $svc) {
+                            $template = Competition::create([
+                                'organisation_id'                 => $record->organisation_id,
+                                'name'                            => $data['template_name'],
+                                'competition_date'                => null,
+                                'enrolment_due_date'              => null,
+                                'start_time'                      => $record->start_time,
+                                'checkin_time'                    => $record->checkin_time,
+                                'location_name'                   => $record->location_name,
+                                'location_address'                => $record->location_address,
+                                'target_competitors'              => $record->target_competitors,
+                                'fee_first_event'                 => $record->fee_first_event,
+                                'fee_additional_event'            => $record->fee_additional_event,
+                                'late_surcharge'                  => $record->late_surcharge,
+                                'fee_official_first_event'        => $record->fee_official_first_event,
+                                'fee_official_additional_event'   => $record->fee_official_additional_event,
+                                'registration_fields'             => $record->registration_fields,
+                                'status'                          => 'planning',
+                                'is_template'                     => true,
+                                'template_active'                 => true,
+                            ]);
+
+                            $svc->copyDivisionsFromCompetition($record, $template);
+
+                            Notification::make()
+                                ->success()
+                                ->title('Template "' . $data['template_name'] . '" created successfully')
                                 ->send();
                         }),
                     Action::make('downloadPdf')

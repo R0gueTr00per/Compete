@@ -157,6 +157,12 @@ class EditCompetition extends EditRecord
             });
     }
 
+    protected function getCancelFormAction(): \Filament\Actions\Action
+    {
+        return parent::getCancelFormAction()
+            ->url($this->getResource()::getUrl('index'));
+    }
+
     protected function getRedirectUrl(): string
     {
         return $this->getResource()::getUrl('edit', ['record' => $this->record]);

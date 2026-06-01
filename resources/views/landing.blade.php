@@ -304,7 +304,7 @@
             </h1>
 
             <p class="hero-sub">
-                Run tournaments, manage registrations, check in competitors with QR codes, track live scores, and unlock AI-powered insights — all in one modern platform built for organisations that take competition seriously.
+                Run tournaments, manage registrations with custom forms, check in competitors with QR codes, score timed bouts with tiebreaks and overtime, and unlock AI-powered insights — all in one modern platform built for organisations that take competition seriously.
             </p>
 
             <div class="hero-ctas">
@@ -377,15 +377,15 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 </div>
                 <h3>Registrations &amp; Enrolments</h3>
-                <p>Streamline competitor sign-ups with smart enrolment forms, automatic confirmation notifications, and real-time waiting list management.</p>
+                <p>Streamline competitor sign-ups with custom enrolment forms, automatic confirmation notifications, and capacity limits per division.</p>
             </article>
 
             <article class="card">
                 <div class="icon-wrap" aria-hidden="true">
                     <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 14h3v3m0 4h4m-7 0v-4m4-3v3"/></svg>
                 </div>
-                <h3>QR Code Check-In</h3>
-                <p>Scan competitors in at the door using unique QR codes. Fast, contactless, and eliminates manual paper lists on event day.</p>
+                <h3>QR Check-In &amp; Weigh-Ins</h3>
+                <p>Scan competitors in at the door using unique QR codes and record weigh-in results on the spot. Fast, contactless, and eliminates manual paper lists on event day.</p>
             </article>
 
             <article class="card">
@@ -393,7 +393,7 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                 </div>
                 <h3>Live Scoring</h3>
-                <p>Enter scores in real time as bouts happen. Judges get a dedicated interface; spectators and athletes see results the moment they're posted.</p>
+                <p>Score timed bouts in real time with configurable round timers, tiebreak rounds, and overtime support. Judges use quick-tap score events; spectators and athletes see results the moment they're posted.</p>
             </article>
 
             <article class="card">
@@ -401,15 +401,15 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 </div>
                 <h3>Competitor Portal</h3>
-                <p>Athletes manage their own profiles, view event schedules, track enrolments, and access results through a clean self-service portal.</p>
+                <p>Athletes manage their profiles, view event schedules, track enrolments, manage dojo affiliations, and access results through a clean self-service portal.</p>
             </article>
 
             <article class="card">
                 <div class="icon-wrap" aria-hidden="true">
                     <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
                 </div>
-                <h3>Automated Notifications</h3>
-                <p>Keep competitors and officials in the loop with automatic confirmations, schedule updates, and draw announcements — no manual emailing required.</p>
+                <h3>Notifications &amp; Messaging</h3>
+                <p>Keep everyone in the loop with automatic confirmations, schedule updates, and draw announcements. Send targeted competition messages to competitors for last-minute changes — no manual emailing required.</p>
             </article>
 
             <article class="card">
@@ -422,10 +422,26 @@
 
             <article class="card">
                 <div class="icon-wrap" aria-hidden="true">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
                 </div>
-                <h3>Multi-Dojo Support</h3>
-                <p>Competitors belong to dojos, dojos belong to your organisation. Kompetic's hierarchy keeps everyone organised, from grassroots clubs to national bodies.</p>
+                <h3>Flexible Event Configuration</h3>
+                <p>Configure every event exactly how your sport demands — set weight categories, age groups, scoring formats, and tiebreak rules. No two disciplines are the same, and Kompetic doesn't pretend they are.</p>
+            </article>
+
+            <article class="card">
+                <div class="icon-wrap" aria-hidden="true">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                </div>
+                <h3>Competition Templates</h3>
+                <p>Save your event configuration as a reusable template. Spin up repeat tournaments — same divisions, rules, and scoring settings — in minutes instead of hours.</p>
+            </article>
+
+            <article class="card">
+                <div class="icon-wrap" aria-hidden="true">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l3-3 2 2 4-4 3 3 3-3"/></svg>
+                </div>
+                <h3>Results &amp; Placements</h3>
+                <p>Rankings are calculated automatically from live scores and published instantly. Manual placement overrides handle edge cases without disrupting the rest of the draw.</p>
             </article>
 
             <article class="card ai">

@@ -35,6 +35,8 @@ class Competition extends Model
         'status',
         'copied_from_id',
         'registration_fields',
+        'is_template',
+        'template_active',
     ];
 
     protected function casts(): array
@@ -48,7 +50,19 @@ class Competition extends Model
             'fee_official_first_event'      => 'decimal:2',
             'fee_official_additional_event' => 'decimal:2',
             'registration_fields'           => 'array',
+            'is_template'                   => 'boolean',
+            'template_active'               => 'boolean',
         ];
+    }
+
+    public function scopeTemplates(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where('is_template', true);
+    }
+
+    public function scopeActiveTemplates(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where('is_template', true)->where('template_active', true);
     }
 
     public function getActivitylogOptions(): LogOptions
