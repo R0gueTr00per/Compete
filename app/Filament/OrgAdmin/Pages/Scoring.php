@@ -615,9 +615,9 @@ class Scoring extends Page
         }
 
         return $rows->every(fn ($row) => $row->result->disqualified || match ($method) {
-            'win_loss'   => $row->result->win_loss !== null,
-            'first_to_n' => $row->result->total_score !== null,
-            default      => true,
+            'win_loss'                    => $row->result->win_loss !== null,
+            'first_to_n', 'timed_points' => $row->result->total_score !== null,
+            default                       => true,
         });
     }
 
@@ -859,7 +859,7 @@ class Scoring extends Page
         }
 
         $scoringMethod = $this->getScoringMethod();
-        if ($scoringMethod === 'first_to_n') {
+        if (in_array($scoringMethod, ['first_to_n', 'timed_points'])) {
             $target = $this->getTargetScore();
             if ($target !== null) {
                 if ($homeScore > $target || $awayScore > $target) {
@@ -911,7 +911,7 @@ class Scoring extends Page
 
     public function onTimerExpired(int $matchId): void
     {
-        if ($this->getScoringMethod() !== 'first_to_n') return;
+        if (! in_array($this->getScoringMethod(), ['first_to_n', 'timed_points'])) return;
 
         $homeScore = isset($this->bracketScoreInput[$matchId]['home']) && $this->bracketScoreInput[$matchId]['home'] !== ''
             ? (float) $this->bracketScoreInput[$matchId]['home'] : 0.0;
@@ -925,7 +925,7 @@ class Scoring extends Page
 
     public function onOvertimeExpired(int $matchId): void
     {
-        if ($this->getScoringMethod() !== 'first_to_n') return;
+        if (! in_array($this->getScoringMethod(), ['first_to_n', 'timed_points'])) return;
 
         $homeScore = isset($this->bracketScoreInput[$matchId]['home']) && $this->bracketScoreInput[$matchId]['home'] !== ''
             ? (float) $this->bracketScoreInput[$matchId]['home'] : 0.0;
@@ -943,7 +943,7 @@ class Scoring extends Page
         $match = RoundRobinMatch::find($matchId);
         if (! $match || $match->division_id !== $this->division_id) return;
         if (! $match->isPending()) return;
-        if ($this->getScoringMethod() !== 'first_to_n') return;
+        if (! in_array($this->getScoringMethod(), ['first_to_n', 'timed_points'])) return;
         if (! in_array($side, ['home', 'away'])) return;
 
         $homeWins = $side === 'home';
@@ -1482,6 +1482,14 @@ class Scoring extends Page
         return $div->competitionEvent->getTiebreakerMode();
     }
 
+    public function getOvertimeRounds(): int
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return 1;
+
+        return $div->competitionEvent->getOvertimeRounds();
+    }
+
     public function saveJudgeScores(int $resultId): void
     {
         $result = Result::find($resultId);
@@ -1677,7 +1685,7 @@ class Scoring extends Page
         Notification::make()->title($label)->warning()->send();
 
         // For first_to_n / win_loss bracket: auto-advance pending match to the opponent when DQ'd
-        if ($result->disqualified && $this->isTournament() && in_array($this->getScoringMethod(), ['first_to_n', 'win_loss'])) {
+        if ($result->disqualified && $this->isTournament() && in_array($this->getScoringMethod(), ['first_to_n', 'timed_points', 'win_loss'])) {
             $eeId = $result->enrolment_event_id;
             $match = RoundRobinMatch::where('division_id', $this->division_id)
                 ->whereNull('home_result')
@@ -1977,7 +1985,7 @@ class Scoring extends Page
                         ->send();
                     return;
                 }
-            } elseif ($method === 'first_to_n') {
+            } elseif (in_array($method, ['first_to_n', 'timed_points'])) {
                 $missing = $this->getCompetitorRows()
                     ->filter(fn ($row) => ! $row->result->disqualified && $row->result->total_score === null)
                     ->count();

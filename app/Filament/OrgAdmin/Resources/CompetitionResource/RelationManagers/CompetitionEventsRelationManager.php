@@ -122,6 +122,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->label('Scoring method')
                         ->options([
                             'first_to_n'     => 'First to N points',
+                            'timed_points'   => 'Timed points',
                             'judges_average' => 'Judges scores averaged',
                             'judges_total'   => 'Judges scores total',
                             'win_loss'       => 'Win / Loss',
@@ -147,7 +148,9 @@ class CompetitionEventsRelationManager extends RelationManager
                     TextInput::make('target_score')
                         ->label('Target score (first-to-N)')
                         ->numeric()
-                        ->nullable()
+                        ->integer()
+                        ->minValue(1)
+                        ->requiredIf('scoring_method', 'first_to_n')
                         ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n'),
 
                     TagsInput::make('increment_buttons')
@@ -155,7 +158,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->placeholder('Add a value')
                         ->helperText('Values shown as tap buttons on the scoring screen (e.g. 1, 2, 3). Leave blank for a single +1 button.')
                         ->nestedRecursiveRules(['numeric', 'min:0.1'])
-                        ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points']))
                         ->columnSpanFull(),
 
                     TextInput::make('round_duration_seconds')
@@ -164,7 +167,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->nullable()
                         ->suffix('seconds')
                         ->helperText('e.g. 180 = 3 minutes. Leave blank for no timer.')
-                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'win_loss'])),
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points', 'win_loss'])),
 
                     TextInput::make('tiebreak_duration_seconds')
                         ->label('Tiebreak duration')
@@ -172,7 +175,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->nullable()
                         ->suffix('seconds')
                         ->helperText('Duration of the tiebreak period when scores are tied at time expiry.')
-                        ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n'),
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points'])),
 
                     Radio::make('tiebreak_mode')
                         ->label('Tiebreak mode')
@@ -181,7 +184,18 @@ class CompetitionEventsRelationManager extends RelationManager
                             'overtime'     => 'Overtime — scoring continues; head judge if still tied at end',
                         ])
                         ->default('sudden_death')
-                        ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points']))
+                        ->live()
+                        ->columnSpanFull(),
+
+                    Radio::make('overtime_rounds')
+                        ->label('Overtime rounds allowed')
+                        ->options([
+                            1 => '1 round — head judge decides if still tied',
+                            2 => '2 rounds — head judge decides if still tied after both',
+                        ])
+                        ->default(1)
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points']) || $get('tiebreak_mode') !== 'overtime')
                         ->columnSpanFull(),
 
                     Section::make('Places Awarded')
@@ -323,6 +337,7 @@ class CompetitionEventsRelationManager extends RelationManager
                         'judges_total'   => 'Judges total (' . ($record->judge_count ?? 0) . ')',
                         'judges_average' => 'Judges avg (' . ($record->judge_count ?? 0) . ')',
                         'first_to_n'     => 'First to N (' . ($record->target_score ?? '?') . ')',
+                        'timed_points'   => 'Timed points',
                         'win_loss'       => 'Win / Loss',
                         default          => $state ?? '—',
                     })

@@ -111,9 +111,10 @@
                         if (_s.sdLocked === undefined) _s.sdLocked = false;
                     }
 
-                    Alpine.data('matchTimer', (matchId, duration, tbDuration, tbMode) => ({
+                    Alpine.data('matchTimer', (matchId, duration, tbDuration, tbMode, overtimeRounds) => ({
                     matchId,
                     tbMode:            tbMode || 'sudden_death',
+                    overtimeRounds:    overtimeRounds || 1,
                     // duration/tbDuration are in whole seconds (from PHP).
                     // Internally track centiseconds (1/100 s) for sub-second display.
                     durationCs:        duration   * 100,
@@ -125,6 +126,7 @@
                     remainingAtStartCs: null,
                     sdNeeded:          false,
                     overtimeTied:      false,
+                    overtimeRound:     0,
                     _audioCtx:         null,
                     _lastSave:         0,
 
@@ -152,6 +154,7 @@
                             remainingCs: this.remainingCs,
                             sdNeeded: this.sdNeeded,
                             overtimeTied: this.overtimeTied,
+                            overtimeRound: this.overtimeRound,
                         }));
                     },
 
@@ -178,8 +181,9 @@
                             this.phase       = s.phase;
                             this.remainingCs = s.remainingCs;
                         }
-                        this.sdNeeded    = s.sdNeeded    ?? false;
+                        this.sdNeeded     = s.sdNeeded     ?? false;
                         this.overtimeTied = s.overtimeTied ?? false;
+                        this.overtimeRound = s.overtimeRound ?? 0;
                     },
 
                     start() {
@@ -217,12 +221,14 @@
                         this.remainingAtStartCs = null;
                         this.sdNeeded           = false;
                         this.overtimeTied       = false;
+                        this.overtimeRound      = 0;
                         localStorage.removeItem(this.storageKey());
                         this._syncStore();
                     },
 
                     startTiebreaker() {
                         this._bell(1);
+                        this.overtimeRound     += 1;
                         this.sdNeeded           = false;
                         clearInterval(this.interval);
                         this.remainingCs        = this.tbDurationCs;
@@ -241,11 +247,14 @@
                     },
 
                     enterOvertimeTied() {
-                        // If OT timer is already running/paused/expired, show Win buttons immediately.
-                        // Otherwise show the "Start Overtime" prompt (same as SD mode's sdNeeded).
                         if (this.phase === 'tb_running' || this.phase === 'tb_paused' || this.phase === 'tb_expired') {
-                            this.overtimeTied = true;
+                            // Win buttons already visible (tb_expired keeps sdActive true).
+                            // If more OT rounds remain, also show the "Start OT N" prompt.
+                            if (this.overtimeRound < this.overtimeRounds) {
+                                this.sdNeeded = true;
+                            }
                         } else {
+                            // OT not yet started — show prompt to begin first OT round.
                             this.sdNeeded = true;
                         }
                         this.save();
@@ -380,6 +389,12 @@
                 50%       { opacity: 0.35; }
             }
             .timer-expire-flash { animation: timer-expire-flash 0.7s ease-in-out infinite; }
+            @keyframes winner-halo {
+                0%   { box-shadow: 0 0 0 0 rgba(34,197,94,.70); }
+                60%  { box-shadow: 0 0 0 8px rgba(34,197,94,.18); }
+                100% { box-shadow: 0 0 0 14px rgba(34,197,94,0); }
+            }
+            .winner-halo { animation: winner-halo 0.55s ease-out 3; }
         </style>
         @php $incompleteCount = $divisionList->filter(fn ($item) => $item->division->status !== 'complete')->count(); @endphp
         @if ($incompleteCount > 0)
@@ -500,7 +515,7 @@
                         $judges         = $this->getJudgeCount();
                         $isReadOnly     = $div->status === 'complete';
                         $targetScore      = $method === 'first_to_n' ? $this->getTargetScore() : null;
-                        $incrementButtons = $method === 'first_to_n' ? $this->getIncrementButtons() : [];
+                        $incrementButtons = in_array($method, ['first_to_n', 'timed_points']) ? $this->getIncrementButtons() : [];
                         $totalCheckedIn = \App\Models\EnrolmentEvent::where('division_id', $this->division_id)
                             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
                             ->count();
@@ -603,12 +618,13 @@
                                     $format           = $this->getTournamentFormat();
                                     $hasBracket       = $this->bracketExists;
                                     $scoringMethod    = $this->getScoringMethod();
-                                    $isScored         = in_array($scoringMethod, ['judges_total', 'judges_average', 'first_to_n']);
+                                    $isScored         = in_array($scoringMethod, ['judges_total', 'judges_average', 'first_to_n', 'timed_points']);
                                     $targetScore      = $scoringMethod === 'first_to_n' ? $this->getTargetScore() : null;
-                                    $incrementButtons = $scoringMethod === 'first_to_n' ? $this->getIncrementButtons() : [];
-                                    $roundDuration    = in_array($scoringMethod, ['first_to_n', 'win_loss']) ? $this->getRoundDuration() : null;
-                                    $tbDuration       = $scoringMethod === 'first_to_n' ? $this->getTiebreakerDuration() : null;
-                                    $tbMode           = $scoringMethod === 'first_to_n' ? $this->getTiebreakerMode() : 'sudden_death';
+                                    $incrementButtons = in_array($scoringMethod, ['first_to_n', 'timed_points']) ? $this->getIncrementButtons() : [];
+                                    $roundDuration    = in_array($scoringMethod, ['first_to_n', 'timed_points', 'win_loss']) ? $this->getRoundDuration() : null;
+                                    $tbDuration       = in_array($scoringMethod, ['first_to_n', 'timed_points']) ? $this->getTiebreakerDuration() : null;
+                                    $tbMode           = in_array($scoringMethod, ['first_to_n', 'timed_points']) ? $this->getTiebreakerMode() : 'sudden_death';
+                                    $overtimeRounds   = $tbMode === 'overtime' ? $this->getOvertimeRounds() : 1;
                                 @endphp
 
                                 {{-- wire:key changes on any bracket structural change (new matches) or completion, forcing full replacement --}}
@@ -831,7 +847,7 @@
 
                                                             {{-- Round timer --}}
                                                             @if ($roundDuration && $pending && $match->home_id && $match->away_id)
-                                                                <div x-data="matchTimer({{ $match->id }}, {{ $roundDuration }}, {{ $tbDuration ?? 'null' }}, '{{ $tbMode }}')"
+                                                                <div x-data="matchTimer({{ $match->id }}, {{ $roundDuration }}, {{ $tbDuration ?? 'null' }}, '{{ $tbMode }}', {{ $overtimeRounds }})"
                                                                      x-on:timer-reset.window="if ($event.detail.matchId === matchId) reset()"
                                                                      x-on:timer-tied.window="if ($event.detail.matchId === matchId) enterSdPrompt()"
                                                                      x-on:overtime-tied.window="if ($event.detail.matchId === matchId) enterOvertimeTied()"
@@ -856,7 +872,7 @@
                                                                                       x-text="displayCentis"></span>
                                                                             </span>
                                                                             <span x-show="phase === 'tb_running' || phase === 'tb_paused'"
-                                                                                  x-text="tbMode === 'overtime' ? 'Overtime' : 'Sudden Death'"
+                                                                                  x-text="tbMode === 'overtime' ? (overtimeRounds > 1 ? 'OT ' + overtimeRound : 'Overtime') : 'Sudden Death'"
                                                                                   class="text-xs font-semibold uppercase tracking-wide text-warning-600 dark:text-warning-400">
                                                                             </span>
                                                                             <span x-show="phase === 'expired'"
@@ -869,28 +885,13 @@
                                                                             </span>
                                                                         </div>
                                                                         <div class="flex items-center gap-1.5">
-                                                                            <button type="button" x-show="phase === 'idle'" @click="start()"
-                                                                                    class="inline-flex items-center gap-1 rounded-md border border-green-700 bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 active:scale-95 transition-transform">
-                                                                                ▶ Start
-                                                                            </button>
-                                                                            <button type="button" x-show="phase === 'running' || phase === 'tb_running'" @click="pause()"
-                                                                                    class="inline-flex items-center gap-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-600 active:scale-95 transition-transform">
-                                                                                ⏸ Pause
-                                                                            </button>
-                                                                            <button type="button" x-show="phase === 'paused' || phase === 'tb_paused'" @click="resume()"
-                                                                                    class="inline-flex items-center gap-1 rounded-md border border-green-700 bg-green-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-green-700 active:scale-95 transition-transform">
-                                                                                ▶ Resume
-                                                                            </button>
+                                                                            <x-filament::button size="sm" color="success" x-show="phase === 'idle'" @click="start()">▶ Start</x-filament::button>
+                                                                            <x-filament::button size="sm" color="warning" x-show="phase === 'running' || phase === 'tb_running'" @click="pause()">⏸ Pause</x-filament::button>
+                                                                            <x-filament::button size="sm" color="success" x-show="phase === 'paused' || phase === 'tb_paused'" @click="resume()">▶ Resume</x-filament::button>
                                                                             @if ($tbDuration)
-                                                                                <button type="button" x-show="sdNeeded" @click="startTiebreaker()"
-                                                                                        class="inline-flex items-center gap-1 rounded-md border border-amber-600 bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-600 active:scale-95 transition-transform"
-                                                                                        x-text="tbMode === 'overtime' ? '⚡ Overtime' : '⚡ Sudden Death'">
-                                                                                </button>
+                                                                                <x-filament::button size="sm" color="warning" x-show="sdNeeded" @click="startTiebreaker()" x-text="tbMode === 'overtime' ? (overtimeRound >= 1 ? '⚡ OT ' + (overtimeRound + 1) : '⚡ Overtime') : '⚡ Sudden Death'"></x-filament::button>
                                                                             @endif
-                                                                            <button type="button" x-show="phase === 'paused' || phase === 'tb_paused' || phase === 'expired' || phase === 'tb_expired'" @click="reset()"
-                                                                                    class="inline-flex items-center rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300 shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 active:scale-95 transition-transform">
-                                                                                ↺ Reset
-                                                                            </button>
+                                                                            <x-filament::button size="sm" color="gray" x-show="phase === 'paused' || phase === 'tb_paused' || phase === 'expired' || phase === 'tb_expired'" @click="reset()">↺ Reset</x-filament::button>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -926,7 +927,8 @@
                                                                              }">
                                                                             <div class="space-y-1">
                                                                                 <p class="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{{ $match->home_name }}</p>
-                                                                                <div class="text-3xl font-bold text-gray-900 dark:text-white leading-none py-1"
+                                                                                <div class="text-3xl font-bold leading-none py-1 transition-colors"
+                                                                                     :class="homeHistory.reduce((s,v)=>s+v,0) >= {{ $targetScore ?? 99999 }} ? 'text-green-600 dark:text-green-400 winner-halo' : 'text-gray-900 dark:text-white'"
                                                                                      x-text="homeHistory.reduce((s,v)=>s+v,0)"></div>
                                                                                 <div class="flex items-center gap-1.5 flex-wrap">
                                                                                     <button type="button"
@@ -959,7 +961,8 @@
                                                                             </div>
                                                                             <div class="space-y-1">
                                                                                 <p class="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{{ $match->away_name }}</p>
-                                                                                <div class="text-3xl font-bold text-gray-900 dark:text-white leading-none py-1"
+                                                                                <div class="text-3xl font-bold leading-none py-1 transition-colors"
+                                                                                     :class="awayHistory.reduce((s,v)=>s+v,0) >= {{ $targetScore ?? 99999 }} ? 'text-green-600 dark:text-green-400 winner-halo' : 'text-gray-900 dark:text-white'"
                                                                                      x-text="awayHistory.reduce((s,v)=>s+v,0)"></div>
                                                                                 <div class="flex items-center gap-1.5 flex-wrap">
                                                                                     <button type="button"
@@ -1018,7 +1021,8 @@
                                                                                  }
                                                                              }">
                                                                             <div class="flex-1 flex flex-col items-end gap-1">
-                                                                                <div class="text-3xl font-bold text-gray-900 dark:text-white leading-none"
+                                                                                <div class="text-3xl font-bold leading-none transition-colors"
+                                                                                     :class="homeHistory.reduce((s,v)=>s+v,0) >= {{ $targetScore ?? 99999 }} ? 'text-green-600 dark:text-green-400 winner-halo' : 'text-gray-900 dark:text-white'"
                                                                                      x-text="homeHistory.reduce((s,v)=>s+v,0)"></div>
                                                                                 <div class="flex items-center gap-1.5 flex-wrap">
                                                                                     <button type="button"
@@ -1051,7 +1055,8 @@
                                                                             </div>
                                                                             <span class="text-sm text-gray-400 shrink-0 mt-2">—</span>
                                                                             <div class="flex-1 flex flex-col items-start gap-1">
-                                                                                <div class="text-3xl font-bold text-gray-900 dark:text-white leading-none"
+                                                                                <div class="text-3xl font-bold leading-none transition-colors"
+                                                                                     :class="awayHistory.reduce((s,v)=>s+v,0) >= {{ $targetScore ?? 99999 }} ? 'text-green-600 dark:text-green-400 winner-halo' : 'text-gray-900 dark:text-white'"
                                                                                      x-text="awayHistory.reduce((s,v)=>s+v,0)"></div>
                                                                                 <div class="flex items-center gap-1.5 flex-wrap">
                                                                                     <button type="button"
@@ -1310,7 +1315,7 @@
                                                             @endif
                                                         @elseif ($method === 'win_loss')
                                                             {{ ucfirst($result->win_loss ?? 'No result') }}
-                                                        @elseif ($method === 'first_to_n')
+                                                        @elseif (in_array($method, ['first_to_n', 'timed_points']))
                                                             @if ($result->total_score !== null)
                                                                 Points: <strong>{{ (int) $result->total_score }}</strong>
                                                                 · <span class="text-success-600 dark:text-success-400">Saved</span>
@@ -1324,7 +1329,7 @@
                                                 @if ($result->placement && (
                                                     $method === 'win_loss' ||
                                                     (in_array($method, ['judges_total', 'judges_average']) && ($result->total_score !== null || $result->placement_overridden)) ||
-                                                    ($method === 'first_to_n' && $result->total_score !== null)
+                                                    (in_array($method, ['first_to_n', 'timed_points']) && $result->total_score !== null)
                                                 ))
                                                     <div class="shrink-0">
                                                         @switch($result->placement)
@@ -1355,7 +1360,7 @@
                                                                     {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                 </x-filament::button>
                                                             </div>
-                                                        @elseif ($method === 'first_to_n')
+                                                        @elseif (in_array($method, ['first_to_n', 'timed_points']))
                                                             @php $ftnSaved = $result->total_score !== null; @endphp
                                                             <div class="flex items-center gap-1">
                                                                 <x-filament::button size="xs"
@@ -1445,20 +1450,20 @@
                                                 </div>
                                             @endif
 
-                                            {{-- Expandable: first_to_n --}}
-                                            @if (! $isReadOnly && $method === 'first_to_n')
+                                            {{-- Expandable: first_to_n / timed_points --}}
+                                            @if (! $isReadOnly && in_array($method, ['first_to_n', 'timed_points']))
                                                 @php
                                                     $ftnSaved  = $result->total_score !== null;
-                                                    $atTarget  = $targetScore !== null && (int) ($result->total_score ?? 0) >= $targetScore;
+                                                    $atTarget  = $method === 'first_to_n' && $targetScore !== null && (int) ($result->total_score ?? 0) >= $targetScore;
                                                     $hasEvents = $result->scoreEvents()->exists();
                                                 @endphp
                                                 <div x-show="open" x-transition
                                                      class="border-t border-gray-100 dark:border-slate-700 px-3 pb-3 pt-3 space-y-3">
                                                     <div>
                                                         <div class="flex items-center justify-between mb-2">
-                                                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                            <span class="text-sm font-medium {{ $atTarget ? 'inline-block bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 rounded px-1 winner-halo' : 'text-gray-700 dark:text-gray-300' }}">
                                                                 Points: <strong>{{ (int) ($result->total_score ?? 0) }}</strong>
-                                                                @if ($targetScore) <span class="text-gray-400">/ {{ $targetScore }}</span> @endif
+                                                                @if ($targetScore) <span class="{{ $atTarget ? '' : 'text-gray-400' }}">/ {{ $targetScore }}</span> @endif
                                                             </span>
                                                             <button type="button" wire:click="undoPoints({{ $result->id }})"
                                                                 @if (! $hasEvents) disabled @endif
@@ -1510,7 +1515,7 @@
                                                     <th class="pb-2 pr-4">Total</th>
                                                 @elseif ($method === 'win_loss')
                                                     <th class="pb-2 pr-4">Result</th>
-                                                @elseif ($method === 'first_to_n')
+                                                @elseif (in_array($method, ['first_to_n', 'timed_points']))
                                                     <th class="pb-2 pr-4">Points</th>
                                                 @endif
                                                 <th class="pb-2 pr-4">Place</th>
@@ -1602,9 +1607,9 @@
                                                             @endif
                                                         </td>
 
-                                                    @elseif ($method === 'first_to_n')
+                                                    @elseif (in_array($method, ['first_to_n', 'timed_points']))
                                                         @php
-                                                            $atTarget  = $targetScore !== null && (int) ($result->total_score ?? 0) >= $targetScore;
+                                                            $atTarget  = $method === 'first_to_n' && $targetScore !== null && (int) ($result->total_score ?? 0) >= $targetScore;
                                                             $hasEvents = $result->scoreEvents()->exists();
                                                         @endphp
                                                         <td class="py-2 pr-4">
@@ -1614,7 +1619,7 @@
                                                                 </span>
                                                             @else
                                                                 <div class="flex items-center gap-1 flex-wrap">
-                                                                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-200 w-8 text-right">
+                                                                    <span class="text-sm font-semibold {{ $atTarget ? 'inline-block bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 rounded px-1 winner-halo' : 'text-gray-700 dark:text-gray-200' }} w-8 text-right tabular-nums">
                                                                         {{ (int) ($result->total_score ?? 0) }}
                                                                     </span>
                                                                     @foreach ($incrementButtons as $btn)
@@ -1652,7 +1657,7 @@
                                                             @if ($result->placement && (
                                                                 $method === 'win_loss' ||
                                                                 (in_array($method, ['judges_total', 'judges_average']) && ($result->total_score !== null || $result->placement_overridden)) ||
-                                                                ($method === 'first_to_n' && $result->total_score !== null)
+                                                                (in_array($method, ['first_to_n', 'timed_points']) && $result->total_score !== null)
                                                             ))
                                                                 <span class="font-bold {{ $result->placement_overridden ? 'text-warning-600' : '' }}">
                                                                     @switch($result->placement)

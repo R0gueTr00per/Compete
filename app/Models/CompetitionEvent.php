@@ -38,6 +38,7 @@ class CompetitionEvent extends Model
         'round_duration_seconds',
         'tiebreak_duration_seconds',
         'tiebreak_mode',
+        'overtime_rounds',
         'increment_buttons',
     ];
 
@@ -154,5 +155,10 @@ class CompetitionEvent extends Model
     public function getTiebreakerMode(): string
     {
         return $this->tiebreak_mode ?? 'sudden_death';
+    }
+
+    public function getOvertimeRounds(): int
+    {
+        return $this->overtime_rounds ?? 1;
     }
 }

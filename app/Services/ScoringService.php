@@ -114,7 +114,7 @@ class ScoringService
         $updates = [];
         $now     = now();
 
-        if (in_array($method, ['judges_total', 'judges_average', 'first_to_n'])) {
+        if (in_array($method, ['judges_total', 'judges_average', 'first_to_n', 'timed_points'])) {
             $ranked         = $results->sortByDesc(fn ($r) => [$r->total_score ?? PHP_INT_MIN, $r->tiebreaker_score ?? PHP_INT_MIN])->values();
             $place          = 1;
             $prevScore      = null;
