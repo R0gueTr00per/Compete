@@ -383,6 +383,7 @@ class Scoring extends Page
             $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
             Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
                 $result->judgeScores()->delete();
+                $result->scoreEvents()->delete();
                 $result->forceFill([
                     'total_score'          => null,
                     'tiebreaker_score'     => null,
@@ -403,6 +404,7 @@ class Scoring extends Page
             $this->bracketScoreInput     = [];
             $this->bracketExists         = false;
             $this->rollcallMode          = true;
+            $this->dispatch('scoring-cleared');
         }
     }
 
@@ -1541,6 +1543,35 @@ class Scoring extends Page
         Notification::make()->title('Result recorded.')->success()->send();
     }
 
+    public function addPoints(int $resultId, float $amount): void
+    {
+        $result = Result::find($resultId);
+        if (! $result) return;
+
+        $target = $this->getTargetScore();
+        if ($target !== null && (($result->total_score ?? 0) + $amount) > $target) {
+            return;
+        }
+
+        app(ScoringService::class)->addPoints($result, $amount);
+    }
+
+    public function undoPoints(int $resultId): void
+    {
+        $result = Result::find($resultId);
+        if (! $result) return;
+
+        app(ScoringService::class)->undoLastPoints($result);
+    }
+
+    public function getIncrementButtons(): array
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return [1];
+
+        return $div->competitionEvent->getIncrementButtons();
+    }
+
     public function savePoints(int $resultId): void
     {
         $result = Result::find($resultId);
@@ -1717,6 +1748,7 @@ class Scoring extends Page
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
+            $result->scoreEvents()->delete();
             $result->forceFill([
                 'total_score'          => null,
                 'tiebreaker_score'     => null,
@@ -1733,6 +1765,7 @@ class Scoring extends Page
         $this->saveRollcallToSession();
         $this->division_id = null;
         $this->clearScoringMemory();
+        $this->dispatch('scoring-cleared');
     }
 
     public function getTiedGroups(): \Illuminate\Support\Collection

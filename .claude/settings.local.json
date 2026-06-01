@@ -327,7 +327,15 @@
       "Bash(dir x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\*profiles*)",
       "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 50)",
       "Bash(xargs grep -l \"first_to_n\\\\|judges_total\\\\|judges_average\\\\|win_loss\")",
-      "Bash(xargs grep -l \"judge\\\\|score\")"
+      "Bash(xargs grep -l \"judge\\\\|score\")",
+      "Bash(Select-Object -First 20 Name)",
+      "Bash(xargs grep -l \"JudgeScore\\\\|RoundRobin\")",
+      "Bash(python3)",
+      "Bash(python bracket_replace.py)",
+      "Bash(php -l app/Models/ScoreEvent.php)",
+      "Bash(php -l app/Models/Result.php)",
+      "Bash(php -l app/Services/ScoringService.php)",
+      "Bash(python bracket_layout.py)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

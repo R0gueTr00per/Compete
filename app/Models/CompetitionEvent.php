@@ -38,6 +38,7 @@ class CompetitionEvent extends Model
         'round_duration_seconds',
         'tiebreak_duration_seconds',
         'tiebreak_mode',
+        'increment_buttons',
     ];
 
     protected function casts(): array
@@ -50,6 +51,7 @@ class CompetitionEvent extends Model
             'awarded_places_2'              => 'integer',
             'awarded_places_3'              => 'integer',
             'awarded_places_4plus'          => 'integer',
+            'increment_buttons'             => 'array',
         ];
     }
 
@@ -103,6 +105,15 @@ class CompetitionEvent extends Model
     public function effectiveTargetScore(): ?int
     {
         return $this->target_score;
+    }
+
+    public function getIncrementButtons(): array
+    {
+        $buttons = $this->increment_buttons;
+        if (empty($buttons)) {
+            return [1];
+        }
+        return array_map(fn ($v) => (float) $v == (int) (float) $v ? (int) (float) $v : (float) $v, $buttons);
     }
 
     public function effectiveScoringMethod(): string

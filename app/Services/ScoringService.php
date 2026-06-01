@@ -6,6 +6,7 @@ use App\Models\Division;
 use App\Models\EnrolmentEvent;
 use App\Models\JudgeScore;
 use App\Models\Result;
+use App\Models\ScoreEvent;
 use Illuminate\Support\Facades\DB;
 
 class ScoringService
@@ -52,9 +53,40 @@ class ScoringService
         });
     }
 
+    public function addPoints(Result $result, float $amount): void
+    {
+        DB::transaction(function () use ($result, $amount) {
+            $result->scoreEvents()->create(['amount' => $amount]);
+            $total = $result->scoreEvents()->sum('amount');
+            $result->update(['total_score' => $total]);
+
+            if ($result->division_id) {
+                $this->autoRankDivision(Division::find($result->division_id));
+            }
+        });
+    }
+
+    public function undoLastPoints(Result $result): void
+    {
+        DB::transaction(function () use ($result) {
+            $last = $result->scoreEvents()->latest('created_at')->first();
+            if ($last) {
+                $last->delete();
+            }
+            $remaining = $result->scoreEvents()->count();
+            $total     = $remaining > 0 ? $result->scoreEvents()->sum('amount') : null;
+            $result->update(['total_score' => $total]);
+
+            if ($result->division_id) {
+                $this->autoRankDivision(Division::find($result->division_id));
+            }
+        });
+    }
+
     public function recordPoints(Result $result, int $points): void
     {
         DB::transaction(function () use ($result, $points) {
+            $result->scoreEvents()->delete();
             $result->update(['total_score' => $points]);
 
             if ($result->division_id) {

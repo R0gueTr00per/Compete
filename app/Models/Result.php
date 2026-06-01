@@ -49,4 +49,9 @@ class Result extends Model
     {
         return $this->hasMany(JudgeScore::class)->orderBy('judge_number');
     }
+
+    public function scoreEvents(): HasMany
+    {
+        return $this->hasMany(ScoreEvent::class)->orderBy('created_at');
+    }
 }

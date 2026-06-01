@@ -7,6 +7,7 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\Tabs\Tab;
 use Filament\Forms\Components\TextInput;
@@ -148,6 +149,14 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->numeric()
                         ->nullable()
                         ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n'),
+
+                    TagsInput::make('increment_buttons')
+                        ->label('Score increment buttons')
+                        ->placeholder('Add a value')
+                        ->helperText('Values shown as tap buttons on the scoring screen (e.g. 1, 2, 3). Leave blank for a single +1 button.')
+                        ->nestedRecursiveRules(['numeric', 'min:0.1'])
+                        ->hidden(fn (Get $get) => $get('scoring_method') !== 'first_to_n')
+                        ->columnSpanFull(),
 
                     TextInput::make('round_duration_seconds')
                         ->label('Round duration')

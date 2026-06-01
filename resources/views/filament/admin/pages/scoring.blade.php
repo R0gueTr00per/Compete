@@ -325,6 +325,14 @@
                         } catch(e) {}
                     },
                     }));
+
+                    window.addEventListener('scoring-cleared', () => {
+                        Object.keys(localStorage)
+                            .filter(k => k.startsWith('timer_match_'))
+                            .forEach(k => localStorage.removeItem(k));
+                        const s = Alpine.store('roundTimer');
+                        if (s) { s.running = false; s.active = false; s.sdActive = false; s.sdLocked = false; s.matchId = null; }
+                    });
                 };
 
                 if (window.Alpine && Alpine.data) {
@@ -491,7 +499,8 @@
                         $method         = $this->getScoringMethod();
                         $judges         = $this->getJudgeCount();
                         $isReadOnly     = $div->status === 'complete';
-                        $targetScore    = $method === 'first_to_n' ? $this->getTargetScore() : null;
+                        $targetScore      = $method === 'first_to_n' ? $this->getTargetScore() : null;
+                        $incrementButtons = $method === 'first_to_n' ? $this->getIncrementButtons() : [];
                         $totalCheckedIn = \App\Models\EnrolmentEvent::where('division_id', $this->division_id)
                             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
                             ->count();
@@ -596,6 +605,7 @@
                                     $scoringMethod    = $this->getScoringMethod();
                                     $isScored         = in_array($scoringMethod, ['judges_total', 'judges_average', 'first_to_n']);
                                     $targetScore      = $scoringMethod === 'first_to_n' ? $this->getTargetScore() : null;
+                                    $incrementButtons = $scoringMethod === 'first_to_n' ? $this->getIncrementButtons() : [];
                                     $roundDuration    = in_array($scoringMethod, ['first_to_n', 'win_loss']) ? $this->getRoundDuration() : null;
                                     $tbDuration       = $scoringMethod === 'first_to_n' ? $this->getTiebreakerDuration() : null;
                                     $tbMode           = $scoringMethod === 'first_to_n' ? $this->getTiebreakerMode() : 'sudden_death';
@@ -890,143 +900,189 @@
                                                             @if ($pending)
                                                                 @if ($isScored)
                                                                     @if ($match->home_id && $match->away_id)
-                                                                        {{-- Mobile: per-competitor rows with steppers --}}
-                                                                        <div class="sm:hidden mt-2 space-y-2"
-                                                                             x-data="{ get sdLocked() { return $store.roundTimer.sdLocked && $store.roundTimer.matchId === {{ $match->id }}; } }">
+                                                                        {{-- Mobile: per-competitor rows with increment buttons --}}
+                                                                        <div class="sm:hidden mt-2 space-y-3"
+                                                                             x-data="{
+                                                                                 homeHistory: [],
+                                                                                 awayHistory: [],
+                                                                                 get sdLocked() { return $store.roundTimer.sdLocked && $store.roundTimer.matchId === {{ $match->id }}; },
+                                                                                 addScore(side, amount) {
+                                                                                     if (this.sdLocked) return;
+                                                                                     const max = {{ $targetScore ?? 'Infinity' }};
+                                                                                     const cur = side === 'home' ? this.homeHistory : this.awayHistory;
+                                                                                     const total = cur.reduce((s,v) => s+v, 0);
+                                                                                     if (total + amount > max) return;
+                                                                                     cur.push(amount);
+                                                                                     $wire.set('bracketScoreInput.{{ $match->id }}.' + side, total + amount);
+                                                                                 },
+                                                                                 undoScore(side) {
+                                                                                     if (this.sdLocked) return;
+                                                                                     const cur = side === 'home' ? this.homeHistory : this.awayHistory;
+                                                                                     if (cur.length === 0) return;
+                                                                                     cur.pop();
+                                                                                     const total = cur.reduce((s,v) => s+v, 0);
+                                                                                     $wire.set('bracketScoreInput.{{ $match->id }}.' + side, total > 0 ? total : null);
+                                                                                 }
+                                                                             }">
                                                                             <div class="space-y-1">
-                                                                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $match->home_name }}</p>
-                                                                                <div class="flex items-center gap-1">
+                                                                                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{{ $match->home_name }}</p>
+                                                                                <div class="text-3xl font-bold text-gray-900 dark:text-white leading-none py-1"
+                                                                                     x-text="homeHistory.reduce((s,v)=>s+v,0)"></div>
+                                                                                <div class="flex items-center gap-1.5 flex-wrap">
                                                                                     <button type="button"
-                                                                                        x-on:click="if(sdLocked) return; const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        x-on:click="undoScore('home')"
+                                                                                        x-bind:disabled="homeHistory.length === 0 || sdLocked"
+                                                                                        x-bind:class="(homeHistory.length === 0 || sdLocked) ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="h-9 w-9 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-transform"><x-heroicon-m-arrow-uturn-left class="w-4 h-4" /></button>
+                                                                                    @foreach ($incrementButtons as $btn)
+                                                                                        <button type="button"
+                                                                                        x-on:click="addScore('home', {{ $btn }})"
                                                                                         x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
-                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium transition-transform">−</button>
-                                                                                    <input type="number" step="any" min="0"
-                                                                                        @if ($targetScore) max="{{ $targetScore }}" @endif
-                                                                                        wire:model="bracketScoreInput.{{ $match->id }}.home"
-                                                                                        x-bind:readonly="sdLocked"
-                                                                                        x-bind:class="sdLocked ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : ''"
-                                                                                        class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-1"
-                                                                                        placeholder="0" />
-                                                                                    <button type="button"
-                                                                                        x-on:click="if(sdLocked) return; const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
-                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium transition-transform">+</button>
+                                                                                        class="h-9 px-3 flex items-center justify-center rounded bg-primary-600 dark:bg-primary-500 text-white font-semibold shadow-sm transition-transform">
+                                                                                        +{{ $btn }}
+                                                                                    </button>
+                                                                                    @endforeach
                                                                                     @if ($homeResult && ! $isReadOnly)
                                                                                         <x-filament::button size="xs"
-                                                                                            color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
-                                                                                            wire:click="toggleDisqualify({{ $homeResult->id }})">
-                                                                                            {{ $homeResult->disqualified ? 'Un-DQ' : 'DQ' }}
-                                                                                        </x-filament::button>
-                                                                                    @endif
-                                                                                </div>
-                                                                                @if (! $isReadOnly)
-                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}" class="block">
-                                                                                        <x-filament::button size="xs" color="success" class="w-full"
-                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'home')">← Win</x-filament::button>
-                                                                                    </span>
-                                                                                @endif
-                                                                            </div>
-                                                                            <div class="space-y-1">
-                                                                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $match->away_name }}</p>
-                                                                                <div class="flex items-center gap-1">
-                                                                                    <button type="button"
-                                                                                        x-on:click="if(sdLocked) return; const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
-                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium transition-transform">−</button>
-                                                                                    <input type="number" step="any" min="0"
-                                                                                        @if ($targetScore) max="{{ $targetScore }}" @endif
-                                                                                        wire:model="bracketScoreInput.{{ $match->id }}.away"
-                                                                                        x-bind:readonly="sdLocked"
-                                                                                        x-bind:class="sdLocked ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : ''"
-                                                                                        class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-1"
-                                                                                        placeholder="0" />
-                                                                                    <button type="button"
-                                                                                        x-on:click="if(sdLocked) return; const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
-                                                                                        class="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium transition-transform">+</button>
-                                                                                    @if ($awayResult && ! $isReadOnly)
-                                                                                        <x-filament::button size="xs"
-                                                                                            color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
-                                                                                            wire:click="toggleDisqualify({{ $awayResult->id }})">
-                                                                                            {{ $awayResult->disqualified ? 'Un-DQ' : 'DQ' }}
-                                                                                        </x-filament::button>
-                                                                                    @endif
-                                                                                </div>
-                                                                                @if (! $isReadOnly)
-                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}" class="block">
-                                                                                        <x-filament::button size="xs" color="success" class="w-full"
-                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'away')">Win →</x-filament::button>
-                                                                                    </span>
-                                                                                @endif
-                                                                            </div>
-                                                                            <x-filament::button color="success" class="w-full"
-                                                                                @click="$store.roundTimer.active && $store.roundTimer.matchId === {{ $match->id }} ? $dispatch('save-confirm', { matchId: {{ $match->id }} }) : $wire.recordBracketScore({{ $match->id }})">Save</x-filament::button>
-                                                                        </div>
-                                                                        {{-- Desktop: compact row --}}
-                                                                        <div class="hidden sm:flex items-center gap-2 mt-2"
-                                                                             x-data="{ get sdLocked() { return $store.roundTimer.sdLocked && $store.roundTimer.matchId === {{ $match->id }}; } }">
-                                                                            <div class="flex-1 flex items-center justify-end gap-1">
-                                                                                @if (! $isReadOnly)
-                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}">
-                                                                                        <x-filament::button size="xs" color="success"
-                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'home')">← Win</x-filament::button>
-                                                                                    </span>
-                                                                                @endif
-                                                                                @if ($homeResult && ! $isReadOnly)
-                                                                                    <x-filament::button size="xs"
                                                                                         color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
                                                                                         wire:click="toggleDisqualify({{ $homeResult->id }})">
                                                                                         {{ $homeResult->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                                     </x-filament::button>
-                                                                                @endif
-                                                                                <button type="button"
-                                                                                    x-on:click="if(sdLocked) return; const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                    x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
-                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium transition-transform">−</button>
-                                                                                <input type="number" step="any" min="0"
-                                                                                    @if ($targetScore) max="{{ $targetScore }}" @endif
-                                                                                    wire:model="bracketScoreInput.{{ $match->id }}.home"
-                                                                                    x-bind:readonly="sdLocked"
-                                                                                    x-bind:class="sdLocked ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : ''"
-                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
-                                                                                    placeholder="0" />
-                                                                                <button type="button"
-                                                                                    x-on:click="if(sdLocked) return; const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                    x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
-                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium transition-transform">+</button>
+                                                                                    @endif
+                                                                                    @if (! $isReadOnly)
+                                                                                        <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}">
+                                                                                            <x-filament::button size="xs" color="success"
+                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'home')">Win</x-filament::button>
+                                                                                        </span>
+                                                                                    @endif
+                                                                                </div>
                                                                             </div>
-                                                                            <span class="text-xs text-gray-400 shrink-0">—</span>
-                                                                            <div class="flex-1 flex items-center gap-1">
-                                                                                <button type="button"
-                                                                                    x-on:click="if(sdLocked) return; const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                    x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
-                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium transition-transform">−</button>
-                                                                                <input type="number" step="any" min="0"
-                                                                                    @if ($targetScore) max="{{ $targetScore }}" @endif
-                                                                                    wire:model="bracketScoreInput.{{ $match->id }}.away"
-                                                                                    x-bind:readonly="sdLocked"
-                                                                                    x-bind:class="sdLocked ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-slate-800' : ''"
-                                                                                    class="w-10 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
-                                                                                    placeholder="0" />
-                                                                                <button type="button"
-                                                                                    x-on:click="if(sdLocked) return; const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                                    x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
-                                                                                    class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium transition-transform">+</button>
-                                                                                @if ($awayResult && ! $isReadOnly)
-                                                                                    <x-filament::button size="xs"
+                                                                            <div class="space-y-1">
+                                                                                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium truncate">{{ $match->away_name }}</p>
+                                                                                <div class="text-3xl font-bold text-gray-900 dark:text-white leading-none py-1"
+                                                                                     x-text="awayHistory.reduce((s,v)=>s+v,0)"></div>
+                                                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                                                    <button type="button"
+                                                                                        x-on:click="undoScore('away')"
+                                                                                        x-bind:disabled="awayHistory.length === 0 || sdLocked"
+                                                                                        x-bind:class="(awayHistory.length === 0 || sdLocked) ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="h-9 w-9 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-transform"><x-heroicon-m-arrow-uturn-left class="w-4 h-4" /></button>
+                                                                                    @foreach ($incrementButtons as $btn)
+                                                                                        <button type="button"
+                                                                                        x-on:click="addScore('away', {{ $btn }})"
+                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="h-9 px-3 flex items-center justify-center rounded bg-primary-600 dark:bg-primary-500 text-white font-semibold shadow-sm transition-transform">
+                                                                                        +{{ $btn }}
+                                                                                    </button>
+                                                                                    @endforeach
+                                                                                    @if ($awayResult && ! $isReadOnly)
+                                                                                        <x-filament::button size="xs"
                                                                                         color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
                                                                                         wire:click="toggleDisqualify({{ $awayResult->id }})">
                                                                                         {{ $awayResult->disqualified ? 'Un-DQ' : 'DQ' }}
                                                                                     </x-filament::button>
-                                                                                @endif
+                                                                                    @endif
+                                                                                    @if (! $isReadOnly)
+                                                                                        <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}">
+                                                                                            <x-filament::button size="xs" color="success"
+                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'away')">Win</x-filament::button>
+                                                                                        </span>
+                                                                                    @endif
+                                                                                </div>
+                                                                            </div>
+                                                                            <x-filament::button color="success" class="w-full"
+                                                                                @click="$store.roundTimer.active && $store.roundTimer.matchId === {{ $match->id }} ? $dispatch('save-confirm', { matchId: {{ $match->id }} }) : $wire.recordBracketScore({{ $match->id }})">Save</x-filament::button>
+                                                                        </div>
+                                                                        {{-- Desktop: stacked columns --}}
+                                                                        <div class="hidden sm:flex items-start gap-2 mt-2"
+                                                                             x-data="{
+                                                                                 homeHistory: [],
+                                                                                 awayHistory: [],
+                                                                                 get sdLocked() { return $store.roundTimer.sdLocked && $store.roundTimer.matchId === {{ $match->id }}; },
+                                                                                 addScore(side, amount) {
+                                                                                     if (this.sdLocked) return;
+                                                                                     const max = {{ $targetScore ?? 'Infinity' }};
+                                                                                     const cur = side === 'home' ? this.homeHistory : this.awayHistory;
+                                                                                     const total = cur.reduce((s,v) => s+v, 0);
+                                                                                     if (total + amount > max) return;
+                                                                                     cur.push(amount);
+                                                                                     $wire.set('bracketScoreInput.{{ $match->id }}.' + side, total + amount);
+                                                                                 },
+                                                                                 undoScore(side) {
+                                                                                     if (this.sdLocked) return;
+                                                                                     const cur = side === 'home' ? this.homeHistory : this.awayHistory;
+                                                                                     if (cur.length === 0) return;
+                                                                                     cur.pop();
+                                                                                     const total = cur.reduce((s,v) => s+v, 0);
+                                                                                     $wire.set('bracketScoreInput.{{ $match->id }}.' + side, total > 0 ? total : null);
+                                                                                 }
+                                                                             }">
+                                                                            <div class="flex-1 flex flex-col items-end gap-1">
+                                                                                <div class="text-3xl font-bold text-gray-900 dark:text-white leading-none"
+                                                                                     x-text="homeHistory.reduce((s,v)=>s+v,0)"></div>
+                                                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                                                    <button type="button"
+                                                                                        x-on:click="undoScore('home')"
+                                                                                        x-bind:disabled="homeHistory.length === 0 || sdLocked"
+                                                                                        x-bind:class="(homeHistory.length === 0 || sdLocked) ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="h-9 w-9 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-transform"><x-heroicon-m-arrow-uturn-left class="w-4 h-4" /></button>
+                                                                                    @foreach ($incrementButtons as $btn)
+                                                                                        <button type="button"
+                                                                                        x-on:click="addScore('home', {{ $btn }})"
+                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="h-9 px-3 flex items-center justify-center rounded bg-primary-600 dark:bg-primary-500 text-white font-semibold shadow-sm transition-transform">
+                                                                                        +{{ $btn }}
+                                                                                    </button>
+                                                                                    @endforeach
+                                                                                    @if ($homeResult && ! $isReadOnly)
+                                                                                        <x-filament::button size="xs"
+                                                                                        color="{{ $homeResult->disqualified ? 'gray' : 'danger' }}"
+                                                                                        wire:click="toggleDisqualify({{ $homeResult->id }})">
+                                                                                        {{ $homeResult->disqualified ? 'Un-DQ' : 'DQ' }}
+                                                                                    </x-filament::button>
+                                                                                    @endif
+                                                                                </div>
                                                                                 @if (! $isReadOnly)
-                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}">
+                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}" class="block">
                                                                                         <x-filament::button size="xs" color="success"
-                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'away')">Win →</x-filament::button>
+                                                                                        wire:click="declareBracketWinner({{ $match->id }}, 'home')">← Win</x-filament::button>
                                                                                     </span>
                                                                                 @endif
                                                                             </div>
-                                                                            <x-filament::button size="xs" color="success" class="shrink-0 ml-auto"
+                                                                            <span class="text-sm text-gray-400 shrink-0 mt-2">—</span>
+                                                                            <div class="flex-1 flex flex-col items-start gap-1">
+                                                                                <div class="text-3xl font-bold text-gray-900 dark:text-white leading-none"
+                                                                                     x-text="awayHistory.reduce((s,v)=>s+v,0)"></div>
+                                                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                                                    <button type="button"
+                                                                                        x-on:click="undoScore('away')"
+                                                                                        x-bind:disabled="awayHistory.length === 0 || sdLocked"
+                                                                                        x-bind:class="(awayHistory.length === 0 || sdLocked) ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="h-9 w-9 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 font-medium transition-transform"><x-heroicon-m-arrow-uturn-left class="w-4 h-4" /></button>
+                                                                                    @foreach ($incrementButtons as $btn)
+                                                                                        <button type="button"
+                                                                                        x-on:click="addScore('away', {{ $btn }})"
+                                                                                        x-bind:class="sdLocked ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'"
+                                                                                        class="h-9 px-3 flex items-center justify-center rounded bg-primary-600 dark:bg-primary-500 text-white font-semibold shadow-sm transition-transform">
+                                                                                        +{{ $btn }}
+                                                                                    </button>
+                                                                                    @endforeach
+                                                                                    @if ($awayResult && ! $isReadOnly)
+                                                                                        <x-filament::button size="xs"
+                                                                                        color="{{ $awayResult->disqualified ? 'gray' : 'danger' }}"
+                                                                                        wire:click="toggleDisqualify({{ $awayResult->id }})">
+                                                                                        {{ $awayResult->disqualified ? 'Un-DQ' : 'DQ' }}
+                                                                                    </x-filament::button>
+                                                                                    @endif
+                                                                                </div>
+                                                                                @if (! $isReadOnly)
+                                                                                    <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}" class="block">
+                                                                                        <x-filament::button size="xs" color="success"
+                                                                                        wire:click="declareBracketWinner({{ $match->id }}, 'away')">Win →</x-filament::button>
+                                                                                    </span>
+                                                                                @endif
+                                                                            </div>
+                                                                            <x-filament::button size="xs" color="success" class="shrink-0 self-end"
                                                                                 @click="$store.roundTimer.active && $store.roundTimer.matchId === {{ $match->id }} ? $dispatch('save-confirm', { matchId: {{ $match->id }} }) : $wire.recordBracketScore({{ $match->id }})">Save</x-filament::button>
                                                                         </div>
                                                                     @endif
@@ -1391,29 +1447,49 @@
 
                                             {{-- Expandable: first_to_n --}}
                                             @if (! $isReadOnly && $method === 'first_to_n')
-                                                @php $ftnSaved = $result->total_score !== null; @endphp
+                                                @php
+                                                    $ftnSaved  = $result->total_score !== null;
+                                                    $atTarget  = $targetScore !== null && (int) ($result->total_score ?? 0) >= $targetScore;
+                                                    $hasEvents = $result->scoreEvents()->exists();
+                                                @endphp
                                                 <div x-show="open" x-transition
                                                      class="border-t border-gray-100 dark:border-slate-700 px-3 pb-3 pt-3 space-y-3">
                                                     <div>
-                                                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Points</label>
-                                                        <div class="flex items-center gap-2">
-                                                            <button type="button"
-                                                                x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">−</button>
-                                                            <input type="number" min="0"
-                                                                wire:model="pointsInput.{{ $result->id }}"
-                                                                class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3"
-                                                                placeholder="0" />
-                                                            <button type="button"
-                                                                x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); i.value=v+1; i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">+</button>
+                                                        <div class="flex items-center justify-between mb-2">
+                                                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                                Points: <strong>{{ (int) ($result->total_score ?? 0) }}</strong>
+                                                                @if ($targetScore) <span class="text-gray-400">/ {{ $targetScore }}</span> @endif
+                                                            </span>
+                                                            <button type="button" wire:click="undoPoints({{ $result->id }})"
+                                                                @if (! $hasEvents) disabled @endif
+                                                                class="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded border {{ $hasEvents ? 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 active:scale-95' : 'border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed' }} transition-transform">
+                                                                <x-heroicon-m-arrow-uturn-left class="w-3.5 h-3.5" /> Undo
+                                                            </button>
+                                                        </div>
+                                                        <div class="flex flex-wrap gap-2">
+                                                            @foreach ($incrementButtons as $btn)
+                                                                <button type="button"
+                                                                    wire:click="addPoints({{ $result->id }}, {{ $btn }})"
+                                                                    @if ($atTarget) disabled @endif
+                                                                    class="flex-1 min-w-[3rem] h-14 flex items-center justify-center rounded-lg text-xl font-semibold shadow-sm transition-transform {{ $atTarget ? 'bg-gray-100 dark:bg-slate-800 text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'bg-primary-600 dark:bg-primary-500 text-white active:scale-95' }}">
+                                                                    +{{ $btn }}
+                                                                </button>
+                                                            @endforeach
                                                         </div>
                                                     </div>
-                                                    <div class="pt-1">
-                                                        <x-filament::button color="primary" class="w-full"
-                                                            wire:click="savePoints({{ $result->id }})"
-                                                            x-on:click="open = false">Save points</x-filament::button>
-                                                    </div>
+                                                    {{-- Raw input fallback --}}
+                                                    <details class="text-xs text-gray-400">
+                                                        <summary class="cursor-pointer select-none">Manual entry</summary>
+                                                        <div class="flex items-center gap-2 mt-2">
+                                                            <input type="number" min="0"
+                                                                wire:model="pointsInput.{{ $result->id }}"
+                                                                class="flex-1 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2 px-3"
+                                                                placeholder="0" />
+                                                            <x-filament::button size="sm" color="gray"
+                                                                wire:click="savePoints({{ $result->id }})"
+                                                                x-on:click="open = false">Set</x-filament::button>
+                                                        </div>
+                                                    </details>
                                                 </div>
                                             @endif
 
@@ -1527,27 +1603,34 @@
                                                         </td>
 
                                                     @elseif ($method === 'first_to_n')
+                                                        @php
+                                                            $atTarget  = $targetScore !== null && (int) ($result->total_score ?? 0) >= $targetScore;
+                                                            $hasEvents = $result->scoreEvents()->exists();
+                                                        @endphp
                                                         <td class="py-2 pr-4">
                                                             @if ($isReadOnly)
                                                                 <span class="text-base font-medium text-gray-700 dark:text-gray-300">
                                                                     {{ $result->total_score !== null ? (int) $result->total_score : '—' }}
                                                                 </span>
                                                             @else
-                                                                <div class="flex items-center gap-1">
+                                                                <div class="flex items-center gap-1 flex-wrap">
+                                                                    <span class="text-sm font-semibold text-gray-700 dark:text-gray-200 w-8 text-right">
+                                                                        {{ (int) ($result->total_score ?? 0) }}
+                                                                    </span>
+                                                                    @foreach ($incrementButtons as $btn)
+                                                                        <button type="button"
+                                                                            wire:click="addPoints({{ $result->id }}, {{ $btn }})"
+                                                                            @if ($atTarget) disabled @endif
+                                                                            class="h-7 px-2 flex items-center justify-center rounded text-sm font-semibold shadow-sm transition-transform {{ $atTarget ? 'bg-gray-100 dark:bg-slate-800 text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'bg-primary-600 dark:bg-primary-500 text-white active:scale-95' }}">
+                                                                            +{{ $btn }}
+                                                                        </button>
+                                                                    @endforeach
                                                                     <button type="button"
-                                                                        x-on:click="const i=$el.nextElementSibling; const v=parseInt(i.value||0); i.value=Math.max(0,v-1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                        class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
-                                                                    <input type="number" min="0"
-                                                                        wire:model="pointsInput.{{ $result->id }}"
-                                                                        class="w-12 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
-                                                                        placeholder="0" />
-                                                                    <button type="button"
-                                                                        x-on:click="const i=$el.previousElementSibling; const v=parseInt(i.value||0); const max={{ $targetScore ?? 'Infinity' }}; i.value=Math.min(max,v+1); i.dispatchEvent(new Event('input',{bubbles:true}));"
-                                                                        class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
-                                                                    <x-filament::button size="xs" color="primary"
-                                                                        wire:click="savePoints({{ $result->id }})">
-                                                                        Save
-                                                                    </x-filament::button>
+                                                                        wire:click="undoPoints({{ $result->id }})"
+                                                                        @if (! $hasEvents) disabled @endif
+                                                                        class="h-7 px-2 flex items-center justify-center rounded border text-xs transition-transform {{ $hasEvents ? 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 active:scale-95' : 'border-gray-200 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed' }}">
+                                                                        <x-heroicon-m-arrow-uturn-left class="w-3.5 h-3.5" />
+                                                                    </button>
                                                                 </div>
                                                             @endif
                                                         </td>
