@@ -22,13 +22,17 @@ class Organisation extends Model
         'timezone',
         'date_format',
         'currency',
+        'platform_fee',
+        'cancellation_days_before',
         'created_by_user_id',
     ];
 
     protected $casts = [
-        'auto_email_insights'   => 'boolean',
-        'insights_auto_refresh' => 'boolean',
-        'dashboard_closed_days' => 'integer',
+        'auto_email_insights'      => 'boolean',
+        'insights_auto_refresh'    => 'boolean',
+        'dashboard_closed_days'    => 'integer',
+        'platform_fee'             => 'decimal:2',
+        'cancellation_days_before' => 'integer',
     ];
 
     public function getRouteKeyName(): string

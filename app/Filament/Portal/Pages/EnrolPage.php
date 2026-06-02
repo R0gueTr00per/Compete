@@ -5,10 +5,12 @@ namespace App\Filament\Portal\Pages;
 use App\Models\Competition;
 use App\Models\CompetitorProfile;
 use App\Models\Division;
-use App\Models\EnrolmentEvent;
+use App\Models\Enrolment;
+use App\Models\EnrolmentCart;
 use App\Models\Rank;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Placeholder;
@@ -28,145 +30,273 @@ class EnrolPage extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $title           = 'Enrol';
-    protected static ?string $navigationIcon  = 'heroicon-o-pencil-square';
-    protected static ?string $navigationLabel = 'Enrol';
-    protected static string  $view            = 'filament.portal.pages.enrol-page';
-    protected static ?string $slug            = 'enrol';
+    protected static ?string $title                    = 'Enrol';
+    protected static string  $view                     = 'filament.portal.pages.enrol-page';
+    protected static ?string $slug                     = 'enrol';
+    protected static bool    $shouldRegisterNavigation = false;
 
+    // URL-bound — dashboard passes these so the form is pre-filled
     #[Url]
-    public ?int    $profile_id          = null;
+    public ?int $competition_id = null;
     #[Url]
-    public ?int    $competition_id      = null;
-    public ?string $dojo_type           = null;
-    public ?string $dojo_name           = null;
-    public ?string $guest_style         = null;
-    public ?int    $rank_id             = null;
-    public ?float  $weight_kg           = null;
-    public array   $selected_entries    = [];
-    public array   $yakusuko_partners   = [];
-    public bool    $details_confirmed   = false;
-    public array   $custom_fields       = [];
+    public ?int $profile_id     = null;
+    #[Url(as: 'redirect_to')]
+    public ?string $redirectTo  = null;
+
+    // Cart ID (the user's single global draft cart)
+    public ?int $cartId = null;
+
+    // Entry form state
+    public ?string $dojo_type         = null;
+    public ?string $dojo_name         = null;
+    public ?string $guest_style       = null;
+    public ?int    $rank_id           = null;
+    public ?float  $weight_kg         = null;
+    public array   $custom_fields     = [];
+    public bool    $details_confirmed = false;
+    public array   $selected_entries  = [];
+    public array   $yakusuko_partners = [];
+
+    // ── Mount ───────────────────────────────────────────────────────────────
 
     public function mount(): void
     {
-        $activeProfiles = auth()->user()->ownedProfiles()
-            ->where('is_active', true)
-            ->where('profile_complete', true)
-            ->get();
+        // Find the user's single global draft cart
+        $draft = EnrolmentCart::where('user_id', auth()->id())
+            ->where('status', 'draft')
+            ->latest()
+            ->first();
 
-        if (! $this->profile_id && $activeProfiles->count() === 1) {
-            $this->profile_id = $activeProfiles->first()->id;
+        if ($draft) {
+            $this->cartId = $draft->id;
         }
 
-        if (! $this->competition_id) {
-            $open = Competition::where('status', 'open')->where('organisation_id', app('tenant')?->id)->orderBy('competition_date')->first();
+        // competition_id from URL takes priority; otherwise auto-select
+        if ($this->competition_id === null) {
+            $open = Competition::where('status', 'open')
+                ->where('organisation_id', app('tenant')?->id)
+                ->orderBy('competition_date')
+                ->first();
             if ($open) {
                 $this->competition_id = $open->id;
             }
         }
     }
 
-    public function getSelectedProfile(): ?CompetitorProfile
+    // ── Page header — cart shortcut ──────────────────────────────────────────
+
+    protected function getHeaderActions(): array
+    {
+        $count = $this->getCartCount();
+        if ($count === 0) {
+            return [];
+        }
+        return [
+            Action::make('viewCart')
+                ->label("Cart ({$count})")
+                ->icon('heroicon-o-shopping-cart')
+                ->color('primary')
+                ->badge($count)
+                ->url(CartPage::getUrl()),
+        ];
+    }
+
+    // ── Blade helpers ────────────────────────────────────────────────────────
+
+    public function getOrgName(): string
+    {
+        return app('tenant')?->name ?? 'Dojo';
+    }
+
+    public function getAvailableProfiles(): array
+    {
+        $alreadyEnrolledIds = $this->competition_id
+            ? Enrolment::where('competition_id', $this->competition_id)
+                ->whereIn('status', ['pending', 'confirmed', 'checked_in'])
+                ->pluck('competitor_profile_id')
+                ->toArray()
+            : [];
+
+        $inCartIds = $this->cartId
+            ? Enrolment::where('cart_id', $this->cartId)
+                ->where('status', 'draft')
+                ->where('competition_id', $this->competition_id)
+                ->pluck('competitor_profile_id')
+                ->toArray()
+            : [];
+
+        $excludeIds = array_unique(array_merge($alreadyEnrolledIds, $inCartIds));
+
+        return auth()->user()->ownedProfiles()
+            ->where('is_active', true)
+            ->where('profile_complete', true)
+            ->whereNotIn('id', $excludeIds)
+            ->get()
+            ->map(fn ($p) => [
+                'id'     => $p->id,
+                'name'   => $p->full_name,
+                'family' => $p->isFamilyMember(),
+            ])
+            ->toArray();
+    }
+
+    public function getSelectedCompetitionName(): ?string
+    {
+        return $this->competition_id
+            ? Competition::find($this->competition_id)?->name
+            : null;
+    }
+
+    public function getSelectedProfileName(): ?string
+    {
+        return $this->profile_id
+            ? CompetitorProfile::find($this->profile_id)?->full_name
+            : null;
+    }
+
+    public function getCartCount(): int
+    {
+        if (! $this->cartId) {
+            return 0;
+        }
+        return Enrolment::where('cart_id', $this->cartId)->where('status', 'draft')->count();
+    }
+
+    // ── Entry form navigation ────────────────────────────────────────────────
+
+    public function confirmDetails(): void
+    {
+        if (! $this->dojo_type) {
+            Notification::make()->title('Select a membership type to continue.')->info()->send();
+            return;
+        }
+        if (! $this->rank_id) {
+            Notification::make()->title('Select a rank to continue.')->info()->send();
+            return;
+        }
+
+        $competition = $this->getSelectedCompetition();
+        foreach ($competition?->registration_fields ?? [] as $field) {
+            if (! empty($field['required'])) {
+                $value = $this->custom_fields[$field['id']] ?? null;
+                if ($value === null || $value === '' || $value === false) {
+                    Notification::make()->title('Please fill in "' . $field['label'] . '" to continue.')->warning()->send();
+                    return;
+                }
+            }
+        }
+
+        $this->details_confirmed = true;
+        $this->selected_entries  = [];
+    }
+
+    public function backToDetails(): void
+    {
+        $this->details_confirmed = false;
+        $this->selected_entries  = [];
+    }
+
+    public function changeProfile(): void
+    {
+        $this->profile_id = null;
+        $this->clearEntryState();
+    }
+
+    // ── Add to cart ──────────────────────────────────────────────────────────
+
+    public function addToCart(): void
     {
         if (! $this->profile_id) {
-            return null;
+            Notification::make()->title('Select a competitor first.')->warning()->send();
+            return;
         }
-        return auth()->user()->ownedProfiles()
-            ->where('id', $this->profile_id)
-            ->where('is_active', true)
-            ->first();
+        if (empty($this->selected_entries)) {
+            Notification::make()->title('Select at least one event.')->warning()->send();
+            return;
+        }
+
+        $competition = Competition::find($this->competition_id);
+        if (! $competition || ! $competition->isEnrolmentOpen()) {
+            Notification::make()->title('This competition is not currently open for enrolment.')->warning()->send();
+            return;
+        }
+
+        if (! $this->cartId) {
+            $cart         = app(EnrolmentService::class)->createOrResumeCart(auth()->user());
+            $this->cartId = $cart->id;
+        } else {
+            $cart = EnrolmentCart::find($this->cartId);
+            if (! $cart) {
+                Notification::make()->title('Session expired. Please start again.')->danger()->send();
+                $this->cartId = null;
+                return;
+            }
+        }
+
+        $profile = CompetitorProfile::find($this->profile_id);
+
+        app(EnrolmentService::class)->saveDraftEntry(
+            $cart,
+            $competition,
+            $profile,
+            [
+                'dojo_type'              => $this->dojo_type,
+                'dojo_name'              => $this->dojo_type === 'lfp' ? $this->dojo_name : null,
+                'guest_style'            => $this->dojo_type === 'guest' ? $this->guest_style : null,
+                'rank_id'                => $this->rank_id,
+                'weight_kg'              => $this->weight_kg,
+                'custom_field_responses' => ! empty($this->custom_fields) ? $this->custom_fields : null,
+            ],
+            $this->selected_entries,
+            $this->yakusuko_partners,
+        );
+
+        Notification::make()->title($profile->first_name . ' added to cart.')->success()->send();
+
+        $this->profile_id = null;
+        $this->clearEntryState();
+
+        $this->redirect($this->resolveReturnUrl());
     }
 
-    public function getSelectedCompetition(): ?Competition
+    public function cancel(): void
     {
-        return $this->competition_id ? Competition::find($this->competition_id) : null;
+        $this->redirect($this->resolveReturnUrl());
     }
 
-    public function isSelectedCompetitionLocked(): bool
+    private function resolveReturnUrl(): string
     {
-        $comp = $this->getSelectedCompetition();
-        return $comp && ! $comp->isEnrolmentOpen();
+        return match ($this->redirectTo) {
+            'dashboard' => route('filament.portal.pages.dashboard'),
+            default     => route('filament.portal.pages.dashboard'),
+        };
     }
+
+    // ── Form ────────────────────────────────────────────────────────────────
 
     public function form(Form $form): Form
     {
-        $activeProfiles = auth()->user()->ownedProfiles()
-            ->where('is_active', true)
-            ->where('profile_complete', true)
-            ->get();
-
         return $form->schema([
-            // Profile selector — only shown when user has multiple eligible profiles
-            Section::make('Who are you enrolling?')
-                ->visible($activeProfiles->count() > 1)
-                ->disabled(fn () => $this->details_confirmed)
-                ->schema([
-                    Select::make('profile_id')
-                        ->label('Select profile')
-                        ->options(
-                            $activeProfiles->mapWithKeys(fn ($p) => [
-                                $p->id => $p->full_name . ($p->isFamilyMember() ? ' (family member)' : ''),
-                            ])
-                        )
-                        ->required()
-                        ->live()
-                        ->afterStateUpdated(function () {
-                            $this->selected_entries  = [];
-                            $this->yakusuko_partners = [];
-                            $this->details_confirmed = false;
-                        }),
-                ]),
-
-            Section::make('Competition')
-                ->disabled(fn () => $this->details_confirmed)
-                ->schema([
-                    Select::make('competition_id')
-                        ->label('Select competition')
-                        ->options(function () {
-                            if (! $this->profile_id) {
-                                return [];
-                            }
-                            $profile = $this->getSelectedProfile();
-                            $enrolledIds = $profile
-                                ? $profile->enrolments()->pluck('competition_id')
-                                : collect();
-
-                            return Competition::where('status', 'open')
-                                ->whereNotIn('id', $enrolledIds)
-                                ->where('organisation_id', app('tenant')?->id)
-                                ->orderBy('competition_date')
-                                ->pluck('name', 'id');
-                        })
-                        ->required()
-                        ->live()
-                        ->afterStateUpdated(function () {
-                            $this->selected_entries  = [];
-                            $this->yakusuko_partners = [];
-                            $this->details_confirmed = false;
-                        }),
-                ]),
 
             Section::make('Your details for this competition')
                 ->description('Rank, weight, and dojo may change between competitions — please confirm them here.')
-                ->visible(fn () => $this->competition_id !== null && $this->profile_id !== null)
-                ->disabled(fn () => $this->details_confirmed)
+                ->visible(fn () => ! $this->details_confirmed)
                 ->columns(2)
                 ->schema([
                     Radio::make('dojo_type')
                         ->label('Membership type')
-                        ->options(['lfp' => 'LFP Dojo member', 'guest' => 'Guest competitor'])
+                        ->options(fn () => [
+                            'lfp'   => app('tenant')?->name . ' member',
+                            'guest' => 'Guest competitor',
+                        ])
                         ->required()
                         ->inline()
                         ->live()
-                        ->afterStateUpdated(function () {
-                            $this->details_confirmed = false;
-                            $this->selected_entries  = [];
-                        })
+                        ->afterStateUpdated(fn () => $this->selected_entries = [])
                         ->columnSpanFull(),
 
                     Select::make('dojo_name')
-                        ->label('LFP Dojo')
+                        ->label(fn () => app('tenant')?->name . ' Dojo')
                         ->options(fn () => \App\Models\Dojo::active()->where('organisation_id', app('tenant')?->id)->orderBy('name')->pluck('name', 'name'))
                         ->searchable()
                         ->visible(fn () => $this->dojo_type === 'lfp')
@@ -186,10 +316,7 @@ class EnrolPage extends Page implements HasForms
                         ->required()
                         ->searchable()
                         ->live()
-                        ->afterStateUpdated(function () {
-                            $this->details_confirmed = false;
-                            $this->selected_entries  = [];
-                        }),
+                        ->afterStateUpdated(fn () => $this->selected_entries = []),
 
                     TextInput::make('weight_kg')
                         ->label('Weight (kg)')
@@ -200,10 +327,8 @@ class EnrolPage extends Page implements HasForms
                 ]),
 
             Section::make('Registration Questions')
-                ->visible(fn () => $this->competition_id !== null
-                    && $this->profile_id !== null
+                ->visible(fn () => ! $this->details_confirmed
                     && ! empty($this->getSelectedCompetition()?->registration_fields))
-                ->disabled(fn () => $this->details_confirmed)
                 ->schema(fn () => $this->buildRegistrationFieldSchema()),
 
             Section::make('Events')
@@ -211,22 +336,41 @@ class EnrolPage extends Page implements HasForms
                 ->schema(fn () => $this->buildEventSchema()),
 
             Section::make('Fee summary')
-                ->visible(fn () => count($this->selected_entries) > 0)
+                ->visible(fn () => $this->details_confirmed)
                 ->schema([
                     Placeholder::make('fee_summary')
                         ->label('')
-                        ->content(fn () => $this->feeSummary()),
+                        ->content(fn () => new \Illuminate\Support\HtmlString($this->feeSummaryHtml())),
                 ]),
         ]);
     }
 
+    // ── Private helpers ──────────────────────────────────────────────────────
+
+    private function clearEntryState(): void
+    {
+        $this->dojo_type         = null;
+        $this->dojo_name         = null;
+        $this->guest_style       = null;
+        $this->rank_id           = null;
+        $this->weight_kg         = null;
+        $this->custom_fields     = [];
+        $this->selected_entries  = [];
+        $this->yakusuko_partners = [];
+        $this->details_confirmed = false;
+    }
+
+    private function getSelectedCompetition(): ?Competition
+    {
+        return $this->competition_id ? Competition::find($this->competition_id) : null;
+    }
+
     private function buildCtx(): ?object
     {
-        $profile = $this->getSelectedProfile();
+        $profile = $this->profile_id ? CompetitorProfile::find($this->profile_id) : null;
         if (! $profile) {
             return null;
         }
-
         return (object) [
             'gender'    => $profile->gender,
             'age'       => $profile->age,
@@ -258,7 +402,6 @@ class EnrolPage extends Page implements HasForms
 
         foreach ($events as $event) {
             $eligible = $ctx ? $divisionService->getEligibleDivisions($event, $ctx) : collect();
-
             foreach ($eligible as $division) {
                 $label = "{$division->code} — {$event->name}: {$division->label}";
                 if ($this->isDivisionOpen($division)) {
@@ -266,7 +409,6 @@ class EnrolPage extends Page implements HasForms
                 }
                 $options["d{$division->id}"] = $label;
             }
-
             if ($event->requires_partner) {
                 $partnerEventMap[$event->id] = $event->name;
             }
@@ -276,7 +418,7 @@ class EnrolPage extends Page implements HasForms
             return [
                 Placeholder::make('no_eligible_divisions')
                     ->label('')
-                    ->content('No eligible divisions were found matching your rank, age, and weight. Press Back to adjust your entry details.'),
+                    ->content('No eligible divisions found matching your rank, age, and weight. Go back to adjust your details.'),
             ];
         }
 
@@ -287,7 +429,6 @@ class EnrolPage extends Page implements HasForms
                 ->live(),
         ];
 
-        // Partner selects for events that require a partner
         $selectedEventIds = [];
         foreach ($this->selected_entries as $key) {
             $div = Division::find((int) substr($key, 1));
@@ -297,18 +438,15 @@ class EnrolPage extends Page implements HasForms
         }
 
         foreach (array_intersect(array_keys($partnerEventMap), $selectedEventIds) as $eventId) {
-            $eventName = $partnerEventMap[$eventId];
             $components[] = Select::make("yakusuko_partners.{$eventId}")
-                ->label("Partner for {$eventName}")
+                ->label('Partner for ' . $partnerEventMap[$eventId])
                 ->options(
                     CompetitorProfile::where('profile_complete', true)
                         ->where('is_active', true)
                         ->where('organisation_id', app('tenant')?->id)
                         ->where('id', '!=', $this->profile_id)
                         ->get()
-                        ->mapWithKeys(fn ($p) => [
-                            $p->id => $p->full_name,
-                        ])
+                        ->mapWithKeys(fn ($p) => [$p->id => $p->full_name])
                 )
                 ->searchable()
                 ->nullable()
@@ -339,11 +477,7 @@ class EnrolPage extends Page implements HasForms
                 default    => TextInput::make("custom_fields.{$id}")->label($label)->maxLength(500),
             };
 
-            if ($required) {
-                $component->required();
-            }
-
-            return $component;
+            return $required ? $component->required() : $component;
         })->all();
     }
 
@@ -354,173 +488,55 @@ class EnrolPage extends Page implements HasForms
             && $division->weight_class_id === null;
     }
 
-    private function feeSummary(): string
+    private function feeSummaryHtml(): string
     {
-        if (! $this->competition_id || empty($this->selected_entries) || ! $this->profile_id) {
-            return '';
-        }
-
-        $competition = Competition::find($this->competition_id);
+        $competition = $this->getSelectedCompetition();
         if (! $competition) {
             return '';
         }
 
-        $count  = count($this->selected_entries);
-        $isLate = $competition->isLateEnrolment();
+        $count      = count($this->selected_entries);
+        $isLate     = $competition->isLateEnrolment();
+        $profile    = $this->profile_id ? CompetitorProfile::find($this->profile_id) : null;
+        $isOfficial = $profile?->account && $competition->isOfficial($profile->account);
+        $org        = app('tenant');
+        $platformFee = (float) ($org->platform_fee ?? 0);
 
-        $fee   = app(EnrolmentService::class)->calculateFee($competition, $count, $isLate);
-        $lines = ["**{$count} event entr" . ($count === 1 ? 'y' : 'ies') . "** selected."];
-        if ($isLate) {
-            $lines[] = "Late surcharge of \${$competition->late_surcharge} applies.";
-        }
-        $lines[] = "**Total fee: \${$fee}**";
-
-        return implode("\n\n", $lines);
-    }
-
-    public function isReadyToSubmit(): bool
-    {
-        return $this->details_confirmed && ! empty($this->selected_entries);
-    }
-
-    public function nextHint(): void
-    {
-        if (! $this->profile_id) {
-            Notification::make()->title('Select a profile to continue.')->info()->send();
-            return;
-        }
-        if (! $this->competition_id) {
-            Notification::make()->title('Select a competition to continue.')->info()->send();
-            return;
-        }
-        if (! $this->dojo_type) {
-            Notification::make()->title('Select a membership type (LFP or Guest) to continue.')->info()->send();
-            return;
-        }
-        if (! $this->rank_id) {
-            Notification::make()->title('Select a rank to continue.')->info()->send();
-            return;
-        }
-
-        if (! $this->details_confirmed) {
-            $competition = $this->getSelectedCompetition();
-            foreach ($competition?->registration_fields ?? [] as $field) {
-                if (! empty($field['required'])) {
-                    $value = $this->custom_fields[$field['id']] ?? null;
-                    if ($value === null || $value === '' || $value === false) {
-                        Notification::make()->title('Please fill in "' . $field['label'] . '" to continue.')->warning()->send();
-                        return;
-                    }
-                }
+        if ($count === 0) {
+            $lines = ['<p class="text-sm text-gray-500">Select events above to see your fee.</p>'];
+            if ($platformFee > 0) {
+                $lines[] = '<p class="text-xs text-gray-400 mt-2">A platform service fee of ' . tenant_money($platformFee) . ' per enrolment will be added at checkout. Payment transaction fees may also apply.</p>';
+            } else {
+                $lines[] = '<p class="text-xs text-gray-400 mt-2">Payment transaction fees may apply.</p>';
             }
-            $this->details_confirmed = true;
-            $this->selected_entries  = [];
-            return;
+            return implode('', $lines);
         }
 
-        Notification::make()->title('Select at least one division to enter.')->info()->send();
-    }
+        $service    = app(EnrolmentService::class);
+        $entryFee   = $service->calculateFee($competition, $count, $isLate, $isOfficial);
+        $baseFee    = $service->calculateFee($competition, $count, false, $isOfficial);
+        $lateSurcharge = $isLate ? (float) $competition->late_surcharge : null;
 
-    public function goBack(): void
-    {
-        $this->details_confirmed = false;
-        $this->selected_entries  = [];
-        $this->yakusuko_partners = [];
-    }
+        $rows = '';
 
-    public function cancel(): void
-    {
-        $this->redirect(\App\Filament\Portal\Pages\Dashboard::getUrl(), navigate: true);
-    }
-
-    public function submit(): void
-    {
-        $profile = $this->getSelectedProfile();
-
-        if (! $profile || ! $profile->profile_complete) {
-            Notification::make()
-                ->title('Please complete your profile before enrolling.')
-                ->warning()
-                ->send();
-            $this->redirect(route('filament.portal.pages.profiles'));
-            return;
+        if ($isOfficial) {
+            $rows .= '<tr><td class="py-1 pr-4 text-sm text-gray-600 dark:text-gray-400">Entry fee <span class="text-primary-600 text-xs">(official rate)</span></td><td class="py-1 text-sm font-medium text-right">' . tenant_money($baseFee) . '</td></tr>';
+        } else {
+            $rows .= '<tr><td class="py-1 pr-4 text-sm text-gray-600 dark:text-gray-400">Entry fee <span class="text-xs text-gray-400">(' . $count . ' ' . ($count === 1 ? 'event' : 'events') . ')</span></td><td class="py-1 text-sm font-medium text-right">' . tenant_money($baseFee) . '</td></tr>';
         }
 
-        if (! $this->competition_id || empty($this->selected_entries)) {
-            Notification::make()->title('Please select at least one event.')->warning()->send();
-            return;
+        if ($lateSurcharge !== null) {
+            $rows .= '<tr><td class="py-1 pr-4 text-sm text-warning-600 flex items-center gap-1"><svg class="h-3 w-3 inline shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg> Late surcharge</td><td class="py-1 text-sm font-medium text-right text-warning-600">' . tenant_money($lateSurcharge) . '</td></tr>';
         }
 
-        if (! $this->dojo_type || ! $this->rank_id) {
-            Notification::make()->title('Please fill in your competition details (dojo and rank).')->warning()->send();
-            return;
+        $rows .= '<tr class="border-t border-gray-200 dark:border-gray-700"><td class="pt-2 pr-4 text-sm font-bold">Total entry fee</td><td class="pt-2 text-sm font-bold text-right">' . tenant_money($entryFee) . '</td></tr>';
+
+        if ($platformFee > 0) {
+            $rows .= '<tr><td colspan="2" class="pt-3 text-xs text-gray-400">+ Platform service fee of ' . tenant_money($platformFee) . ' per enrolment will be added at checkout.</td></tr>';
         }
 
-        $competition = Competition::find($this->competition_id);
-        if (! $competition || ! $competition->isEnrolmentOpen()) {
-            Notification::make()->title('Enrolment is not currently open for this competition.')->danger()->send();
-            return;
-        }
+        $rows .= '<tr><td colspan="2" class="pt-1 text-xs text-gray-400">Payment transaction fees may apply.</td></tr>';
 
-        if ($competition->enrolments()->where('competitor_profile_id', $profile->id)->exists()) {
-            Notification::make()->title('This profile is already enrolled in this competition.')->danger()->send();
-            return;
-        }
-
-        $divisionsByEvent = [];
-        foreach ($this->selected_entries as $key) {
-            $divisionId = (int) substr($key, 1);
-            $division   = Division::find($divisionId);
-            if ($division) {
-                $divisionsByEvent[$division->competition_event_id][] = $divisionId;
-            }
-        }
-
-        $competitionEventIds = array_keys($divisionsByEvent);
-
-        $entryDetails = [
-            'dojo_type'               => $this->dojo_type,
-            'dojo_name'               => $this->dojo_type === 'lfp' ? $this->dojo_name : null,
-            'guest_style'             => $this->dojo_type === 'guest' ? $this->guest_style : null,
-            'rank_id'                 => $this->rank_id,
-            'weight_kg'               => $this->weight_kg,
-            'custom_field_responses'  => ! empty($this->custom_fields) ? $this->custom_fields : null,
-        ];
-
-        $enrolment = app(EnrolmentService::class)->enrol(
-            $profile,
-            $competition,
-            $competitionEventIds,
-            $divisionsByEvent,
-            $entryDetails
-        );
-
-        // Handle Yakusuko partner linking
-        foreach ($this->yakusuko_partners as $eventId => $partnerProfileId) {
-            if (! $partnerProfileId) {
-                continue;
-            }
-
-            $myEe = $enrolment->enrolmentEvents()
-                ->where('competition_event_id', $eventId)
-                ->first();
-
-            if (! $myEe) {
-                continue;
-            }
-
-            $partnerEe = EnrolmentEvent::whereHas('enrolment', fn ($q) => $q
-                ->where('competition_id', $competition->id)
-                ->where('competitor_profile_id', $partnerProfileId)
-            )->where('competition_event_id', $eventId)->first();
-
-            if ($partnerEe) {
-                app(EnrolmentService::class)->resolveYakusukoPartner($myEe, $partnerEe);
-            }
-        }
-
-        Notification::make()->title('Enrolment submitted successfully!')->success()->send();
-
-        $this->redirect(route('filament.portal.pages.my-enrolments'));
+        return '<table class="w-full">' . $rows . '</table>';
     }
 }

@@ -2,9 +2,9 @@
 
 namespace App\Filament\Portal\Pages;
 
-use App\Models\Competition;
+use App\Models\CompetitorProfile;
+use App\Models\Enrolment;
 use Filament\Pages\Page;
-use Livewire\Attributes\Url;
 
 class CompetitionResultsPage extends Page
 {
@@ -14,56 +14,32 @@ class CompetitionResultsPage extends Page
     protected static string  $view            = 'filament.portal.pages.competition-results-page';
     protected static ?string $slug            = 'results';
 
-    #[Url]
-    public ?int $competition_id = null;
-
-    public function mount(): void
+    public function getHistory(): \Illuminate\Support\Collection
     {
-        if (! $this->competition_id) {
-            $competition = Competition::whereIn('status', ['complete', 'running'])
-                ->where('organisation_id', app('tenant')?->id)
-                ->orderByDesc('competition_date')
-                ->first();
+        $orgId = app('tenant')?->id;
 
-            if ($competition) {
-                $this->competition_id = $competition->id;
-            }
-        }
-    }
+        $profileIds = CompetitorProfile::where('organisation_id', $orgId)
+            ->where(fn ($q) => $q->where('owner_user_id', auth()->id())->orWhere('user_id', auth()->id()))
+            ->pluck('id');
 
-    public function getCompetitions(): array
-    {
-        return Competition::whereIn('status', ['complete', 'running'])
-            ->where('organisation_id', app('tenant')?->id)
-            ->orderByDesc('competition_date')
-            ->pluck('name', 'id')
-            ->toArray();
-    }
-
-    public function getResultsData(): \Illuminate\Support\Collection
-    {
-        if (! $this->competition_id) {
+        if ($profileIds->isEmpty()) {
             return collect();
         }
 
-        $competition = Competition::find($this->competition_id);
-        if (! $competition) {
-            return collect();
-        }
-
-        return $competition->competitionEvents()
+        return Enrolment::whereIn('competitor_profile_id', $profileIds)
+            ->whereHas('competition', fn ($q) => $q
+                ->where('organisation_id', $orgId)
+                ->whereIn('status', ['complete', 'running'])
+            )
             ->with([
-                'divisions' => fn ($q) => $q->whereNotIn('status', ['combined']),
-                'divisions.enrolmentEvents' => fn ($q) => $q->where('removed', false),
-                'divisions.enrolmentEvents.enrolment.competitor',
-                'divisions.enrolmentEvents.result',
+                'competition',
+                'competitor',
+                'activeEvents.competitionEvent',
+                'activeEvents.division',
+                'activeEvents.result',
             ])
-            ->whereIn('status', ['running', 'complete'])
-            ->orderBy('running_order')
             ->get()
-            ->filter(fn ($event) => $event->divisions
-                ->filter(fn ($div) => $div->enrolmentEvents->isNotEmpty())
-                ->isNotEmpty()
-            );
+            ->groupBy('competition_id')
+            ->sortByDesc(fn ($enrolments) => $enrolments->first()->competition->competition_date);
     }
 }

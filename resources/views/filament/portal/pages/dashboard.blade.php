@@ -251,7 +251,7 @@
                                 @elseif ($enrolmentOpen && $profile->is_active)
                                     <div class="px-4 py-4 flex justify-center">
                                         <x-filament::button
-                                            href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}&competition_id={{ $competition->id }}"
+                                            href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}&competition_id={{ $competition->id }}&redirect_to=dashboard"
                                             tag="a" color="primary" size="sm" icon="heroicon-o-plus">
                                             Enrol now
                                         </x-filament::button>

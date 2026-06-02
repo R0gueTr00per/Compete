@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use RuntimeException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -13,6 +14,7 @@ class Enrolment extends Model
     use LogsActivity;
 
     protected $fillable = [
+        'cart_id',
         'competition_id',
         'competitor_profile_id',
         'enrolled_at',
@@ -28,6 +30,10 @@ class Enrolment extends Model
         'dojo_name',
         'guest_style',
         'custom_field_responses',
+        'withdrawn_at',
+        'withdrawal_reason',
+        'refund_requested',
+        'payment_received_at',
     ];
 
     protected function casts(): array
@@ -37,17 +43,49 @@ class Enrolment extends Model
             'is_late'              => 'boolean',
             'is_official_discount' => 'boolean',
             'fee_calculated'       => 'decimal:2',
-            'payment_amount' => 'decimal:2',
-            'checked_in'     => 'boolean',
-            'checked_in_at'  => 'datetime',
-            'weight_kg'               => 'decimal:2',
-            'custom_field_responses'  => 'array',
+            'payment_amount'       => 'decimal:2',
+            'checked_in'           => 'boolean',
+            'checked_in_at'        => 'datetime',
+            'weight_kg'            => 'decimal:2',
+            'custom_field_responses' => 'array',
+            'withdrawn_at'         => 'datetime',
+            'refund_requested'     => 'boolean',
+            'payment_received_at'  => 'datetime',
         ];
     }
 
     public function isPaymentOutstanding(): bool
     {
         return $this->payment_status !== 'received';
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === 'draft';
+    }
+
+    public function canWithdraw(): bool
+    {
+        if (in_array($this->status, ['withdrawn', 'checked_in', 'draft'])) {
+            return false;
+        }
+
+        $competition = $this->competition;
+        if (now()->isAfter($competition->competition_date->endOfDay())) {
+            return false;
+        }
+
+        $cutoffDays = (int) ($competition->organisation->cancellation_days_before ?? 0);
+        if ($cutoffDays > 0 && now()->gte($competition->competition_date->subDays($cutoffDays))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function cart(): BelongsTo
+    {
+        return $this->belongsTo(EnrolmentCart::class, 'cart_id');
     }
 
     public function getDisplayRankAttribute(): string

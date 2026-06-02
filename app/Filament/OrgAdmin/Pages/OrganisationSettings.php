@@ -35,13 +35,14 @@ class OrganisationSettings extends Page implements HasForms
     {
         $tenant = app('tenant');
         $this->form->fill([
-            'ai_context'             => $tenant?->ai_context,
-            'auto_email_insights'    => $tenant?->auto_email_insights ?? true,
-            'insights_auto_refresh'  => $tenant?->insights_auto_refresh ?? true,
-            'dashboard_closed_days'  => $tenant?->dashboard_closed_days ?? 7,
-            'timezone'               => $tenant?->timezone,
-            'date_format'            => $tenant?->date_format,
-            'currency'               => $tenant?->currency,
+            'ai_context'               => $tenant?->ai_context,
+            'auto_email_insights'      => $tenant?->auto_email_insights ?? true,
+            'insights_auto_refresh'    => $tenant?->insights_auto_refresh ?? true,
+            'dashboard_closed_days'    => $tenant?->dashboard_closed_days ?? 7,
+            'timezone'                 => $tenant?->timezone,
+            'date_format'              => $tenant?->date_format,
+            'currency'                 => $tenant?->currency,
+            'cancellation_days_before' => $tenant?->cancellation_days_before ?? 0,
         ]);
     }
 
@@ -78,6 +79,19 @@ class OrganisationSettings extends Page implements HasForms
                             ->minValue(1)
                             ->maxValue(365)
                             ->default(7)
+                            ->suffix('days'),
+                    ]),
+
+                Section::make('Enrolment')
+                    ->description('Control cancellation behaviour for competitors.')
+                    ->schema([
+                        TextInput::make('cancellation_days_before')
+                            ->label('Allow cancellation up to X days before competition')
+                            ->helperText('Competitors cannot withdraw within this many days of the competition date. Set to 0 to allow cancellation right up to the competition day.')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(365)
+                            ->default(0)
                             ->suffix('days'),
                     ]),
 
@@ -122,13 +136,14 @@ class OrganisationSettings extends Page implements HasForms
         $data = $this->form->getState();
 
         $tenant->update([
-            'ai_context'            => $data['ai_context'] ?? null,
-            'auto_email_insights'   => $data['auto_email_insights'] ?? true,
-            'insights_auto_refresh' => $data['insights_auto_refresh'] ?? true,
-            'dashboard_closed_days' => $data['dashboard_closed_days'] ?? 7,
-            'timezone'              => $data['timezone'] ?? null,
-            'date_format'           => $data['date_format'] ?? null,
-            'currency'              => $data['currency'] ?? null,
+            'ai_context'               => $data['ai_context'] ?? null,
+            'auto_email_insights'      => $data['auto_email_insights'] ?? true,
+            'insights_auto_refresh'    => $data['insights_auto_refresh'] ?? true,
+            'dashboard_closed_days'    => $data['dashboard_closed_days'] ?? 7,
+            'timezone'                 => $data['timezone'] ?? null,
+            'date_format'              => $data['date_format'] ?? null,
+            'currency'                 => $data['currency'] ?? null,
+            'cancellation_days_before' => $data['cancellation_days_before'] ?? 0,
         ]);
 
         Notification::make()

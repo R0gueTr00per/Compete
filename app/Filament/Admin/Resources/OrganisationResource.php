@@ -78,6 +78,15 @@ class OrganisationResource extends Resource
                     ->options(['active' => 'Active', 'inactive' => 'Inactive'])
                     ->default('active')
                     ->required(),
+
+                \Filament\Forms\Components\TextInput::make('platform_fee')
+                    ->label('Platform service fee')
+                    ->helperText('Fee charged per enrolment on top of the organiser\'s competition fee. Set to 0 to disable.')
+                    ->numeric()
+                    ->minValue(0)
+                    ->step(0.01)
+                    ->suffix(fn (?Organisation $record) => $record?->currency ?: 'AUD')
+                    ->default(0),
             ]),
 
             Section::make('Initial Administrator')

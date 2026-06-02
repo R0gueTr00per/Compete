@@ -21,9 +21,7 @@ class ProfilePage extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $title           = 'My Profile';
-    protected static ?string $navigationIcon  = 'heroicon-o-user';
-    protected static ?string $navigationLabel = 'My Profile';
-    protected static ?int    $navigationSort  = 90;
+    protected static bool     $shouldRegisterNavigation = false;
     protected static string  $view            = 'filament.portal.pages.profile-page';
     protected static ?string $slug            = 'profile';
 

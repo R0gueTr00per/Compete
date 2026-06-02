@@ -45,6 +45,7 @@ class EnrolmentResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->whereNotIn('status', ['draft'])
             ->whereHas('competition', fn (Builder $q) => $q->where('organisation_id', app('tenant')?->id));
     }
 
