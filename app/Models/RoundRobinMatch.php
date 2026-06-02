@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RoundRobinMatch extends Model
 {
@@ -67,5 +68,10 @@ class RoundRobinMatch extends Model
         if ($this->home_result === 'win')  return $this->away_enrolment_event_id;
         if ($this->home_result === 'loss') return $this->home_enrolment_event_id;
         return null;
+    }
+
+    public function penalties(): HasMany
+    {
+        return $this->hasMany(MatchPenalty::class)->orderBy('created_at');
     }
 }

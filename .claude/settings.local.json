@@ -336,7 +336,10 @@
       "Bash(php -l app/Models/Result.php)",
       "Bash(php -l app/Services/ScoringService.php)",
       "Bash(python bracket_layout.py)",
-      "Bash(xargs grep -l \"bulk\\\\|Bulk\\\\|merge\\\\|Merge\")"
+      "Bash(xargs grep -l \"bulk\\\\|Bulk\\\\|merge\\\\|Merge\")",
+      "Bash(grep -E \"\\\\.\\(php|blade\\\\.php\\)$\")",
+      "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\" -Recurse -Filter \"*scor*\")",
+      "Read(//x/Repos/Compute/resources/views/filament/admin/pages/**)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

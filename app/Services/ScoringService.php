@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Division;
 use App\Models\EnrolmentEvent;
 use App\Models\JudgeScore;
+use App\Models\MatchPenalty;
 use App\Models\Result;
+use App\Models\RoundRobinMatch;
 use App\Models\ScoreEvent;
 use Illuminate\Support\Facades\DB;
 
@@ -210,5 +212,157 @@ class ScoringService
         if ($result->division_id) {
             $this->autoRankDivision(Division::find($result->division_id));
         }
+    }
+
+    /**
+     * Add a penalty to a result. Returns the created MatchPenalty and whether a DQ was triggered.
+     *
+     * @return array{penalty: MatchPenalty, triggered_dq: bool}
+     */
+    public function addPenalty(
+        Result $result,
+        string $type,
+        ?string $reason,
+        ?RoundRobinMatch $match = null,
+        ?Result $opponentResult = null,
+    ): array {
+        $triggeredDq = false;
+
+        DB::transaction(function () use ($result, $type, $reason, $match, $opponentResult, &$penalty, &$triggeredDq) {
+            $penalty = MatchPenalty::create([
+                'result_id'           => $result->id,
+                'round_robin_match_id' => $match?->id,
+                'type'                => $type,
+                'reason'              => $reason,
+            ]);
+
+            switch ($type) {
+                case 'dq':
+                case 'forfeit':
+                    if (! $result->disqualified) {
+                        $this->toggleDisqualify($result);
+                    }
+                    $triggeredDq = true;
+                    break;
+
+                case 'warn':
+                    $event = $result->enrolmentEvent->competitionEvent;
+                    $autoDqAfter = $event->warnAutoDqAfter();
+                    if ($autoDqAfter !== null) {
+                        $warnCount = MatchPenalty::where('result_id', $result->id)
+                            ->when($match, fn ($q) => $q->where('round_robin_match_id', $match->id))
+                            ->where('type', 'warn')
+                            ->count();
+                        if ($warnCount >= $autoDqAfter && ! $result->disqualified) {
+                            $this->toggleDisqualify($result);
+                            MatchPenalty::create([
+                                'result_id'           => $result->id,
+                                'round_robin_match_id' => $match?->id,
+                                'type'                => 'dq',
+                                'reason'              => "Auto-DQ: {$warnCount} warnings",
+                            ]);
+                            $triggeredDq = true;
+                        }
+                    }
+                    break;
+
+                case 'deduction':
+                    $this->addPoints($result, -1);
+                    break;
+
+                case 'opponent_point':
+                    if ($opponentResult) {
+                        $this->addPoints($opponentResult, 1);
+                    }
+                    break;
+            }
+        });
+
+        return ['penalty' => $penalty, 'triggered_dq' => $triggeredDq];
+    }
+
+    /**
+     * Undo the last penalty for a result (optionally scoped to a bracket match).
+     * Returns true if a DQ was reversed.
+     */
+    public function undoLastPenalty(Result $result, ?RoundRobinMatch $match = null): bool
+    {
+        $reversedDq = false;
+
+        DB::transaction(function () use ($result, $match, &$reversedDq) {
+            $last = MatchPenalty::where('result_id', $result->id)
+                ->when($match, fn ($q) => $q->where('round_robin_match_id', $match->id))
+                ->whereNotIn('type', ['dq']) // skip auto-generated DQ records; handled below
+                ->latest()
+                ->first();
+
+            if (! $last) return;
+
+            // If undoing a warn that triggered auto-DQ, also remove the auto-DQ penalty
+            if ($last->type === 'warn') {
+                $event = $result->enrolmentEvent->competitionEvent;
+                $autoDqAfter = $event->warnAutoDqAfter();
+                if ($autoDqAfter !== null) {
+                    $warnCount = MatchPenalty::where('result_id', $result->id)
+                        ->when($match, fn ($q) => $q->where('round_robin_match_id', $match->id))
+                        ->where('type', 'warn')
+                        ->count();
+                    if ($warnCount >= $autoDqAfter && $result->disqualified) {
+                        // Remove the auto-DQ penalty record
+                        MatchPenalty::where('result_id', $result->id)
+                            ->when($match, fn ($q) => $q->where('round_robin_match_id', $match->id))
+                            ->where('type', 'dq')
+                            ->where('reason', 'LIKE', 'Auto-DQ:%')
+                            ->latest()
+                            ->delete();
+                        $this->toggleDisqualify($result);
+                        $reversedDq = true;
+                    }
+                }
+            }
+
+            switch ($last->type) {
+                case 'forfeit':
+                    if ($result->disqualified) {
+                        $this->toggleDisqualify($result);
+                        $reversedDq = true;
+                    }
+                    break;
+
+                case 'deduction':
+                    $this->addPoints($result, 1);
+                    break;
+
+                case 'opponent_point':
+                    // Find the opponent result via the match
+                    if ($last->round_robin_match_id) {
+                        $matchRecord = $last->roundRobinMatch;
+                        if ($matchRecord) {
+                            $opponentEeId = $matchRecord->home_enrolment_event_id === $result->enrolment_event_id
+                                ? $matchRecord->away_enrolment_event_id
+                                : $matchRecord->home_enrolment_event_id;
+                            $opponentResult = $opponentEeId
+                                ? Result::where('enrolment_event_id', $opponentEeId)->first()
+                                : null;
+                            if ($opponentResult) {
+                                $this->addPoints($opponentResult, -1);
+                            }
+                        }
+                    }
+                    break;
+            }
+
+            $last->delete();
+        });
+
+        return $reversedDq;
+    }
+
+    public function getActivePenalties(Result $result, ?RoundRobinMatch $match = null)
+    {
+        return MatchPenalty::where('result_id', $result->id)
+            ->when($match, fn ($q) => $q->where('round_robin_match_id', $match->id))
+            ->orderBy('created_at')
+            ->get();
     }
 }

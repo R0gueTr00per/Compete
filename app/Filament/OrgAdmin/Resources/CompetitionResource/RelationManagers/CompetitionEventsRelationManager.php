@@ -294,6 +294,65 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->content(new HtmlString('<p class="text-sm text-gray-500">Note: Changes take effect on the next scored event. Already-generated brackets are unaffected.</p>'))
                         ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['once_off', 'round_robin', null])),
                 ]),
+
+                Tab::make('Penalties')->schema([
+                    Placeholder::make('penalties_na')
+                        ->hiddenLabel()
+                        ->content(new HtmlString('<p class="text-sm text-gray-500">Penalties are not used for judge-scored events.</p>'))
+                        ->hidden(fn (Get $get) => in_array($get('scoring_method'), ['win_loss', 'first_to_n', 'timed_points'])),
+
+                    Section::make()
+                        ->hiddenLabel()
+                        ->compact()
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['win_loss', 'first_to_n', 'timed_points']))
+                        ->schema([
+                            Toggle::make('penalty_config.warn.enabled')
+                                ->label('Warnings')
+                                ->inline(false)
+                                ->live(),
+
+                            TextInput::make('penalty_config.warn.auto_dq_after')
+                                ->label('Auto-DQ after N warnings')
+                                ->helperText('Leave blank to disable.')
+                                ->numeric()->integer()->minValue(1)->nullable()
+                                ->hidden(fn (Get $get) => ! $get('penalty_config.warn.enabled')),
+
+                            TagsInput::make('penalty_config.warn.reasons')
+                                ->label('Warning reasons')
+                                ->placeholder('Type and press Enter')
+                                ->hidden(fn (Get $get) => ! $get('penalty_config.warn.enabled')),
+
+                            Toggle::make('penalty_config.dq.enabled')
+                                ->label('DQ')
+                                ->inline(false)
+                                ->live(),
+
+                            TagsInput::make('penalty_config.dq.reasons')
+                                ->label('DQ reasons')
+                                ->placeholder('Type and press Enter')
+                                ->hidden(fn (Get $get) => ! $get('penalty_config.dq.enabled')),
+
+                            Toggle::make('penalty_config.forfeit.enabled')
+                                ->label('Forfeit')
+                                ->inline(false)
+                                ->live(),
+
+                            TagsInput::make('penalty_config.forfeit.reasons')
+                                ->label('Forfeit reasons')
+                                ->placeholder('Type and press Enter')
+                                ->hidden(fn (Get $get) => ! $get('penalty_config.forfeit.enabled')),
+
+                            Toggle::make('penalty_config.deduction.enabled')
+                                ->label('−1 deduction (bracket only)')
+                                ->inline(false)
+                                ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points'])),
+
+                            Toggle::make('penalty_config.opponent_point.enabled')
+                                ->label('+1 to opponent (bracket only)')
+                                ->inline(false)
+                                ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points'])),
+                        ]),
+                ]),
             ])->columnSpanFull(),
         ]);
     }

@@ -40,6 +40,7 @@ class CompetitionEvent extends Model
         'tiebreak_mode',
         'overtime_rounds',
         'increment_buttons',
+        'penalty_config',
     ];
 
     protected function casts(): array
@@ -53,6 +54,7 @@ class CompetitionEvent extends Model
             'awarded_places_3'              => 'integer',
             'awarded_places_4plus'          => 'integer',
             'increment_buttons'             => 'array',
+            'penalty_config'                => 'array',
         ];
     }
 
@@ -101,6 +103,34 @@ class CompetitionEvent extends Model
     public function enrolmentEvents(): HasMany
     {
         return $this->hasMany(EnrolmentEvent::class);
+    }
+
+    public function supportsPenalties(): bool
+    {
+        return in_array($this->effectiveScoringMethod(), ['win_loss', 'first_to_n', 'timed_points']);
+    }
+
+    public function isPenaltyTypeEnabled(string $type): bool
+    {
+        return (bool) ($this->penalty_config[$type]['enabled'] ?? false);
+    }
+
+    public function enabledPenaltyTypes(): array
+    {
+        $config = $this->penalty_config ?? [];
+        return array_keys(array_filter($config, fn ($c) => $c['enabled'] ?? false));
+    }
+
+    public function penaltyReasonsFor(string $type): array
+    {
+        $reasons = $this->penalty_config[$type]['reasons'] ?? [];
+        return array_values(array_filter((array) $reasons));
+    }
+
+    public function warnAutoDqAfter(): ?int
+    {
+        $val = $this->penalty_config['warn']['auto_dq_after'] ?? null;
+        return $val !== null ? (int) $val : null;
     }
 
     public function effectiveTargetScore(): ?int

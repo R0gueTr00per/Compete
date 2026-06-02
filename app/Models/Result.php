@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\MatchPenalty;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -53,5 +54,10 @@ class Result extends Model
     public function scoreEvents(): HasMany
     {
         return $this->hasMany(ScoreEvent::class)->orderBy('created_at');
+    }
+
+    public function penalties(): HasMany
+    {
+        return $this->hasMany(MatchPenalty::class)->orderBy('created_at');
     }
 }

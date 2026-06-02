@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Division;
+use App\Models\EnrolmentEvent;
 use App\Models\Result;
 use App\Models\RoundRobinMatch;
 use Illuminate\Support\Collection;
@@ -96,6 +97,7 @@ class BracketService
             $nextSlot = (int) ceil($match->bracket_slot / 2);
             $isOdd    = ($match->bracket_slot % 2 === 1);
             $nextMatch = $this->fillOrCreate($match->division_id, $nextRound, 'repechage', $nextSlot, $winnerId, $isOdd);
+            $this->resolveIfOpponentDqd($nextMatch->fresh(), $format);
 
             $nextMatch->refresh();
             if (
@@ -147,6 +149,7 @@ class BracketService
             }
 
             $lbMatch = $this->fillOrCreate($match->division_id, $nextRound, 'losers', $nextSlot, $winnerId, true);
+            $this->resolveIfOpponentDqd($lbMatch->fresh(), $format);
 
             // Odd LB rounds receive only LB survivors (no WB loser drops in). When the bracket
             // has an odd number of LB even-round matches, only one competitor reaches the next
@@ -195,6 +198,7 @@ class BracketService
         }
 
         $nextMatch = $this->fillOrCreate($match->division_id, $nextRound, 'winners', $nextSlot, $winnerId, $isOdd);
+        $this->resolveIfOpponentDqd($nextMatch->fresh(), $format);
 
         if ($format === 'double_elimination' && $loserId) {
             $this->sendToLosers($match->division_id, $match, $loserId, $format);
@@ -268,6 +272,34 @@ class BracketService
             $lbRound = 2 * ($wbMatch->round - 1);
             $lbSlot  = $wbMatch->bracket_slot;
             $this->fillOrCreate($divisionId, $lbRound, 'losers', $lbSlot, $loserId, false);
+        }
+    }
+
+    /**
+     * If both competitors are now seated and one is already DQ'd, resolve the match
+     * immediately in favour of the non-DQ'd competitor and advance them.
+     */
+    private function resolveIfOpponentDqd(RoundRobinMatch $match, string $format): void
+    {
+        if (
+            ! $match->home_enrolment_event_id
+            || ! $match->away_enrolment_event_id
+            || $match->home_result !== null
+        ) {
+            return;
+        }
+
+        $homeDq = Result::where('enrolment_event_id', $match->home_enrolment_event_id)
+            ->value('disqualified');
+        $awayDq = Result::where('enrolment_event_id', $match->away_enrolment_event_id)
+            ->value('disqualified');
+
+        if ($homeDq && ! $awayDq) {
+            $match->update(['home_result' => 'loss']);
+            $this->advance($match->fresh(), $format);
+        } elseif ($awayDq && ! $homeDq) {
+            $match->update(['home_result' => 'win']);
+            $this->advance($match->fresh(), $format);
         }
     }
 

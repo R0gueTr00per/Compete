@@ -6,6 +6,7 @@ use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\Division;
 use App\Models\EnrolmentEvent;
+use App\Models\MatchPenalty;
 use App\Models\Result;
 use App\Models\RoundRobinMatch;
 use App\Services\BracketService;
@@ -57,6 +58,13 @@ class Scoring extends Page
     public bool  $manualPairingMode      = false;
     public array $manualPairings         = [];
     public array $pairingCompetitorList  = [];
+
+    public bool   $penaltyModalOpen           = false;
+    public ?int   $penaltyModalResultId       = null;
+    public ?int   $penaltyModalMatchId        = null;
+    public string $penaltyModalType           = '';
+    public array  $penaltyModalReasons        = [];
+    public string $penaltyModalSelectedReason = '';
 
     public function mount(): void
     {
@@ -222,6 +230,12 @@ class Scoring extends Page
         $this->manualPairingMode        = false;
         $this->manualPairings           = [];
         $this->pairingCompetitorList    = [];
+        $this->penaltyModalOpen         = false;
+        $this->penaltyModalResultId     = null;
+        $this->penaltyModalMatchId      = null;
+        $this->penaltyModalType         = '';
+        $this->penaltyModalReasons      = [];
+        $this->penaltyModalSelectedReason = '';
         // rollcallPresent is intentionally NOT cleared here so ticks survive
         // division switches. Only cancelScoring() resets it explicitly.
     }
@@ -1688,6 +1702,214 @@ class Scoring extends Page
         }
     }
 
+    public function getEnabledPenaltyTypes(): array
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return [];
+
+        $order   = ['warn', 'deduction', 'opponent_point', 'dq', 'forfeit'];
+        $enabled = $div->competitionEvent->enabledPenaltyTypes();
+        usort($enabled, fn ($a, $b) => array_search($a, $order) <=> array_search($b, $order));
+        return $enabled;
+    }
+
+    public function hasPenalties(): bool
+    {
+        return ! empty($this->getEnabledPenaltyTypes());
+    }
+
+    public function getPenaltyLabel(string $type): string
+    {
+        return match ($type) {
+            'warn'           => 'Warn',
+            'dq'             => 'DQ',
+            'forfeit'        => 'Forfeit',
+            'deduction'      => '-1',
+            'opponent_point' => '+1 Opp',
+            default          => $type,
+        };
+    }
+
+    public function getDqLabel(int $resultId): string
+    {
+        $type = MatchPenalty::where('result_id', $resultId)
+            ->whereIn('type', ['forfeit', 'dq'])
+            ->latest()
+            ->value('type');
+
+        return $type === 'forfeit' ? 'Forfeit' : 'DQ';
+    }
+
+    public function getWarnCount(int $resultId, ?int $matchId = null): int
+    {
+        return MatchPenalty::where('result_id', $resultId)
+            ->where('type', 'warn')
+            ->when($matchId, fn ($q) => $q->where('round_robin_match_id', $matchId))
+            ->count();
+    }
+
+    public function getPenaltyLog(int $resultId, ?int $matchId = null): array
+    {
+        $penalties = MatchPenalty::where('result_id', $resultId)
+            ->when($matchId, fn ($q) => $q->where('round_robin_match_id', $matchId))
+            ->orderBy('created_at')
+            ->get();
+
+        $warnCount = 0;
+        $log = [];
+        foreach ($penalties as $penalty) {
+            if ($penalty->type === 'warn') {
+                $warnCount++;
+                $ordinal = match ($warnCount) {
+                    1 => '1st', 2 => '2nd', 3 => '3rd',
+                    default => "{$warnCount}th",
+                };
+                $log[] = ['id' => $penalty->id, 'label' => "{$ordinal} warning" . ($penalty->reason ? " — {$penalty->reason}" : '')];
+            } elseif ($penalty->type === 'dq') {
+                $log[] = ['id' => $penalty->id, 'label' => 'DQ' . ($penalty->reason ? " — {$penalty->reason}" : '')];
+            } elseif ($penalty->type === 'forfeit') {
+                $log[] = ['id' => $penalty->id, 'label' => 'Forfeit' . ($penalty->reason ? " — {$penalty->reason}" : '')];
+            } elseif ($penalty->type === 'deduction') {
+                $log[] = ['id' => $penalty->id, 'label' => '-1 deduction'];
+            } elseif ($penalty->type === 'opponent_point') {
+                $log[] = ['id' => $penalty->id, 'label' => '+1 to opponent'];
+            }
+        }
+        return $log;
+    }
+
+    public function hasUndoablePenalty(int $resultId, ?int $matchId = null): bool
+    {
+        return MatchPenalty::where('result_id', $resultId)
+            ->when($matchId, fn ($q) => $q->where('round_robin_match_id', $matchId))
+            ->whereNotIn('type', ['dq'])
+            ->exists();
+    }
+
+    public function openPenaltyModal(int $resultId, string $type, ?int $matchId = null): void
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return;
+
+        $this->penaltyModalResultId = $resultId;
+        $this->penaltyModalMatchId  = $matchId;
+        $this->penaltyModalType     = $type;
+        $this->penaltyModalSelectedReason = '';
+
+        if (in_array($type, ['warn', 'dq', 'forfeit'])) {
+            $reasons = $div->competitionEvent->penaltyReasonsFor($type);
+            if (empty($reasons)) {
+                $this->applyPenalty($resultId, $type, null, $matchId);
+                return;
+            }
+            $this->penaltyModalReasons = $reasons;
+            $this->penaltyModalOpen    = true;
+            $this->dispatch('open-modal', id: 'penalty-reason-modal');
+        } else {
+            // deduction / opponent_point: apply immediately
+            $this->applyPenalty($resultId, $type, null, $matchId);
+        }
+    }
+
+    public function confirmPenalty(): void
+    {
+        if (! $this->penaltyModalResultId || ! $this->penaltyModalType) return;
+
+        $this->applyPenalty(
+            $this->penaltyModalResultId,
+            $this->penaltyModalType,
+            $this->penaltyModalSelectedReason ?: null,
+            $this->penaltyModalMatchId,
+        );
+
+        $this->penaltyModalOpen           = false;
+        $this->penaltyModalSelectedReason = '';
+    }
+
+    private function applyPenalty(int $resultId, string $type, ?string $reason, ?int $matchId): void
+    {
+        $result = Result::find($resultId);
+        if (! $result) return;
+
+        $match = $matchId ? RoundRobinMatch::find($matchId) : null;
+
+        $opponentResult = null;
+        if ($type === 'opponent_point' && $match) {
+            $opponentEeId = $match->home_enrolment_event_id === $result->enrolment_event_id
+                ? $match->away_enrolment_event_id
+                : $match->home_enrolment_event_id;
+            $opponentResult = $opponentEeId ? Result::where('enrolment_event_id', $opponentEeId)->first() : null;
+        }
+
+        ['triggered_dq' => $triggeredDq] = app(ScoringService::class)->addPenalty(
+            $result, $type, $reason, $match, $opponentResult
+        );
+
+        $label = match ($type) {
+            'warn'           => 'Warning added.',
+            'dq'             => 'DQ applied.',
+            'forfeit'        => 'Forfeit applied.',
+            'deduction'      => '-1 deduction applied.',
+            'opponent_point' => '+1 awarded to opponent.',
+            default          => 'Penalty applied.',
+        };
+        Notification::make()->title($label)->warning()->send();
+
+        if ($triggeredDq) {
+            $result->refresh();
+            $this->handleDqAutoAdvance($result);
+        }
+    }
+
+    public function undoPenalty(int $resultId, ?int $matchId = null): void
+    {
+        $result = Result::find($resultId);
+        if (! $result) return;
+
+        $match = $matchId ? RoundRobinMatch::find($matchId) : null;
+
+        $reversedDq = app(ScoringService::class)->undoLastPenalty($result, $match);
+
+        Notification::make()->title('Penalty undone.')->success()->send();
+
+        if ($reversedDq) {
+            $result->refresh();
+        }
+    }
+
+    private function handleDqAutoAdvance(Result $result): void
+    {
+        if (! $result->disqualified) return;
+        if (! $this->isTournament()) return;
+        if (! in_array($this->getScoringMethod(), ['first_to_n', 'timed_points', 'win_loss'])) return;
+
+        $eeId  = $result->enrolment_event_id;
+        $match = RoundRobinMatch::where('division_id', $this->division_id)
+            ->whereNull('home_result')
+            ->whereNotNull('away_enrolment_event_id')
+            ->where(fn ($q) => $q->where('home_enrolment_event_id', $eeId)
+                ->orWhere('away_enrolment_event_id', $eeId))
+            ->first();
+
+        if ($match) {
+            $winnerEeId = $match->home_enrolment_event_id === $eeId
+                ? $match->away_enrolment_event_id
+                : $match->home_enrolment_event_id;
+
+            $otherResult = $winnerEeId
+                ? Result::where('enrolment_event_id', $winnerEeId)->first()
+                : null;
+
+            if ($winnerEeId && ! $otherResult?->disqualified) {
+                $homeWins = $match->home_enrolment_event_id === $winnerEeId;
+                $match->update(['home_result' => $homeWins ? 'win' : 'loss']);
+                app(BracketService::class)->advance($match->fresh());
+                $this->applyBracketPlacements();
+                Notification::make()->title('Match awarded to opponent.')->info()->send();
+            }
+        }
+    }
+
     public function toggleDisqualify(int $resultId): void
     {
         $result = Result::find($resultId);
@@ -1699,34 +1921,7 @@ class Scoring extends Page
         $label = $result->disqualified ? 'Disqualified.' : 'Disqualification removed.';
         Notification::make()->title($label)->warning()->send();
 
-        // For first_to_n / win_loss bracket: auto-advance pending match to the opponent when DQ'd
-        if ($result->disqualified && $this->isTournament() && in_array($this->getScoringMethod(), ['first_to_n', 'timed_points', 'win_loss'])) {
-            $eeId = $result->enrolment_event_id;
-            $match = RoundRobinMatch::where('division_id', $this->division_id)
-                ->whereNull('home_result')
-                ->whereNotNull('away_enrolment_event_id')
-                ->where(fn ($q) => $q->where('home_enrolment_event_id', $eeId)
-                    ->orWhere('away_enrolment_event_id', $eeId))
-                ->first();
-
-            if ($match) {
-                $winnerEeId = $match->home_enrolment_event_id === $eeId
-                    ? $match->away_enrolment_event_id
-                    : $match->home_enrolment_event_id;
-
-                $otherResult = $winnerEeId
-                    ? Result::where('enrolment_event_id', $winnerEeId)->first()
-                    : null;
-
-                if ($winnerEeId && ! $otherResult?->disqualified) {
-                    $homeWins = $match->home_enrolment_event_id === $winnerEeId;
-                    $match->update(['home_result' => $homeWins ? 'win' : 'loss']);
-                    app(BracketService::class)->advance($match->fresh());
-                    $this->applyBracketPlacements();
-                    Notification::make()->title('Match awarded to opponent.')->info()->send();
-                }
-            }
-        }
+        $this->handleDqAutoAdvance($result);
     }
 
     public function hasSavedScores(): bool
