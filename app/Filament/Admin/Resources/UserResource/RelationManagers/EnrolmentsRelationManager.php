@@ -28,7 +28,7 @@ class EnrolmentsRelationManager extends RelationManager
                     ->searchable(),
 
                 TextColumn::make('enrolled_at')
-                    ->label('Enrolled')
+                    ->label('Registered')
                     ->date(tenant_date_format())
                     ->sortable(),
 
@@ -59,7 +59,7 @@ class EnrolmentsRelationManager extends RelationManager
             ->defaultSort('enrolled_at', 'desc')
             ->actions([
                 Action::make('view')
-                    ->label('View enrolments')
+                    ->label('View registrations')
                     ->icon('heroicon-m-arrow-top-right-on-square')
                     ->url(fn ($record) => EnrolmentResource::getUrl('index', [
                         'tableFilters[competition][value]' => $record->competition_id,

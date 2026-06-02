@@ -5,7 +5,7 @@
         <div class="mt-6 flex gap-3">
             @if ($this->isReadyToSubmit())
                 <x-filament::button type="submit" size="lg">
-                    {{ $this->create_new_user ? 'Create Profile & Enrol' : 'Create Enrolment' }}
+                    {{ $this->create_new_user ? 'Create Profile & Register' : 'Create Registration' }}
                 </x-filament::button>
                 <x-filament::button type="button" wire:click="goBack" color="gray" size="lg">
                     Back

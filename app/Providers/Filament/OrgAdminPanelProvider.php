@@ -37,7 +37,7 @@ class OrgAdminPanelProvider extends PanelProvider
             ->navigationGroups([
                 'Competitions',
                 'Competitors',
-                'Enrolments',
+                'Registrations',
                 'System',
                 'Account',
             ])

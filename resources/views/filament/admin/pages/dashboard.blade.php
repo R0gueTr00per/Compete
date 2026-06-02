@@ -25,7 +25,7 @@
                                 <div class="text-xs text-gray-500 mt-0.5">
                                     Next: <span class="text-gray-700 dark:text-gray-300">{{ $org->nextCompetition->name }}</span>
                                     &mdash; {{ $org->nextCompetition->competition_date->format('d M Y') }}
-                                    &mdash; {{ $org->nextCompetition->enrolments_count }} enrolment{{ $org->nextCompetition->enrolments_count === 1 ? '' : 's' }}
+                                    &mdash; {{ $org->nextCompetition->enrolments_count }} registration{{ $org->nextCompetition->enrolments_count === 1 ? '' : 's' }}
                                 </div>
                             @endif
                         </div>

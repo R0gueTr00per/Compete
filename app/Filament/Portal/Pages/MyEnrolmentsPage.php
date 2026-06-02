@@ -76,7 +76,7 @@ class MyEnrolmentsPage extends Page
 
         try {
             app(EnrolmentService::class)->withdraw($enrolment, $this->withdrawalReason ?? '');
-            Notification::make()->title('Enrolment withdrawn.')->success()->send();
+            Notification::make()->title('Registration withdrawn.')->success()->send();
         } catch (\RuntimeException $e) {
             Notification::make()->title($e->getMessage())->danger()->send();
         }

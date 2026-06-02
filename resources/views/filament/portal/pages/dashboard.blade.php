@@ -2,6 +2,7 @@
     @php
         $profiles           = $this->getProfiles();
         $activeCompetitions = $this->getActiveCompetitions();
+        $cartKeys           = $this->getCartDraftKeys();
     @endphp
 
     @forelse ($profiles as $profile)
@@ -34,7 +35,7 @@
                     <div>
                         <p class="text-sm font-medium text-warning-800 dark:text-warning-200">Profile incomplete</p>
                         <p class="text-xs text-warning-700 dark:text-warning-300 mt-0.5">
-                            Complete this profile before enrolling in competitions.
+                            Complete this profile before registering in competitions.
                         </p>
                     </div>
                     <x-filament::button
@@ -90,7 +91,7 @@
 
                                 $statusLabel = match($competition->status) {
                                     'open'              => 'Open',
-                                    'enrolments_closed' => 'Enrolments Closed',
+                                    'enrolments_closed' => 'Registrations Closed',
                                     'check_in'          => 'Check-in',
                                     'running'           => 'In progress',
                                     default             => ucfirst($competition->status),
@@ -249,12 +250,21 @@
                                     @endif
 
                                 @elseif ($enrolmentOpen && $profile->is_active)
+                                    @php $inCart = in_array("{$profile->id}:{$competition->id}", $cartKeys); @endphp
                                     <div class="px-4 py-4 flex justify-center">
-                                        <x-filament::button
-                                            href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}&competition_id={{ $competition->id }}&redirect_to=dashboard"
-                                            tag="a" color="primary" size="sm" icon="heroicon-o-plus">
-                                            Enrol now
-                                        </x-filament::button>
+                                        @if ($inCart)
+                                            <x-filament::button
+                                                href="{{ \App\Filament\Portal\Pages\CartPage::getUrl() }}"
+                                                tag="a" color="success" size="sm" icon="heroicon-o-shopping-cart">
+                                                Check out
+                                            </x-filament::button>
+                                        @else
+                                            <x-filament::button
+                                                href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}&competition_id={{ $competition->id }}&redirect_to=dashboard"
+                                                tag="a" color="primary" size="sm" icon="heroicon-o-plus">
+                                                Register now
+                                            </x-filament::button>
+                                        @endif
                                     </div>
                                 @endif
                             </div>

@@ -2,30 +2,40 @@
 
     @if (! $this->competition_id)
         <x-filament::section>
-            <p class="text-sm text-gray-500 py-4">No competition selected. Please return to the dashboard and click <strong>Enrol now</strong> next to a competition.</p>
+            <p class="text-sm text-gray-500 py-4">No competition selected. Please return to the dashboard and click <strong>Register now</strong> next to a competition.</p>
             <x-filament::button href="{{ route('filament.portal.pages.dashboard') }}" tag="a" color="gray" size="sm">Back to Dashboard</x-filament::button>
         </x-filament::section>
     @endif
 
     @if ($this->competition_id)
+        @php $competition = $this->getSelectedCompetition(); @endphp
+
+        {{-- Competition details --}}
+        @if ($competition)
+            <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50 dark:bg-gray-800">
+                <p class="font-semibold text-gray-900 dark:text-white text-sm">{{ $competition->name }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {{ tenant_date($competition->competition_date) }}
+                    @if ($competition->location_name)
+                        &mdash; {{ $competition->location_name }}
+                    @endif
+                </p>
+            </div>
+        @endif
+
         {{-- Profile indicator / picker --}}
         @if ($this->profile_id)
-            <div class="mb-6 flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
+            <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
                 <p class="text-sm text-gray-700 dark:text-gray-300">
-                    Enrolling: <strong>{{ $this->getSelectedProfileName() }}</strong>
+                    Registering: <strong>{{ $this->getSelectedProfileName() }}</strong>
                 </p>
-                @if (!$this->dojo_type && !$this->rank_id)
-                    <button type="button" wire:click="changeProfile" class="text-xs text-primary-600 hover:underline">
-                        Change
-                    </button>
-                @endif
             </div>
         @else
             @php $profiles = $this->getAvailableProfiles(); @endphp
-            <x-filament::section heading="Who is enrolling?" class="mb-6">
+            <x-filament::section heading="Who is registering?" class="mb-6">
                 @if (empty($profiles))
                     <p class="text-sm text-gray-500">
-                        All your profiles are already enrolled or in your cart for this competition.
+                        All your profiles are already registered or in your cart for this competition.
                         @if ($this->getCartCount() > 0)
                             <a wire:navigate href="{{ \App\Filament\Portal\Pages\CartPage::getUrl() }}" class="text-primary-600 underline">Go to cart.</a>
                         @endif

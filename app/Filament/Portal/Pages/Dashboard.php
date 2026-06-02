@@ -74,6 +74,23 @@ class Dashboard extends BaseDashboard
         ];
     }
 
+    public function getCartDraftKeys(): array
+    {
+        $cart = EnrolmentCart::where('user_id', auth()->id())
+            ->where('status', 'draft')
+            ->first();
+
+        if (! $cart) {
+            return [];
+        }
+
+        return $cart->draftEnrolments()
+            ->pluck('competition_id', 'competitor_profile_id')
+            ->map(fn ($competitionId, $profileId) => "{$profileId}:{$competitionId}")
+            ->values()
+            ->toArray();
+    }
+
     public function getEnrolmentsForProfile(\App\Models\CompetitorProfile $profile)
     {
         return $profile->enrolments()

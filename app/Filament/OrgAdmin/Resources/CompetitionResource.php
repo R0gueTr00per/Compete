@@ -122,8 +122,8 @@ class CompetitionResource extends Resource
                                     Select::make('status')
                                         ->options([
                                             'planning'          => 'Planning',
-                                            'open'              => 'Open for enrolment',
-                                            'enrolments_closed' => 'Enrolments Closed',
+                                            'open'              => 'Open for registration',
+                                            'enrolments_closed' => 'Registrations Closed',
                                             'check_in'          => 'Check-in',
                                             'running'           => 'Running',
                                             'complete'          => 'Complete',
@@ -180,7 +180,7 @@ class CompetitionResource extends Resource
                     Tab::make('Registration Fields')
                         ->schema([
                             Section::make()
-                                ->description('Custom fields that competitors must fill in when enrolling.')
+                                ->description('Custom fields that competitors must fill in when registering.')
                                 ->schema([
                                     Repeater::make('registration_fields')
                                         ->label('')
@@ -249,7 +249,7 @@ class CompetitionResource extends Resource
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         'planning'          => 'Planning',
                         'open'              => 'Open',
-                        'enrolments_closed' => 'Enrolments Closed',
+                        'enrolments_closed' => 'Registrations Closed',
                         'check_in'          => 'Check-in',
                         'running'           => 'Running',
                         'complete'          => 'Complete',
@@ -266,7 +266,7 @@ class CompetitionResource extends Resource
                     }),
 
                 TextColumn::make('enrolments_count')
-                    ->label('Enrolments')
+                    ->label('Registrations')
                     ->counts('enrolments')
                     ->sortable()
                     ->visibleFrom('sm'),
@@ -277,7 +277,7 @@ class CompetitionResource extends Resource
                     ->options([
                         'planning'          => 'Planning',
                         'open'              => 'Open',
-                        'enrolments_closed' => 'Enrolments Closed',
+                        'enrolments_closed' => 'Registrations Closed',
                         'check_in'          => 'Check-in',
                         'running'           => 'Running',
                         'complete'          => 'Complete',
@@ -302,14 +302,14 @@ class CompetitionResource extends Resource
                         ->color('info')
                         ->url(fn (Competition $record) => static::getUrl('officials', ['record' => $record])),
                     Action::make('enrolments')
-                        ->label('Enrolments')
+                        ->label('Registrations')
                         ->icon('heroicon-o-clipboard-document-list')
                         ->color('gray')
                         ->url(fn (Competition $record) => route('filament.org-admin.resources.enrolments.index') . '?competition_id=' . $record->id),
                     Action::make('advance')
                         ->label(fn (Competition $record) => match ($record->status) {
-                            'planning'          => 'Open Enrolments',
-                            'open'              => 'Close Enrolments',
+                            'planning'          => 'Open Registrations',
+                            'open'              => 'Close Registrations',
                             'enrolments_closed' => 'Begin Check-ins',
                             'check_in'          => 'Start Competition',
                             'running'           => 'Conclude Competition',
@@ -345,9 +345,9 @@ class CompetitionResource extends Resource
                                         ->whereNull('divisions.location_label')
                                         ->whereNotIn('divisions.status', ['combined'])
                                         ->count();
-                                    return "{$unscheduled} division(s) have not been assigned to a location. Open for enrolment anyway?";
+                                    return "{$unscheduled} division(s) have not been assigned to a location. Open for registration anyway?";
                                 })(),
-                                'open'              => 'Close enrolments for this competition?',
+                                'open'              => 'Close registrations for this competition?',
                                 'enrolments_closed' => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
                                 'check_in' => (function () use ($record) {
                                     $completedDivisions = $record->allDivisions()
@@ -387,7 +387,7 @@ class CompetitionResource extends Resource
                             Toggle::make('copy_structure')
                                 ->label('Copy event types, bands & divisions')
                                 ->default(true)
-                                ->helperText('Copies the full event structure. Enrolments are not copied.'),
+                                ->helperText('Copies the full event structure. Registrations are not copied.'),
                         ])
                         ->fillForm(fn (Competition $record): array => [
                             'name'             => $record->name . ' (Copy)',
@@ -496,7 +496,7 @@ class CompetitionResource extends Resource
 
                             $warning = $enrolmentCount > 0
                                 ? "<p style='margin-top:.75rem;padding:.6rem .8rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:.375rem;color:#991b1b'>"
-                                  . "<strong>Warning:</strong> This competition has <strong>{$enrolmentCount} enrolment(s)</strong>"
+                                  . "<strong>Warning:</strong> This competition has <strong>{$enrolmentCount} registration(s)</strong>"
                                   . ($resultCount > 0 ? " and <strong>{$resultCount} result record(s)</strong>" : '')
                                   . ". If fees have been collected, you should reconcile payments before deleting."
                                   . "</p>"
@@ -505,7 +505,7 @@ class CompetitionResource extends Resource
                             return new \Illuminate\Support\HtmlString(
                                 "<p>Permanently deleting <strong>" . e($record->name) . "</strong> will destroy:</p>"
                                 . "<ul style='margin-top:.5rem;padding-left:1.25rem;list-style:disc'>"
-                                . "<li><strong>{$enrolmentCount}</strong> enrolment(s) and all enrolment event records</li>"
+                                . "<li><strong>{$enrolmentCount}</strong> registration(s) and all registration event records</li>"
                                 . "<li><strong>{$resultCount}</strong> result(s) and judge score records</li>"
                                 . "<li><strong>{$divisionCount}</strong> division(s) across all events</li>"
                                 . "<li>All age bands, rank bands, and weight classes</li>"

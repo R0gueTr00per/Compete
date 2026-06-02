@@ -22,7 +22,7 @@ class TransactionsPage extends Page implements HasTable
 
     protected static ?string $navigationIcon  = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Transactions';
-    protected static ?string $navigationGroup = 'Enrolments';
+    protected static ?string $navigationGroup = 'Registrations';
     protected static ?int    $navigationSort  = 5;
     protected static string  $view            = 'filament.org-admin.pages.transactions';
 
@@ -45,7 +45,7 @@ class TransactionsPage extends Page implements HasTable
             ->columns([
                 TextColumn::make('competitor.full_name')
                     ->label('Competitor')
-                    ->searchable(['first_name', 'surname'], relationship: 'competitor')
+                    ->searchable(['first_name', 'surname'])
                     ->sortable(query: fn ($q, $d) => $q->join('competitor_profiles', 'enrolments.competitor_profile_id', '=', 'competitor_profiles.id')->orderBy('competitor_profiles.surname', $d))
                     ->description(fn (Enrolment $r) => $r->display_rank),
 
@@ -56,7 +56,7 @@ class TransactionsPage extends Page implements HasTable
                     ->visibleFrom('sm'),
 
                 TextColumn::make('enrolled_at')
-                    ->label('Enrolled')
+                    ->label('Registered')
                     ->formatStateUsing(fn ($state) => $state ? tenant_date($state) : '—')
                     ->sortable()
                     ->visibleFrom('md'),
@@ -80,7 +80,7 @@ class TransactionsPage extends Page implements HasTable
 
                 TextColumn::make('amount_owing')
                     ->label('Owing')
-                    ->state(fn (Enrolment $r) => $r->payment_status === 'received' ? null : $r->fee_calculated)
+                    ->getStateUsing(fn (Enrolment $record) => $record->payment_status === 'received' ? null : $record->fee_calculated)
                     ->formatStateUsing(fn ($state) => $state ? tenant_money($state) : '—')
                     ->color(fn ($state) => $state ? 'warning' : null)
                     ->sortable(false)

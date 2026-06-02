@@ -28,10 +28,13 @@ use Illuminate\Database\Eloquent\Builder;
 
 class EnrolmentResource extends Resource
 {
-    protected static ?string $model = Enrolment::class;
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static ?string $model             = Enrolment::class;
+    protected static ?string $modelLabel        = 'Registration';
+    protected static ?string $pluralModelLabel  = 'Registrations';
+    protected static ?string $navigationLabel   = 'Registrations';
+    protected static ?string $navigationIcon    = 'heroicon-o-clipboard-document-check';
     protected static ?string $navigationGroup = 'Competitions';
-    protected static ?int $navigationSort = 2;
+    protected static ?int    $navigationSort  = 2;
 
     public static function canAccess(): bool
     {
@@ -94,7 +97,7 @@ class EnrolmentResource extends Resource
                     ->visibleFrom('sm'),
 
                 TextColumn::make('enrolled_at')
-                    ->label('Enrolled')
+                    ->label('Registered')
                     ->formatStateUsing(fn ($state) => $state ? tenant_datetime($state) : '—')
                     ->sortable()
                     ->visibleFrom('sm'),
@@ -167,7 +170,7 @@ class EnrolmentResource extends Resource
             ])
             ->headerActions([
                 Action::make('createEnrolment')
-                    ->label('Add Enrolment')
+                    ->label('Add Registration')
                     ->icon('heroicon-o-plus')
                     ->url(fn () => \App\Filament\OrgAdmin\Pages\CreateAdminEnrolment::getUrl()),
             ])
@@ -245,7 +248,7 @@ class EnrolmentResource extends Resource
                                 array_keys($divisionsByEvent),
                                 $divisionsByEvent
                             );
-                            Notification::make()->title('Events added to enrolment.')->success()->send();
+                            Notification::make()->title('Events added to registration.')->success()->send();
                         }),
 
                     Action::make('changeDivision')

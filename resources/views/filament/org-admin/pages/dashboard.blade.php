@@ -55,7 +55,7 @@
                     $statusLabel = match ($competition->status) {
                         'planning'          => 'Planning',
                         'open'              => 'Open',
-                        'enrolments_closed' => 'Enrolments Closed',
+                        'enrolments_closed' => 'Registrations Closed',
                         'check_in'          => 'Check-in',
                         'running'           => 'Running',
                         'complete'          => 'Complete',
@@ -125,9 +125,9 @@
 
                     @php
                         $allStatuses = ['planning', 'open', 'enrolments_closed', 'check_in', 'running', 'complete'];
-                        $stepLine1   = ['planning' => 'Planning', 'open' => 'Open for', 'enrolments_closed' => 'Enrolments', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
-                        $stepLine2   = ['planning' => '',        'open' => 'Enrolments', 'enrolments_closed' => 'Closed',   'check_in' => '',          'running' => '',        'complete' => ''];
-                        $stepTitle   = ['planning' => 'Planning', 'open' => 'Open for Enrolments', 'enrolments_closed' => 'Enrolments Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $stepLine1   = ['planning' => 'Planning', 'open' => 'Open for', 'enrolments_closed' => 'Registrations', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $stepLine2   = ['planning' => '',        'open' => 'Registrations', 'enrolments_closed' => 'Closed',   'check_in' => '',          'running' => '',        'complete' => ''];
+                        $stepTitle   = ['planning' => 'Planning', 'open' => 'Open for Registrations', 'enrolments_closed' => 'Registrations Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
                         $currentIdx  = (int) array_search($competition->status, $allStatuses);
                         $totalSteps  = count($allStatuses);
 
@@ -261,16 +261,16 @@
                             $target          = $competition->target_competitors;
                             if ($target) {
                                 $progressPct  = (int) round(($enrolled / $target) * 100);
-                                $progressText = $enrolled . ' / ' . $target . ' enrolled';
+                                $progressText = $enrolled . ' / ' . $target . ' registered';
                             } else {
-                                $progressText = $enrolled . ' enrolled';
+                                $progressText = $enrolled . ' registered';
                             }
                             if ($competition->status === 'open' && $competition->enrolment_due_date) {
                                 if ($competition->enrolment_due_date->isFuture()) {
                                     $days          = (int) now()->diffInDays($competition->enrolment_due_date);
                                     $progressExtra = '· ' . $days . ' ' . ($days === 1 ? 'day' : 'days') . ' to close';
                                 } else {
-                                    $progressExtra = '· enrolment closed';
+                                    $progressExtra = '· registration closed';
                                 }
                             }
                         } elseif ($competition->status === 'check_in') {
@@ -341,7 +341,7 @@
                         @if ($isOrgAdmin || $officialRole?->can_access_enrolments)
                             <div class="{{ in_array('enrolments', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$enrolmentsColor" tag="a" href="{{ route('filament.org-admin.resources.enrolments.index') }}?competition_id={{ $competition->id }}">
-                                    Enrolments
+                                    Registrations
                                 </x-filament::button>
                             </div>
                         @endif

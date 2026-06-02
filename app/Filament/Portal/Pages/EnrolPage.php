@@ -30,7 +30,7 @@ class EnrolPage extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $title                    = 'Enrol';
+    protected static ?string $title                    = 'Register';
     protected static string  $view                     = 'filament.portal.pages.enrol-page';
     protected static ?string $slug                     = 'enrol';
     protected static bool    $shouldRegisterNavigation = false;
@@ -217,7 +217,7 @@ class EnrolPage extends Page implements HasForms
 
         $competition = Competition::find($this->competition_id);
         if (! $competition || ! $competition->isEnrolmentOpen()) {
-            Notification::make()->title('This competition is not currently open for enrolment.')->warning()->send();
+            Notification::make()->title('This competition is not currently open for registration.')->warning()->send();
             return;
         }
 
@@ -360,7 +360,7 @@ class EnrolPage extends Page implements HasForms
         $this->details_confirmed = false;
     }
 
-    private function getSelectedCompetition(): ?Competition
+    public function getSelectedCompetition(): ?Competition
     {
         return $this->competition_id ? Competition::find($this->competition_id) : null;
     }
@@ -450,7 +450,7 @@ class EnrolPage extends Page implements HasForms
                 )
                 ->searchable()
                 ->nullable()
-                ->helperText('Both you and your partner must independently enrol.');
+                ->helperText('Both you and your partner must independently register.');
         }
 
         return $components;
@@ -505,7 +505,7 @@ class EnrolPage extends Page implements HasForms
         if ($count === 0) {
             $lines = ['<p class="text-sm text-gray-500">Select events above to see your fee.</p>'];
             if ($platformFee > 0) {
-                $lines[] = '<p class="text-xs text-gray-400 mt-2">A platform service fee of ' . tenant_money($platformFee) . ' per enrolment will be added at checkout. Payment transaction fees may also apply.</p>';
+                $lines[] = '<p class="text-xs text-gray-400 mt-2">A platform service fee of ' . tenant_money($platformFee) . ' per registration will be added at checkout. Payment transaction fees may also apply.</p>';
             } else {
                 $lines[] = '<p class="text-xs text-gray-400 mt-2">Payment transaction fees may apply.</p>';
             }
@@ -532,7 +532,7 @@ class EnrolPage extends Page implements HasForms
         $rows .= '<tr class="border-t border-gray-200 dark:border-gray-700"><td class="pt-2 pr-4 text-sm font-bold">Total entry fee</td><td class="pt-2 text-sm font-bold text-right">' . tenant_money($entryFee) . '</td></tr>';
 
         if ($platformFee > 0) {
-            $rows .= '<tr><td colspan="2" class="pt-3 text-xs text-gray-400">+ Platform service fee of ' . tenant_money($platformFee) . ' per enrolment will be added at checkout.</td></tr>';
+            $rows .= '<tr><td colspan="2" class="pt-3 text-xs text-gray-400">+ Platform service fee of ' . tenant_money($platformFee) . ' per registration will be added at checkout.</td></tr>';
         }
 
         $rows .= '<tr><td colspan="2" class="pt-1 text-xs text-gray-400">Payment transaction fees may apply.</td></tr>';

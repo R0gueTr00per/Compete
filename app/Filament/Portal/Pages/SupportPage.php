@@ -60,7 +60,7 @@ class SupportPage extends Page implements HasForms
                             ->required()
                             ->options([
                                 'Competition Setup'     => 'Competition Setup',
-                                'Enrolments'            => 'Enrolments',
+                                'Enrolments'            => 'Registrations',
                                 'Users & Permissions'   => 'Users & Permissions',
                                 'Scoring & Results'     => 'Scoring & Results',
                                 'Reporting'             => 'Reporting',

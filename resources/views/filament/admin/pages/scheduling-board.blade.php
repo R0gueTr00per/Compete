@@ -174,7 +174,7 @@
                                     <span class="truncate text-gray-500 dark:text-gray-400" x-text="div.label"></span>
                                 </div>
                                 <span class="ml-3 shrink-0 text-xs text-gray-400 dark:text-gray-500">
-                                    <span x-text="div.enrolled"></span> enrolled
+                                    <span x-text="div.enrolled"></span> registered
                                 </span>
                             </li>
                         </template>
@@ -220,7 +220,7 @@
                             </span>
                         </template>
                         <template x-if="!(detailDivision?.maxCompetitors) && (detailDivision?.enrolled ?? 0) > 0">
-                            <span><span x-text="detailDivision?.enrolled"></span> enrolled</span>
+                            <span><span x-text="detailDivision?.enrolled"></span> registered</span>
                         </template>
                         <span x-show="(detailDivision?.checkedIn ?? 0) > 0" class="text-success-600 dark:text-success-400">
                             <span x-text="detailDivision?.checkedIn"></span> checked in

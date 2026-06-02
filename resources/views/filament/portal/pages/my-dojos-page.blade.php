@@ -34,7 +34,7 @@
                     <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{{ tenant_date($competition->competition_date) }}</span>
                     <span class="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $statusClass }}">
                         {{ match($competition->status) {
-                            'enrolments_closed' => 'Enrolments Closed',
+                            'enrolments_closed' => 'Registrations Closed',
                             'check_in'          => 'Check-in',
                             default             => ucfirst($competition->status),
                         } }}
@@ -150,7 +150,7 @@
         </div>
     @empty
         <x-filament::section>
-            <p class="text-sm text-center text-gray-500 py-4">No active competitions with enrolments from your dojo{{ $dojos->count() > 1 ? 's' : '' }}.</p>
+            <p class="text-sm text-center text-gray-500 py-4">No active competitions with registrations from your dojo{{ $dojos->count() > 1 ? 's' : '' }}.</p>
         </x-filament::section>
     @endforelse
 </x-filament-panels::page>

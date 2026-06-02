@@ -81,7 +81,7 @@ class OrganisationResource extends Resource
 
                 \Filament\Forms\Components\TextInput::make('platform_fee')
                     ->label('Platform service fee')
-                    ->helperText('Fee charged per enrolment on top of the organiser\'s competition fee. Set to 0 to disable.')
+                    ->helperText('Fee charged per registration on top of the organiser\'s competition fee. Set to 0 to disable.')
                     ->numeric()
                     ->minValue(0)
                     ->step(0.01)

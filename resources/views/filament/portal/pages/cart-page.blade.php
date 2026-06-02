@@ -98,7 +98,7 @@
         </x-filament::section>
 
         <div class="mt-6 flex flex-wrap gap-3">
-            <x-filament::button wire:click="submitCart" size="lg">Submit Enrolment</x-filament::button>
+            <x-filament::button wire:click="submitCart" size="lg">Submit Registration</x-filament::button>
             <x-filament::button href="{{ route('filament.portal.pages.dashboard') }}" tag="a" color="gray" size="lg">
                 Back to Dashboard
             </x-filament::button>

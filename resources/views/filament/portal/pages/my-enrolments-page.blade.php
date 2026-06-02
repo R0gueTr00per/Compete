@@ -9,9 +9,9 @@
         <x-filament::section class="mb-6 border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950">
             <div class="flex items-center justify-between gap-4">
                 <div>
-                    <p class="font-semibold text-sm text-primary-800 dark:text-primary-200">Incomplete enrolment</p>
+                    <p class="font-semibold text-sm text-primary-800 dark:text-primary-200">Incomplete registration</p>
                     <p class="text-sm text-primary-700 dark:text-primary-300 mt-0.5">
-                        You have an unfinished enrolment for <strong>{{ $draftCart->competition->name }}</strong>.
+                        You have an unfinished registration for <strong>{{ $draftCart->competition->name }}</strong>.
                     </p>
                 </div>
                 <x-filament::button href="{{ route('filament.portal.pages.enrol') }}" tag="a" size="sm">
@@ -23,10 +23,10 @@
 
     @if ($enrolments->isEmpty())
         <x-filament::section>
-            <p class="text-center text-gray-500 py-8">You have not enrolled in any competitions yet.</p>
+            <p class="text-center text-gray-500 py-8">You have not registered in any competitions yet.</p>
             <div class="flex justify-center mt-2">
                 <x-filament::button href="{{ route('filament.portal.pages.enrol') }}" tag="a">
-                    Enrol now
+                    Register now
                 </x-filament::button>
             </div>
         </x-filament::section>
@@ -74,7 +74,7 @@
                                         @endif
                                         @if ($ee->competitionEvent->requires_partner)
                                             <p class="text-xs mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">
-                                                Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending partner enrolment' }}
+                                                Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending partner registration' }}
                                             </p>
                                         @endif
                                     </div>

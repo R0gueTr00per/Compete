@@ -51,7 +51,7 @@
                     <x-heroicon-m-check-circle class="h-4 w-4 text-success-500" />
                 @else
                     @if($enrolled > 0)
-                        <span title="{{ $cap ? 'Enrolments / cap' : 'Enrolments' }}" class="flex items-center gap-0.5 text-xs sched-text-meta tabular-nums">
+                        <span title="{{ $cap ? 'Registrations / cap' : 'Registrations' }}" class="flex items-center gap-0.5 text-xs sched-text-meta tabular-nums">
                             {{ $enrolled }}@if($cap)<span class="opacity-60">/{{ $cap }}</span>@endif<x-heroicon-m-user class="h-3 w-3 sched-text-meta" />
                         </span>
                     @elseif($cap)

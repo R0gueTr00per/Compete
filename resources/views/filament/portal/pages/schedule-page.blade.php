@@ -216,7 +216,7 @@
                                     <div class="text-xs text-gray-500 dark:text-gray-400">{{ $div->competitionEvent->name }}</div>
                                     <div class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $div->label }}</div>
                                     @if (in_array($div->id, $myDivisionIds))
-                                        <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-800 text-white dark:bg-white dark:text-gray-900">Enrolled</span>
+                                        <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-800 text-white dark:bg-white dark:text-gray-900">Registered</span>
                                     @endif
                                 </div>
                             </div>

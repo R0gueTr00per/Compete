@@ -82,7 +82,7 @@ class OrganisationSettings extends Page implements HasForms
                             ->suffix('days'),
                     ]),
 
-                Section::make('Enrolment')
+                Section::make('Registration')
                     ->description('Control cancellation behaviour for competitors.')
                     ->schema([
                         TextInput::make('cancellation_days_before')

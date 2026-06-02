@@ -10,7 +10,7 @@ class RefundRequestsPage extends Page
 {
     protected static ?string $navigationIcon  = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Refund Requests';
-    protected static ?string $navigationGroup = 'Enrolments';
+    protected static ?string $navigationGroup = 'Registrations';
     protected static ?int    $navigationSort  = 20;
     protected static string  $view            = 'filament.org-admin.pages.refund-requests';
 
