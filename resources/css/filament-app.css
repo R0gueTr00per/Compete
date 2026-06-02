@@ -18,6 +18,18 @@
     .fi-sidebar-header .fi-icon-btn.hidden { display: flex !important; }
 }
 
+/* ── Page panel spacing ── */
+/* Filament defaults to gap-y-8 (2rem) and py-8 (2rem) on the page section wrapper.
+   Override to gap-y-4 (1rem) for tighter panel spacing across all screens. */
+.fi-page > section {
+    gap: 1rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+.fi-page > section > div > .grid {
+    row-gap: 1rem;
+}
+
 /* ── Shared animations ── */
 @keyframes card-enter {
     from { opacity: 0; transform: translateY(-10px); }
