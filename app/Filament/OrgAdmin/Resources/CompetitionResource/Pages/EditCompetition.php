@@ -87,6 +87,21 @@ class EditCompetition extends EditRecord
                 ->visible(fn () => true)
                 ->url(fn () => CompetitionResource::getUrl('insights', ['record' => $this->record])),
 
+            Action::make('publicPage')
+                ->label('Public Page')
+                ->icon('heroicon-o-qr-code')
+                ->color('gray')
+                ->modalHeading('Public Schedule & Results')
+                ->modalContent(fn () => view(
+                    'filament.admin.partials.public-schedule-modal',
+                    [
+                        'competition' => $this->record,
+                        'url'         => $this->record->publicScheduleUrl(),
+                    ]
+                ))
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Close'),
+
             Action::make('history')
                 ->label('History')
                 ->icon('heroicon-o-clock')
@@ -124,6 +139,10 @@ class EditCompetition extends EditRecord
 
     protected function afterSave(): void
     {
+        if ($this->record->status === 'complete' && ! $this->record->completed_at) {
+            $this->record->update(['completed_at' => now()]);
+        }
+
         if ($this->statusBeforeSave !== null && $this->statusBeforeSave !== $this->record->status) {
             if ($this->record->organisation->insights_auto_refresh ?? true) {
                 try {

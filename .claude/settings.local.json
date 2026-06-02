@@ -339,7 +339,8 @@
       "Bash(xargs grep -l \"bulk\\\\|Bulk\\\\|merge\\\\|Merge\")",
       "Bash(grep -E \"\\\\.\\(php|blade\\\\.php\\)$\")",
       "Bash(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\" -Recurse -Filter \"*scor*\")",
-      "Read(//x/Repos/Compute/resources/views/filament/admin/pages/**)"
+      "Read(//x/Repos/Compute/resources/views/filament/admin/pages/**)",
+      "Bash(xargs grep -l \"status\\\\|completed\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

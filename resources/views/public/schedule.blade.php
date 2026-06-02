@@ -2,7 +2,9 @@
     <x-slot name="title">Schedule — {{ $competition->name }}</x-slot>
 
     <x-slot name="head">
-        <meta http-equiv="refresh" content="60">
+        @if ($competition->status !== 'complete')
+            <meta http-equiv="refresh" content="60">
+        @endif
     </x-slot>
 
     {{-- Page header --}}
@@ -17,26 +19,12 @@
                 @if ($competition->start_time)
                     <span>&middot; Starts {{ tenant_time($competition->start_time) }}</span>
                 @endif
-                <span class="sm:ml-auto text-xs text-gray-400">Auto-refreshes every 60 s &middot; Updated {{ tenant_time(now()) }}</span>
+                @if ($competition->status !== 'complete')
+                    <span class="sm:ml-auto text-xs text-gray-400">Auto-refreshes every 60 s &middot; Updated {{ tenant_time(now()) }}</span>
+                @else
+                    <span class="sm:ml-auto text-xs text-gray-400">Final results</span>
+                @endif
             </div>
-        </div>
-    </div>
-
-    {{-- Legend --}}
-    <div class="bg-white border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex flex-wrap gap-4 text-xs text-gray-600">
-            <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-green-500 inline-block"></span> Complete
-            </span>
-            <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span> Scheduled
-            </span>
-            <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-gray-400 inline-block"></span> Pending
-            </span>
-            <span class="flex items-center gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> Cancelled
-            </span>
         </div>
     </div>
 
@@ -66,6 +54,12 @@
                                         'cancelled' => 'bg-red-100 text-red-800',
                                         default     => null,
                                     };
+                                    $placementLabels = ['1st', '2nd', '3rd'];
+                                    $placementColors = [
+                                        1 => 'bg-yellow-100 text-yellow-800 border border-yellow-300',
+                                        2 => 'bg-gray-100 text-gray-700 border border-gray-300',
+                                        3 => 'bg-orange-100 text-orange-800 border border-orange-300',
+                                    ];
                                 @endphp
                                 <div class="rounded-lg border {{ $cardClass }} px-3 py-2.5">
                                     <div class="font-mono text-xs font-bold text-gray-700">{{ $div->code }}</div>
@@ -75,6 +69,28 @@
                                         <span class="inline-block mt-1.5 px-2 py-0.5 rounded-full text-xs font-semibold {{ $badgeClass }}">
                                             {{ ucfirst($div->status) }}
                                         </span>
+                                    @endif
+
+                                    @if ($div->status === 'complete' && $div->results->isNotEmpty())
+                                        <div class="mt-2 space-y-1 border-t border-green-200 pt-2">
+                                            @foreach ($div->results->whereNotNull('placement')->sortBy('placement')->take(3) as $result)
+                                                @php $competitor = $result->enrolmentEvent?->competitor; @endphp
+                                                <div class="flex items-center gap-1.5 text-xs">
+                                                    <span class="flex-none inline-block px-1.5 py-0.5 rounded text-xs font-bold {{ $placementColors[$result->placement] ?? 'bg-gray-100 text-gray-600' }}">
+                                                        {{ $placementLabels[$result->placement - 1] ?? $result->placement . 'th' }}
+                                                    </span>
+                                                    <span class="truncate text-gray-700 {{ $result->placement === 1 ? 'font-bold' : '' }}">
+                                                        @if ($result->disqualified)
+                                                            <span class="text-red-600">DQ</span>
+                                                        @elseif ($competitor)
+                                                            {{ $competitor->first_name }} {{ $competitor->surname }}
+                                                        @else
+                                                            &mdash;
+                                                        @endif
+                                                    </span>
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     @endif
                                 </div>
                             @endforeach

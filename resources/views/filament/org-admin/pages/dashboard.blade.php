@@ -50,6 +50,8 @@
         <div class="grid gap-4 overflow-x-hidden">
             @foreach ($competitions as $competition)
                 @php
+                    $qrUrl        = config('app.scheme') . '://' . app('tenant')->slug . '.' . config('app.domain') . '/schedule/' . $competition->id;
+                    $isQrAvailable = $competition->isPublicScheduleAvailable();
                     $statusLabel = match ($competition->status) {
                         'planning'          => 'Planning',
                         'open'              => 'Open',
@@ -71,6 +73,28 @@
                     $schedulingColor = $competition->status === 'enrolments_closed' ? 'primary' : 'gray';
                     $scoringColor    = $competition->status === 'running'  ? 'warning'  : 'gray';
                 @endphp
+                <div x-data="{
+                    qrOpen: false,
+                    copied: false,
+                    async copyQr() {
+                        const svg = this.$refs.qrcode.querySelector('svg');
+                        const svgData = new XMLSerializer().serializeToString(svg);
+                        const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const img = new Image();
+                        await new Promise(resolve => { img.onload = resolve; img.src = url; });
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth;
+                        canvas.height = img.naturalHeight;
+                        canvas.getContext('2d').drawImage(img, 0, 0);
+                        URL.revokeObjectURL(url);
+                        canvas.toBlob(async png => {
+                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+                            this.copied = true;
+                            setTimeout(() => this.copied = false, 2000);
+                        }, 'image/png');
+                    }
+                }">
                 <x-filament::section>
                     <x-slot name="heading">
                         <div class="flex items-center gap-2 flex-wrap">
@@ -80,6 +104,18 @@
                             </span>
                         </div>
                     </x-slot>
+                    @if ($isQrAvailable)
+                        <x-slot name="headerActions">
+                            <button
+                                type="button"
+                                x-on:click="qrOpen = true"
+                                title="Public schedule & results"
+                                class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700 transition"
+                            >
+                                <x-heroicon-o-qr-code class="w-5 h-5" />
+                            </button>
+                        </x-slot>
+                    @endif
                     <x-slot name="description">
                         {{ tenant_date($competition->competition_date) }}
                         @if ($competition->location_name)
@@ -438,6 +474,51 @@
                     @endif
 
                 </x-filament::section>
+
+                {{-- QR modal --}}
+                @if ($isQrAvailable)
+                    <div
+                        x-show="qrOpen"
+                        x-on:click.self="qrOpen = false"
+                        x-on:keydown.escape.window="qrOpen = false"
+                        x-transition
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                        style="display: none;"
+                    >
+                        <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-semibold text-gray-900">Public Schedule &amp; Results</h3>
+                                <button type="button" x-on:click="qrOpen = false" class="text-gray-400 hover:text-gray-600 -mr-1 p-1">
+                                    <x-heroicon-o-x-mark class="w-5 h-5" />
+                                </button>
+                            </div>
+                            <div x-ref="qrcode" class="flex justify-center">
+                                <x-qr-code :value="$qrUrl" :size="220" />
+                            </div>
+                            <div class="rounded-lg bg-gray-100 border border-gray-200 px-3 py-2 text-center">
+                                <a href="{{ $qrUrl }}" target="_blank" style="color: #2563eb; font-size: 0.875rem; word-break: break-all;" class="hover:underline">
+                                    {{ $qrUrl }}
+                                </a>
+                            </div>
+                            <div class="flex justify-center">
+                                <button
+                                    type="button"
+                                    x-on:click="copyQr()"
+                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                                >
+                                    <svg x-show="!copied" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-4 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    <svg x-show="copied" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span x-text="copied ? 'Copied!' : 'Copy QR code'"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+                </div>{{-- /x-data QR wrapper --}}
             @endforeach
         </div>
     @endif

@@ -52,6 +52,7 @@ class Competition extends Model
             'registration_fields'           => 'array',
             'is_template'                   => 'boolean',
             'template_active'               => 'boolean',
+            'completed_at'                  => 'datetime',
         ];
     }
 
@@ -145,6 +146,26 @@ class Competition extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(CompetitionTask::class)->orderBy('sort_order');
+    }
+
+    public function isPublicScheduleAvailable(): bool
+    {
+        if (in_array($this->status, ['planning', 'open'])) {
+            return false;
+        }
+
+        if ($this->status === 'complete' && $this->completed_at) {
+            return $this->completed_at->isAfter(now()->subDays(7));
+        }
+
+        return true;
+    }
+
+    public function publicScheduleUrl(): string
+    {
+        return config('app.scheme') . '://'
+            . $this->organisation->slug . '.' . config('app.domain')
+            . '/schedule/' . $this->id;
     }
 
     public function isEnrolmentOpen(): bool

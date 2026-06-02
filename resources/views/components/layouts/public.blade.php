@@ -19,17 +19,6 @@
 
             <div class="flex items-center gap-3">
                 {{ $navEnd ?? '' }}
-                @auth
-                    <a href="{{ url('/portal') }}"
-                       class="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                        ← Portal
-                    </a>
-                @else
-                    <a href="{{ route('filament.portal.auth.login') }}"
-                       class="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                        Login
-                    </a>
-                @endauth
             </div>
         </div>
     </nav>

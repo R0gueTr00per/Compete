@@ -237,6 +237,10 @@
                                                         sm:w-64 sm:h-auto sm:rounded-2xl sm:p-6 sm:shadow-xl">
                                                 <p class="font-semibold text-gray-900 dark:text-white">{{ $profile->full_name }}</p>
                                                 <p class="text-xs text-gray-500 -mt-2">{{ $competition->name }}</p>
+                                                <div class="flex flex-col items-center gap-1 text-center">
+                                                    <span class="text-xs font-semibold uppercase tracking-widest text-primary-600 dark:text-primary-400">Check-in QR code</span>
+                                                    <span class="text-xs text-gray-400 dark:text-gray-500">Show this to the official at the door</span>
+                                                </div>
                                                 <x-qr-code :value="url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code" :size="240" />
                                                 <span class="text-2xl font-mono font-bold tracking-widest text-gray-700 dark:text-gray-300">{{ $enrolment->checkin_code }}</span>
                                                 <p class="text-xs text-gray-400 dark:text-gray-500">Tap anywhere to close</p>
