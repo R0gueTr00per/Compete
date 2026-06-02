@@ -285,8 +285,8 @@
                             }
                         } elseif ($competition->status === 'running') {
                             $showProgressBar = true;
-                            $completed       = $competition->completed_divisions_count;
-                            $total           = $competition->total_divisions_count;
+                            $completed       = $competition->scheduled_completed_divisions_count;
+                            $total           = $competition->scheduled_divisions_count;
                             $progressPct     = $total > 0 ? (int) round(($completed / $total) * 100) : null;
                             $progressText    = $completed . ' / ' . $total . ' divisions complete';
                         }

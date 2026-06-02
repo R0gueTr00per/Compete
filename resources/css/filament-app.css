@@ -5,9 +5,11 @@
     font-size: 1rem;
 }
 
-/* Sidebar layout: prevent sidebar from collapsing in flex so it pushes content */
+/* Sidebar layout: our compiled .fixed utility overrides Filament's lg:sticky on
+   .fi-sidebar because our CSS loads after @filamentStyles. Force sticky back here
+   so the sidebar stays in flow and pushes content on desktop. */
 @media (min-width: 1024px) {
-    .fi-sidebar { flex-shrink: 0; }
+    .fi-sidebar { position: sticky !important; top: 0; flex-shrink: 0; }
     .fi-main-ctn { min-width: 0; }
 }
 
