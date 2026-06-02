@@ -32,6 +32,25 @@ class TransactionsPage extends Page implements HasTable
         return $tenant && (auth()->user()?->isOrgAdmin($tenant) ?? false);
     }
 
+    public function getTotals(): array
+    {
+        $base = Enrolment::query()
+            ->whereNotIn('status', ['draft'])
+            ->whereHas('competition', fn (Builder $q) => $q->where('organisation_id', app('tenant')?->id));
+
+        $totalFees   = (clone $base)->sum('fee_calculated');
+        $totalPaid   = (clone $base)->where('payment_status', 'received')->sum('payment_amount');
+        $outstanding = (clone $base)->where('payment_status', 'outstanding')
+            ->whereNotIn('status', ['withdrawn'])
+            ->sum('fee_calculated');
+
+        return [
+            'total_fees'  => (float) $totalFees,
+            'total_paid'  => (float) $totalPaid,
+            'outstanding' => (float) $outstanding,
+        ];
+    }
+
     public function table(Table $table): Table
     {
         return $table
@@ -41,35 +60,36 @@ class TransactionsPage extends Page implements HasTable
                     ->whereHas('competition', fn (Builder $q) => $q->where('organisation_id', app('tenant')?->id))
                     ->with(['competitor', 'competition'])
             )
-            ->defaultSort('enrolled_at', 'desc')
+            ->defaultSort('payment_received_at', 'desc')
             ->columns([
                 TextColumn::make('competitor.full_name')
                     ->label('Competitor')
                     ->searchable(['first_name', 'surname'])
-                    ->sortable(query: fn ($q, $d) => $q->join('competitor_profiles', 'enrolments.competitor_profile_id', '=', 'competitor_profiles.id')->orderBy('competitor_profiles.surname', $d))
-                    ->description(fn (Enrolment $r) => $r->display_rank),
+                    ->sortable(query: fn ($q, $d) => $q->join('competitor_profiles', 'enrolments.competitor_profile_id', '=', 'competitor_profiles.id')->orderBy('competitor_profiles.surname', $d)),
 
                 TextColumn::make('competition.name')
                     ->label('Competition')
                     ->sortable()
                     ->searchable()
+                    ->description(fn (Enrolment $r) => $r->competition ? tenant_date($r->competition->competition_date) : null)
                     ->visibleFrom('sm'),
-
-                TextColumn::make('enrolled_at')
-                    ->label('Registered')
-                    ->formatStateUsing(fn ($state) => $state ? tenant_date($state) : '—')
-                    ->sortable()
-                    ->visibleFrom('md'),
 
                 TextColumn::make('fee_calculated')
                     ->label('Fee')
-                    ->money(tenant_currency())
                     ->sortable()
-                    ->description(fn (Enrolment $r) => match (true) {
-                        $r->is_late && $r->is_official_discount => 'late + official',
-                        $r->is_late                             => 'includes late surcharge',
-                        $r->is_official_discount                => 'official rate',
-                        default                                 => null,
+                    ->html()
+                    ->formatStateUsing(function ($state, Enrolment $r) {
+                        $amount = tenant_money($state);
+                        $tag    = match (true) {
+                            $r->is_late && $r->is_official_discount => 'late + official',
+                            $r->is_late                             => 'late',
+                            $r->is_official_discount                => 'official',
+                            default                                 => null,
+                        };
+                        if (! $tag) {
+                            return e($amount);
+                        }
+                        return e($amount) . ' <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-warning-100 text-warning-700 dark:bg-warning-900/40 dark:text-warning-300">' . e($tag) . '</span>';
                     }),
 
                 TextColumn::make('payment_amount')
@@ -87,10 +107,9 @@ class TransactionsPage extends Page implements HasTable
                     ->visibleFrom('sm'),
 
                 TextColumn::make('payment_received_at')
-                    ->label('Payment Date')
+                    ->label('Date Paid')
                     ->formatStateUsing(fn ($state) => $state ? tenant_date($state) : '—')
-                    ->sortable()
-                    ->visibleFrom('md'),
+                    ->sortable(),
 
                 TextColumn::make('payment_status')
                     ->label('Payment')

@@ -11,7 +11,7 @@ use App\Models\Rank;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
@@ -70,6 +70,8 @@ class EnrolPage extends Page implements HasForms
         if ($draft) {
             $this->cartId = $draft->id;
         }
+
+        $this->dojo_type = 'lfp';
 
         // competition_id from URL takes priority; otherwise auto-select
         if ($this->competition_id === null) {
@@ -174,12 +176,22 @@ class EnrolPage extends Page implements HasForms
             Notification::make()->title('Select a rank to continue.')->info()->send();
             return;
         }
+        if (! $this->weight_kg) {
+            Notification::make()->title('Enter your weight to continue.')->info()->send();
+            return;
+        }
 
         $competition = $this->getSelectedCompetition();
+
         foreach ($competition?->registration_fields ?? [] as $field) {
             if (! empty($field['required'])) {
                 $value = $this->custom_fields[$field['id']] ?? null;
-                if ($value === null || $value === '' || $value === false) {
+                if ($field['type'] === 'checkbox') {
+                    if (! $value) {
+                        Notification::make()->title('Please confirm "' . $field['label'] . '" to continue.')->warning()->send();
+                        return;
+                    }
+                } elseif ($value === null || $value === '') {
                     Notification::make()->title('Please fill in "' . $field['label'] . '" to continue.')->warning()->send();
                     return;
                 }
@@ -278,8 +290,7 @@ class EnrolPage extends Page implements HasForms
     {
         return $form->schema([
 
-            Section::make('Your details for this competition')
-                ->description('Rank, weight, and dojo may change between competitions — please confirm them here.')
+            Section::make()
                 ->visible(fn () => ! $this->details_confirmed)
                 ->columns(2)
                 ->schema([
@@ -290,10 +301,9 @@ class EnrolPage extends Page implements HasForms
                             'guest' => 'Guest competitor',
                         ])
                         ->required()
-                        ->inline()
                         ->live()
                         ->afterStateUpdated(fn () => $this->selected_entries = [])
-                        ->columnSpanFull(),
+                        ->extraFieldWrapperAttributes(['style' => 'gap:4px']),
 
                     Select::make('dojo_name')
                         ->label(fn () => app('tenant')?->name . ' Dojo')
@@ -321,12 +331,13 @@ class EnrolPage extends Page implements HasForms
                     TextInput::make('weight_kg')
                         ->label('Weight (kg)')
                         ->numeric()
+                        ->required()
                         ->suffix('kg')
                         ->minValue(5)
                         ->maxValue(250),
                 ]),
 
-            Section::make('Registration Questions')
+            Section::make()
                 ->visible(fn () => ! $this->details_confirmed
                     && ! empty($this->getSelectedCompetition()?->registration_fields))
                 ->schema(fn () => $this->buildRegistrationFieldSchema()),
@@ -456,6 +467,20 @@ class EnrolPage extends Page implements HasForms
         return $components;
     }
 
+    public function toggleCustomField(string $id): void
+    {
+        $this->custom_fields[$id] = ! ($this->custom_fields[$id] ?? false);
+    }
+
+    public function getCheckboxRegistrationFields(): array
+    {
+        $competition = $this->getSelectedCompetition();
+        return collect($competition?->registration_fields ?? [])
+            ->filter(fn ($f) => ($f['type'] ?? '') === 'checkbox')
+            ->values()
+            ->toArray();
+    }
+
     private function buildRegistrationFieldSchema(): array
     {
         $competition = $this->getSelectedCompetition();
@@ -468,17 +493,21 @@ class EnrolPage extends Page implements HasForms
             $label    = $field['label'] ?? 'Field';
             $required = (bool) ($field['required'] ?? false);
 
+            // Checkbox fields are rendered as native toggles in the blade — skip them here.
+            if (($field['type'] ?? 'text') === 'checkbox') {
+                return null;
+            }
+
             $component = match ($field['type'] ?? 'text') {
                 'textarea' => Textarea::make("custom_fields.{$id}")->label($label)->maxLength(2000)->rows(3),
-                'checkbox' => Checkbox::make("custom_fields.{$id}")->label($label),
                 'select'   => Select::make("custom_fields.{$id}")->label($label)->options(
                     collect($field['options'] ?? [])->pluck('value')->filter()->mapWithKeys(fn ($v) => [$v => $v])->all()
                 ),
                 default    => TextInput::make("custom_fields.{$id}")->label($label)->maxLength(500),
             };
 
-            return $required ? $component->required() : $component;
-        })->all();
+            return $required ? $component->required()->validationMessages(['required' => 'This field is required.']) : $component;
+        })->filter()->values()->all();
     }
 
     private function isDivisionOpen($division): bool

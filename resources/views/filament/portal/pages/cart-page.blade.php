@@ -38,25 +38,36 @@
 
                             <p class="font-semibold text-sm pr-8">{{ $item['profile']->full_name }}</p>
 
-                            <ul class="text-sm text-gray-600 dark:text-gray-400 mt-1.5 space-y-0.5">
-                                @foreach ($item['enrolment']->activeEvents as $ee)
-                                    <li>&#8226; {{ $ee->competitionEvent->name }}
-                                        @if ($ee->division)
-                                            <span class="text-xs">({{ $ee->division->full_label }})</span>
-                                        @endif
-                                    </li>
-                                @endforeach
-                            </ul>
+                            @php
+                                $comp       = $item['competition'];
+                                $isOfficial = $item['is_official'];
+                                $firstFee   = ($isOfficial && $comp->fee_official_first_event)
+                                    ? (float) $comp->fee_official_first_event
+                                    : (float) $comp->fee_first_event;
+                                $addFee     = ($isOfficial && $comp->fee_official_additional_event)
+                                    ? (float) $comp->fee_official_additional_event
+                                    : (float) $comp->fee_additional_event;
+                                $events     = $item['enrolment']->activeEvents->sortBy('competitionEvent.running_order');
+                            @endphp
 
-                            <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 space-y-1 text-xs">
+                            <div class="mt-3 space-y-1 text-xs">
                                 @if ($item['is_official'])
-                                    <p class="text-primary-600">Official rate applied</p>
+                                    <p class="text-primary-600 mb-1">Official rate applied</p>
                                 @endif
 
-                                <div class="flex justify-between text-gray-500 dark:text-gray-400">
-                                    <span>Entry fee</span>
-                                    <span>{{ tenant_money($item['base_fee']) }}</span>
-                                </div>
+                                @foreach ($events as $ee)
+                                    <div class="flex justify-between text-gray-600 dark:text-gray-400">
+                                        <span>{{ $ee->competitionEvent->name }}
+                                            @if ($ee->division)
+                                                <span class="text-gray-400 dark:text-gray-500">({{ $ee->division->full_label }})</span>
+                                            @endif
+                                        </span>
+                                        <span>{{ tenant_money($loop->first ? $firstFee : $addFee) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            <div class="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 space-y-1 text-xs">
 
                                 @if ($item['late_surcharge'] !== null)
                                     <div class="flex justify-between items-center text-warning-600">

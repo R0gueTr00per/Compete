@@ -347,7 +347,8 @@
       "Bash(grep -o \"\\\\.lg\\\\\\\\\\\\\\\\:hidden[^}]*}\" public/build/assets/filament-app-C4DtzJLc.css)",
       "Bash(grep -l \"lg.hidden\\\\|lg\\\\\\\\\\\\\\\\:hidden\" public/vendor/filament/filament/*.css)",
       "Bash(grep -o \"\\\\.lg\\\\\\\\\\\\\\\\:hidden[^}]*}\" public/css/filament/filament/app.css)",
-      "Bash(grep -c \"lg.hidden\\\\|lg\\\\\\\\\\\\\\\\:hidden\\\\|hidden\" public/css/filament/filament/app.css)"
+      "Bash(grep -c \"lg.hidden\\\\|lg\\\\\\\\\\\\\\\\:hidden\\\\|hidden\" public/css/filament/filament/app.css)",
+      "Bash(xargs grep -l \"question\" -i)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

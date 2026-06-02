@@ -85,9 +85,8 @@ class Dashboard extends BaseDashboard
         }
 
         return $cart->draftEnrolments()
-            ->pluck('competition_id', 'competitor_profile_id')
-            ->map(fn ($competitionId, $profileId) => "{$profileId}:{$competitionId}")
-            ->values()
+            ->get(['competitor_profile_id', 'competition_id'])
+            ->map(fn ($e) => "{$e->competitor_profile_id}:{$e->competition_id}")
             ->toArray();
     }
 

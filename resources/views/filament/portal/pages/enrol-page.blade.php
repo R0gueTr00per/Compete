@@ -10,29 +10,28 @@
     @if ($this->competition_id)
         @php $competition = $this->getSelectedCompetition(); @endphp
 
-        {{-- Competition details --}}
+        {{-- Combined context bar --}}
         @if ($competition)
-            <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50 dark:bg-gray-800">
-                <p class="font-semibold text-gray-900 dark:text-white text-sm">{{ $competition->name }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {{ tenant_date($competition->competition_date) }}
-                    @if ($competition->location_name)
-                        &mdash; {{ $competition->location_name }}
-                    @endif
-                </p>
+            <div class="mb-5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+                <div>
+                    <span class="font-semibold text-sm text-gray-900 dark:text-white">{{ $competition->name }}</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-500 ml-2">
+                        {{ tenant_date($competition->competition_date) }}@if ($competition->location_name) &middot; {{ $competition->location_name }}@endif
+                    </span>
+                </div>
+                @if ($this->profile_id)
+                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                        Registering: <strong class="text-gray-700 dark:text-gray-300">{{ $this->getSelectedProfileName() }}</strong>
+                    </span>
+                @endif
             </div>
         @endif
 
-        {{-- Profile indicator / picker --}}
-        @if ($this->profile_id)
-            <div class="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
-                <p class="text-sm text-gray-700 dark:text-gray-300">
-                    Registering: <strong>{{ $this->getSelectedProfileName() }}</strong>
-                </p>
-            </div>
-        @else
+        {{-- Profile picker --}}
+        @if (! $this->profile_id)
             @php $profiles = $this->getAvailableProfiles(); @endphp
-            <x-filament::section heading="Who is registering?" class="mb-6">
+            <div class="mb-5">
+                <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Who is registering?</p>
                 @if (empty($profiles))
                     <p class="text-sm text-gray-500">
                         All your profiles are already registered or in your cart for this competition.
@@ -44,7 +43,7 @@
                     <div class="space-y-2">
                         @foreach ($profiles as $profile)
                             <label @class([
-                                'flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
+                                'flex items-center gap-3 rounded-lg border px-4 py-2.5 cursor-pointer transition-colors',
                                 'border-primary-500 bg-primary-50 dark:bg-primary-950' => $this->profile_id == $profile['id'],
                                 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800' => $this->profile_id != $profile['id'],
                             ])>
@@ -52,19 +51,44 @@
                                 <div>
                                     <p class="font-medium text-sm">{{ $profile['name'] }}</p>
                                     @if ($profile['family'])
-                                        <p class="text-xs text-gray-500">Family member</p>
+                                        <p class="text-xs text-gray-400">Family member</p>
                                     @endif
                                 </div>
                             </label>
                         @endforeach
                     </div>
                 @endif
-            </x-filament::section>
+            </div>
         @endif
 
         {{-- Entry form --}}
         @if ($this->profile_id)
             {{ $this->form }}
+
+            {{-- Checkbox (toggle) registration questions — rendered natively to avoid Filament state-sync issues --}}
+            @if (! $this->details_confirmed)
+                @php $checkboxFields = $this->getCheckboxRegistrationFields(); @endphp
+                @foreach ($checkboxFields as $field)
+                    @php $checked = (bool) ($this->custom_fields[$field['id']] ?? false); @endphp
+                    <div class="flex items-start gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 mt-4">
+                        <button
+                            type="button"
+                            wire:click="toggleCustomField('{{ $field['id'] }}')"
+                            role="switch"
+                            aria-checked="{{ $checked ? 'true' : 'false' }}"
+                            class="relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $checked ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-600' }}"
+                        >
+                            <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ $checked ? 'translate-x-5' : 'translate-x-0' }}"></span>
+                        </button>
+                        <p class="text-sm text-gray-700 dark:text-gray-300 flex-1 leading-snug">
+                            {{ $field['label'] }}
+                            @if (!empty($field['required']))
+                                <span class="text-danger-500 ml-0.5">*</span>
+                            @endif
+                        </p>
+                    </div>
+                @endforeach
+            @endif
 
             <div class="mt-6 flex flex-wrap gap-3">
                 @if ($this->details_confirmed)

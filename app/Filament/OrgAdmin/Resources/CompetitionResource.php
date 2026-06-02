@@ -19,6 +19,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\Tabs\Tab;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
@@ -187,17 +188,19 @@ class CompetitionResource extends Resource
                                         ->schema([
                                             Hidden::make('id')
                                                 ->default(fn () => (string) Str::uuid()),
-                                            TextInput::make('label')
+                                            Textarea::make('label')
                                                 ->label('Field label')
                                                 ->required()
-                                                ->maxLength(100)
+                                                ->maxLength(1000)
+                                                ->rows(1)
+                                                ->autosize()
                                                 ->columnSpan(2),
                                             Select::make('type')
                                                 ->label('Type')
                                                 ->options([
                                                     'text'     => 'Text',
                                                     'textarea' => 'Paragraph',
-                                                    'checkbox' => 'Checkbox (yes/no)',
+                                                    'checkbox' => 'Toggle (yes/no)',
                                                     'select'   => 'Dropdown',
                                                 ])
                                                 ->required()
