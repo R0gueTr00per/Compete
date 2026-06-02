@@ -38,6 +38,7 @@ class Dashboard extends BaseDashboard
         $cutoff = now()->subDays($days)->toDateString();
 
         return Competition::where('organisation_id', app('tenant')?->id)
+            ->where('is_template', false)
             ->where(function ($q) use ($cutoff) {
                 $q->where('competitions.status', '!=', 'complete')
                   ->orWhere('competitions.competition_date', '>=', $cutoff);

@@ -142,6 +142,45 @@ class ManageCompetitionSchedule extends Page
         ];
     }
 
+    public function performMerge(array $divisionIds): void
+    {
+        $competition = $this->getRecord();
+
+        $divisions = Division::with('competitionEvent')
+            ->whereIn('id', $divisionIds)
+            ->whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
+            ->orderBy('id')
+            ->get();
+
+        if ($divisions->count() < 2) {
+            Notification::make()->title('Select at least 2 divisions to merge.')->warning()->send();
+            return;
+        }
+
+        if ($divisions->pluck('competition_event_id')->unique()->count() > 1) {
+            Notification::make()->title('All selected divisions must be the same event type.')->warning()->send();
+            return;
+        }
+
+        $primary = $divisions->first();
+        $others  = $divisions->slice(1);
+
+        foreach ($others as $division) {
+            $division->activeEnrolmentEvents()->update(['division_id' => $primary->id]);
+            $division->update([
+                'status'           => 'combined',
+                'combined_into_id' => $primary->id,
+            ]);
+        }
+
+        $mergedCodes = $others->pluck('code')->filter()->join('/');
+        if ($mergedCodes) {
+            $primary->update(['label' => $primary->label . " (Merged with {$mergedCodes})"]);
+        }
+
+        Notification::make()->title('Divisions merged.')->success()->send();
+    }
+
     public function moveDivision(int $divisionId, string $location, int $newIndex): void
     {
         $this->moveDivisions([$divisionId], $location, $newIndex);

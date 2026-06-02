@@ -21,6 +21,7 @@ class Dashboard extends BaseDashboard
     {
         return Competition::whereIn('status', ['open', 'enrolments_closed', 'check_in', 'running'])
             ->where('organisation_id', app('tenant')?->id)
+            ->where('is_template', false)
             ->with('portalMessages')
             ->orderBy('competition_date')
             ->get();

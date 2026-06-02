@@ -335,7 +335,8 @@
       "Bash(php -l app/Models/ScoreEvent.php)",
       "Bash(php -l app/Models/Result.php)",
       "Bash(php -l app/Services/ScoringService.php)",
-      "Bash(python bracket_layout.py)"
+      "Bash(python bracket_layout.py)",
+      "Bash(xargs grep -l \"bulk\\\\|Bulk\\\\|merge\\\\|Merge\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

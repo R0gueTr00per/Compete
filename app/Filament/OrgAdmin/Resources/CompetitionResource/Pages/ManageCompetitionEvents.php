@@ -17,14 +17,12 @@ use Filament\Forms\Set;
 use Illuminate\Validation\Rules\Unique;
 use App\Notifications\Notification;
 use Filament\Resources\Pages\ManageRelatedRecords;
-use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Actions\CreateAction;
 use Filament\Tables\Actions\DeleteAction;
 use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 
 class ManageCompetitionEvents extends ManageRelatedRecords
@@ -402,35 +400,6 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 DeleteAction::make()
                     ->hidden(fn () => $this->getRecord()->status !== 'planning'),
             ])
-            ->bulkActions([
-                BulkAction::make('combine')
-                    ->hidden(fn () => $this->getRecord()->status !== 'planning')
-                    ->label('Combine into one division')
-                    ->icon('heroicon-o-arrows-pointing-in')
-                    ->requiresConfirmation()
-                    ->modalDescription('Competitors from all selected divisions will be moved into the first selected division. The others will be marked as Combined.')
-                    ->deselectRecordsAfterCompletion()
-                    ->action(function (Collection $records) {
-                        if ($records->count() < 2) {
-                            Notification::make()->title('Select at least 2 divisions to combine.')->warning()->send();
-                            return;
-                        }
-
-                        $primary = $records->first();
-                        $others  = $records->slice(1);
-
-                        foreach ($others as $division) {
-                            $division->activeEnrolmentEvents()->update(['division_id' => $primary->id]);
-                            $division->update([
-                                'status'           => 'combined',
-                                'combined_into_id' => $primary->id,
-                            ]);
-                        }
-
-                        $primary->update(['label' => $primary->label . ' (Combined)']);
-
-                        Notification::make()->title('Divisions combined.')->success()->send();
-                    }),
-            ]);
+            ->bulkActions([]);
     }
 }

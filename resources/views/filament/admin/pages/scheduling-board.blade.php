@@ -38,6 +38,18 @@
                 </template>
             </div>
 
+            {{-- Merge bar --}}
+            <div x-show="selectedCount >= 2" x-cloak
+                 class="mb-2 flex items-center justify-between rounded-md border border-warning-200 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 px-3 py-1.5">
+                <span class="text-xs text-warning-700 dark:text-warning-300">
+                    <strong x-text="selectedCount"></strong> divisions selected
+                </span>
+                <button @click="openMergeModal()" type="button"
+                    class="rounded-md bg-warning-600 hover:bg-warning-700 px-3 py-1 text-xs font-medium text-white transition-colors">
+                    Merge selected
+                </button>
+            </div>
+
             {{-- Mobile filter chips: full-width row above board --}}
             @if(count($eventTypes) > 1)
             <div class="sm:hidden mb-2 flex gap-1.5 overflow-x-auto pb-1">
@@ -139,6 +151,54 @@
                 @endforeach
             </div>
 
+            {{-- Merge confirmation modal --}}
+            <div x-show="mergeModal.open" x-cloak
+                 class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                 @keydown.escape.window="closeMergeModal()">
+                <div class="absolute inset-0 bg-black/50" @click="closeMergeModal()"></div>
+                <div class="relative w-full max-w-md rounded-xl bg-white dark:bg-gray-800 shadow-xl p-6">
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Merge divisions</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        The following divisions will be merged into
+                        <strong x-text="mergeModal.divisions[0]?.code"></strong>.
+                        Others will be marked as Combined and removed from the schedule.
+                    </p>
+
+                    <ul class="mb-4 divide-y divide-gray-100 dark:divide-gray-700 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <template x-for="(div, i) in mergeModal.divisions" :key="div.id">
+                            <li class="flex items-center justify-between px-3 py-2 text-sm"
+                                :class="i === 0 ? 'bg-primary-50 dark:bg-primary-900/20' : 'bg-white dark:bg-gray-800'">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span x-show="i === 0" class="shrink-0 rounded-full bg-primary-600 px-1.5 py-0.5 text-xs font-medium text-white">Primary</span>
+                                    <span class="font-mono font-bold text-gray-900 dark:text-white shrink-0" x-text="div.code"></span>
+                                    <span class="truncate text-gray-500 dark:text-gray-400" x-text="div.label"></span>
+                                </div>
+                                <span class="ml-3 shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                                    <span x-text="div.enrolled"></span> enrolled
+                                </span>
+                            </li>
+                        </template>
+                    </ul>
+
+                    <div x-show="!mergeModal.sameEventType"
+                         class="mb-4 rounded-lg border border-danger-200 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 px-3 py-2 text-sm text-danger-700 dark:text-danger-300">
+                        All selected divisions must be the same event type to merge.
+                    </div>
+
+                    <div class="flex justify-end gap-3">
+                        <button @click="closeMergeModal()" type="button"
+                            class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            Cancel
+                        </button>
+                        <button @click="confirmMerge()" type="button"
+                            :disabled="!mergeModal.sameEventType"
+                            class="rounded-lg bg-warning-600 hover:bg-warning-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium text-white transition-colors">
+                            Confirm Merge
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             {{-- Mobile detail panel --}}
             <div x-show="detailDivision !== null" x-cloak class="fixed inset-x-0 bottom-0 z-50 sm:hidden">
                 <div class="relative bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl px-3" style="padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));">
@@ -200,6 +260,35 @@
                 touchStartX: 0,
                 touchStartY: 0,
                 touchStartTime: 0,
+                mergeModal: { open: false, divisions: [], sameEventType: true },
+
+                openMergeModal() {
+                    const divs = this.selectedIds
+                        .map(id => {
+                            const card = document.querySelector(`[data-id="${id}"]`);
+                            return card?.dataset.division ? JSON.parse(card.dataset.division) : null;
+                        })
+                        .filter(Boolean)
+                        .sort((a, b) => a.id - b.id);
+
+                    const eventIds = [...new Set(divs.map(d => d.competition_event_id))];
+                    this.mergeModal = {
+                        open: true,
+                        divisions: divs,
+                        sameEventType: eventIds.length === 1,
+                    };
+                },
+
+                closeMergeModal() {
+                    this.mergeModal = { open: false, divisions: [], sameEventType: true };
+                },
+
+                confirmMerge() {
+                    if (!this.mergeModal.sameEventType) return;
+                    wire.performMerge(this.mergeModal.divisions.map(d => d.id));
+                    this.closeMergeModal();
+                    this.clearSelection();
+                },
 
                 selectLocation(location) {
                     const selecting = this.selectedLocation !== location;

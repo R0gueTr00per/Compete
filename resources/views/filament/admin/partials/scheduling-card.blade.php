@@ -12,15 +12,16 @@
     $capPct     = ($cap && $cap > 0) ? min(100, (int) round(($enrolled / $cap) * 100)) : null;
     $capColor   = $capPct === null ? null : ($capPct >= 100 ? '#22c55e' : ($capPct >= 60 ? '#fbbf24' : '#f87171'));
     $divisionData = json_encode([
-        'id'             => $div->id,
-        'code'           => $div->code,
-        'label'          => $div->label,
-        'event'          => $div->competitionEvent->name,
-        'status'         => $div->status,
-        'enrolled'       => $enrolled,
-        'checkedIn'      => $checkedIn,
-        'noneShowed'     => $noneShowed,
-        'maxCompetitors' => $cap,
+        'id'                  => $div->id,
+        'code'                => $div->code,
+        'label'               => $div->label,
+        'event'               => $div->competitionEvent->name,
+        'competition_event_id' => $div->competition_event_id,
+        'status'              => $div->status,
+        'enrolled'            => $enrolled,
+        'checkedIn'           => $checkedIn,
+        'noneShowed'          => $noneShowed,
+        'maxCompetitors'      => $cap,
     ]);
 @endphp
 <div
