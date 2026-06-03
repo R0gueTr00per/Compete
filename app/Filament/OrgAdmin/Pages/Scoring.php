@@ -172,7 +172,7 @@ class Scoring extends Page
             'division'          => $div,
             'checked_in_count'  => $div->checked_in_count,
             'competitors_count' => $div->competitors_count,
-            'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0,
+            'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0 || $div->status === 'running',
         ]);
     }
 
@@ -380,7 +380,7 @@ class Scoring extends Page
                 $presentCount === 3 => $event?->awarded_places_3    ?? 3,
                 default             => $event?->awarded_places_4plus ?? 3,
             };
-            $division?->update(['awarded_places' => $awardedPlaces]);
+            $division?->update(['awarded_places' => $awardedPlaces, 'status' => 'running']);
 
             if (! in_array($this->division_id, $this->completedRollcallDivisions)) {
                 $this->completedRollcallDivisions[] = $this->division_id;
@@ -392,7 +392,7 @@ class Scoring extends Page
             $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
             RoundRobinMatch::where('division_id', $this->division_id)->delete();
 
-            Division::find($this->division_id)?->update(['placement_override_mode' => false, 'awarded_places' => null]);
+            Division::find($this->division_id)?->update(['placement_override_mode' => false, 'awarded_places' => null, 'status' => 'assigned']);
 
             $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
             Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
@@ -1961,7 +1961,7 @@ class Scoring extends Page
 
         EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
 
-        Division::find($this->division_id)?->update(['placement_override_mode' => false]);
+        Division::find($this->division_id)?->update(['placement_override_mode' => false, 'awarded_places' => null, 'status' => 'assigned']);
 
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {

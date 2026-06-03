@@ -6,7 +6,6 @@ use App\Filament\OrgAdmin\Actions\HistoryTableAction;
 use App\Filament\OrgAdmin\Resources\CompetitorResource\Pages;
 use App\Filament\OrgAdmin\Resources\MemberResource;
 use App\Models\CompetitorProfile;
-use App\Models\OrganisationMembership;
 use App\Models\User;
 use App\Notifications\AccountCreatedNotification;
 use Filament\Forms\Components\DatePicker;
@@ -181,9 +180,7 @@ class CompetitorResource extends Resource
                     ->sortable()
                     ->copyable()
                     ->url(fn (CompetitorProfile $record) => $record->owner_user_id
-                        ? (($mid = OrganisationMembership::where('user_id', $record->owner_user_id)
-                            ->where('organisation_id', app('tenant')?->id)
-                            ->value('id'))
+                        ? (($mid = $record->owner?->memberships->first()?->id)
                             ? MemberResource::getUrl('edit', ['record' => $mid])
                             : null)
                         : null
@@ -204,7 +201,10 @@ class CompetitorResource extends Resource
                     ->label('Active')
                     ->boolean(),
             ])
-            ->modifyQueryUsing(fn ($query) => $query->orderBy('first_name')->orderBy('surname'))
+            ->modifyQueryUsing(fn ($query) => $query
+                ->orderBy('first_name')->orderBy('surname')
+                ->with(['owner.memberships' => fn ($q) => $q->where('organisation_id', app('tenant')?->id)])
+            )
             ->filters([
                 SelectFilter::make('gender')
                     ->options(['M' => 'Male', 'F' => 'Female']),

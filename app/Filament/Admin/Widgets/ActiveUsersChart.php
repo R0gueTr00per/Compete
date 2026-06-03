@@ -22,7 +22,8 @@ class ActiveUsersChart extends ChartWidget
 
         $labels = $weeks->map(fn ($w) => $w->format('d M'))->toArray();
 
-        $orgs = Organisation::all()->keyBy('id');
+        $orgIds = $rows->keys()->merge($priorCounts->keys())->unique();
+        $orgs = Organisation::whereIn('id', $orgIds)->get()->keyBy('id');
 
         // Single query: count memberships per org per day for the period
         $rows = OrganisationMembership::select(

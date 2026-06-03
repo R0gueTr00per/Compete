@@ -64,7 +64,7 @@ class OrganisationSettings extends Page implements HasForms
                             ->helperText('When enabled, AI insights are automatically regenerated each time a competition moves to a new status.')
                             ->default(true),
                         Toggle::make('auto_email_insights')
-                            ->label('Email all org admins when insights are generated')
+                            ->label('Email all administrators when insights are generated')
                             ->helperText('When enabled, all active organisation administrators receive an email each time insights are generated.')
                             ->default(true),
                     ]),

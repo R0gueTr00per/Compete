@@ -899,7 +899,7 @@
                                                                                           'text-warning-600 dark:text-warning-400': phase === 'paused' || phase === 'tb_running' || phase === 'tb_paused',
                                                                                           'text-danger-600 dark:text-danger-400 timer-expire-flash': phase === 'expired' || phase === 'tb_expired',
                                                                                       }"
-                                                                                      x-text="displaySeconds"></span><span class="font-mono text-xs font-medium tabular-nums text-gray-400 dark:text-gray-500 relative top-[5px]"
+                                                                                      x-text="displaySeconds"></span><span class="font-mono text-xs font-medium tabular-nums text-gray-400 dark:text-gray-500 relative -top-[3px]"
                                                                                       :class="{ 'timer-expire-flash': phase === 'expired' || phase === 'tb_expired' }"
                                                                                       x-text="displayCentis"></span>
                                                                             </span>

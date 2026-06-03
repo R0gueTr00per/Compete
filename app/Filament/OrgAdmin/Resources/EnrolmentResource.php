@@ -71,7 +71,7 @@ class EnrolmentResource extends Resource
     {
         return $table
             ->defaultPaginationPageOption(25)
-            ->modifyQueryUsing(fn ($query) => $query->with('competitor'))
+            ->modifyQueryUsing(fn ($query) => $query->with(['competitor', 'rank', 'competition']))
             ->header(view('filament.admin.partials.enrolment-competition-header'))
             ->columns([
                 TextColumn::make('competitor_name')

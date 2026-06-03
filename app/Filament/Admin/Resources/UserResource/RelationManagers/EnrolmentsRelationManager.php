@@ -21,6 +21,7 @@ class EnrolmentsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('id')
+            ->modifyQueryUsing(fn ($q) => $q->with('competition'))
             ->columns([
                 TextColumn::make('competition.name')
                     ->label('Competition')
