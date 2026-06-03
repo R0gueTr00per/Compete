@@ -18,9 +18,19 @@
         @endphp
 
         @foreach ($byCompetition as $compId => $items)
-            @php $comp = $items->first()['competition']; @endphp
+            @php
+                $comp = $items->first()['competition'];
+                $enrolmentsClosed = ! $comp->isEnrolmentOpen();
+            @endphp
             <x-filament::section class="mb-6">
-                <x-slot name="heading">{{ $comp->name }}</x-slot>
+                <x-slot name="heading">
+                    <span class="flex items-center gap-2 flex-wrap">
+                        {{ $comp->name }}
+                        @if ($enrolmentsClosed)
+                            <span class="animate-pulse inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white" style="background-color:#dc2626;">Enrolments Closed</span>
+                        @endif
+                    </span>
+                </x-slot>
                 <x-slot name="description">{{ tenant_date($comp->competition_date) }}{{ $comp->location_name ? ' — ' . $comp->location_name : '' }}</x-slot>
 
                 <div class="space-y-4">
@@ -108,8 +118,16 @@
             <p class="text-xs text-gray-400 mt-1">Payment is collected at the competition. An invoice will be emailed on submission.</p>
         </x-filament::section>
 
-        <div class="mt-6 flex flex-wrap gap-3">
-            <x-filament::button wire:click="submitCart" size="lg">Submit Registration</x-filament::button>
+        @php $hasClosedEnrolments = $this->hasClosedEnrolments(); @endphp
+
+        @if ($hasClosedEnrolments)
+            <div class="mt-4 rounded-lg bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 px-4 py-3 text-sm text-danger-700 dark:text-danger-400">
+                Your cart contains items for competitions where enrolments are closed. Please remove these items before submitting.
+            </div>
+        @endif
+
+        <div class="mt-4 flex flex-wrap gap-3">
+            <x-filament::button wire:click="submitCart" size="lg" :disabled="$hasClosedEnrolments">Submit Registration</x-filament::button>
             <x-filament::button href="{{ route('filament.portal.pages.dashboard') }}" tag="a" color="gray" size="lg">
                 Back to Dashboard
             </x-filament::button>

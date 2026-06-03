@@ -90,10 +90,11 @@
                                 $showSchedule   = in_array($competition->status, ['check_in', 'running', 'complete']);
 
                                 $statusLabel = match($competition->status) {
-                                    'open'              => 'Open',
+                                    'open'              => 'Open for Registrations',
                                     'enrolments_closed' => 'Registrations Closed',
                                     'check_in'          => 'Check-in',
-                                    'running'           => 'In progress',
+                                    'running'           => 'In Progress',
+                                    'complete'          => 'Finished',
                                     default             => ucfirst($competition->status),
                                 };
                                 $statusClass = match($competition->status) {

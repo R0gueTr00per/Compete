@@ -84,6 +84,20 @@ class CartPage extends Page
         }
 
         $this->removingId = null;
+        $this->redirect(static::getUrl(), navigate: true);
+    }
+
+    // ── Enrolment status helpers ─────────────────────────────────────────────
+
+    public function hasClosedEnrolments(): bool
+    {
+        $cartTotal = $this->getCartTotal();
+        foreach ($cartTotal['items'] as $item) {
+            if (! $item['competition']->isEnrolmentOpen()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ── Submit ───────────────────────────────────────────────────────────────
@@ -94,6 +108,15 @@ class CartPage extends Page
 
         if (! $cart || $cart->draftEnrolments()->count() === 0) {
             Notification::make()->title('Your cart is empty.')->warning()->send();
+            return;
+        }
+
+        if ($this->hasClosedEnrolments()) {
+            Notification::make()
+                ->title('Cannot submit — enrolments are closed for one or more competitions in your cart.')
+                ->body('Please remove any items marked "Enrolments Closed" before submitting.')
+                ->danger()
+                ->send();
             return;
         }
 
