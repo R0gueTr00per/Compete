@@ -31,11 +31,14 @@ class Division extends Model
         'completed_by',
         'awarded_places',
         'max_competitors',
+        'scoring_locked_by',
+        'scoring_locked_at',
     ];
 
     protected $casts = [
         'placement_override_mode' => 'boolean',
         'completed_at'            => 'datetime',
+        'scoring_locked_at'       => 'datetime',
         'awarded_places'          => 'integer',
     ];
 
@@ -121,6 +124,11 @@ class Division extends Model
     public function completedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    public function scoringLockedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'scoring_locked_by');
     }
 
     public function enrolmentEvents(): HasMany

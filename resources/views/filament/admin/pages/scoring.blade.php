@@ -446,6 +446,22 @@
                 el.addEventListener('animationend', () => el.classList.remove('scoring-row-pulse'), { once: true });
             "
         >
+            @if ($this->pendingLockDivisionId)
+                @php $pendingItem = $divisionList->first(fn ($i) => $i->division->id === $this->pendingLockDivisionId); @endphp
+                @if ($pendingItem)
+                    <div class="mb-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 px-4 py-3 text-sm">
+                        <p class="font-medium text-amber-800 dark:text-amber-200">
+                            <x-heroicon-m-lock-closed class="inline w-4 h-4 mr-1 -mt-0.5" />
+                            {{ $pendingItem->locked_by_other }} is scoring {{ $pendingItem->division->code }}.
+                        </p>
+                        <div class="mt-2 flex gap-2">
+                            <x-filament::button size="xs" color="warning" wire:click="proceedOpenLocked">Open anyway</x-filament::button>
+                            <x-filament::button size="xs" color="gray" wire:click="cancelOpenLocked">Cancel</x-filament::button>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
             @foreach ($divisionList as $item)
                 @php
                     $div      = $item->division;
@@ -497,6 +513,8 @@
 
                         @if ($div->status === 'complete')
                             <x-heroicon-m-check-circle class="w-5 h-5 text-success-500" />
+                        @elseif ($item->locked_by_other)
+                            <x-heroicon-m-lock-closed class="w-4 h-4 text-amber-500 dark:text-amber-400" title="{{ $item->locked_by_other }}" />
                         @elseif ($inProgress)
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">In progress</span>
                         @else

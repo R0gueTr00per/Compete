@@ -66,6 +66,10 @@ class Scoring extends Page
     public array  $penaltyModalReasons        = [];
     public string $penaltyModalSelectedReason = '';
 
+    public ?int $pendingLockDivisionId = null;
+
+    private const LOCK_MINUTES = 15;
+
     public function mount(): void
     {
         if (! $this->competition_id) {
@@ -168,12 +172,79 @@ class Scoring extends Page
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
         ->orderBy('code');
 
-        return $query->get()->toBase()->map(fn (Division $div) => (object) [
+        return $query->with('scoringLockedBy')->get()->toBase()->map(fn (Division $div) => (object) [
             'division'          => $div,
             'checked_in_count'  => $div->checked_in_count,
             'competitors_count' => $div->competitors_count,
             'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0 || $div->status === 'running',
+            'locked_by_other'   => $this->lockedByOtherName($div),
         ]);
+    }
+
+    private function acquireLock(int $divisionId): void
+    {
+        Division::where('id', $divisionId)->update([
+            'scoring_locked_by' => auth()->id(),
+            'scoring_locked_at' => now(),
+        ]);
+    }
+
+    private function releaseLock(?int $divisionId): void
+    {
+        if (! $divisionId) return;
+        Division::where('id', $divisionId)
+            ->where('scoring_locked_by', auth()->id())
+            ->update(['scoring_locked_by' => null, 'scoring_locked_at' => null]);
+    }
+
+    private function lockedByOtherName(Division $division): ?string
+    {
+        if (! $division->scoring_locked_by) return null;
+        if ($division->scoring_locked_by === auth()->id()) return null;
+        if (! $division->scoring_locked_at || $division->scoring_locked_at->lt(now()->subMinutes(self::LOCK_MINUTES))) return null;
+        return $division->scoringLockedBy?->name ?? 'Another user';
+    }
+
+    private function doOpenDivision(int $divisionId): void
+    {
+        $this->clearScoringMemory();
+        $this->division_id   = $divisionId;
+        $this->panelOpen     = true;
+        $this->dispatch('scroll-to-division', divisionId: $divisionId);
+        $this->bracketExists = RoundRobinMatch::where('division_id', $divisionId)->exists();
+
+        $division = Division::find($divisionId);
+        $this->placementOverrideMode = (bool) $division?->placement_override_mode;
+
+        if ($division?->status === 'complete') {
+            $this->rollcallMode = false;
+            $eeIds = EnrolmentEvent::where('division_id', $divisionId)->pluck('id');
+            $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
+                ->whereNotNull('total_score')
+                ->pluck('id')
+                ->toArray();
+            return;
+        }
+
+        $eeIds     = EnrolmentEvent::where('division_id', $divisionId)->pluck('id');
+        $hasAbsent = EnrolmentEvent::where('division_id', $divisionId)->where('removed', true)->exists();
+        $hasScores = $this->bracketExists
+            || Result::whereIn('enrolment_event_id', $eeIds)
+                ->where(fn ($q) => $q->whereNotNull('total_score')->orWhereNotNull('win_loss'))
+                ->exists();
+
+        if ($hasAbsent || $hasScores || $division?->status === 'running') {
+            $this->rollcallMode = false;
+            if (! in_array($divisionId, $this->completedRollcallDivisions)) {
+                $this->completedRollcallDivisions[] = $divisionId;
+            }
+            $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
+                ->whereNotNull('total_score')
+                ->pluck('id')
+                ->toArray();
+        } else {
+            $this->rollcallMode = true;
+        }
     }
 
     private function loadCompletedRollcallDivisionsFromDb(): array
@@ -242,61 +313,58 @@ class Scoring extends Page
 
     public function selectDivision(int $divisionId): void
     {
-        // Same division clicked — toggle the panel open/closed (state preserved either way).
+        // Same division clicked — toggle panel and refresh the lock heartbeat when re-opening.
         if ($this->division_id === $divisionId) {
             $this->panelOpen = ! $this->panelOpen;
             if ($this->panelOpen) {
                 $this->dispatch('scroll-to-division', divisionId: $divisionId);
+                $this->acquireLock($divisionId);
             }
             return;
         }
 
-        // Different division — discard stale state and load fresh from DB.
-        $this->clearScoringMemory();
-        $this->division_id   = $divisionId;
-        $this->panelOpen     = true;
-        $this->dispatch('scroll-to-division', divisionId: $divisionId);
-        $this->bracketExists = RoundRobinMatch::where('division_id', $divisionId)->exists();
+        // Switching divisions — clear any pending lock confirmation for the previous attempt.
+        $this->pendingLockDivisionId = null;
 
-        $division = Division::find($divisionId);
+        // Release the lock on the division we're leaving.
+        if ($this->division_id) {
+            $this->releaseLock($this->division_id);
+        }
 
-        $this->placementOverrideMode = (bool) $division?->placement_override_mode;
-
-        if ($division?->status === 'complete') {
-            $this->rollcallMode = false;
-            $eeIds = EnrolmentEvent::where('division_id', $divisionId)->pluck('id');
-            $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
-                ->whereNotNull('total_score')
-                ->pluck('id')
-                ->toArray();
+        // Warn if another user is actively scoring this division.
+        $division = Division::with('scoringLockedBy')->find($divisionId);
+        $lockerName = $this->lockedByOtherName($division);
+        if ($lockerName) {
+            $this->pendingLockDivisionId = $divisionId;
+            Notification::make()
+                ->title('Division in use')
+                ->body("{$lockerName} is currently scoring this division.")
+                ->warning()
+                ->send();
             return;
         }
 
-        // If scoring was already in progress before the page refresh, skip back to the scoring view.
-        // Signals: bracket generated, any competitor marked absent, or any scores already saved.
-        $eeIds     = EnrolmentEvent::where('division_id', $divisionId)->pluck('id');
-        $hasAbsent = EnrolmentEvent::where('division_id', $divisionId)->where('removed', true)->exists();
-        $hasScores = $this->bracketExists
-            || Result::whereIn('enrolment_event_id', $eeIds)
-                ->where(fn ($q) => $q->whereNotNull('total_score')->orWhereNotNull('win_loss'))
-                ->exists();
+        $this->acquireLock($divisionId);
+        $this->doOpenDivision($divisionId);
+    }
 
-        if ($hasAbsent || $hasScores) {
-            $this->rollcallMode = false;
-            if (! in_array($divisionId, $this->completedRollcallDivisions)) {
-                $this->completedRollcallDivisions[] = $divisionId;
-            }
-            $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
-                ->whereNotNull('total_score')
-                ->pluck('id')
-                ->toArray();
-        } else {
-            $this->rollcallMode = true;
-        }
+    public function proceedOpenLocked(): void
+    {
+        if (! $this->pendingLockDivisionId) return;
+        $divisionId = $this->pendingLockDivisionId;
+        $this->pendingLockDivisionId = null;
+        $this->acquireLock($divisionId);
+        $this->doOpenDivision($divisionId);
+    }
+
+    public function cancelOpenLocked(): void
+    {
+        $this->pendingLockDivisionId = null;
     }
 
     public function deselectDivision(): void
     {
+        $this->releaseLock($this->division_id);
         $this->division_id = null;
         $this->clearScoringMemory();
     }
@@ -1961,7 +2029,13 @@ class Scoring extends Page
 
         EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
 
-        Division::find($this->division_id)?->update(['placement_override_mode' => false, 'awarded_places' => null, 'status' => 'assigned']);
+        Division::find($this->division_id)?->update([
+            'placement_override_mode' => false,
+            'awarded_places'          => null,
+            'status'                  => 'assigned',
+            'scoring_locked_by'       => null,
+            'scoring_locked_at'       => null,
+        ]);
 
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
@@ -2211,9 +2285,11 @@ class Scoring extends Page
         }
 
         Division::find($this->division_id)?->update([
-            'status'       => 'complete',
-            'completed_at' => now(),
-            'completed_by' => auth()->id(),
+            'status'            => 'complete',
+            'completed_at'      => now(),
+            'completed_by'      => auth()->id(),
+            'scoring_locked_by' => null,
+            'scoring_locked_at' => null,
         ]);
         Notification::make()->title('Division marked complete.')->success()->send();
     }

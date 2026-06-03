@@ -366,7 +366,9 @@
       "Bash(xargs grep -l \"function getAction\\\\b\")",
       "Bash(php -l \"x:/Repos/Compete/app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php\")",
       "Bash(php -l app/Notifications/CartInvoiceNotification.php)",
-      "Bash(php -r \"echo date\\('Y_m_d_His'\\);\")"
+      "Bash(php -r \"echo date\\('Y_m_d_His'\\);\")",
+      "Bash(curl -s -u \"bgouldson@optusnet.com.au:$\\(cat C:/Users/Brad/.claude/jira_token || echo ''\\)\" \"https://competeapp.atlassian.net/rest/api/3/issue/COM-263\")",
+      "Bash(php -l app/Models/Division.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",
