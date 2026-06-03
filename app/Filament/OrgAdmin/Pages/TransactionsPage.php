@@ -71,8 +71,7 @@ class TransactionsPage extends Page implements HasTable
                     ->label('Competition')
                     ->sortable()
                     ->searchable()
-                    ->description(fn (Enrolment $r) => $r->competition ? tenant_date($r->competition->competition_date) : null)
-                    ->visibleFrom('sm'),
+                    ->description(fn (Enrolment $r) => $r->competition ? tenant_date($r->competition->competition_date) : null),
 
                 TextColumn::make('fee_calculated')
                     ->label('Fee')
@@ -95,16 +94,14 @@ class TransactionsPage extends Page implements HasTable
                 TextColumn::make('payment_amount')
                     ->label('Paid')
                     ->formatStateUsing(fn ($state) => $state ? tenant_money($state) : '—')
-                    ->sortable()
-                    ->visibleFrom('sm'),
+                    ->sortable(),
 
                 TextColumn::make('amount_owing')
                     ->label('Owing')
                     ->getStateUsing(fn (Enrolment $record) => $record->payment_status === 'received' ? null : $record->fee_calculated)
                     ->formatStateUsing(fn ($state) => $state ? tenant_money($state) : '—')
                     ->color(fn ($state) => $state ? 'warning' : null)
-                    ->sortable(false)
-                    ->visibleFrom('sm'),
+                    ->sortable(false),
 
                 TextColumn::make('payment_received_at')
                     ->label('Date Paid')
@@ -141,7 +138,6 @@ class TransactionsPage extends Page implements HasTable
                         'withdrawn'  => 'danger',
                         default      => 'gray',
                     })
-                    ->visibleFrom('lg'),
             ])
             ->filters([
                 SelectFilter::make('competition_id')

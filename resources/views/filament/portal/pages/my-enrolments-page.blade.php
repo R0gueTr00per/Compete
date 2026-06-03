@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     @php
-        $enrolments = $this->getEnrolments();
-        $draftCart  = $this->getDraftCart();
+        $transactions = $this->getTransactions();
+        $draftCart    = $this->getDraftCart();
     @endphp
 
     {{-- Draft cart resume banner --}}
@@ -21,7 +21,7 @@
         </x-filament::section>
     @endif
 
-    @if ($enrolments->isEmpty())
+    @if ($transactions->isEmpty())
         <x-filament::section>
             <p class="text-center text-gray-500 py-8">You have not registered in any competitions yet.</p>
             <div class="flex justify-center mt-2">
@@ -31,119 +31,113 @@
             </div>
         </x-filament::section>
     @else
-        @foreach ($enrolments as $enrolment)
+        @foreach ($transactions as $cartKey => $enrolments)
+            @php
+                $first      = $enrolments->first();
+                $comp       = $first->competition;
+                $cartTotal  = $enrolments->whereNotIn('status', ['withdrawn'])->sum('fee_calculated');
+                $allStatuses = $enrolments->pluck('payment_status')->unique();
+                $paidCount   = $enrolments->where('payment_status', 'received')->count();
+                $totalCount  = $enrolments->whereNotIn('status', ['withdrawn'])->count();
+                $paymentLabel = $totalCount === 0 ? null
+                    : ($paidCount === $totalCount ? 'Paid' : ($paidCount > 0 ? 'Partial' : 'Outstanding'));
+                $paymentColor = match($paymentLabel) {
+                    'Paid'        => 'success',
+                    'Partial'     => 'warning',
+                    'Outstanding' => 'warning',
+                    default       => 'gray',
+                };
+            @endphp
             <x-filament::section class="mb-6">
                 <x-slot name="heading">
-                    {{ $enrolment->competition->name }}
-                    @if ($enrolment->status === 'withdrawn')
-                        <span class="ml-2 text-xs font-normal text-danger-600">(Withdrawn)</span>
-                    @endif
+                    {{ $comp->name }}
                 </x-slot>
-
                 <x-slot name="description">
-                    {{ tenant_date($enrolment->competition->competition_date) }}
-                    @if ($enrolment->competition->location_name)
-                        &mdash; {{ $enrolment->competition->location_name }}
-                    @endif
-                    @if ($enrolment->status !== 'withdrawn')
-                        &nbsp;&bull;&nbsp;
-                        Fee: <strong>{{ tenant_money($enrolment->fee_calculated) }}</strong>
-                        @if ($enrolment->is_late)
-                            <span class="text-warning-600">(includes late surcharge)</span>
-                        @endif
-                        @if ($enrolment->is_official_discount)
-                            <span class="text-primary-600">(official rate)</span>
-                        @endif
+                    {{ tenant_date($comp->competition_date) }}
+                    @if ($comp->location_name)
+                        &mdash; {{ $comp->location_name }}
                     @endif
                 </x-slot>
 
-                @if ($enrolment->status !== 'withdrawn')
-                    <div class="divide-y divide-gray-100 dark:divide-gray-800">
-                        @foreach ($enrolment->activeEvents as $ee)
-                            <div class="py-3">
-                                <div class="flex items-start justify-between gap-4">
-                                    <div>
-                                        <p class="font-medium text-sm">
-                                            {{ $ee->competitionEvent->name }}
-                                            @if ($ee->competitionEvent->location_label)
-                                                <span class="text-gray-400 font-normal">({{ $ee->competitionEvent->location_label }})</span>
+                <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    @foreach ($enrolments as $enrolment)
+                        <div class="py-3">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="font-semibold text-sm">{{ $enrolment->competitor?->full_name }}</p>
+
+                                    @if ($enrolment->status === 'withdrawn')
+                                        <p class="text-xs text-danger-600 mt-0.5">
+                                            Withdrawn{{ $enrolment->withdrawn_at ? ' ' . tenant_date($enrolment->withdrawn_at) : '' }}
+                                            @if ($enrolment->withdrawal_reason)
+                                                &mdash; {{ $enrolment->withdrawal_reason }}
+                                            @endif
+                                            @if ($enrolment->refund_requested)
+                                                &bull; <span class="text-warning-600">Refund requested</span>
                                             @endif
                                         </p>
-                                        @if ($ee->division)
-                                            <p class="text-xs text-gray-500 mt-0.5">{{ $ee->division->full_label }}</p>
-                                        @endif
-                                        @if ($ee->competitionEvent->requires_partner)
-                                            <p class="text-xs mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">
-                                                Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending partner registration' }}
-                                            </p>
-                                        @endif
-                                    </div>
-
-                                    <div class="text-right text-sm shrink-0">
-                                        @if ($ee->result)
-                                            @if ($ee->result->placement)
-                                                <span class="font-bold text-primary-600">
-                                                    @switch($ee->result->placement)
-                                                        @case(1) 🥇 1st @break
-                                                        @case(2) 🥈 2nd @break
-                                                        @case(3) 🥉 3rd @break
-                                                        @default {{ $ee->result->placement }}th
-                                                    @endswitch
-                                                </span>
-                                            @endif
-                                            @if ($ee->result->total_score)
-                                                <p class="text-gray-500 text-xs">Score: {{ number_format((float) $ee->result->total_score, 2) }}</p>
-                                            @endif
-                                            @if ($ee->result->win_loss)
-                                                <p class="text-xs {{ $ee->result->win_loss === 'win' ? 'text-success-600' : 'text-danger-600' }}">
-                                                    {{ ucfirst($ee->result->win_loss) }}
+                                    @else
+                                        <div class="mt-1 space-y-0.5">
+                                            @foreach ($enrolment->activeEvents as $ee)
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                                    {{ $ee->competitionEvent->name }}
+                                                    @if ($ee->division)
+                                                        <span class="text-gray-400">({{ $ee->division->full_label }})</span>
+                                                    @endif
+                                                    @if ($ee->result?->placement)
+                                                        &mdash;
+                                                        <span class="font-medium text-primary-600">
+                                                            @switch($ee->result->placement)
+                                                                @case(1) 1st @break
+                                                                @case(2) 2nd @break
+                                                                @case(3) 3rd @break
+                                                                @default {{ $ee->result->placement }}th
+                                                            @endswitch
+                                                        </span>
+                                                    @endif
                                                 </p>
-                                            @endif
-                                        @else
-                                            <span class="text-gray-400 text-xs">Result pending</span>
-                                        @endif
-                                    </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </div>
-                            </div>
-                        @endforeach
-                    </div>
 
-                    {{-- Actions --}}
-                    @if ($this->canEditEvents($enrolment) || $this->canWithdraw($enrolment))
-                        <div class="mt-4 flex gap-2 border-t border-gray-100 dark:border-gray-800 pt-4">
-                            @if ($this->canEditEvents($enrolment))
-                                <x-filament::button
-                                    wire:click="startEdit({{ $enrolment->id }})"
-                                    size="sm"
-                                    color="gray"
-                                    outlined
-                                >
-                                    Edit Events
-                                </x-filament::button>
-                            @endif
-                            @if ($this->canWithdraw($enrolment))
-                                <x-filament::button
-                                    wire:click="startWithdraw({{ $enrolment->id }})"
-                                    size="sm"
-                                    color="danger"
-                                    outlined
-                                >
-                                    Withdraw
-                                </x-filament::button>
+                                @if ($enrolment->status !== 'withdrawn')
+                                    <div class="text-right shrink-0 space-y-1">
+                                        <p class="text-sm font-semibold">{{ tenant_money($enrolment->fee_calculated) }}</p>
+                                        @if ($enrolment->is_late)
+                                            <p class="text-xs text-warning-600">incl. late surcharge</p>
+                                        @endif
+                                        <x-filament::badge :color="$enrolment->payment_status === 'received' ? 'success' : 'warning'" size="sm">
+                                            {{ $enrolment->payment_status === 'received' ? 'Paid' : 'Outstanding' }}
+                                        </x-filament::badge>
+                                    </div>
+                                @endif
+                            </div>
+
+                            {{-- Per-enrolment actions --}}
+                            @if ($enrolment->status !== 'withdrawn' && ($this->canEditEvents($enrolment) || $this->canWithdraw($enrolment)))
+                                <div class="mt-2 flex gap-2">
+                                    @if ($this->canEditEvents($enrolment))
+                                        <x-filament::button wire:click="startEdit({{ $enrolment->id }})" size="xs" color="gray" outlined>
+                                            Edit Events
+                                        </x-filament::button>
+                                    @endif
+                                    @if ($this->canWithdraw($enrolment))
+                                        <x-filament::button wire:click="startWithdraw({{ $enrolment->id }})" size="xs" color="danger" outlined>
+                                            Withdraw
+                                        </x-filament::button>
+                                    @endif
+                                </div>
                             @endif
                         </div>
-                    @endif
-                @else
-                    {{-- Withdrawn state --}}
-                    <p class="text-sm text-gray-400 py-2">
-                        Withdrawn {{ tenant_date($enrolment->withdrawn_at) }}
-                        @if ($enrolment->withdrawal_reason)
-                            &mdash; {{ $enrolment->withdrawal_reason }}
-                        @endif
-                        @if ($enrolment->refund_requested)
-                            <span class="text-warning-600">&bull; Refund requested &mdash; contact the organiser.</span>
-                        @endif
-                    </p>
+                    @endforeach
+                </div>
+
+                @if ($cartTotal > 0)
+                    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Total</span>
+                        <span class="text-sm font-bold">{{ tenant_money($cartTotal) }}</span>
+                    </div>
                 @endif
             </x-filament::section>
         @endforeach
@@ -151,12 +145,13 @@
 
     {{-- ── Withdrawal confirmation modal ──────────────────────────────────── --}}
     @if ($this->withdrawingId)
+        @php $allEnrolments = $transactions->flatten(); @endphp
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
             <div class="w-full max-w-md rounded-xl bg-white dark:bg-gray-900 shadow-xl p-6 space-y-4">
                 <h3 class="text-lg font-semibold">Confirm Withdrawal</h3>
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     Are you sure you want to withdraw from this competition? This cannot be undone.
-                    @php $we = $enrolments->firstWhere('id', $this->withdrawingId); @endphp
+                    @php $we = $allEnrolments->firstWhere('id', $this->withdrawingId); @endphp
                     @if ($we && $we->payment_status === 'received')
                         <br><span class="text-warning-600 font-medium">You have a payment recorded. A refund request will be raised for the organiser.</span>
                     @endif
@@ -171,12 +166,8 @@
                     ></textarea>
                 </div>
                 <div class="flex gap-3 justify-end">
-                    <x-filament::button wire:click="cancelWithdraw" color="gray">
-                        Cancel
-                    </x-filament::button>
-                    <x-filament::button wire:click="confirmWithdraw" color="danger">
-                        Confirm Withdrawal
-                    </x-filament::button>
+                    <x-filament::button wire:click="cancelWithdraw" color="gray">Cancel</x-filament::button>
+                    <x-filament::button wire:click="confirmWithdraw" color="danger">Confirm Withdrawal</x-filament::button>
                 </div>
             </div>
         </div>
@@ -209,12 +200,8 @@
                 @endif
 
                 <div class="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
-                    <x-filament::button wire:click="cancelEdit" color="gray">
-                        Cancel
-                    </x-filament::button>
-                    <x-filament::button wire:click="saveEdit" :disabled="empty($editOptions)">
-                        Save Changes
-                    </x-filament::button>
+                    <x-filament::button wire:click="cancelEdit" color="gray">Cancel</x-filament::button>
+                    <x-filament::button wire:click="saveEdit" :disabled="empty($editOptions)">Save Changes</x-filament::button>
                 </div>
             </div>
         </div>

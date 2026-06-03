@@ -338,8 +338,7 @@ class EnrolPage extends Page implements HasForms
                 ]),
 
             Section::make()
-                ->visible(fn () => ! $this->details_confirmed
-                    && ! empty($this->getSelectedCompetition()?->registration_fields))
+                ->visible(fn () => ! $this->details_confirmed && $this->hasVisibleRegistrationFields())
                 ->schema(fn () => $this->buildRegistrationFieldSchema()),
 
             Section::make('Events')
@@ -479,6 +478,12 @@ class EnrolPage extends Page implements HasForms
             ->filter(fn ($f) => ($f['type'] ?? '') === 'checkbox')
             ->values()
             ->toArray();
+    }
+
+    private function hasVisibleRegistrationFields(): bool
+    {
+        return collect($this->getSelectedCompetition()?->registration_fields ?? [])
+            ->contains(fn ($f) => ($f['type'] ?? 'text') !== 'checkbox');
     }
 
     private function buildRegistrationFieldSchema(): array

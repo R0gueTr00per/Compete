@@ -157,14 +157,12 @@ class CompetitorResource extends Resource
                     ->label('Type')
                     ->badge()
                     ->color(fn (string $state) => $state === 'family_member' ? 'warning' : 'info')
-                    ->formatStateUsing(fn (string $state) => $state === 'family_member' ? 'Family Member' : 'Self')
-                    ->visibleFrom('sm'),
+                    ->formatStateUsing(fn (string $state) => $state === 'family_member' ? 'Family Member' : 'Self'),
 
                 TextColumn::make('date_of_birth')
                     ->label('DOB')
                     ->date(tenant_date_format())
-                    ->sortable()
-                    ->visibleFrom('sm'),
+                    ->sortable(),
 
                 TextColumn::make('age')
                     ->label('Age')
@@ -175,8 +173,7 @@ class CompetitorResource extends Resource
                 TextColumn::make('gender')
                     ->badge()
                     ->color(fn (string $state) => $state === 'M' ? 'info' : 'danger')
-                    ->formatStateUsing(fn (string $state) => $state === 'M' ? 'Male' : 'Female')
-                    ->visibleFrom('sm'),
+                    ->formatStateUsing(fn (string $state) => $state === 'M' ? 'Male' : 'Female'),
 
                 TextColumn::make('owner.email')
                     ->label('Managed by')
@@ -191,8 +188,7 @@ class CompetitorResource extends Resource
                             : null)
                         : null
                     )
-                    ->color('primary')
-                    ->visibleFrom('sm'),
+                    ->color('primary'),
 
                 TextColumn::make('owner.status')
                     ->label('Account')
@@ -202,13 +198,11 @@ class CompetitorResource extends Resource
                         'pending'  => 'warning',
                         'inactive' => 'danger',
                         default    => 'gray',
-                    })
-                    ->visibleFrom('sm'),
+                    }),
 
                 IconColumn::make('is_active')
                     ->label('Active')
-                    ->boolean()
-                    ->visibleFrom('sm'),
+                    ->boolean(),
             ])
             ->modifyQueryUsing(fn ($query) => $query->orderBy('first_name')->orderBy('surname'))
             ->filters([

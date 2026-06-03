@@ -4,7 +4,6 @@ namespace App\Filament\Portal\Pages;
 
 use App\Models\Enrolment;
 use App\Models\EnrolmentCart;
-use App\Models\CompetitorProfile;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
 use App\Notifications\Notification;
@@ -27,7 +26,7 @@ class MyEnrolmentsPage extends Page
     public ?int   $editingId      = null;
     public array  $editingEntries = [];
 
-    public function getEnrolments()
+    public function getTransactions(): \Illuminate\Support\Collection
     {
         $profileIds = auth()->user()->ownedProfiles()->pluck('id');
 
@@ -35,13 +34,14 @@ class MyEnrolmentsPage extends Page
             ->whereNotIn('status', ['draft'])
             ->with([
                 'competitor',
-                'competition.organisation',
+                'competition',
                 'activeEvents.competitionEvent',
-                'activeEvents.result.judgeScores',
-                'activeEvents.division.activeEnrolmentEvents.enrolment.competitor',
+                'activeEvents.result',
+                'activeEvents.division',
             ])
             ->orderByDesc('enrolled_at')
-            ->get();
+            ->get()
+            ->groupBy(fn ($e) => $e->cart_id ?? 'solo_' . $e->id);
     }
 
     public function getDraftCart(): ?EnrolmentCart

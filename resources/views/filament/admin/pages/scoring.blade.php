@@ -462,6 +462,7 @@
                             ? 'text-amber-800 dark:text-amber-300'
                             : 'text-gray-900 dark:text-white');
                 @endphp
+                <div @class(['ring-2 ring-primary-500 dark:ring-primary-400 rounded-xl' => $selected])>
                 <div
                     id="division-row-{{ $div->id }}"
                     wire:key="division-{{ $div->id }}"
@@ -469,7 +470,7 @@
                     class="{{ $selected ? '' : 'division-enter' }} flex items-center justify-between gap-3 rounded-lg border px-4 py-3 transition-all cursor-pointer
                         {{ $rowClass }}
                         {{ $selected
-                            ? 'ring-2 ring-primary-500 hover:ring-primary-600 event-header-pulse-active'
+                            ? 'event-header-pulse-active'
                             : 'hover:border-primary-300 dark:hover:border-primary-600' }}"
                     style="animation-delay: {{ min($loop->index * 40, 320) }}ms"
                 >
@@ -2264,6 +2265,7 @@
                         @endif
                     </div>
                 @endif
+                </div>{{-- outer ring wrapper --}}
             @endforeach
         </div>
     @endif

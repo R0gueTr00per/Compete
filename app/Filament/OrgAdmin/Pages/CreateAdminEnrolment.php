@@ -102,6 +102,7 @@ class CreateAdminEnrolment extends Page implements HasForms
                         ->options(
                             Competition::whereIn('status', ['open', 'running', 'enrolments_closed'])
                                 ->where('organisation_id', app('tenant')?->id)
+                                ->where('is_template', false)
                                 ->orderByDesc('competition_date')
                                 ->pluck('name', 'id')
                         )

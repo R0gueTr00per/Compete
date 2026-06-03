@@ -101,8 +101,7 @@ class MemberResource extends Resource
                     ->color(fn (string $state) => match ($state) {
                         'administrator' => 'warning',
                         default         => 'gray',
-                    })
-                    ->visibleFrom('sm'),
+                    }),
 
                 TextColumn::make('status')
                     ->badge()
@@ -117,8 +116,7 @@ class MemberResource extends Resource
                 TextColumn::make('joined_at')
                     ->label('Joined')
                     ->date(tenant_date_format())
-                    ->sortable()
-                    ->visibleFrom('sm'),
+                    ->sortable(),
             ])
             ->headerActions([
                 Action::make('add_user')

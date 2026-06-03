@@ -54,10 +54,6 @@ class PortalPanelProvider extends PanelProvider
                     ->url(fn () => config('app.scheme') . '://' . config('app.domain') . '/admin')
                     ->visible(fn () => auth()->user()?->hasRole('system_admin')),
 
-                MenuItem::make()
-                    ->label('My Profile')
-                    ->icon('heroicon-o-user-circle')
-                    ->url(fn () => \App\Filament\Portal\Pages\ProfilePage::getUrl()),
             ])
             ->discoverResources(in: app_path('Filament/Portal/Resources'), for: 'App\\Filament\\Portal\\Resources')
             ->discoverPages(in: app_path('Filament/Portal/Pages'), for: 'App\\Filament\\Portal\\Pages')

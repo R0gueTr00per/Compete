@@ -348,7 +348,13 @@
       "Bash(grep -l \"lg.hidden\\\\|lg\\\\\\\\\\\\\\\\:hidden\" public/vendor/filament/filament/*.css)",
       "Bash(grep -o \"\\\\.lg\\\\\\\\\\\\\\\\:hidden[^}]*}\" public/css/filament/filament/app.css)",
       "Bash(grep -c \"lg.hidden\\\\|lg\\\\\\\\\\\\\\\\:hidden\\\\|hidden\" public/css/filament/filament/app.css)",
-      "Bash(xargs grep -l \"question\" -i)"
+      "Bash(xargs grep -l \"question\" -i)",
+      "WebFetch(domain:competeapp.atlassian.net)",
+      "Bash(grep -n \"sortable\\(\\)\\\\s*$\\\\|->badge\\(\\)\\\\s*$\\\\|->boolean\\(\\)\\\\s*$\\\\|->counts\\(\\\\|->default\\('—'\\)\\\\s*$\" app/Filament/OrgAdmin/Resources/CompetitorResource.php app/Filament/OrgAdmin/Resources/MemberResource.php app/Filament/OrgAdmin/Resources/OfficialRoleResource.php \"app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php\" \"app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/RankBandsRelationManager.php\" app/Filament/OrgAdmin/Pages/TransactionsPage.php \"app/Filament/OrgAdmin/Resources/CompetitionResource/Pages/ManageCompetitionEvents.php\")",
+      "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitorResource.php)",
+      "Bash(php -l app/Filament/OrgAdmin/Resources/MemberResource.php)",
+      "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/RankBandsRelationManager.php\")",
+      "Bash(php -l app/Filament/OrgAdmin/Pages/TransactionsPage.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

@@ -244,8 +244,7 @@ class CompetitionResource extends Resource
 
                 TextColumn::make('competition_date')
                     ->date(tenant_date_format())
-                    ->sortable()
-                    ->visibleFrom('sm'),
+                    ->sortable(),
 
                 TextColumn::make('status')
                     ->badge()
@@ -271,8 +270,7 @@ class CompetitionResource extends Resource
                 TextColumn::make('enrolments_count')
                     ->label('Registrations')
                     ->counts('enrolments')
-                    ->sortable()
-                    ->visibleFrom('sm'),
+                    ->sortable(),
 
             ])
             ->filters([

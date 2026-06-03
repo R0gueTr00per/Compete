@@ -84,42 +84,35 @@ class EnrolmentResource extends Resource
                     ->label('Age')
                     ->state(fn (Enrolment $record) => $record->competitor?->age)
                     ->suffix(' yrs')
-                    ->alignCenter()
-                    ->visibleFrom('sm'),
+                    ->alignCenter(),
 
                 TextColumn::make('display_rank')
-                    ->label('Rank')
-                    ->visibleFrom('sm'),
+                    ->label('Rank'),
 
                 TextColumn::make('weight_kg')
                     ->label('Weight')
-                    ->formatStateUsing(fn ($state) => $state ? number_format((float) $state, 1) . ' kg' : '—')
-                    ->visibleFrom('sm'),
+                    ->formatStateUsing(fn ($state) => $state ? number_format((float) $state, 1) . ' kg' : '—'),
 
                 TextColumn::make('enrolled_at')
                     ->label('Registered')
                     ->formatStateUsing(fn ($state) => $state ? tenant_datetime($state) : '—')
-                    ->sortable()
-                    ->visibleFrom('sm'),
+                    ->sortable(),
 
                 IconColumn::make('is_late')
                     ->label('Late')
                     ->boolean()
                     ->trueColor('warning')
-                    ->falseColor('gray')
-                    ->visibleFrom('sm'),
+                    ->falseColor('gray'),
 
                 TextColumn::make('fee_calculated')
                     ->label('Fee')
                     ->money(tenant_currency())
                     ->description(fn (Enrolment $record) => $record->is_official_discount ? 'officials discount' : null)
-                    ->sortable()
-                    ->visibleFrom('sm'),
+                    ->sortable(),
 
                 TextColumn::make('payment_status')
                     ->label('Payment')
                     ->badge()
-                    ->visibleFrom('sm')
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         'received'    => 'Paid',
                         'outstanding' => 'Outstanding',
@@ -150,8 +143,7 @@ class EnrolmentResource extends Resource
 
                 TextColumn::make('active_events_count')
                     ->label('Events')
-                    ->counts('activeEvents')
-                    ->visibleFrom('sm'),
+                    ->counts('activeEvents'),
             ])
             ->filters([
                 SelectFilter::make('status')
