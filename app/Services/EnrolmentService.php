@@ -288,20 +288,38 @@ class EnrolmentService
     private function buildInvoiceData(EnrolmentCart $cart, array $cartTotal): array
     {
         return [
-            'items'       => array_map(fn ($item) => [
-                'profile_name'    => $item['profile']->full_name,
-                'competition'     => $item['competition']->name,
-                'competition_date' => $item['competition']->competition_date->format('d M Y'),
-                'events'          => $item['enrolment']->activeEvents
-                    ->map(fn ($ee) => $ee->competitionEvent->name)
+            'items'       => array_map(function ($item) {
+                $competition   = $item['competition'];
+                $isOfficial    = $item['is_official'];
+                $useOfficialFees = $isOfficial
+                    && $competition->fee_official_first_event !== null
+                    && $competition->fee_official_additional_event !== null;
+                $firstFee      = (float) ($useOfficialFees ? $competition->fee_official_first_event : $competition->fee_first_event);
+                $additionalFee = (float) ($useOfficialFees ? $competition->fee_official_additional_event : $competition->fee_additional_event);
+
+                $eventLines = $item['enrolment']->activeEvents
                     ->values()
-                    ->toArray(),
-                'base_fee'        => $item['base_fee'],
-                'is_official'     => $item['is_official'],
-                'late_surcharge'  => $item['late_surcharge'],
-                'platform_fee'    => $item['platform_fee'],
-                'subtotal'        => $item['subtotal'],
-            ], $cartTotal['items']),
+                    ->map(function ($ee, $index) use ($firstFee, $additionalFee) {
+                        return [
+                            'event_name'     => $ee->competitionEvent->name,
+                            'division_label' => $ee->division?->label ?? '',
+                            'fee'            => $index === 0 ? $firstFee : $additionalFee,
+                        ];
+                    })
+                    ->toArray();
+
+                return [
+                    'profile_name'     => $item['profile']->full_name,
+                    'competition'      => $competition->name,
+                    'competition_date' => $competition->competition_date->format('d M Y'),
+                    'events'           => $eventLines,
+                    'base_fee'         => $item['base_fee'],
+                    'is_official'      => $isOfficial,
+                    'late_surcharge'   => $item['late_surcharge'],
+                    'platform_fee'     => $item['platform_fee'],
+                    'subtotal'         => $item['subtotal'],
+                ];
+            }, $cartTotal['items']),
             'grand_total'  => $cartTotal['grand_total'],
         ];
     }
@@ -320,7 +338,7 @@ class EnrolmentService
         $items      = [];
         $grandTotal = 0.0;
 
-        foreach ($cart->draftEnrolments()->with(['competitor', 'competition', 'activeEvents.competitionEvent'])->get() as $enrolment) {
+        foreach ($cart->draftEnrolments()->with(['competitor', 'competition', 'activeEvents.competitionEvent', 'activeEvents.division'])->get() as $enrolment) {
             $competition   = $enrolment->competition;
             $entryFee      = (float) $enrolment->fee_calculated;
             $lateSurcharge = $enrolment->is_late ? (float) $competition->late_surcharge : null;

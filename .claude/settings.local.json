@@ -354,7 +354,18 @@
       "Bash(php -l app/Filament/OrgAdmin/Resources/CompetitorResource.php)",
       "Bash(php -l app/Filament/OrgAdmin/Resources/MemberResource.php)",
       "Bash(php -l \"app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/RankBandsRelationManager.php\")",
-      "Bash(php -l app/Filament/OrgAdmin/Pages/TransactionsPage.php)"
+      "Bash(php -l app/Filament/OrgAdmin/Pages/TransactionsPage.php)",
+      "Bash(php -l app/Jobs/SendCompetitionPromoEmailJob.php)",
+      "Bash(php -l app/Jobs/SendCompetitionReminderEmailJob.php)",
+      "Bash(php -l app/Mail/CompetitionPromoMail.php)",
+      "Bash(php -l app/Mail/CompetitionReminderMail.php)",
+      "Bash(php -l app/Filament/Portal/Pages/PreferencesPage.php)",
+      "Bash(php -r \"echo \\(new ReflectionClass\\(\\\\Filament\\\\Tables\\\\Actions\\\\Action::class\\)\\)->getMethod\\('requiresConfirmation'\\)->getFileName\\(\\) . PHP_EOL;\")",
+      "Bash(xargs grep -l \"shouldOpenModal\")",
+      "Bash(xargs grep -l \"resolveDefaultClosureDependencyForEvaluationByName\")",
+      "Bash(xargs grep -l \"function getAction\\\\b\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Filament/OrgAdmin/Resources/CompetitionResource/RelationManagers/CompetitionEventsRelationManager.php\")",
+      "Bash(php -l app/Notifications/CartInvoiceNotification.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

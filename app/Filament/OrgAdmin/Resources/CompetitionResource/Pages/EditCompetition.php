@@ -11,9 +11,11 @@ use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\Officia
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\RankBandsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\WeightClassesRelationManager;
 use App\Jobs\GenerateCompetitionInsightsJob;
+use App\Jobs\SendCompetitionPromoEmailJob;
 use App\Models\Division;
 use App\Notifications\Notification;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Pages\EditRecord;
 
 class EditCompetition extends EditRecord
@@ -128,10 +130,8 @@ class EditCompetition extends EditRecord
                 ->whereNotIn('divisions.status', ['combined'])
                 ->count();
 
-            if ($unscheduled > 0) {
-                $this->mountAction('confirmOpenWithUnscheduled', ['count' => $unscheduled]);
-                $this->halt();
-            }
+            $this->mountAction('confirmOpenRegistrations', ['unscheduled' => $unscheduled]);
+            $this->halt();
         }
 
         $this->confirmedStatusChange = false;
@@ -162,16 +162,26 @@ class EditCompetition extends EditRecord
         }
     }
 
-    public function confirmOpenWithUnscheduledAction(): Action
+    public function confirmOpenRegistrationsAction(): Action
     {
-        return Action::make('confirmOpenWithUnscheduled')
-            ->modalHeading('Unscheduled divisions')
-            ->modalDescription(fn (array $arguments) =>
-                "{$arguments['count']} division(s) have not been assigned to a location. Open for enrolment anyway?"
+        return Action::make('confirmOpenRegistrations')
+            ->modalHeading('Open registrations')
+            ->modalDescription(fn (array $arguments) => ($arguments['unscheduled'] ?? 0) > 0
+                ? "{$arguments['unscheduled']} division(s) have not been assigned to a location. Open for registration anyway?"
+                : null
             )
-            ->modalSubmitActionLabel('Open anyway')
-            ->action(function () {
+            ->form([
+                Toggle::make('send_promo_email')
+                    ->label('Send promotional email to eligible users')
+                    ->helperText('Sends an email to all active users with profiles in this organisation who have not opted out.')
+                    ->default(true),
+            ])
+            ->modalSubmitActionLabel('Open registrations')
+            ->action(function (array $data) {
                 $this->confirmedStatusChange = true;
+                if ($data['send_promo_email'] ?? false) {
+                    SendCompetitionPromoEmailJob::dispatch($this->record);
+                }
                 $this->save();
             });
     }

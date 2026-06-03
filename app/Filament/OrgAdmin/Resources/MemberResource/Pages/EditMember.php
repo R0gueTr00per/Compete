@@ -13,7 +13,8 @@ class EditMember extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        $data['user']['email'] = $this->record->user?->email;
+        $data['user']['email']                      = $this->record->user?->email;
+        $data['user']['receive_competition_emails'] = $this->record->user?->receive_competition_emails ?? true;
         return $data;
     }
 
@@ -22,8 +23,15 @@ class EditMember extends EditRecord
         /** @var OrganisationMembership $record */
         $record = $this->record;
 
+        $userUpdates = [];
         if (isset($data['user']['email'])) {
-            $record->user->update(['email' => $data['user']['email']]);
+            $userUpdates['email'] = $data['user']['email'];
+        }
+        if (isset($data['user']['receive_competition_emails'])) {
+            $userUpdates['receive_competition_emails'] = $data['user']['receive_competition_emails'];
+        }
+        if ($userUpdates) {
+            $record->user->update($userUpdates);
         }
         unset($data['user']);
 

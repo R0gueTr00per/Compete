@@ -71,7 +71,24 @@ class EnrolPage extends Page implements HasForms
             $this->cartId = $draft->id;
         }
 
-        $this->dojo_type = 'lfp';
+        // Pre-fill from the last enrolment for this profile (or any owned profile)
+        $lastQuery = Enrolment::whereNotIn('status', ['draft'])
+            ->whereHas('competitor', function ($q) {
+                $q->where('owner_user_id', auth()->id())
+                  ->orWhere('user_id', auth()->id());
+            });
+
+        if ($this->profile_id) {
+            $lastQuery->where('competitor_profile_id', $this->profile_id);
+        }
+
+        $last = $lastQuery->latest('enrolled_at')->first();
+
+        $this->dojo_type   = $last?->dojo_type   ?? 'lfp';
+        $this->dojo_name   = $last?->dojo_name;
+        $this->guest_style = $last?->guest_style;
+        $this->rank_id     = $last?->rank_id;
+        $this->weight_kg   = $last?->weight_kg ? (float) $last->weight_kg : null;
 
         // competition_id from URL takes priority; otherwise auto-select
         if ($this->competition_id === null) {

@@ -3,10 +3,12 @@
 namespace App\Filament\OrgAdmin\Pages;
 
 use App\Jobs\GenerateCompetitionInsightsJob;
+use App\Jobs\SendCompetitionPromoEmailJob;
 use App\Models\Competition;
 use App\Models\CompetitionInsight;
 use App\Models\CompetitionTask;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Toggle;
 use App\Notifications\Notification;
 use Filament\Pages\Dashboard as BaseDashboard;
 
@@ -119,11 +121,20 @@ class Dashboard extends BaseDashboard
             })
             ->modalSubmitActionLabel(fn (array $arguments) =>
                 'Set to ' . ($statusLabels[$arguments['targetStatus'] ?? ''] ?? 'Unknown'))
-            ->action(function (array $arguments) {
+            ->form(fn (array $arguments) => ($arguments['targetStatus'] ?? '') === 'open' ? [
+                Toggle::make('send_promo_email')
+                    ->label('Send promotional email to eligible users')
+                    ->helperText('Sends an email to all active users with profiles in this organisation who have not opted out.')
+                    ->default(true),
+            ] : [])
+            ->action(function (array $arguments, array $data) {
                 $competition = Competition::find($arguments['competitionId'] ?? null);
                 $target = $arguments['targetStatus'] ?? null;
                 if (! $competition || ! $target || $competition->status === $target) return;
                 $competition->update(['status' => $target]);
+                if ($target === 'open' && ($data['send_promo_email'] ?? false)) {
+                    SendCompetitionPromoEmailJob::dispatch($competition);
+                }
                 Notification::make()->title('Competition status updated.')->success()->send();
                 $this->dispatch('competition-status-changed', competitionId: $competition->id, newStatus: $target);
                 if ($competition->organisation->insights_auto_refresh ?? true) {

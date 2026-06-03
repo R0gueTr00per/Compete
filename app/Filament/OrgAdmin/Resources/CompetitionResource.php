@@ -11,6 +11,10 @@ use App\Models\Enrolment;
 use App\Models\EnrolmentEvent;
 use App\Models\JudgeScore;
 use App\Models\Result;
+use App\Jobs\SendCompetitionPromoEmailJob;
+use App\Jobs\SendCompetitionReminderEmailJob;
+use App\Models\CompetitorProfile;
+use App\Models\User;
 use App\Services\DivisionAssignmentService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
@@ -307,9 +311,27 @@ class CompetitionResource extends Resource
                         ->icon('heroicon-o-clipboard-document-list')
                         ->color('gray')
                         ->url(fn (Competition $record) => route('filament.org-admin.resources.enrolments.index') . '?competition_id=' . $record->id),
+                    Action::make('openRegistrations')
+                        ->label('Open Registrations')
+                        ->icon('heroicon-o-lock-open')
+                        ->color('success')
+                        ->visible(fn (Competition $record) => $record->status === 'planning')
+                        ->modalHeading('Open registrations')
+                        ->form([
+                            Toggle::make('send_promo_email')
+                                ->label('Send promotional email to eligible users')
+                                ->helperText('Sends an email to all active users with profiles in this organisation who have not opted out.')
+                                ->default(true),
+                        ])
+                        ->modalSubmitActionLabel('Open registrations')
+                        ->action(function (Competition $record, array $data) {
+                            $record->update(['status' => 'open']);
+                            if ($data['send_promo_email'] ?? false) {
+                                SendCompetitionPromoEmailJob::dispatch($record);
+                            }
+                        }),
                     Action::make('advance')
                         ->label(fn (Competition $record) => match ($record->status) {
-                            'planning'          => 'Open Registrations',
                             'open'              => 'Close Registrations',
                             'enrolments_closed' => 'Begin Check-ins',
                             'check_in'          => 'Start Competition',
@@ -317,7 +339,6 @@ class CompetitionResource extends Resource
                             default             => 'Advance',
                         })
                         ->icon(fn (Competition $record) => match ($record->status) {
-                            'planning'          => 'heroicon-o-lock-open',
                             'open'              => 'heroicon-o-lock-closed',
                             'enrolments_closed' => 'heroicon-o-clipboard-document-check',
                             'check_in'          => 'heroicon-o-play',
@@ -325,29 +346,15 @@ class CompetitionResource extends Resource
                             default             => 'heroicon-o-arrow-right',
                         })
                         ->color(fn (Competition $record) => match ($record->status) {
-                            'planning'          => 'success',
                             'open'              => 'warning',
                             'enrolments_closed' => 'primary',
                             'check_in'          => 'info',
                             'running'           => 'danger',
                             default             => 'gray',
                         })
-                        ->requiresConfirmation(fn (Competition $record) =>
-                            $record->status !== 'planning' ||
-                            $record->allDivisions()
-                                ->whereNull('divisions.location_label')
-                                ->whereNotIn('divisions.status', ['combined'])
-                                ->count() > 0
-                        )
+                        ->requiresConfirmation()
                         ->modalDescription(function (Competition $record) {
                             return match ($record->status) {
-                                'planning' => (function () use ($record) {
-                                    $unscheduled = $record->allDivisions()
-                                        ->whereNull('divisions.location_label')
-                                        ->whereNotIn('divisions.status', ['combined'])
-                                        ->count();
-                                    return "{$unscheduled} division(s) have not been assigned to a location. Open for registration anyway?";
-                                })(),
                                 'open'              => 'Close registrations for this competition?',
                                 'enrolments_closed' => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
                                 'check_in' => (function () use ($record) {
@@ -364,15 +371,45 @@ class CompetitionResource extends Resource
                                 default    => 'Are you sure?',
                             };
                         })
-                        ->visible(fn (Competition $record) => $record->status !== 'complete')
+                        ->visible(fn (Competition $record) => ! in_array($record->status, ['planning', 'complete']))
                         ->action(fn (Competition $record) => $record->update(['status' => match ($record->status) {
-                            'planning'          => 'open',
                             'open'              => 'enrolments_closed',
                             'enrolments_closed' => 'check_in',
                             'check_in'          => 'running',
                             'running'           => 'complete',
                             default             => $record->status,
                         }])),
+                    Action::make('sendReminder')
+                        ->label('Send reminder email')
+                        ->icon('heroicon-o-envelope')
+                        ->color('gray')
+                        ->visible(fn (Competition $record) => $record->status === 'open')
+                        ->requiresConfirmation()
+                        ->modalHeading('Send reminder email')
+                        ->modalDescription(function (Competition $record) {
+                            $orgId         = $record->organisation_id;
+                            $orgProfileIds = CompetitorProfile::where('organisation_id', $orgId)
+                                ->where('is_active', true)
+                                ->pluck('id');
+                            $enrolledProfileIds = Enrolment::where('competition_id', $record->id)
+                                ->whereIn('competitor_profile_id', $orgProfileIds)
+                                ->pluck('competitor_profile_id');
+                            $registeredUserIds = CompetitorProfile::whereIn('id', $enrolledProfileIds)
+                                ->get()
+                                ->flatMap(fn ($p) => array_filter([$p->user_id, $p->owner_user_id]))
+                                ->unique();
+                            $allUserIds = CompetitorProfile::whereIn('id', $orgProfileIds)
+                                ->get()
+                                ->flatMap(fn ($p) => array_filter([$p->user_id, $p->owner_user_id]))
+                                ->unique();
+                            $count = User::whereIn('id', $allUserIds->diff($registeredUserIds))
+                                ->where('status', 'active')
+                                ->where('receive_competition_emails', true)
+                                ->count();
+                            return "Send a reminder email to {$count} user(s) who have not yet registered for this competition.";
+                        })
+                        ->modalSubmitActionLabel('Send reminder')
+                        ->action(fn (Competition $record) => SendCompetitionReminderEmailJob::dispatch($record)),
                     Action::make('duplicate')
                         ->label('Duplicate competition')
                         ->icon('heroicon-o-document-duplicate')

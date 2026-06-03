@@ -24,6 +24,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         'email',
         'status',
         'timezone',
+        'receive_competition_emails',
         'password',
         'two_factor_secret',
         'two_factor_confirmed_at',
@@ -38,12 +39,13 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     protected function casts(): array
     {
         return [
-            'email_verified_at'       => 'datetime',
-            'locked_until'            => 'datetime',
-            'last_login_at'           => 'datetime',
-            'password'                => 'hashed',
-            'two_factor_secret'       => 'encrypted',
-            'two_factor_confirmed_at' => 'datetime',
+            'email_verified_at'          => 'datetime',
+            'locked_until'               => 'datetime',
+            'last_login_at'              => 'datetime',
+            'password'                   => 'hashed',
+            'two_factor_secret'          => 'encrypted',
+            'two_factor_confirmed_at'    => 'datetime',
+            'receive_competition_emails' => 'boolean',
         ];
     }
 

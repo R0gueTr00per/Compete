@@ -3,14 +3,11 @@
 namespace App\Notifications;
 
 use App\Models\EnrolmentCart;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class CartInvoiceNotification extends Notification implements ShouldQueue
+class CartInvoiceNotification extends Notification
 {
-    use Queueable;
     /**
      * @param  array{competition: string, competition_date: string, location_name: ?string, items: array, grand_total: float}  $invoice
      */
@@ -35,15 +32,14 @@ class CartInvoiceNotification extends Notification implements ShouldQueue
             $message->line('---')
                 ->line("**{$item['profile_name']}** — {$item['competition']} ({$item['competition_date']})");
 
-            foreach ($item['events'] as $eventName) {
-                $message->line("  • {$eventName}");
-            }
-
             if ($item['is_official']) {
                 $message->line('_Official rate applied._');
             }
 
-            $message->line('Entry fee: $' . number_format($item['base_fee'], 2));
+            foreach ($item['events'] as $event) {
+                $division = $event['division_label'] ? " — {$event['division_label']}" : '';
+                $message->line("  • {$event['event_name']}{$division}: \$" . number_format($event['fee'], 2));
+            }
 
             if ($item['late_surcharge'] !== null) {
                 $message->line('Late surcharge: $' . number_format($item['late_surcharge'], 2));

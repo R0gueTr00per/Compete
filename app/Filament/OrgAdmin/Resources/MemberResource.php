@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -80,6 +81,10 @@ class MemberResource extends Resource
                         'suspended' => 'Suspended',
                     ])
                     ->required(),
+
+                Toggle::make('user.receive_competition_emails')
+                    ->label('Receive competition promotional emails')
+                    ->helperText('When enabled, this user will receive emails when competitions open and reminder emails.'),
             ]),
         ]);
     }
