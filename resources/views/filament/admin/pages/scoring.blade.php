@@ -854,7 +854,7 @@
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->home_info }}</div>
                                                                     @endif
                                                                     @if ($pending && ! $isReadOnly && ! empty($enabledPenalties) && $homeResult)
-                                                                        @php $bWC=$this->getWarnCount($homeResult->id,$match->id); $bLog=$this->getPenaltyLog($homeResult->id,$match->id); $bCU=$this->hasUndoablePenalty($homeResult->id,$match->id); @endphp
+                                                                        @php $bWC=$this->getWarnCount($homeResult->id,$match->id); $bLog=$this->getPenaltyLog($homeResult->id,$match->id); @endphp
                                                                         <div class="flex flex-wrap gap-1 items-center mt-1">
                                                                             @foreach ($enabledPenalties as $pType)
                                                                                 @if ($match->away_id !== null)
@@ -864,7 +864,7 @@
                                                                                     </button>
                                                                                 @endif
                                                                             @endforeach
-                                                                            @if($bCU)<button type="button" wire:click="undoPenalty({{ $homeResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>@endif
+                                                                            <button type="button" wire:click="undoPenalty({{ $homeResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>
                                                                         </div>
                                                                         @if(!empty($bLog))<ul class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 space-y-0.5">@foreach($bLog as $e)<li>{{$e['label']}}</li>@endforeach</ul>@endif
                                                                     @endif
@@ -878,9 +878,9 @@
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->away_info }}</div>
                                                                     @endif
                                                                     @if ($pending && ! $isReadOnly && ! empty($enabledPenalties) && $awayResult)
-                                                                        @php $bWC=$this->getWarnCount($awayResult->id,$match->id); $bLog=$this->getPenaltyLog($awayResult->id,$match->id); $bCU=$this->hasUndoablePenalty($awayResult->id,$match->id); @endphp
+                                                                        @php $bWC=$this->getWarnCount($awayResult->id,$match->id); $bLog=$this->getPenaltyLog($awayResult->id,$match->id); @endphp
                                                                         <div class="flex flex-wrap gap-1 items-center justify-end mt-1">
-                                                                            @if($bCU)<button type="button" wire:click="undoPenalty({{ $awayResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>@endif
+                                                                            <button type="button" wire:click="undoPenalty({{ $awayResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>
                                                                             @foreach ($enabledPenalties as $pType)
                                                                                 @if ($match->away_id !== null)
                                                                                     <button type="button" wire:click="openPenaltyModal({{ $awayResult->id }}, '{{ $pType }}', {{ $match->id }})"

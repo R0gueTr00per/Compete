@@ -1886,7 +1886,13 @@ class Scoring extends Page
     {
         return MatchPenalty::where('result_id', $resultId)
             ->when($matchId, fn ($q) => $q->where('round_robin_match_id', $matchId))
-            ->whereNotIn('type', ['dq'])
+            ->where(fn ($q) => $q
+                ->whereNotIn('type', ['dq'])
+                ->orWhere(fn ($q2) => $q2
+                    ->where('type', 'dq')
+                    ->where(fn ($q3) => $q3->whereNull('reason')->orWhere('reason', 'NOT LIKE', 'Auto-DQ:%'))
+                )
+            )
             ->exists();
     }
 
@@ -1975,12 +1981,17 @@ class Scoring extends Page
 
         $match = $matchId ? RoundRobinMatch::find($matchId) : null;
 
-        $reversedDq = app(ScoringService::class)->undoLastPenalty($result, $match);
+        ['removed' => $removed, 'reversed_dq' => $reversedDq] = app(ScoringService::class)->undoLastPenalty($result, $match);
+
+        if (! $removed) return;
 
         Notification::make()->title('Penalty undone.')->success()->send();
 
         if ($reversedDq) {
             $result->refresh();
+            if ($this->isTournament()) {
+                $this->applyBracketPlacements();
+            }
         }
     }
 

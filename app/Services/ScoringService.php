@@ -289,16 +289,23 @@ class ScoringService
 
     /**
      * Undo the last penalty for a result (optionally scoped to a bracket match).
-     * Returns true if a DQ was reversed.
+     * Returns ['removed' => bool, 'reversed_dq' => bool].
      */
-    public function undoLastPenalty(Result $result, ?RoundRobinMatch $match = null): bool
+    public function undoLastPenalty(Result $result, ?RoundRobinMatch $match = null): array
     {
         $reversedDq = false;
+        $removed    = false;
 
-        DB::transaction(function () use ($result, $match, &$reversedDq) {
+        DB::transaction(function () use ($result, $match, &$reversedDq, &$removed) {
             $last = MatchPenalty::where('result_id', $result->id)
                 ->when($match, fn ($q) => $q->where('round_robin_match_id', $match->id))
-                ->whereNotIn('type', ['dq']) // skip auto-generated DQ records; handled below
+                ->where(fn ($q) => $q
+                    ->whereNotIn('type', ['dq'])
+                    ->orWhere(fn ($q2) => $q2
+                        ->where('type', 'dq')
+                        ->where(fn ($q3) => $q3->whereNull('reason')->orWhere('reason', 'NOT LIKE', 'Auto-DQ:%'))
+                    )
+                )
                 ->latest()
                 ->first();
 
@@ -328,6 +335,16 @@ class ScoringService
             }
 
             switch ($last->type) {
+                case 'dq':
+                    if ($result->disqualified) {
+                        $result->forceFill(['disqualified' => false, 'placement' => null])->save();
+                        if ($result->division_id) {
+                            $this->autoRankDivision(Division::find($result->division_id));
+                        }
+                        $reversedDq = true;
+                    }
+                    break;
+
                 case 'forfeit':
                     if ($result->forfeited) {
                         $result->forceFill(['forfeited' => false])->save();
@@ -359,9 +376,10 @@ class ScoringService
             }
 
             $last->delete();
+            $removed = true;
         });
 
-        return $reversedDq;
+        return ['removed' => $removed, 'reversed_dq' => $reversedDq];
     }
 
     public function getActivePenalties(Result $result, ?RoundRobinMatch $match = null)
