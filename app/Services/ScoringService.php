@@ -238,9 +238,15 @@ class ScoringService
 
             switch ($type) {
                 case 'dq':
-                case 'forfeit':
                     if (! $result->disqualified) {
                         $this->toggleDisqualify($result);
+                    }
+                    $triggeredDq = true;
+                    break;
+
+                case 'forfeit':
+                    if (! $result->forfeited) {
+                        $result->forceFill(['forfeited' => true])->save();
                     }
                     $triggeredDq = true;
                     break;
@@ -323,8 +329,8 @@ class ScoringService
 
             switch ($last->type) {
                 case 'forfeit':
-                    if ($result->disqualified) {
-                        $this->toggleDisqualify($result);
+                    if ($result->forfeited) {
+                        $result->forceFill(['forfeited' => false])->save();
                         $reversedDq = true;
                     }
                     break;

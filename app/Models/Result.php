@@ -26,6 +26,7 @@ class Result extends Model
         return [
             'placement_overridden' => 'boolean',
             'disqualified'         => 'boolean',
+            'forfeited'            => 'boolean',
             'total_score'          => 'decimal:3',
             'tiebreaker_score'     => 'decimal:3',
         ];

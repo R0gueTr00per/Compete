@@ -30,12 +30,51 @@ class BracketService
             $bracketSize *= 2;
         }
 
+        // Build a padded competitor list so no one ever gets more than one bye.
+        // realMatchCount = max(0, n - bracketSize/2) pairs must play in R1.
+        // Remaining competitors get single-bye slots interleaved with real-match
+        // slots so every R2 feeder slot has exactly two R1 ancestors.
+        $halfBracket    = $bracketSize / 2;
+        $realMatchCount = max(0, $n - $halfBracket);
+        $byeComps       = $sortedCompetitors->slice(0, $n - 2 * $realMatchCount)->values();
+        $playComps      = $sortedCompetitors->slice($n - 2 * $realMatchCount)->values();
+
+        $padded  = [];
+        $byeIdx  = 0;
+        $playIdx = 0;
+        $r2Pairs = (int) ceil($halfBracket / 2);
+
+        for ($pair = 0; $pair < $r2Pairs; $pair++) {
+            // Slot A of this R2-feeder pair — prefer a bye competitor so they
+            // share a R2 slot with a real-match winner (each person ≤ 1 bye).
+            if ($byeIdx < $byeComps->count()) {
+                $padded[] = $byeComps->get($byeIdx++);
+                $padded[] = null;
+            } elseif ($playIdx + 1 < $playComps->count()) {
+                $padded[] = $playComps->get($playIdx++);
+                $padded[] = $playComps->get($playIdx++);
+            } else {
+                $padded[] = null; $padded[] = null;
+            }
+
+            // Slot B of this R2-feeder pair — prefer a real match pair.
+            if ($playIdx + 1 < $playComps->count()) {
+                $padded[] = $playComps->get($playIdx++);
+                $padded[] = $playComps->get($playIdx++);
+            } elseif ($byeIdx < $byeComps->count()) {
+                $padded[] = $byeComps->get($byeIdx++);
+                $padded[] = null;
+            } else {
+                $padded[] = null; $padded[] = null;
+            }
+        }
+
         // Pass 1: create all R1 matches so sibling-existence checks work during Pass 2.
         $byeMatches = [];
         $slot = 1;
         for ($i = 0; $i < $bracketSize; $i += 2) {
-            $home = $sortedCompetitors->get($i);
-            $away = $sortedCompetitors->get($i + 1);
+            $home = $padded[$i] ?? null;
+            $away = $padded[$i + 1] ?? null;
 
             if (! $home) {
                 // Double-bye slot — skip but keep the slot counter in sync.
@@ -289,10 +328,10 @@ class BracketService
             return;
         }
 
-        $homeDq = Result::where('enrolment_event_id', $match->home_enrolment_event_id)
-            ->value('disqualified');
-        $awayDq = Result::where('enrolment_event_id', $match->away_enrolment_event_id)
-            ->value('disqualified');
+        $homeResult = Result::where('enrolment_event_id', $match->home_enrolment_event_id)->first();
+        $awayResult = Result::where('enrolment_event_id', $match->away_enrolment_event_id)->first();
+        $homeDq     = $homeResult && ($homeResult->disqualified || $homeResult->forfeited);
+        $awayDq     = $awayResult && ($awayResult->disqualified || $awayResult->forfeited);
 
         if ($homeDq && ! $awayDq) {
             $match->update(['home_result' => 'loss']);
@@ -463,18 +502,59 @@ class BracketService
             ->orderBy('bracket_slot')
             ->get();
 
-        // Only proceed if there are 2 real (non-bye) semi-finals — a bye semi produces
-        // no loser, so with only 1 real semi the lone loser gets 3rd via placement fallback.
+        // Filter to semi-finals that have a real opponent (not bye auto-wins).
         $realSemis = $semis->filter(fn ($m) => $m->away_enrolment_event_id !== null);
-        if ($realSemis->count() < 2) return;
+
+        if ($realSemis->isEmpty()) return;
+
+        // With exactly 1 real semi, check whether the other slot is a genuine bye auto-win
+        // (away=null, home_result='win') vs. just not yet filled. If it's only temporarily empty
+        // (e.g. 7 competitors where the second semi is still pending), return and wait.
+        // Also skip when semiFinalRound=1 (3 competitors): the lone semi loser gets 3rd via
+        // the applyBracketPlacements fallback — no explicit match needed.
+        if ($realSemis->count() === 1) {
+            if ($semiFinalRound < 2) return;
+
+            $hasCompletedByeSemi = $semis->contains(
+                fn ($m) => $m->away_enrolment_event_id === null && $m->home_result === 'win'
+            );
+            if (! $hasCompletedByeSemi) return;
+
+            $onlySemi    = $realSemis->first();
+            $loneLoserId = $onlySemi->loserId();
+            if (! $loneLoserId) return; // Semi not yet played
+
+            $isDq = Result::where('enrolment_event_id', $loneLoserId)
+                ->where(fn ($q) => $q->where('disqualified', true)->orWhere('forfeited', true))
+                ->exists();
+            if ($isDq) return; // DQ'd or forfeited → no 3rd place awarded
+
+            $existing = RoundRobinMatch::where('division_id', $divisionId)
+                ->where('bracket', 'repechage')
+                ->where('bracket_slot', 1)
+                ->first();
+
+            if (! $existing) {
+                RoundRobinMatch::create([
+                    'division_id'             => $divisionId,
+                    'home_enrolment_event_id' => $loneLoserId,
+                    'away_enrolment_event_id' => null,
+                    'home_result'             => 'win',
+                    'round'                   => 1,
+                    'bracket'                 => 'repechage',
+                    'bracket_slot'            => 1,
+                ]);
+            }
+            return;
+        }
 
         $semiLosers = $realSemis->map(fn ($m) => $m->loserId())->filter()->values();
 
         if ($semiLosers->isEmpty()) return;
 
-        // Exclude DQ'd competitors — they should not play for 3rd place
+        // Exclude DQ'd/forfeited competitors — they should not play for 3rd place
         $dqEeIds = Result::whereIn('enrolment_event_id', $semiLosers->all())
-            ->where('disqualified', true)
+            ->where(fn ($q) => $q->where('disqualified', true)->orWhere('forfeited', true))
             ->pluck('enrolment_event_id')
             ->toArray();
         $eligible = $semiLosers->reject(fn ($id) => in_array($id, $dqEeIds))->values();
@@ -483,6 +563,9 @@ class BracketService
             ->where('bracket', 'repechage')
             ->where('bracket_slot', 1)
             ->first();
+
+        // The 3rd-place match has already been played — nothing to create or modify.
+        if ($existing && $existing->home_result !== null) return;
 
         $bothSemisScored = $semiLosers->count() === 2;
 
@@ -503,8 +586,8 @@ class BracketService
                         'bracket'                 => 'repechage',
                         'bracket_slot'            => 1,
                     ]);
-                } else {
-                    // Existing match may hold the DQ'd loser — replace with eligible one
+                } elseif ($existing->home_result === null) {
+                    // Only modify if the match hasn't been played yet — never rewrite a completed result
                     $existing->update([
                         'home_enrolment_event_id' => $soleLoserId,
                         'away_enrolment_event_id' => null,

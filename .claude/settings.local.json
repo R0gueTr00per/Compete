@@ -370,7 +370,8 @@
       "Bash(curl -s -u \"bgouldson@optusnet.com.au:$\\(cat C:/Users/Brad/.claude/jira_token || echo ''\\)\" \"https://competeapp.atlassian.net/rest/api/3/issue/COM-263\")",
       "Bash(php -l app/Models/Division.php)",
       "Bash(xargs grep -l \"class.*Model\")",
-      "Bash(xargs grep -l \"enrolment_event\")"
+      "Bash(xargs grep -l \"enrolment_event\")",
+      "Bash(findstr /n \"public function.*Penalty\\\\|public function.*forfeit\\\\|applyBracketPlacements\" app/Filament/OrgAdmin/Pages/Scoring.php)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

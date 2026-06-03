@@ -975,8 +975,8 @@ class Scoring extends Page
 
         $homeResult = Result::where('enrolment_event_id', $match->home_enrolment_event_id)->first();
         $awayResult = Result::where('enrolment_event_id', $match->away_enrolment_event_id)->first();
-        $homeDq     = $homeResult?->disqualified ?? false;
-        $awayDq     = $awayResult?->disqualified ?? false;
+        $homeDq     = ($homeResult?->disqualified || $homeResult?->forfeited) ?? false;
+        $awayDq     = ($awayResult?->disqualified || $awayResult?->forfeited) ?? false;
 
         if ($homeDq && ! $awayDq) {
             $homeWins = false;
@@ -1057,11 +1057,23 @@ class Scoring extends Page
         $loser  = $match->loserId();
 
         if ($match->bracket === 'winners') {
-            // Clearing any WB result invalidates the repechage / 3rd-place bracket
-            if (in_array($format, ['repechage', 'se_3rd_place'])) {
+            // Clearing a WB result may invalidate the repechage / 3rd-place bracket.
+            // For se_3rd_place: only clear repechage when a semi-final (or earlier) is
+            // undone — undoing the WB final doesn't change who the semi-final losers are.
+            if ($format === 'repechage') {
                 RoundRobinMatch::where('division_id', $this->division_id)
                     ->where('bracket', 'repechage')
                     ->delete();
+            } elseif ($format === 'se_3rd_place') {
+                $r1Count    = RoundRobinMatch::where('division_id', $this->division_id)
+                    ->where('bracket', 'winners')->where('round', 1)->count();
+                $maxWbRound = $r1Count > 1 ? (int) ceil(log($r1Count, 2)) + 1 : 1;
+                $semiFinalRound = $maxWbRound - 1;
+                if ($match->round <= $semiFinalRound) {
+                    RoundRobinMatch::where('division_id', $this->division_id)
+                        ->where('bracket', 'repechage')
+                        ->delete();
+                }
             }
 
             if ($winner) {
@@ -1828,12 +1840,8 @@ class Scoring extends Page
 
     public function getDqLabel(int $resultId): string
     {
-        $type = MatchPenalty::where('result_id', $resultId)
-            ->whereIn('type', ['forfeit', 'dq'])
-            ->latest()
-            ->value('type');
-
-        return $type === 'forfeit' ? 'Forfeit' : 'DQ';
+        $result = Result::find($resultId);
+        return $result?->forfeited ? 'Forfeit' : 'DQ';
     }
 
     public function getWarnCount(int $resultId, ?int $matchId = null): int
@@ -1954,6 +1962,9 @@ class Scoring extends Page
         if ($triggeredDq) {
             $result->refresh();
             $this->handleDqAutoAdvance($result);
+            if ($this->isTournament()) {
+                $this->applyBracketPlacements();
+            }
         }
     }
 
@@ -1975,7 +1986,7 @@ class Scoring extends Page
 
     private function handleDqAutoAdvance(Result $result): void
     {
-        if (! $result->disqualified) return;
+        if (! $result->disqualified && ! $result->forfeited) return;
         if (! $this->isTournament()) return;
         if (! in_array($this->getScoringMethod(), ['first_to_n', 'timed_points', 'win_loss'])) return;
 
@@ -1996,7 +2007,7 @@ class Scoring extends Page
                 ? Result::where('enrolment_event_id', $winnerEeId)->first()
                 : null;
 
-            if ($winnerEeId && ! $otherResult?->disqualified) {
+            if ($winnerEeId && ! $otherResult?->disqualified && ! $otherResult?->forfeited) {
                 $homeWins = $match->home_enrolment_event_id === $winnerEeId;
                 $match->update(['home_result' => $homeWins ? 'win' : 'loss']);
                 app(BracketService::class)->advance($match->fresh());
@@ -2018,6 +2029,9 @@ class Scoring extends Page
         Notification::make()->title($label)->warning()->send();
 
         $this->handleDqAutoAdvance($result);
+        if ($this->isTournament()) {
+            $this->applyBracketPlacements();
+        }
     }
 
     public function hasSavedScores(): bool

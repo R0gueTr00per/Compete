@@ -780,8 +780,9 @@
                                                     $displaySections[] = ['label' => null, 'rounds' => [$r => $matches], 'key' => 'winners'];
                                                 }
                                             }
-                                            $repAll = $bracketData['repechage'] ?? [];
-                                            if (! empty($repAll)) {
+                                            $repAll          = $bracketData['repechage'] ?? [];
+                                            $repHasRealMatch = collect($repAll)->flatten(1)->contains(fn($m) => ! $m->is_bye);
+                                            if (! empty($repAll) && $repHasRealMatch) {
                                                 $displaySections[] = ['label' => '3rd Place Playoff', 'rounds' => $repAll, 'key' => 'repechage'];
                                             }
                                             if (isset($wbAll[$wbFinalRound])) {
@@ -847,7 +848,7 @@
                                                             <div class="flex items-start gap-2">
                                                                 <div class="flex-1 min-w-0">
                                                                     <div class="font-medium truncate {{ $homeWon ? 'text-success-700 dark:text-success-400' : ($awayWon ? 'text-gray-400' : 'text-gray-900 dark:text-white') }}">
-                                                                        @if ($homeWon)🏆 @endif<span class="{{ $awayWon ? 'line-through' : '' }}">{{ $match->home_name }}</span>@if ($homeResult?->disqualified) <span class="text-xs font-normal text-danger-600">[{{ $this->getDqLabel($homeResult->id) }}]</span>@endif
+                                                                        @if ($homeWon && ! $match->is_bye)🏆 @endif<span class="{{ $awayWon ? 'line-through' : '' }}">{{ $match->home_name }}</span>@if (($homeResult?->disqualified || $homeResult?->forfeited) && ! $homeWon) <span class="text-xs font-normal text-danger-600">[{{ $homeResult->forfeited ? 'Forfeit' : 'DQ' }}]</span>@endif
                                                                     </div>
                                                                     @if ($match->home_info)
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->home_info }}</div>
@@ -856,7 +857,7 @@
                                                                         @php $bWC=$this->getWarnCount($homeResult->id,$match->id); $bLog=$this->getPenaltyLog($homeResult->id,$match->id); $bCU=$this->hasUndoablePenalty($homeResult->id,$match->id); @endphp
                                                                         <div class="flex flex-wrap gap-1 items-center mt-1">
                                                                             @foreach ($enabledPenalties as $pType)
-                                                                                @if ($pType === 'forfeit' || $match->away_id !== null)
+                                                                                @if ($match->away_id !== null)
                                                                                     <button type="button" wire:click="openPenaltyModal({{ $homeResult->id }}, '{{ $pType }}', {{ $match->id }})"
                                                                                         class="px-1.5 py-0.5 rounded text-xs font-medium border {{ in_array($pType,['dq','forfeit']) ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400' : 'border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 text-warning-700 dark:text-warning-400' }} active:scale-95 transition-transform">
                                                                                         @if($pType==='warn'&&$bWC>0)Warn {{$bWC}}@else{{$this->getPenaltyLabel($pType)}}@endif
@@ -871,7 +872,7 @@
                                                                 <span class="text-xs text-gray-400 shrink-0 mt-0.5">vs</span>
                                                                 <div class="flex-1 min-w-0 text-right">
                                                                     <div class="font-medium truncate {{ $awayWon ? 'text-success-700 dark:text-success-400' : ($homeWon ? 'text-gray-400' : 'text-gray-900 dark:text-white') }}">
-                                                                        @if ($awayResult?->disqualified) <span class="text-xs font-normal text-danger-600">[{{ $this->getDqLabel($awayResult->id) }}]</span> @endif<span class="{{ $homeWon ? 'line-through' : '' }}">{{ $match->away_name }}</span>@if ($awayWon) 🏆@endif
+                                                                        @if (($awayResult?->disqualified || $awayResult?->forfeited) && ! $awayWon) <span class="text-xs font-normal text-danger-600">[{{ $awayResult->forfeited ? 'Forfeit' : 'DQ' }}]</span> @endif<span class="{{ ($homeWon && ! $match->is_bye) ? 'line-through' : '' }}">{{ $match->away_name }}</span>@if ($awayWon) 🏆@endif
                                                                     </div>
                                                                     @if ($match->away_info)
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->away_info }}</div>
@@ -881,7 +882,7 @@
                                                                         <div class="flex flex-wrap gap-1 items-center justify-end mt-1">
                                                                             @if($bCU)<button type="button" wire:click="undoPenalty({{ $awayResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>@endif
                                                                             @foreach ($enabledPenalties as $pType)
-                                                                                @if ($pType === 'forfeit' || $match->away_id !== null)
+                                                                                @if ($match->away_id !== null)
                                                                                     <button type="button" wire:click="openPenaltyModal({{ $awayResult->id }}, '{{ $pType }}', {{ $match->id }})"
                                                                                         class="px-1.5 py-0.5 rounded text-xs font-medium border {{ in_array($pType,['dq','forfeit']) ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400' : 'border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 text-warning-700 dark:text-warning-400' }} active:scale-95 transition-transform">
                                                                                         @if($pType==='warn'&&$bWC>0)Warn {{$bWC}}@else{{$this->getPenaltyLabel($pType)}}@endif
@@ -1225,15 +1226,21 @@
                                                 $gf = collect($bracketData['grand_final'] ?? [])->flatten(1)->first();
                                                 if ($gf && $gf->winner_id) {
                                                     $bracketPlacements[1] = $gf->winner_id === $gf->home_id ? $gf->home_name : $gf->away_name;
-                                                    if ($gf->loser_id)
-                                                        $bracketPlacements[2] = $gf->loser_id === $gf->home_id ? $gf->home_name : $gf->away_name;
+                                                    if ($gf->loser_id) {
+                                                        $loserResult = $rows->first(fn($r) => $r->ee->id === $gf->loser_id)?->result;
+                                                        if (! $loserResult?->disqualified && ! $loserResult?->forfeited)
+                                                            $bracketPlacements[2] = $gf->loser_id === $gf->home_id ? $gf->home_name : $gf->away_name;
+                                                    }
                                                 }
                                             } elseif ($format === 'repechage' && $wbFinalRound) {
                                                 $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
                                                 if ($wbFinal && $wbFinal->winner_id) {
                                                     $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                    if ($wbFinal->loser_id)
-                                                        $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    if ($wbFinal->loser_id) {
+                                                        $loserResult = $rows->first(fn($r) => $r->ee->id === $wbFinal->loser_id)?->result;
+                                                        if (! $loserResult?->disqualified && ! $loserResult?->forfeited)
+                                                            $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    }
                                                 }
                                                 $repRounds = $bracketData['repechage'] ?? [];
                                                 if (! empty($repRounds)) {
@@ -1246,8 +1253,11 @@
                                                 $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
                                                 if ($wbFinal && $wbFinal->winner_id) {
                                                     $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                    if ($wbFinal->loser_id)
-                                                        $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    if ($wbFinal->loser_id) {
+                                                        $loserResult = $rows->first(fn($r) => $r->ee->id === $wbFinal->loser_id)?->result;
+                                                        if (! $loserResult?->disqualified && ! $loserResult?->forfeited)
+                                                            $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    }
                                                 }
                                                 $repRounds = $bracketData['repechage'] ?? [];
                                                 if (! empty($repRounds)) {
@@ -1295,8 +1305,11 @@
                                                 $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
                                                 if ($wbFinal && $wbFinal->winner_id) {
                                                     $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                    if ($wbFinal->loser_id)
-                                                        $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    if ($wbFinal->loser_id) {
+                                                        $loserResult = $rows->first(fn($r) => $r->ee->id === $wbFinal->loser_id)?->result;
+                                                        if (! $loserResult?->disqualified && ! $loserResult?->forfeited)
+                                                            $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
+                                                    }
                                                 }
 
                                                 if ($wbFinalRound > 1) {
@@ -1357,8 +1370,8 @@
                                                 <div class="min-w-0 flex-1">
                                                     <p class="font-medium text-sm text-gray-900 dark:text-white truncate">
                                                         {{ $row->name }}
-                                                        @if ($result->disqualified)
-                                                            <span class="ml-1 text-xs text-danger-600">{{ $this->getDqLabel($result->id) }}</span>
+                                                        @if ($result->disqualified || $result->forfeited)
+                                                            <span class="ml-1 text-xs text-danger-600">{{ $result->forfeited ? 'Forfeit' : 'DQ' }}</span>
                                                         @endif
                                                     </p>
                                                     @if ($row->info)
@@ -1631,8 +1644,8 @@
                                                     <td class="py-2 pr-4">
                                                         <div class="font-medium text-gray-900 dark:text-white">
                                                             {{ $row->name }}
-                                                            @if ($result->disqualified)
-                                                                <span class="ml-1 text-xs text-danger-600">{{ $this->getDqLabel($result->id) }}</span>
+                                                            @if ($result->disqualified || $result->forfeited)
+                                                                <span class="ml-1 text-xs text-danger-600">{{ $result->forfeited ? 'Forfeit' : 'DQ' }}</span>
                                                             @endif
                                                         </div>
                                                         @if ($row->info)
