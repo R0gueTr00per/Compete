@@ -1284,7 +1284,7 @@ class Scoring extends Page
         $ee = EnrolmentEvent::with('result')->find($eeId);
         if (! $ee) return;
         $result = $ee->result ?? $service->getOrCreateResult($ee);
-        if (! $result->placement_overridden) {
+        if (! $result->placement_overridden && ! $result->disqualified) {
             $result->forceFill(['placement' => $placement])->save();
         }
     }
