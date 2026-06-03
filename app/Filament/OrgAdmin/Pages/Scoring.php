@@ -1105,9 +1105,21 @@ class Scoring extends Page
         }
         // grand_final: no downstream — just clear the result below
 
-        // Un-DQ both competitors so the match can be re-scored cleanly
+        // Un-DQ competitors whose DQ was tied specifically to this match (e.g. auto-DQ from warnings).
+        // Do NOT clear a general forfeit/DQ that was applied outside of this match context.
         $eeIds = array_filter([$match->home_enrolment_event_id, $match->away_enrolment_event_id]);
-        Result::whereIn('enrolment_event_id', $eeIds)->where('disqualified', true)->update(['disqualified' => false]);
+        foreach ($eeIds as $eeId) {
+            $result = Result::where('enrolment_event_id', $eeId)->where('disqualified', true)->first();
+            if (! $result) continue;
+            $hasExternalDq = \App\Models\MatchPenalty::where('result_id', $result->id)
+                ->whereIn('type', ['dq', 'forfeit'])
+                ->where(fn ($q) => $q->whereNull('round_robin_match_id')
+                    ->orWhere('round_robin_match_id', '!=', $match->id))
+                ->exists();
+            if (! $hasExternalDq) {
+                $result->update(['disqualified' => false]);
+            }
+        }
 
         $match->update(['home_result' => null, 'home_score' => null, 'away_score' => null]);
         $this->applyBracketPlacements();
@@ -1315,13 +1327,16 @@ class Scoring extends Page
             }
         }
 
-        // Count how many scored matches each competitor appears in.
-        // A match is only undoable if its winner appears in exactly one scored match (itself).
-        $scoredAppearances = [];
+        // Index scored matches per competitor so we can check downstream usage only.
+        // A match is undoable if the winner hasn't appeared in any scored match that is
+        // downstream from it (higher round in same bracket, or a grand_final match).
+        // Total-appearance counting was too conservative: it blocked final-round undos
+        // because finalists had accumulated multiple prior wins.
+        $scoredMatchesByEe = [];
         foreach ($all as $m) {
             if ($m->home_result !== null && ! $m->isBye()) {
                 foreach ([$m->home_enrolment_event_id, $m->away_enrolment_event_id] as $eeId) {
-                    if ($eeId) $scoredAppearances[$eeId] = ($scoredAppearances[$eeId] ?? 0) + 1;
+                    if ($eeId) $scoredMatchesByEe[$eeId][] = $m;
                 }
             }
         }
@@ -1340,10 +1355,23 @@ class Scoring extends Page
                         : '0';
                 }
             }
-            $winner   = $m->winnerId();
-            $canUndo  = $m->home_result !== null
-                && $winner
-                && ($scoredAppearances[$winner] ?? 0) <= 1;
+            $winner = $m->winnerId();
+            $canUndo = false;
+            if ($m->home_result !== null && $winner) {
+                $usedDownstream = false;
+                foreach ($scoredMatchesByEe[$winner] ?? [] as $m2) {
+                    if ($m2->id === $m->id) continue;
+                    if ($m2->bracket === $m->bracket && $m2->round > $m->round) {
+                        $usedDownstream = true;
+                        break;
+                    }
+                    if (in_array($m->bracket, ['winners', 'losers']) && $m2->bracket === 'grand_final') {
+                        $usedDownstream = true;
+                        break;
+                    }
+                }
+                $canUndo = ! $usedDownstream;
+            }
             $map[$m->bracket][$m->round][] = (object) [
                 'id'          => $m->id,
                 'slot'        => $m->bracket_slot,

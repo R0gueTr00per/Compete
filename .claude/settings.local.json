@@ -369,7 +369,8 @@
       "Bash(php -r \"echo date\\('Y_m_d_His'\\);\")",
       "Bash(curl -s -u \"bgouldson@optusnet.com.au:$\\(cat C:/Users/Brad/.claude/jira_token || echo ''\\)\" \"https://competeapp.atlassian.net/rest/api/3/issue/COM-263\")",
       "Bash(php -l app/Models/Division.php)",
-      "Bash(xargs grep -l \"class.*Model\")"
+      "Bash(xargs grep -l \"class.*Model\")",
+      "Bash(xargs grep -l \"enrolment_event\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",
