@@ -48,6 +48,9 @@
                 @if ($competition->start_time)
                     <span>&middot; Starts {{ tenant_time($competition->start_time) }}</span>
                 @endif
+                @if ($competition->end_time)
+                    <span>&middot; Ends {{ tenant_time($competition->end_time) }}</span>
+                @endif
                 <span class="sm:ml-auto flex items-center gap-2 text-xs text-gray-400">
                     Updated {{ tenant_time(now()) }}
                     <x-filament::button size="xs" color="gray" wire:click="$refresh">

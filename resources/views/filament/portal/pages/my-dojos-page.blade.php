@@ -2,6 +2,8 @@
     @php
         $dojos        = $this->getDojos();
         $competitions = $this->getCompetitions();
+        $org          = app('tenant');
+        $platformFee  = (float) ($org?->platform_fee ?? 0);
     @endphp
 
     @forelse ($competitions as $competition)
@@ -26,9 +28,10 @@
             };
         @endphp
 
-        {{-- Competition --}}
         <div class="mb-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden">
-            <div class="flex w-full items-center justify-between gap-3 px-4 py-3">
+
+            {{-- Competition header --}}
+            <div class="flex w-full items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800">
                 <div class="min-w-0">
                     <span class="font-semibold text-sm text-gray-900 dark:text-white">{{ $competition->name }}</span>
                     <span class="ml-2 text-xs text-gray-500 dark:text-gray-400">{{ tenant_date($competition->competition_date) }}</span>
@@ -43,110 +46,134 @@
                 <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0">{{ $totalCompetitors }} {{ Str::plural('competitor', $totalCompetitors) }}</span>
             </div>
 
-            <div class="border-t border-gray-100 dark:border-gray-800">
+            @foreach ($enrolmentsByDojo as $dojoName => $enrolments)
+                {{-- Dojo section — expanded by default --}}
+                <div x-data="{ open: true }" class="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
 
-                @foreach ($enrolmentsByDojo as $dojoName => $enrolments)
-                    {{-- Dojo --}}
-                    <div x-data="{ open: false }" class="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
-                        <button
-                            type="button"
-                            x-on:click="open = !open"
-                            class="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $dojoName }}</span>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span class="text-xs text-gray-400 dark:text-gray-500">{{ $enrolments->count() }}</span>
-                                <x-heroicon-m-chevron-down x-bind:class="open ? 'rotate-180' : ''" class="h-3.5 w-3.5 text-gray-400 transition-transform" />
-                            </div>
-                        </button>
+                    <button
+                        type="button"
+                        x-on:click="open = !open"
+                        class="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $dojoName }}</span>
+                        <div class="flex items-center gap-3 shrink-0">
+                            @php
+                                $paidCount = $enrolments->where('payment_status', 'received')->count();
+                                $total     = $enrolments->count();
+                            @endphp
+                            <span class="text-xs text-gray-400 dark:text-gray-500">
+                                {{ $paidCount }}/{{ $total }} paid
+                            </span>
+                            <x-heroicon-m-chevron-down x-bind:class="open ? 'rotate-180' : ''" class="h-3.5 w-3.5 text-gray-400 transition-transform" />
+                        </div>
+                    </button>
 
-                        <div x-show="open" x-collapse>
+                    <div x-show="open" x-collapse>
                         <div class="divide-y divide-gray-100 dark:divide-gray-800">
                             @foreach ($enrolments as $enrolment)
                                 @php
-                                    $name       = $enrolment->competitor?->full_name ?? '—';
-                                    $eventCount = $enrolment->activeEvents->count();
+                                    $name        = $enrolment->competitor?->full_name ?? '—';
+                                    $eventCount  = $enrolment->activeEvents->count();
+                                    $isPaid      = $enrolment->payment_status === 'received';
+                                    $isOfficial  = $enrolment->is_official_discount;
+                                    $firstRate   = $isOfficial && $competition->fee_official_first_event !== null
+                                        ? (float) $competition->fee_official_first_event
+                                        : (float) $competition->fee_first_event;
+                                    $addRate     = $isOfficial && $competition->fee_official_additional_event !== null
+                                        ? (float) $competition->fee_official_additional_event
+                                        : (float) $competition->fee_additional_event;
                                 @endphp
 
-                                {{-- Competitor --}}
-                                <div x-data="{ open: false }" class="px-4 py-2.5">
+                                <div x-data="{ open: false }" class="px-4 py-3">
+
+                                    {{-- Summary row — always visible --}}
                                     <button
                                         type="button"
                                         x-on:click="open = !open"
-                                        class="flex w-full items-center justify-between gap-2 text-left">
-                                        <span class="text-sm text-gray-800 dark:text-gray-200">
-                                            {{ $name }}
-                                            <span class="ml-1 text-xs text-gray-400 dark:text-gray-500">({{ $eventCount }} {{ Str::plural('event', $eventCount) }})</span>
-                                        </span>
+                                        class="flex w-full items-center justify-between gap-3 text-left">
+                                        <span class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{{ $name }}</span>
                                         <div class="flex items-center gap-2 shrink-0">
-                                            @if ($enrolment->payment_status === 'received')
-                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400">
-                                                    Paid {{ tenant_money($enrolment->payment_amount ?? $enrolment->fee_calculated) }}
-                                                </span>
+                                            <span class="text-xs text-gray-400 dark:text-gray-500">{{ $eventCount }} {{ Str::plural('event', $eventCount) }}</span>
+                                            @if ($isPaid)
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400">Paid</span>
                                             @else
-                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400">
-                                                    Owes {{ tenant_money($enrolment->fee_calculated) }}
-                                                </span>
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400">Unpaid</span>
                                             @endif
-                                            <x-heroicon-m-chevron-down
-                                                x-bind:class="open ? 'rotate-180' : ''"
-                                                class="h-4 w-4 text-gray-400 transition-transform" />
+                                            <x-heroicon-m-chevron-down x-bind:class="open ? 'rotate-180' : ''" class="h-4 w-4 text-gray-400 transition-transform" />
                                         </div>
                                     </button>
 
-                                    {{-- Payment form --}}
-                                    @if ($enrolment->payment_status !== 'received')
-                                        <div class="mt-2 flex items-center gap-2">
-                                            <span class="text-xs text-gray-500 dark:text-gray-400">$</span>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                inputmode="decimal"
-                                                wire:model="paymentAmounts.{{ $enrolment->id }}"
-                                                placeholder="{{ number_format($enrolment->fee_calculated, 2) }}"
-                                                class="w-24 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                            />
-                                            <button
-                                                type="button"
-                                                wire:click="recordPayment({{ $enrolment->id }})"
-                                                class="rounded-md bg-success-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
-                                                Record payment
-                                            </button>
-                                        </div>
-                                    @endif
+                                    {{-- Expandable detail --}}
+                                    <div x-show="open" x-collapse>
+                                        <div class="mt-3 space-y-1">
 
-                                    {{-- Events --}}
-                                    <div x-show="open" x-collapse class="mt-2 pl-2 flex flex-col gap-1.5">
-                                        @foreach ($enrolment->activeEvents as $ee)
-                                            <div class="text-xs text-gray-600 dark:text-gray-400">
-                                                <span class="font-medium text-gray-700 dark:text-gray-300">{{ $ee->competitionEvent->event_code }}</span>
-                                                — {{ $ee->competitionEvent->name }}
-                                                @if ($ee->division)
-                                                    <span class="text-gray-400 dark:text-gray-500"> · {{ $ee->division->full_label }}</span>
-                                                @endif
-                                                @if ($ee->result?->disqualified)
-                                                    <span class="ml-1 font-medium text-danger-600 dark:text-danger-400">DQ</span>
-                                                @elseif ($ee->result?->placement)
-                                                    <span class="ml-1 font-medium text-primary-600 dark:text-primary-400">
-                                                        @switch($ee->result->placement)
-                                                            @case(1) 1st @break
-                                                            @case(2) 2nd @break
-                                                            @case(3) 3rd @break
-                                                            @default {{ $ee->result->placement }}th
-                                                        @endswitch
+                                            {{-- Per-event lines --}}
+                                            @foreach ($enrolment->activeEvents as $ee)
+                                                <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                                                    <span>
+                                                        {{ $ee->competitionEvent->name }}@if ($ee->division)<span class="text-gray-400"> &middot; {{ $ee->division->code }} &mdash; {{ $ee->division->label }}</span>@endif
+                                                        @if ($loop->first && $isOfficial)
+                                                            <span class="ml-1 text-gray-400">(official rate)</span>
+                                                        @endif
                                                     </span>
-                                                @endif
+                                                    <span class="tabular-nums ml-4">{{ tenant_money($loop->first ? $firstRate : $addRate) }}</span>
+                                                </div>
+                                            @endforeach
+
+                                            {{-- Late surcharge --}}
+                                            @if ($enrolment->is_late && $competition->late_surcharge)
+                                                <div class="flex justify-between text-xs text-warning-600">
+                                                    <span>Late surcharge</span>
+                                                    <span class="tabular-nums ml-4">{{ tenant_money($competition->late_surcharge) }}</span>
+                                                </div>
+                                            @endif
+
+                                            {{-- Total line --}}
+                                            <div class="flex justify-between text-xs pt-2 mt-1 border-t border-gray-100 dark:border-gray-800 font-semibold text-gray-900 dark:text-white">
+                                                <span>Total due</span>
+                                                <span class="tabular-nums ml-4">{{ tenant_money($enrolment->fee_calculated) }}</span>
                                             </div>
-                                        @endforeach
+
+                                            {{-- Paid confirmation or payment form --}}
+                                            @if ($isPaid)
+                                                <p class="text-xs text-success-600 pt-1">
+                                                    ✓ Paid {{ tenant_money($enrolment->payment_amount ?? $enrolment->fee_calculated) }}
+                                                    @if ($enrolment->payment_received_at)
+                                                        on {{ tenant_date($enrolment->payment_received_at) }}
+                                                    @endif
+                                                </p>
+                                            @else
+                                                <div class="pt-2 mt-1 border-t border-gray-100 dark:border-gray-800">
+                                                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Record payment received</p>
+                                                    <div class="flex items-center gap-2">
+                                                        <span class="text-xs text-gray-400">$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0"
+                                                            inputmode="decimal"
+                                                            wire:model="paymentAmounts.{{ $enrolment->id }}"
+                                                            placeholder="{{ number_format((float) $enrolment->fee_calculated, 2) }}"
+                                                            class="w-28 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            wire:click="recordPayment({{ $enrolment->id }})"
+                                                            class="rounded-md bg-success-600 px-3 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
+                                                            Confirm payment
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                        </div>
                                     </div>
                                 </div>
                             @endforeach
                         </div>
-                        </div>
                     </div>
-                @endforeach
+                </div>
+            @endforeach
 
-            </div>
         </div>
     @empty
         <x-filament::section>

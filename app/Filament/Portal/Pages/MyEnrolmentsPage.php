@@ -28,20 +28,19 @@ class MyEnrolmentsPage extends Page
 
     public function getTransactions(): \Illuminate\Support\Collection
     {
-        $profileIds = auth()->user()->ownedProfiles()->pluck('id');
+        $userId   = auth()->id();
+        $tenantId = app('tenant')?->id;
 
-        return Enrolment::whereIn('competitor_profile_id', $profileIds)
-            ->whereNotIn('status', ['draft'])
+        return EnrolmentCart::where('user_id', $userId)
+            ->whereHas('competition', fn ($q) => $q->where('organisation_id', $tenantId))
+            ->whereHas('enrolments', fn ($q) => $q->whereNotIn('status', ['draft']))
             ->with([
-                'competitor',
                 'competition',
-                'activeEvents.competitionEvent',
-                'activeEvents.result',
-                'activeEvents.division',
+                'enrolments' => fn ($q) => $q->whereNotIn('status', ['draft'])
+                    ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division']),
             ])
-            ->orderByDesc('enrolled_at')
-            ->get()
-            ->groupBy(fn ($e) => $e->cart_id ?? 'solo_' . $e->id);
+            ->orderByDesc('submitted_at')
+            ->get();
     }
 
     public function getDraftCart(): ?EnrolmentCart

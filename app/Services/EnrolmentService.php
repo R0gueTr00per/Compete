@@ -96,12 +96,38 @@ class EnrolmentService
                 }
             }
 
-            $totalEvents = $enrolment->activeEvents()->count();
+            $totalEvents   = $enrolment->activeEvents()->count();
+            $feeCalculated = $this->calculateFee($competition, $totalEvents, $enrolment->is_late, $isOfficial);
+
             $enrolment->forceFill([
-                'fee_calculated'       => $this->calculateFee($competition, $totalEvents, $enrolment->is_late, $isOfficial),
+                'fee_calculated'       => $feeCalculated,
                 'is_late'              => $isLate,
                 'is_official_discount' => $isOfficial,
             ])->save();
+
+            // Ensure every enrolment belongs to a cart (find or create for this user+competition).
+            if (! $enrolment->cart_id) {
+                $ownerUserId = $competitor->owner_user_id;
+                $cart = EnrolmentCart::firstOrCreate(
+                    ['user_id' => $ownerUserId, 'competition_id' => $competition->id, 'status' => 'submitted'],
+                    [
+                        'submitted_at'                 => $enrolment->enrolled_at ?? now(),
+                        'fee_first_rate'               => $competition->fee_first_event,
+                        'fee_additional_rate'          => $competition->fee_additional_event,
+                        'fee_official_first_rate'      => $competition->fee_official_first_event,
+                        'fee_official_additional_rate' => $competition->fee_official_additional_event,
+                        'late_surcharge_rate'          => $competition->late_surcharge,
+                        'platform_fee_rate'            => app('tenant')?->platform_fee,
+                    ]
+                );
+                $enrolment->forceFill(['cart_id' => $cart->id])->save();
+                // Recalculate cart total including platform fee
+                $platformRate  = (float) ($cart->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+                $activeEnrols  = $cart->enrolments()->whereNotIn('status', ['draft', 'withdrawn']);
+                $cart->forceFill([
+                    'total_amount' => $activeEnrols->sum('fee_calculated') + $activeEnrols->count() * $platformRate,
+                ])->save();
+            }
 
             if ($notify) {
                 $notifiable = $competitor->notifiableUser();
@@ -274,10 +300,21 @@ class EnrolmentService
                 }
             }
 
-            $cart->update(['status' => 'submitted']);
+            $cart->load('competition');
+            $comp = $cart->competition;
+            $cart->update([
+                'status'                       => 'submitted',
+                'submitted_at'                 => now(),
+                'total_amount'                 => $cartTotal['grand_total'],
+                'fee_first_rate'               => $comp?->fee_first_event,
+                'fee_additional_rate'          => $comp?->fee_additional_event,
+                'fee_official_first_rate'      => $comp?->fee_official_first_event,
+                'fee_official_additional_rate' => $comp?->fee_official_additional_event,
+                'late_surcharge_rate'          => $comp?->late_surcharge,
+                'platform_fee_rate'            => app('tenant')?->platform_fee,
+            ]);
 
             // Send consolidated invoice to the person who checked out
-            $cart->load('competition');
             $invoiceData = $this->buildInvoiceData($cart, $cartTotal);
             $cart->user->notify(new CartInvoiceNotification($cart, $invoiceData));
 

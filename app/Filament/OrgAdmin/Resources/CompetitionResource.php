@@ -108,6 +108,10 @@ class CompetitionResource extends Resource
                                         ->required()
                                         ->seconds(false),
 
+                                    TimePicker::make('end_time')
+                                        ->seconds(false)
+                                        ->nullable(),
+
                                     TimePicker::make('checkin_time')
                                         ->seconds(false)
                                         ->nullable(),

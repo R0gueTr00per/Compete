@@ -20,6 +20,9 @@
                 @if ($competition->start_time)
                     <span>&middot; Starts {{ tenant_time($competition->start_time) }}</span>
                 @endif
+                @if ($competition->end_time)
+                    <span>&middot; Ends {{ tenant_time($competition->end_time) }}</span>
+                @endif
                 @if ($competition->status !== 'complete')
                     <span class="sm:ml-auto text-xs text-gray-400">Auto-refreshes every 60 s &middot; Updated {{ tenant_time(now()) }}</span>
                 @else

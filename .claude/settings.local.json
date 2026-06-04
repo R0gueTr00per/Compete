@@ -371,7 +371,10 @@
       "Bash(php -l app/Models/Division.php)",
       "Bash(xargs grep -l \"class.*Model\")",
       "Bash(xargs grep -l \"enrolment_event\")",
-      "Bash(findstr /n \"public function.*Penalty\\\\|public function.*forfeit\\\\|applyBracketPlacements\" app/Filament/OrgAdmin/Pages/Scoring.php)"
+      "Bash(findstr /n \"public function.*Penalty\\\\|public function.*forfeit\\\\|applyBracketPlacements\" app/Filament/OrgAdmin/Pages/Scoring.php)",
+      "Bash([ -f \"$HOME/.claude/jira_token\" ])",
+      "Bash(printenv)",
+      "Bash(xargs grep -l \"enum\\\\|Enum\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

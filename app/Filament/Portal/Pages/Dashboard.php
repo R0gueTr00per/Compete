@@ -96,6 +96,7 @@ class Dashboard extends BaseDashboard
             ->whereNotIn('status', ['draft'])
             ->with([
                 'competition',
+                'cart',
                 'activeEvents.competitionEvent',
                 'activeEvents.division',
                 'activeEvents.result',

@@ -128,6 +128,12 @@
                                             @if ($competition->location_name)
                                                 &mdash; {{ $competition->location_name }}
                                             @endif
+                                            @if ($competition->start_time)
+                                                &mdash; Starts {{ tenant_time($competition->start_time) }}
+                                            @endif
+                                            @if ($competition->end_time)
+                                                &mdash; Ends {{ tenant_time($competition->end_time) }}
+                                            @endif
                                         </p>
                                     </div>
                                     <div class="flex items-center gap-4 shrink-0">
@@ -160,7 +166,10 @@
 
                                     {{-- Enrolment summary row --}}
                                     <div class="px-4 py-2 border-b border-gray-100 dark:border-slate-700 text-xs text-gray-500">
-                                        Fee: <strong class="text-gray-700 dark:text-gray-300">{{ tenant_money($enrolment->fee_calculated) }}</strong>
+                                        @php
+                                            $displayFee = $enrolment->fee_calculated + (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+                                        @endphp
+                                        Fee: <strong class="text-gray-700 dark:text-gray-300">{{ tenant_money($displayFee) }}</strong>
                                         @if ($enrolment->is_late)
                                             <span class="text-warning-600">(includes late surcharge)</span>
                                         @endif
@@ -193,7 +202,7 @@
                                                 <span class="text-sm font-medium text-gray-900 dark:text-white truncate flex-1">{{ $ee->competitionEvent->name }}</span>
                                                 <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0">
                                                     @if ($ee->division)
-                                                        {{ $ee->division->label }}{{ $ee->division->location_label ? ' (' . $ee->division->location_label . ')' : '' }}
+                                                        {{ $ee->division->code }} &mdash; {{ $ee->division->label }}{{ $ee->division->location_label ? ' (' . $ee->division->location_label . ')' : '' }}
                                                     @else
                                                         TBC
                                                     @endif

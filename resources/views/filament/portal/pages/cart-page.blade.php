@@ -67,11 +67,7 @@
 
                                 @foreach ($events as $ee)
                                     <div class="flex justify-between text-gray-600 dark:text-gray-400">
-                                        <span>{{ $ee->competitionEvent->name }}
-                                            @if ($ee->division)
-                                                <span class="text-gray-400 dark:text-gray-500">({{ $ee->division->full_label }})</span>
-                                            @endif
-                                        </span>
+                                        <span>{{ $ee->competitionEvent->name }}@if ($ee->division) <span class="text-gray-400 dark:text-gray-500">&middot; {{ $ee->division->code }} &mdash; {{ $ee->division->label }}</span>@endif</span>
                                         <span>{{ tenant_money($loop->first ? $firstFee : $addFee) }}</span>
                                     </div>
                                 @endforeach

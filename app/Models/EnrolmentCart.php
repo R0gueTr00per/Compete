@@ -15,13 +15,29 @@ class EnrolmentCart extends Model
         'selected_profile_ids',
         'current_step',
         'current_profile_index',
+        'total_amount',
+        'fee_first_rate',
+        'fee_additional_rate',
+        'fee_official_first_rate',
+        'fee_official_additional_rate',
+        'late_surcharge_rate',
+        'platform_fee_rate',
+        'submitted_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'selected_profile_ids'  => 'array',
-            'current_profile_index' => 'integer',
+            'selected_profile_ids'         => 'array',
+            'current_profile_index'        => 'integer',
+            'total_amount'                 => 'decimal:2',
+            'fee_first_rate'               => 'decimal:2',
+            'fee_additional_rate'          => 'decimal:2',
+            'fee_official_first_rate'      => 'decimal:2',
+            'fee_official_additional_rate' => 'decimal:2',
+            'late_surcharge_rate'          => 'decimal:2',
+            'platform_fee_rate'            => 'decimal:2',
+            'submitted_at'                 => 'datetime',
         ];
     }
 

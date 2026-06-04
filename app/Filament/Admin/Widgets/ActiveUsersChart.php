@@ -22,9 +22,6 @@ class ActiveUsersChart extends ChartWidget
 
         $labels = $weeks->map(fn ($w) => $w->format('d M'))->toArray();
 
-        $orgIds = $rows->keys()->merge($priorCounts->keys())->unique();
-        $orgs = Organisation::whereIn('id', $orgIds)->get()->keyBy('id');
-
         // Single query: count memberships per org per day for the period
         $rows = OrganisationMembership::select(
                 'organisation_id',
@@ -44,6 +41,9 @@ class ActiveUsersChart extends ChartWidget
             ->where('created_at', '<', $weeks->first())
             ->groupBy('organisation_id')
             ->pluck('cnt', 'organisation_id');
+
+        $orgIds = $rows->keys()->merge($priorCounts->keys())->unique();
+        $orgs   = Organisation::whereIn('id', $orgIds)->get()->keyBy('id');
 
         $colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 

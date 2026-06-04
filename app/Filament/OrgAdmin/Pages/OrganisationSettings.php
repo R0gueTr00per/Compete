@@ -95,6 +95,22 @@ class OrganisationSettings extends Page implements HasForms
                             ->suffix('days'),
                     ]),
 
+                Section::make('Contact')
+                    ->description('Contact details shown to competitors in competition emails.')
+                    ->schema([
+                        TextInput::make('contact_phone')
+                            ->label('Phone')
+                            ->maxLength(50),
+                        TextInput::make('contact_email')
+                            ->label('Email address')
+                            ->email()
+                            ->maxLength(255),
+                        TextInput::make('website')
+                            ->label('Website')
+                            ->url()
+                            ->maxLength(500),
+                    ]),
+
                 Section::make('Regional')
                     ->description('Set your timezone, date format, and currency for consistent display across the platform.')
                     ->schema([
@@ -144,6 +160,9 @@ class OrganisationSettings extends Page implements HasForms
             'date_format'              => $data['date_format'] ?? null,
             'currency'                 => $data['currency'] ?? null,
             'cancellation_days_before' => $data['cancellation_days_before'] ?? 0,
+            'contact_phone'            => $data['contact_phone'] ?? null,
+            'contact_email'            => $data['contact_email'] ?? null,
+            'website'                  => $data['website'] ?? null,
         ]);
 
         Notification::make()

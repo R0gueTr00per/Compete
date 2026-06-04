@@ -9,9 +9,9 @@ use Filament\Pages\Page;
 
 class MyDojosPage extends Page
 {
-    protected static ?string $title           = 'My Dojos';
+    protected static ?string $title           = 'My Dojos/Clubs';
     protected static ?string $navigationIcon  = 'heroicon-o-building-storefront';
-    protected static ?string $navigationLabel = 'My Dojos';
+    protected static ?string $navigationLabel = 'My Dojos/Clubs';
     protected static string  $view            = 'filament.portal.pages.my-dojos-page';
     protected static ?string $slug            = 'my-dojos';
     protected static ?int    $navigationSort  = 10;
@@ -60,8 +60,9 @@ class MyDojosPage extends Page
             : null;
 
         $enrolment->forceFill([
-            'payment_status' => 'received',
-            'payment_amount' => $amount ?? $enrolment->fee_calculated,
+            'payment_status'      => 'received',
+            'payment_amount'      => $amount ?? $enrolment->fee_calculated,
+            'payment_received_at' => now(),
         ])->save();
 
         unset($this->paymentAmounts[$enrolmentId]);

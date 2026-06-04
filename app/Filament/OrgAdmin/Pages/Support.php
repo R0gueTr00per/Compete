@@ -40,7 +40,8 @@ class Support extends Page implements HasForms
     {
         return $form
             ->schema([
-                Section::make()
+                Section::make('Contact Kompetic Support')
+                    ->description('Use this form to contact the Kompetic platform support team for help with billing, technical issues, or platform questions.')
                     ->schema([
                         TextInput::make('email')
                             ->label('Your email')

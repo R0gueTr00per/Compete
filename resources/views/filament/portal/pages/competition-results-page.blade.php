@@ -46,7 +46,7 @@
                                         @php
                                             $result    = $ee->result;
                                             $eventName = $ee->competitionEvent?->name ?? '—';
-                                            $divLabel  = $ee->division?->label ?: $ee->division?->full_label;
+                                            $divLabel  = $ee->division ? $ee->division->code . ' — ' . $ee->division->label : null;
                                         @endphp
                                         <div class="flex items-center gap-3 px-4 py-2.5">
                                             <span class="w-8 text-center font-bold text-lg shrink-0">

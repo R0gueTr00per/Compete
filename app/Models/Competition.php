@@ -22,6 +22,7 @@ class Competition extends Model
         'name',
         'competition_date',
         'start_time',
+        'end_time',
         'checkin_time',
         'location_name',
         'location_address',
