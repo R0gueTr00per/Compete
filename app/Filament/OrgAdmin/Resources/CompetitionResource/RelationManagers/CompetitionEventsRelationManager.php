@@ -126,13 +126,17 @@ class CompetitionEventsRelationManager extends RelationManager
 
                     Select::make('scoring_method')
                         ->label('Scoring method')
-                        ->options([
-                            'first_to_n'     => 'First to N points',
-                            'timed_points'   => 'Timed points',
-                            'judges_average' => 'Judges scores averaged',
-                            'judges_total'   => 'Judges scores total',
-                            'win_loss'       => 'Win / Loss',
-                        ])
+                        ->options(fn (Get $get) => $get('tournament_format') === 'once_off'
+                            ? [
+                                'judges_average' => 'Judges scores averaged',
+                                'judges_total'   => 'Judges scores total',
+                            ]
+                            : [
+                                'first_to_n'     => 'First to N points',
+                                'timed_points'   => 'Timed points',
+                                'win_loss'       => 'Win / Loss',
+                            ]
+                        )
                         ->required()
                         ->live(),
 

@@ -122,10 +122,11 @@ class BracketService
         if (! $winnerId) return;
         if ($match->bracket === 'grand_final') return;
 
-        // ── Repechage bracket (mini single-elimination for 3rd place) ────────────
-        if ($match->bracket === 'repechage') {
+        // ── Repechage brackets (se_3rd_place uses 'repechage'; repechage format uses 'repechage_a'/'repechage_b') ──
+        if (in_array($match->bracket, ['repechage', 'repechage_a', 'repechage_b'])) {
+            $bracket     = $match->bracket;
             $repR1Count  = RoundRobinMatch::where('division_id', $match->division_id)
-                ->where('bracket', 'repechage')
+                ->where('bracket', $bracket)
                 ->where('round', 1)
                 ->count();
             $maxRepRound = $repR1Count > 1 ? (int) ceil(log($repR1Count, 2)) + 1 : 1;
@@ -133,9 +134,9 @@ class BracketService
 
             if ($nextRound > $maxRepRound) return;
 
-            $nextSlot = (int) ceil($match->bracket_slot / 2);
-            $isOdd    = ($match->bracket_slot % 2 === 1);
-            $nextMatch = $this->fillOrCreate($match->division_id, $nextRound, 'repechage', $nextSlot, $winnerId, $isOdd);
+            $nextSlot  = (int) ceil($match->bracket_slot / 2);
+            $isOdd     = ($match->bracket_slot % 2 === 1);
+            $nextMatch = $this->fillOrCreate($match->division_id, $nextRound, $bracket, $nextSlot, $winnerId, $isOdd);
             $this->resolveIfOpponentDqd($nextMatch->fresh(), $format);
 
             $nextMatch->refresh();
@@ -148,7 +149,7 @@ class BracketService
                 $slotFrom  = ($nextSlot - 1) * $depth + 1;
                 $slotTo    = $nextSlot * $depth;
                 $ancestors = RoundRobinMatch::where('division_id', $match->division_id)
-                    ->where('bracket', 'repechage')
+                    ->where('bracket', $bracket)
                     ->where('round', 1)
                     ->whereBetween('bracket_slot', [$slotFrom, $slotTo])
                     ->count();
@@ -232,6 +233,9 @@ class BracketService
             }
             if ($format === 'se_3rd_place') {
                 $this->checkThirdPlace($match->division_id);
+            }
+            if ($format === 'repechage') {
+                $this->checkRepechage($match->division_id);
             }
             return;
         }
@@ -410,80 +414,84 @@ class BracketService
 
     private function checkRepechage(int $divisionId): void
     {
-        if (RoundRobinMatch::where('division_id', $divisionId)->where('bracket', 'repechage')->exists()) {
+        if (RoundRobinMatch::where('division_id', $divisionId)->whereIn('bracket', ['repechage_a', 'repechage_b'])->exists()) {
             return;
         }
 
         $wbMatches  = RoundRobinMatch::where('division_id', $divisionId)->where('bracket', 'winners')->get();
-        $maxWbRound = $wbMatches->max('round');
-        if (! $maxWbRound) return;
+        $r1Count    = $wbMatches->where('round', 1)->count();
+        if (! $r1Count) return;
+        $maxWbRound = $r1Count > 1 ? (int) ceil(log($r1Count, 2)) + 1 : 1;
 
         $wbFinal = $wbMatches->where('round', $maxWbRound)->first();
         if (! $wbFinal) return;
 
-        // Both finalists must be seeded before we can build the repechage bracket.
+        // Both finalists must be seeded before we can build the repechage brackets.
         if (! $wbFinal->home_enrolment_event_id || ! $wbFinal->away_enrolment_event_id) return;
 
-        // Collect every competitor who lost to either finalist throughout the bracket.
-        $candidates = collect();
-        foreach ([$wbFinal->home_enrolment_event_id, $wbFinal->away_enrolment_event_id] as $finalistId) {
+        // Build one mini-SE bracket per finalist: repechage_a for home, repechage_b for away.
+        $sides = [
+            'repechage_a' => $wbFinal->home_enrolment_event_id,
+            'repechage_b' => $wbFinal->away_enrolment_event_id,
+        ];
+
+        foreach ($sides as $bracketName => $finalistId) {
+            $candidates = collect();
             $wbMatches->each(function (RoundRobinMatch $m) use ($finalistId, &$candidates) {
                 if ($m->winnerId() === $finalistId && $m->loserId()) {
                     $candidates->push((object) ['id' => $m->loserId(), 'round' => $m->round]);
                 }
             });
-        }
 
-        $candidates  = $candidates->unique('id')->sortByDesc('round')->values();
-        $n           = $candidates->count();
+            $candidates = $candidates->unique('id')->sortByDesc('round')->values();
+            $n          = $candidates->count();
 
-        if ($n === 0) return;
+            if ($n === 0) continue;
 
-        if ($n === 1) {
-            // Sole candidate gets a BYE — they auto-win 3rd place.
-            RoundRobinMatch::create([
-                'division_id'             => $divisionId,
-                'home_enrolment_event_id' => $candidates->first()->id,
-                'away_enrolment_event_id' => null,
-                'home_result'             => 'win',
-                'round'                   => 1,
-                'bracket'                 => 'repechage',
-                'bracket_slot'            => 1,
-            ]);
-            return;
-        }
-
-        // Build a mini single-elimination repechage bracket.
-        $bracketSize = 1;
-        while ($bracketSize < $n) {
-            $bracketSize *= 2;
-        }
-
-        $byeMatches = [];
-        $slot       = 1;
-        for ($i = 0; $i < $bracketSize; $i += 2) {
-            $home = $candidates->get($i);
-            $away = $candidates->get($i + 1);
-
-            if (! $home) { $slot++; continue; }
-
-            $match = RoundRobinMatch::create([
-                'division_id'             => $divisionId,
-                'home_enrolment_event_id' => $home->id,
-                'away_enrolment_event_id' => $away?->id,
-                'home_result'             => $away === null ? 'win' : null,
-                'round'                   => 1,
-                'bracket'                 => 'repechage',
-                'bracket_slot'            => $slot++,
-            ]);
-
-            if ($away === null) {
-                $byeMatches[] = $match;
+            if ($n === 1) {
+                RoundRobinMatch::create([
+                    'division_id'             => $divisionId,
+                    'home_enrolment_event_id' => $candidates->first()->id,
+                    'away_enrolment_event_id' => null,
+                    'home_result'             => 'win',
+                    'round'                   => 1,
+                    'bracket'                 => $bracketName,
+                    'bracket_slot'            => 1,
+                ]);
+                continue;
             }
-        }
 
-        foreach ($byeMatches as $m) {
-            $this->advance($m->fresh(), 'repechage');
+            $bracketSize = 1;
+            while ($bracketSize < $n) {
+                $bracketSize *= 2;
+            }
+
+            $byeMatches = [];
+            $slot       = 1;
+            for ($i = 0; $i < $bracketSize; $i += 2) {
+                $home = $candidates->get($i);
+                $away = $candidates->get($i + 1);
+
+                if (! $home) { $slot++; continue; }
+
+                $match = RoundRobinMatch::create([
+                    'division_id'             => $divisionId,
+                    'home_enrolment_event_id' => $home->id,
+                    'away_enrolment_event_id' => $away?->id,
+                    'home_result'             => $away === null ? 'win' : null,
+                    'round'                   => 1,
+                    'bracket'                 => $bracketName,
+                    'bracket_slot'            => $slot++,
+                ]);
+
+                if ($away === null) {
+                    $byeMatches[] = $match;
+                }
+            }
+
+            foreach ($byeMatches as $m) {
+                $this->advance($m->fresh(), 'repechage');
+            }
         }
     }
 

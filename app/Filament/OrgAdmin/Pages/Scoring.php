@@ -15,6 +15,7 @@ use App\Services\ScoringService;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Url;
 
 class Scoring extends Page
@@ -40,6 +41,7 @@ class Scoring extends Page
     #[Url]
     public ?string $filter_location = null;
 
+    #[Locked]
     public ?int $division_id = null;
 
     public array $judgeScores            = [];
@@ -61,8 +63,11 @@ class Scoring extends Page
     public array $pairingCompetitorList  = [];
 
     public bool   $penaltyModalOpen           = false;
+    #[Locked]
     public ?int   $penaltyModalResultId       = null;
+    #[Locked]
     public ?int   $penaltyModalMatchId        = null;
+    #[Locked]
     public string $penaltyModalType           = '';
     public array  $penaltyModalReasons        = [];
     public string $penaltyModalSelectedReason = '';
@@ -209,6 +214,13 @@ class Scoring extends Page
 
     private function doOpenDivision(int $divisionId): void
     {
+        $orgId = app('tenant')?->id;
+        if ($orgId && ! Division::whereHas('competitionEvent.competition', fn ($q) =>
+            $q->where('organisation_id', $orgId)
+        )->where('id', $divisionId)->exists()) {
+            return;
+        }
+
         $this->clearScoringMemory();
         $this->division_id   = $divisionId;
         $this->panelOpen     = true;
@@ -250,6 +262,18 @@ class Scoring extends Page
         } else {
             $this->rollcallMode = true;
         }
+    }
+
+    private function findResult(int $resultId): ?Result
+    {
+        $result = Result::find($resultId);
+        if (! $result || ! $this->division_id) return null;
+        if (! EnrolmentEvent::where('id', $result->enrolment_event_id)
+            ->where('division_id', $this->division_id)
+            ->exists()) {
+            return null;
+        }
+        return $result;
     }
 
     private function loadCompletedRollcallDivisionsFromDb(): array
@@ -1035,6 +1059,7 @@ class Scoring extends Page
         Notification::make()->success()->title('Score recorded.')->send();
     }
 
+
     public function onTimerExpired(int $matchId): void
     {
         if (! in_array($this->getScoringMethod(), ['first_to_n', 'timed_points'])) return;
@@ -1102,7 +1127,7 @@ class Scoring extends Page
             // undone — undoing the WB final doesn't change who the semi-final losers are.
             if ($format === 'repechage') {
                 RoundRobinMatch::where('division_id', $this->division_id)
-                    ->where('bracket', 'repechage')
+                    ->whereIn('bracket', ['repechage_a', 'repechage_b'])
                     ->delete();
             } elseif ($format === 'se_3rd_place') {
                 $r1Count    = RoundRobinMatch::where('division_id', $this->division_id)
@@ -1307,21 +1332,26 @@ class Scoring extends Page
                 $this->setBracketPlacement($gf->winnerId(), 1, $service, $cap);
                 if ($gf->loserId()) $this->setBracketPlacement($gf->loserId(), 2, $service, $cap);
             }
+            // 3rd place is the loser of the losers-bracket final (settled before the GF)
+            $lbFinalRound = $matches->where('bracket', 'losers')->max('round');
+            $lbFinal      = $matches->where('bracket', 'losers')->where('round', $lbFinalRound)->first();
+            if ($lbFinal?->loserId()) {
+                $this->setBracketPlacement($lbFinal->loserId(), 3, $service, $cap);
+            }
         } elseif ($format === 'repechage') {
-            // WB final determines 1st/2nd; repechage bracket winner gets 3rd.
+            // WB final determines 1st/2nd; each repechage sub-bracket winner gets 3rd.
             $wbFinalRound = $matches->where('bracket', 'winners')->max('round');
             $wbFinal      = $matches->where('bracket', 'winners')->where('round', $wbFinalRound)->first();
             if ($wbFinal?->winnerId()) {
                 $this->setBracketPlacement($wbFinal->winnerId(), 1, $service, $cap);
                 if ($wbFinal->loserId()) $this->setBracketPlacement($wbFinal->loserId(), 2, $service, $cap);
             }
-            $repMatches   = $matches->where('bracket', 'repechage');
-            $maxRepRound  = $repMatches->max('round');
-            $repFinal     = $repMatches->where('round', $maxRepRound)->first();
-            if ($repFinal?->winnerId()) {
-                $this->setBracketPlacement($repFinal->winnerId(), 3, $service, $cap);
-                if ($repFinal->loserId()) {
-                    $this->setBracketPlacement($repFinal->loserId(), 4, $service, $cap);
+            foreach (['repechage_a', 'repechage_b'] as $repBracket) {
+                $repMatches  = $matches->where('bracket', $repBracket);
+                $maxRepRound = $repMatches->max('round');
+                $repFinal    = $repMatches->where('round', $maxRepRound)->first();
+                if ($repFinal?->winnerId()) {
+                    $this->setBracketPlacement($repFinal->winnerId(), 3, $service, $cap);
                 }
             }
         } else {
@@ -1401,7 +1431,7 @@ class Scoring extends Page
             }
         }
 
-        $map = ['winners' => [], 'losers' => [], 'repechage' => [], 'grand_final' => []];
+        $map = ['winners' => [], 'losers' => [], 'repechage' => [], 'repechage_a' => [], 'repechage_b' => [], 'grand_final' => []];
         foreach ($all as $m) {
             if ($m->isPending() && ! $m->isBye()) {
                 if (! isset($this->bracketScoreInput[$m->id]['home'])) {
@@ -1675,7 +1705,7 @@ class Scoring extends Page
 
     public function saveJudgeScores(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         $service = app(ScoringService::class);
@@ -1694,7 +1724,7 @@ class Scoring extends Page
 
     public function undoJudgeScores(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if ($result) {
             $service      = app(ScoringService::class);
             $hasTiebreaker = $result->tiebreaker_score !== null;
@@ -1727,7 +1757,7 @@ class Scoring extends Page
 
     public function saveWinLoss(int $resultId, string $value): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         app(ScoringService::class)->recordWinLoss($result, $value);
@@ -1736,7 +1766,7 @@ class Scoring extends Page
 
     public function addPoints(int $resultId, float $amount): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         $target = $this->getTargetScore();
@@ -1749,7 +1779,7 @@ class Scoring extends Page
 
     public function undoPoints(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         app(ScoringService::class)->undoLastPoints($result);
@@ -1765,7 +1795,7 @@ class Scoring extends Page
 
     public function savePoints(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         app(ScoringService::class)->recordPoints($result, (int) ($this->pointsInput[$resultId] ?? 0));
@@ -1774,7 +1804,7 @@ class Scoring extends Page
 
     public function overridePlacement(int $resultId): void
     {
-        $result    = Result::find($resultId);
+        $result    = $this->findResult($resultId);
         $placement = (int) ($this->placementInput[$resultId] ?? 0);
 
         if (! $result) return;
@@ -1799,7 +1829,7 @@ class Scoring extends Page
 
     public function headJudgeSavePlacement(int $resultId): void
     {
-        $result    = Result::find($resultId);
+        $result    = $this->findResult($resultId);
         $placement = (int) ($this->placementInput[$resultId] ?? 0);
 
         if (! $result || $placement < 1) {
@@ -1815,7 +1845,7 @@ class Scoring extends Page
 
     public function headJudgeUndoPlacement(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         app(ScoringService::class)->clearPlacementOverride($result);
@@ -1825,7 +1855,7 @@ class Scoring extends Page
 
     public function clearOverride(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         app(ScoringService::class)->clearPlacementOverride($result);
@@ -1897,7 +1927,7 @@ class Scoring extends Page
 
     public function getDqLabel(int $resultId): string
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         return $result?->forfeited ? 'Forfeit' : 'DQ';
     }
 
@@ -1958,6 +1988,8 @@ class Scoring extends Page
         $div = $this->getSelectedDivision();
         if (! $div) return;
 
+        if (! $this->findResult($resultId)) return;
+
         $this->penaltyModalResultId = $resultId;
         $this->penaltyModalMatchId  = $matchId;
         $this->penaltyModalType     = $type;
@@ -1995,7 +2027,7 @@ class Scoring extends Page
 
     private function applyPenalty(int $resultId, string $type, ?string $reason, ?int $matchId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         // Mutual exclusion: forfeit and DQ cannot both be applied to the same competitor.
@@ -2043,7 +2075,7 @@ class Scoring extends Page
 
     public function undoPenalty(int $resultId, ?int $matchId = null): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         $match = $matchId ? RoundRobinMatch::find($matchId) : null;
@@ -2107,7 +2139,7 @@ class Scoring extends Page
 
     public function toggleDisqualify(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         // Can't DQ someone who is forfeited — undo the forfeit first.
@@ -2280,7 +2312,7 @@ class Scoring extends Page
 
     public function saveTiebreakerScores(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         $inputs  = $this->tiebreakerJudgeInputs[$resultId] ?? [];
@@ -2308,7 +2340,7 @@ class Scoring extends Page
 
     public function clearTiebreakerScore(int $resultId): void
     {
-        $result = Result::find($resultId);
+        $result = $this->findResult($resultId);
         if (! $result) return;
 
         // Clear head-judge placement overrides on this result and same-score peers

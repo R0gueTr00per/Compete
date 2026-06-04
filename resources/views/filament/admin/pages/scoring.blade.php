@@ -798,16 +798,19 @@
                                                 $displaySections[] = ['label' => 'Final', 'rounds' => [$wbFinalRound => $wbAll[$wbFinalRound]], 'key' => 'winners'];
                                             }
                                         } else {
-                                            $sectionDefs = [
+                                            $sectionDefs = array_filter([
                                                 'winners'     => ['label' => in_array($format, ['double_elimination', 'repechage']) ? 'Winners bracket' : null, 'key' => 'winners'],
-                                                'losers'      => ['label' => 'Losers bracket',    'key' => 'losers'],
-                                                'repechage'   => ['label' => 'Repechage bracket', 'key' => 'repechage'],
-                                                'grand_final' => ['label' => 'Grand Final',       'key' => 'grand_final'],
-                                            ];
+                                                'losers'      => ['label' => 'Losers bracket',     'key' => 'losers'],
+                                                'repechage'   => $format === 'se_3rd_place' ? ['label' => 'Repechage bracket', 'key' => 'repechage'] : null,
+                                                'repechage_a' => $format === 'repechage'    ? ['label' => 'Repechage — Side A', 'key' => 'repechage_a'] : null,
+                                                'repechage_b' => $format === 'repechage'    ? ['label' => 'Repechage — Side B', 'key' => 'repechage_b'] : null,
+                                                'grand_final' => ['label' => 'Grand Final',        'key' => 'grand_final'],
+                                            ]);
                                             $displaySections = [];
                                             foreach ($sectionDefs as $bk => $meta) {
                                                 $bkRounds = $bracketData[$bk] ?? [];
-                                                if (! empty($bkRounds)) {
+                                                $hasVisible = collect($bkRounds)->flatten(1)->contains(fn($m) => ! $m->is_bye);
+                                                if ($hasVisible) {
                                                     $displaySections[] = ['label' => $meta['label'], 'rounds' => $bkRounds, 'key' => $bk];
                                                 }
                                             }
@@ -1245,123 +1248,28 @@
 
                                         $placementCap = 3;
                                         if ($isComplete) {
-                                            $wbRounds     = $bracketData['winners'] ?? [];
-                                            $wbFinalRound = ! empty($wbRounds) ? max(array_keys($wbRounds)) : null;
+                                            $wbRounds           = $bracketData['winners'] ?? [];
+                                            $wbFinalRound       = ! empty($wbRounds) ? max(array_keys($wbRounds)) : null;
                                             $onlyTwoCompetitors = ($wbFinalRound === 1);
-                                            $_capEvent    = $div->competitionEvent;
-                                            $placementCap = match (true) {
+                                            $_capEvent          = $div->competitionEvent;
+                                            $placementCap       = match (true) {
                                                 $competitorCount <= 2 => $_capEvent->awarded_places_2 ?? 2,
                                                 $competitorCount === 3 => $_capEvent->awarded_places_3 ?? 3,
                                                 default               => $_capEvent->awarded_places_4plus ?? 3,
                                             };
 
                                             $finalist2Forfeited = false;
-                                            if ($format === 'double_elimination') {
-                                                $gf = collect($bracketData['grand_final'] ?? [])->flatten(1)->first();
-                                                if ($gf && $gf->winner_id) {
-                                                    $bracketPlacements[1] = $gf->winner_id === $gf->home_id ? $gf->home_name : $gf->away_name;
-                                                    if ($gf->loser_id) {
-                                                        $loserResult = $rows->first(fn($r) => $r->ee->id === $gf->loser_id)?->result;
-                                                        if (! $loserResult?->disqualified) {
-                                                            $bracketPlacements[2] = $gf->loser_id === $gf->home_id ? $gf->home_name : $gf->away_name;
-                                                            $finalist2Forfeited = (bool) $loserResult?->forfeited;
-                                                        }
+                                            foreach ($rows as $row) {
+                                                $p = $row->result->placement;
+                                                if ($p && $p >= 1 && $p <= 3) {
+                                                    if (isset($bracketPlacements[$p])) {
+                                                        $bracketPlacements[$p] .= ' / ' . $row->name;
+                                                    } else {
+                                                        $bracketPlacements[$p] = $row->name;
                                                     }
-                                                }
-                                            } elseif ($format === 'repechage' && $wbFinalRound) {
-                                                $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
-                                                if ($wbFinal && $wbFinal->winner_id) {
-                                                    $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                    if ($wbFinal->loser_id) {
-                                                        $loserResult = $rows->first(fn($r) => $r->ee->id === $wbFinal->loser_id)?->result;
-                                                        if (! $loserResult?->disqualified) {
-                                                            $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                            $finalist2Forfeited = (bool) $loserResult?->forfeited;
-                                                        }
+                                                    if ($p === 2 && $row->result->forfeited) {
+                                                        $finalist2Forfeited = true;
                                                     }
-                                                }
-                                                $repRounds = $bracketData['repechage'] ?? [];
-                                                if (! empty($repRounds)) {
-                                                    $maxRepRound = max(array_keys($repRounds));
-                                                    $repFinal    = ($repRounds[$maxRepRound] ?? [])[0] ?? null;
-                                                    if ($repFinal && $repFinal->winner_id)
-                                                        $bracketPlacements[3] = $repFinal->winner_id === $repFinal->home_id ? $repFinal->home_name : $repFinal->away_name;
-                                                }
-                                            } elseif ($format === 'se_3rd_place' && $wbFinalRound) {
-                                                $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
-                                                if ($wbFinal && $wbFinal->winner_id) {
-                                                    $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                    if ($wbFinal->loser_id) {
-                                                        $loserResult = $rows->first(fn($r) => $r->ee->id === $wbFinal->loser_id)?->result;
-                                                        if (! $loserResult?->disqualified) {
-                                                            $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                            $finalist2Forfeited = (bool) $loserResult?->forfeited;
-                                                        }
-                                                    }
-                                                }
-                                                $repRounds = $bracketData['repechage'] ?? [];
-                                                if (! empty($repRounds)) {
-                                                    $thirdFinal = ($repRounds[max(array_keys($repRounds))] ?? [])[0] ?? null;
-                                                    if ($thirdFinal && $thirdFinal->winner_id)
-                                                        $bracketPlacements[3] = $thirdFinal->winner_id === $thirdFinal->home_id ? $thirdFinal->home_name : $thirdFinal->away_name;
-                                                } elseif ($wbFinalRound > 1) {
-                                                    $thirdNames = [];
-                                                    foreach ($wbRounds[$wbFinalRound - 1] ?? [] as $semi) {
-                                                        if ($semi->loser_id && ! $semi->is_bye)
-                                                            $thirdNames[] = $semi->loser_id === $semi->home_id ? $semi->home_name : $semi->away_name;
-                                                    }
-                                                    if (! empty($thirdNames))
-                                                        $bracketPlacements[3] = implode(' / ', $thirdNames);
-                                                }
-                                            } elseif ($format === 'round_robin') {
-                                                $onlyTwoCompetitors = false;
-                                                $rrWinCounts = [];
-                                                $rrNameMap   = [];
-                                                foreach (collect($wbRounds)->flatten(1) as $rrM) {
-                                                    if ($rrM->home_id) $rrNameMap[$rrM->home_id] = $rrM->home_name;
-                                                    if ($rrM->away_id) $rrNameMap[$rrM->away_id] = $rrM->away_name;
-                                                    if ($rrM->winner_id) {
-                                                        $rrWinCounts[$rrM->winner_id] = ($rrWinCounts[$rrM->winner_id] ?? 0) + 1;
-                                                    }
-                                                }
-                                                foreach (array_keys($rrNameMap) as $rrEeId) {
-                                                    if (! isset($rrWinCounts[$rrEeId])) $rrWinCounts[$rrEeId] = 0;
-                                                }
-                                                arsort($rrWinCounts);
-                                                $rrRank = 1; $rrPrevWins = null; $rrCnt = 0; $rrRankNames = [];
-                                                foreach ($rrWinCounts as $rrEeId => $rrWins) {
-                                                    if ($rrPrevWins !== null && $rrWins < $rrPrevWins) {
-                                                        $rrRank += $rrCnt;
-                                                        $rrCnt = 0;
-                                                    }
-                                                    $rrRankNames[$rrRank][] = $rrNameMap[$rrEeId] ?? '?';
-                                                    $rrPrevWins = $rrWins; $rrCnt++;
-                                                }
-                                                foreach ([1, 2, 3] as $rrP) {
-                                                    if (isset($rrRankNames[$rrP]))
-                                                        $bracketPlacements[$rrP] = implode(' / ', $rrRankNames[$rrP]);
-                                                }
-                                            } elseif ($wbFinalRound) {
-                                                $wbFinal = ($wbRounds[$wbFinalRound] ?? [])[0] ?? null;
-                                                if ($wbFinal && $wbFinal->winner_id) {
-                                                    $bracketPlacements[1] = $wbFinal->winner_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                    if ($wbFinal->loser_id) {
-                                                        $loserResult = $rows->first(fn($r) => $r->ee->id === $wbFinal->loser_id)?->result;
-                                                        if (! $loserResult?->disqualified) {
-                                                            $bracketPlacements[2] = $wbFinal->loser_id === $wbFinal->home_id ? $wbFinal->home_name : $wbFinal->away_name;
-                                                            $finalist2Forfeited = (bool) $loserResult?->forfeited;
-                                                        }
-                                                    }
-                                                }
-
-                                                if ($wbFinalRound > 1) {
-                                                    $thirdNames = [];
-                                                    foreach ($wbRounds[$wbFinalRound - 1] ?? [] as $semi) {
-                                                        if ($semi->loser_id && ! $semi->is_bye)
-                                                            $thirdNames[] = $semi->loser_id === $semi->home_id ? $semi->home_name : $semi->away_name;
-                                                    }
-                                                    if (! empty($thirdNames))
-                                                        $bracketPlacements[3] = implode(' / ', $thirdNames);
                                                 }
                                             }
                                         }
