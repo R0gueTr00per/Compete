@@ -69,10 +69,11 @@
                 $dojo    = $ee->enrolment->dojo_type === 'guest'
                     ? ($ee->enrolment->guest_style ?? 'Guest')
                     : ($ee->enrolment->dojo_name ?? '—');
-                $isTop3  = $result?->placement && $result->placement <= 3;
+                $isTop3  = $result?->placement && $result->placement <= 3 && ! $result?->disqualified;
+                $displayPlace = $result?->disqualified ? '—' : ($result?->placement ? $ordinal($result->placement) : '—');
               @endphp
               <div class="place-cell {{ $isTop3 ? 'top3' : '' }} {{ $result?->disqualified ? 'dq' : '' }}">
-                <span class="place-ord {{ $isTop3 ? 'medal' : '' }}">{{ $result?->placement ? $ordinal($result->placement) : '—' }}{{ $result?->placement_overridden ? ' *' : '' }}</span><span class="place-name">{{ $name }}{{ $result?->disqualified ? ' (DQ)' : '' }}</span>
+                <span class="place-ord {{ $isTop3 ? 'medal' : '' }}">{{ $displayPlace }}{{ $result?->placement_overridden ? ' *' : '' }}</span><span class="place-name">{{ $name }}{{ $result?->disqualified ? ' (DQ)' : '' }}</span>
                 <div class="place-dojo">{{ $dojo }}</div>
               </div>
             @endforeach

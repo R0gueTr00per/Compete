@@ -120,17 +120,21 @@
                                                     : ($ee->enrolment->dojo_name ?? '—');
                                             @endphp
                                             <div class="flex items-center gap-2 min-w-[160px] rounded-md border px-3 py-2
-                                                {{ $result?->placement && $result->placement <= 3
+                                                {{ $result?->placement && $result->placement <= 3 && ! $result->disqualified
                                                     ? 'border-gray-300 dark:border-slate-600 bg-gray-200 dark:bg-slate-900'
                                                     : 'border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800' }}
                                                 {{ $result?->disqualified ? 'opacity-50' : '' }}">
                                                 <span class="text-xl leading-none">
-                                                    @switch($result?->placement)
-                                                        @case(1) 🥇 @break
-                                                        @case(2) 🥈 @break
-                                                        @case(3) 🥉 @break
-                                                        @default <span class="text-sm font-bold text-gray-500">{{ $result?->placement ?? '—' }}</span>
-                                                    @endswitch
+                                                    @if ($result?->disqualified)
+                                                        <span class="text-sm font-bold text-gray-500">—</span>
+                                                    @else
+                                                        @switch($result?->placement)
+                                                            @case(1) 🥇 @break
+                                                            @case(2) 🥈 @break
+                                                            @case(3) 🥉 @break
+                                                            @default <span class="text-sm font-bold text-gray-500">{{ $result?->placement ?? '—' }}</span>
+                                                        @endswitch
+                                                    @endif
                                                 </span>
                                                 <div>
                                                     <p class="text-sm font-medium text-gray-900 dark:text-white leading-tight">

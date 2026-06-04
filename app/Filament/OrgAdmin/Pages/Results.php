@@ -224,7 +224,7 @@ class Results extends Page
 
                 if ($this->onlyPlacings) {
                     $entries = $entries->filter(
-                        fn ($ee) => $ee->result?->placement && $ee->result->placement <= 3
+                        fn ($ee) => $ee->result?->placement && $ee->result->placement <= 3 && ! $ee->result->disqualified
                     );
                 }
 

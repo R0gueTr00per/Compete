@@ -50,15 +50,15 @@
                                         @endphp
                                         <div class="flex items-center gap-3 px-4 py-2.5">
                                             <span class="w-8 text-center font-bold text-lg shrink-0">
-                                                @if ($result?->placement)
+                                                @if ($result?->disqualified || ! $result?->placement)
+                                                    <span class="text-gray-300 text-sm">—</span>
+                                                @else
                                                     @switch($result->placement)
                                                         @case(1) 🥇 @break
                                                         @case(2) 🥈 @break
                                                         @case(3) 🥉 @break
                                                         @default <span class="text-sm text-gray-500">{{ $result->placement }}</span>
                                                     @endswitch
-                                                @else
-                                                    <span class="text-gray-300 text-sm">—</span>
                                                 @endif
                                             </span>
 

@@ -700,7 +700,7 @@ class Scoring extends Page
             return true;
         }
 
-        return $rows->every(fn ($row) => $row->result->disqualified || match ($method) {
+        return $rows->every(fn ($row) => $row->result->disqualified || $row->result->forfeited || match ($method) {
             'win_loss'                    => $row->result->win_loss !== null,
             'first_to_n', 'timed_points' => $row->result->total_score !== null,
             default                       => true,
@@ -1117,23 +1117,19 @@ class Scoring extends Page
         }
         // grand_final: no downstream — just clear the result below
 
-        // Un-DQ competitors whose DQ was tied specifically to this match (e.g. auto-DQ from warnings).
-        // Do NOT clear a general forfeit/DQ that was applied outside of this match context.
-        $eeIds = array_filter([$match->home_enrolment_event_id, $match->away_enrolment_event_id]);
-        foreach ($eeIds as $eeId) {
-            $result = Result::where('enrolment_event_id', $eeId)->where('disqualified', true)->first();
-            if (! $result) continue;
-            $hasExternalDq = \App\Models\MatchPenalty::where('result_id', $result->id)
-                ->whereIn('type', ['dq', 'forfeit'])
-                ->where(fn ($q) => $q->whereNull('round_robin_match_id')
-                    ->orWhere('round_robin_match_id', '!=', $match->id))
-                ->exists();
-            if (! $hasExternalDq) {
-                $result->update(['disqualified' => false]);
-            }
-        }
+        // Always clear DQ/forfeit for both competitors when a match result is undone.
+        // Leaving an active DQ/forfeit on a competitor in a now-pending match makes no sense
+        // — it would immediately trigger auto-advance again. The admin can re-apply if needed.
+        $eeIds      = array_filter([$match->home_enrolment_event_id, $match->away_enrolment_event_id]);
+        $resultIds  = Result::whereIn('enrolment_event_id', $eeIds)->pluck('id');
+        Result::whereIn('enrolment_event_id', $eeIds)
+            ->update(['disqualified' => false, 'forfeited' => false]);
+        \App\Models\MatchPenalty::whereIn('result_id', $resultIds)
+            ->whereIn('type', ['dq', 'forfeit'])
+            ->delete();
 
-        $match->update(['home_result' => null, 'home_score' => null, 'away_score' => null]);
+        $match->update(['home_result' => null]);
+        unset($this->bracketScoreInput[$matchId]);  // force re-init from DB scores on next render
         $this->applyBracketPlacements();
         $this->dispatch('timer-reset', matchId: $matchId);
         Notification::make()->success()->title('Result cleared.')->send();
@@ -1180,6 +1176,9 @@ class Scoring extends Page
         Result::whereIn('enrolment_event_id', $eeIds)
             ->where('disqualified', true)
             ->update(['disqualified' => false, 'placement' => null]);
+        Result::whereIn('enrolment_event_id', $eeIds)
+            ->where('forfeited', true)
+            ->update(['forfeited' => false]);
 
         Notification::make()->success()->title('Bracket cleared.')->send();
     }
@@ -1339,6 +1338,15 @@ class Scoring extends Page
             }
         }
 
+        // Load per-match DQ/forfeit flags so the blade can show labels only in the right match.
+        $eeIds         = $all->flatMap(fn ($m) => array_filter([$m->home_enrolment_event_id, $m->away_enrolment_event_id]))->unique()->values()->toArray();
+        $resultIdsByEe = Result::whereIn('enrolment_event_id', $eeIds)->pluck('id', 'enrolment_event_id')->toArray();
+        $matchIds      = $all->pluck('id')->toArray();
+        $matchPenMap   = [];
+        foreach (\App\Models\MatchPenalty::whereIn('round_robin_match_id', $matchIds)->whereIn('type', ['dq', 'forfeit'])->get() as $p) {
+            $matchPenMap[$p->result_id][$p->round_robin_match_id][] = $p->type;
+        }
+
         // Index scored matches per competitor so we can check downstream usage only.
         // A match is undoable if the winner hasn't appeared in any scored match that is
         // downstream from it (higher round in same bracket, or a grand_final match).
@@ -1384,25 +1392,34 @@ class Scoring extends Page
                 }
                 $canUndo = ! $usedDownstream;
             }
+            $homeResultId = $resultIdsByEe[$m->home_enrolment_event_id] ?? null;
+            $awayResultId = $resultIdsByEe[$m->away_enrolment_event_id] ?? null;
+            $homeTypesInMatch = $homeResultId ? ($matchPenMap[$homeResultId][$m->id] ?? []) : [];
+            $awayTypesInMatch = $awayResultId ? ($matchPenMap[$awayResultId][$m->id] ?? []) : [];
+
             $map[$m->bracket][$m->round][] = (object) [
-                'id'          => $m->id,
-                'slot'        => $m->bracket_slot,
-                'home_id'     => $m->home_enrolment_event_id,
-                'away_id'     => $m->away_enrolment_event_id,
-                'home_name'   => isset($eeNames[$m->home_enrolment_event_id]) ? $eeNames[$m->home_enrolment_event_id] : '—',
-                'home_info'   => $eeInfo[$m->home_enrolment_event_id] ?? '',
-                'away_name'   => $m->away_enrolment_event_id
+                'id'                    => $m->id,
+                'slot'                  => $m->bracket_slot,
+                'home_id'               => $m->home_enrolment_event_id,
+                'away_id'               => $m->away_enrolment_event_id,
+                'home_name'             => isset($eeNames[$m->home_enrolment_event_id]) ? $eeNames[$m->home_enrolment_event_id] : '—',
+                'home_info'             => $eeInfo[$m->home_enrolment_event_id] ?? '',
+                'away_name'             => $m->away_enrolment_event_id
                     ? ($eeNames[$m->away_enrolment_event_id] ?? '—')
                     : ($m->home_result === null ? 'Waiting...' : 'BYE'),
-                'away_info'   => $m->away_enrolment_event_id ? ($eeInfo[$m->away_enrolment_event_id] ?? '') : '',
-                'home_result' => $m->home_result,
-                'home_score'  => $m->home_score,
-                'away_score'  => $m->away_score,
-                'is_bye'      => $m->isBye(),
-                'is_pending'  => $m->isPending() && ! $m->isBye(),
-                'winner_id'   => $winner,
-                'loser_id'    => $m->loserId(),
-                'can_undo'    => $canUndo,
+                'away_info'             => $m->away_enrolment_event_id ? ($eeInfo[$m->away_enrolment_event_id] ?? '') : '',
+                'home_result'           => $m->home_result,
+                'home_score'            => $m->home_score,
+                'away_score'            => $m->away_score,
+                'is_bye'                => $m->isBye(),
+                'is_pending'            => $m->isPending() && ! $m->isBye(),
+                'winner_id'             => $winner,
+                'loser_id'              => $m->loserId(),
+                'can_undo'              => $canUndo,
+                'home_dq_in_match'      => in_array('dq', $homeTypesInMatch),
+                'home_forfeit_in_match' => in_array('forfeit', $homeTypesInMatch),
+                'away_dq_in_match'      => in_array('dq', $awayTypesInMatch),
+                'away_forfeit_in_match' => in_array('forfeit', $awayTypesInMatch),
             ];
         }
 
@@ -1941,6 +1958,16 @@ class Scoring extends Page
         $result = Result::find($resultId);
         if (! $result) return;
 
+        // Mutual exclusion: forfeit and DQ cannot both be applied to the same competitor.
+        if ($type === 'forfeit' && ($result->disqualified || $result->forfeited)) {
+            Notification::make()->warning()->title('Forfeit not applied — competitor is already DQ\'d or forfeited.')->send();
+            return;
+        }
+        if ($type === 'dq' && $result->forfeited) {
+            Notification::make()->warning()->title('DQ not applied — competitor is forfeited. Undo the forfeit first.')->send();
+            return;
+        }
+
         $match = $matchId ? RoundRobinMatch::find($matchId) : null;
 
         $opponentResult = null;
@@ -2019,8 +2046,18 @@ class Scoring extends Page
                 : null;
 
             if ($winnerEeId && ! $otherResult?->disqualified && ! $otherResult?->forfeited) {
-                $homeWins = $match->home_enrolment_event_id === $winnerEeId;
-                $match->update(['home_result' => $homeWins ? 'win' : 'loss']);
+                $homeWins  = $match->home_enrolment_event_id === $winnerEeId;
+                $homeScore = isset($this->bracketScoreInput[$match->id]['home'])
+                    ? (float) $this->bracketScoreInput[$match->id]['home']
+                    : null;
+                $awayScore = isset($this->bracketScoreInput[$match->id]['away'])
+                    ? (float) $this->bracketScoreInput[$match->id]['away']
+                    : null;
+                $match->update([
+                    'home_result' => $homeWins ? 'win' : 'loss',
+                    'home_score'  => $homeScore,
+                    'away_score'  => $awayScore,
+                ]);
                 app(BracketService::class)->advance($match->fresh());
                 $this->applyBracketPlacements();
                 Notification::make()->title('Match awarded to opponent.')->info()->send();
@@ -2032,6 +2069,12 @@ class Scoring extends Page
     {
         $result = Result::find($resultId);
         if (! $result) return;
+
+        // Can't DQ someone who is forfeited — undo the forfeit first.
+        if (! $result->disqualified && $result->forfeited) {
+            Notification::make()->warning()->title('Cannot DQ — competitor is forfeited. Undo the forfeit first.')->send();
+            return;
+        }
 
         app(ScoringService::class)->toggleDisqualify($result);
         $result->refresh();
@@ -2065,6 +2108,7 @@ class Scoring extends Page
                 'placement'            => null,
                 'placement_overridden' => false,
                 'disqualified'         => false,
+                'forfeited'            => false,
             ])->save();
         });
 
@@ -2094,6 +2138,7 @@ class Scoring extends Page
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
             $result->scoreEvents()->delete();
+            $result->penalties()->delete();
             $result->forceFill([
                 'total_score'          => null,
                 'tiebreaker_score'     => null,
@@ -2101,6 +2146,7 @@ class Scoring extends Page
                 'placement_overridden' => false,
                 'win_loss'             => null,
                 'disqualified'         => false,
+                'forfeited'            => false,
             ])->save();
         });
 
@@ -2300,7 +2346,7 @@ class Scoring extends Page
 
             if (in_array($method, ['judges_total', 'judges_average'])) {
                 $missing = $this->getCompetitorRows()
-                    ->filter(fn ($row) => ! $row->result->disqualified && $row->result->total_score === null)
+                    ->filter(fn ($row) => ! $row->result->disqualified && ! $row->result->forfeited && $row->result->total_score === null)
                     ->count();
 
                 if ($missing > 0) {
@@ -2312,7 +2358,7 @@ class Scoring extends Page
                 }
             } elseif ($method === 'win_loss') {
                 $missing = $this->getCompetitorRows()
-                    ->filter(fn ($row) => ! $row->result->disqualified && $row->result->win_loss === null)
+                    ->filter(fn ($row) => ! $row->result->disqualified && ! $row->result->forfeited && $row->result->win_loss === null)
                     ->count();
 
                 if ($missing > 0) {
@@ -2324,7 +2370,7 @@ class Scoring extends Page
                 }
             } elseif (in_array($method, ['first_to_n', 'timed_points'])) {
                 $missing = $this->getCompetitorRows()
-                    ->filter(fn ($row) => ! $row->result->disqualified && $row->result->total_score === null)
+                    ->filter(fn ($row) => ! $row->result->disqualified && ! $row->result->forfeited && $row->result->total_score === null)
                     ->count();
 
                 if ($missing > 0) {

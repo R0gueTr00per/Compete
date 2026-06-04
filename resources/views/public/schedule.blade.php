@@ -120,7 +120,7 @@
 
                             @if ($div->status === 'complete' && $div->results->isNotEmpty())
                                 <div class="mt-3 space-y-1.5 border-t border-gray-100 pt-3">
-                                    @foreach ($div->results->whereNotNull('placement')->sortBy('placement')->take(3) as $result)
+                                    @foreach ($div->results->whereNotNull('placement')->where('disqualified', false)->sortBy('placement')->take(3) as $result)
                                         @php $competitor = $result->enrolmentEvent?->competitor; @endphp
                                         <div class="flex items-center gap-2 text-sm">
                                             <span class="flex-none inline-block px-2 py-0.5 rounded text-xs font-bold {{ $placementColors[$result->placement] ?? 'bg-gray-100 text-gray-600' }}">
@@ -178,7 +178,7 @@
                                         @endif
                                         @if ($div->status === 'complete' && $div->results->isNotEmpty())
                                             <div class="mt-2 space-y-1 border-t border-green-200 pt-2">
-                                                @foreach ($div->results->whereNotNull('placement')->sortBy('placement')->take(3) as $result)
+                                                @foreach ($div->results->whereNotNull('placement')->where('disqualified', false)->sortBy('placement')->take(3) as $result)
                                                     @php $competitor = $result->enrolmentEvent?->competitor; @endphp
                                                     <div class="flex items-center gap-1.5 text-xs">
                                                         <span class="flex-none inline-block px-1.5 py-0.5 rounded text-xs font-bold {{ $placementColors[$result->placement] ?? 'bg-gray-100 text-gray-600' }}">

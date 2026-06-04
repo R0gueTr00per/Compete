@@ -110,6 +110,7 @@ class ScoringService
 
         $results = Result::where('division_id', $division->id)
             ->where('disqualified', false)
+            ->where('forfeited', false)
             ->get();
 
         $method  = $division->competitionEvent->effectiveScoringMethod();
@@ -273,13 +274,10 @@ class ScoringService
                     break;
 
                 case 'deduction':
-                    $this->addPoints($result, -1);
-                    break;
-
                 case 'opponent_point':
-                    if ($opponentResult) {
-                        $this->addPoints($opponentResult, 1);
-                    }
+                    // Penalty is logged via MatchPenalty record only — no score modification.
+                    // Bracket events use home_score/away_score on the match (not total_score),
+                    // and judges events don't have these penalty types.
                     break;
             }
         });
@@ -353,25 +351,8 @@ class ScoringService
                     break;
 
                 case 'deduction':
-                    $this->addPoints($result, 1);
-                    break;
-
                 case 'opponent_point':
-                    // Find the opponent result via the match
-                    if ($last->round_robin_match_id) {
-                        $matchRecord = $last->roundRobinMatch;
-                        if ($matchRecord) {
-                            $opponentEeId = $matchRecord->home_enrolment_event_id === $result->enrolment_event_id
-                                ? $matchRecord->away_enrolment_event_id
-                                : $matchRecord->home_enrolment_event_id;
-                            $opponentResult = $opponentEeId
-                                ? Result::where('enrolment_event_id', $opponentEeId)->first()
-                                : null;
-                            if ($opponentResult) {
-                                $this->addPoints($opponentResult, -1);
-                            }
-                        }
-                    }
+                    // Penalty was log-only — no score was modified, nothing to reverse.
                     break;
             }
 
