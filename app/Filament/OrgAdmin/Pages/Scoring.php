@@ -51,6 +51,7 @@ class Scoring extends Page
     public array $savedResultIds         = [];
     public array $completedRollcallDivisions = [];
     public bool  $rollcallMode           = false;
+    public bool  $rollcallRequired       = true;
     public bool  $panelOpen             = false;
     public bool  $bracketExists          = false;
     public bool  $placementOverrideMode  = false;
@@ -168,6 +169,7 @@ class Scoring extends Page
                 )
             ),
         ])
+        ->withExists(['roundRobinMatches as has_bracket'])
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
         ->orderBy('code');
@@ -176,7 +178,7 @@ class Scoring extends Page
             'division'          => $div,
             'checked_in_count'  => $div->checked_in_count,
             'competitors_count' => $div->competitors_count,
-            'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0 || $div->status === 'running',
+            'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0 || $div->status === 'running' || $div->has_bracket,
             'locked_by_other'   => $this->lockedByOtherName($div),
         ]);
     }
@@ -213,8 +215,9 @@ class Scoring extends Page
         $this->dispatch('scroll-to-division', divisionId: $divisionId);
         $this->bracketExists = RoundRobinMatch::where('division_id', $divisionId)->exists();
 
-        $division = Division::find($divisionId);
+        $division = Division::with('competitionEvent')->find($divisionId);
         $this->placementOverrideMode = (bool) $division?->placement_override_mode;
+        $this->rollcallRequired = (bool) ($division?->competitionEvent?->rollcall_required ?? true);
 
         if ($division?->status === 'complete') {
             $this->rollcallMode = false;
@@ -233,7 +236,9 @@ class Scoring extends Page
                 ->where(fn ($q) => $q->whereNotNull('total_score')->orWhereNotNull('win_loss'))
                 ->exists();
 
-        if ($hasAbsent || $hasScores || $division?->status === 'running') {
+        $skipGate = ! $this->rollcallRequired && ($division?->competitionEvent?->isTournament() ?? false);
+
+        if ($hasAbsent || $hasScores || $division?->status === 'running' || $skipGate) {
             $this->rollcallMode = false;
             if (! in_array($divisionId, $this->completedRollcallDivisions)) {
                 $this->completedRollcallDivisions[] = $divisionId;
@@ -260,6 +265,7 @@ class Scoring extends Page
             ->orWhereHas('enrolmentEvents.result', fn ($q2) =>
                 $q2->where(fn ($q3) => $q3->whereNotNull('total_score')->orWhereNotNull('win_loss'))
             )
+            ->orWhereHas('roundRobinMatches')
         )
         ->pluck('id')
         ->toArray();
@@ -294,6 +300,7 @@ class Scoring extends Page
         $this->bracketScoreInput        = [];
         $this->savedResultIds           = [];
         $this->rollcallMode             = true;
+        $this->rollcallRequired         = true;
         $this->placementOverrideMode    = false;
         $this->bracketExists            = false;
         $this->panelOpen                = false;
@@ -409,46 +416,57 @@ class Scoring extends Page
     public function toggleRollcall(): void
     {
         if ($this->rollcallMode) {
-            // Transitioning to scoring — mark anyone not confirmed as absent
-            $activeEeIds = EnrolmentEvent::where('division_id', $this->division_id)
-                ->where('removed', false)
-                ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-                ->pluck('id');
+            $division = Division::with('competitionEvent')->find($this->division_id);
+            $event    = $division?->competitionEvent;
 
-            $activePresent = collect($this->rollcallPresent)->intersect($activeEeIds);
-            if ($activePresent->count() === 0) {
-                Notification::make()
-                    ->title('0 competitor(s) marked present')
-                    ->body('At least 2 competitors are needed to score. Click Begin Scoring again to proceed anyway.')
-                    ->warning()
-                    ->send();
-                return;
-            }
-            if ($activePresent->count() < 2 && ! $this->confirmLowCompetitorCount) {
-                $this->confirmLowCompetitorCount = true;
-                Notification::make()
-                    ->title($activePresent->count() . ' competitor(s) marked present')
-                    ->body('At least 2 competitors are needed to score. Click Begin Scoring again to proceed anyway.')
-                    ->warning()
-                    ->send();
-                return;
-            }
-            $this->confirmLowCompetitorCount = false;
+            if ($this->rollcallRequired) {
+                // Rollcall mode — mark anyone not confirmed as absent
+                $activeEeIds = EnrolmentEvent::where('division_id', $this->division_id)
+                    ->where('removed', false)
+                    ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+                    ->pluck('id');
 
-            $absentIds = $activeEeIds->diff($this->rollcallPresent);
-            if ($absentIds->isNotEmpty()) {
-                EnrolmentEvent::whereIn('id', $absentIds)->update(['removed' => true]);
+                $activePresent = collect($this->rollcallPresent)->intersect($activeEeIds);
+                if ($activePresent->count() === 0) {
+                    Notification::make()
+                        ->title('0 competitor(s) marked present')
+                        ->body('At least 2 competitors are needed to score. Click Begin Scoring again to proceed anyway.')
+                        ->warning()
+                        ->send();
+                    return;
+                }
+                if ($activePresent->count() < 2 && ! $this->confirmLowCompetitorCount) {
+                    $this->confirmLowCompetitorCount = true;
+                    Notification::make()
+                        ->title($activePresent->count() . ' competitor(s) marked present')
+                        ->body('At least 2 competitors are needed to score. Click Begin Scoring again to proceed anyway.')
+                        ->warning()
+                        ->send();
+                    return;
+                }
+                $this->confirmLowCompetitorCount = false;
+
+                $absentIds = $activeEeIds->diff($this->rollcallPresent);
+                if ($absentIds->isNotEmpty()) {
+                    EnrolmentEvent::whereIn('id', $absentIds)->update(['removed' => true]);
+                }
+
+                $presentCount = $activePresent->count();
+            } else {
+                // No rollcall — all checked-in competitors assumed present
+                $presentCount = EnrolmentEvent::where('division_id', $this->division_id)
+                    ->where('removed', false)
+                    ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+                    ->count();
             }
 
-            $presentCount = $activePresent->count();
-            $division     = Division::with('competitionEvent')->find($this->division_id);
-            $event        = $division?->competitionEvent;
             $awardedPlaces = match (true) {
                 $presentCount <= 2  => $event?->awarded_places_2    ?? 2,
                 $presentCount === 3 => $event?->awarded_places_3    ?? 3,
                 default             => $event?->awarded_places_4plus ?? 3,
             };
-            $division?->update(['awarded_places' => $awardedPlaces, 'status' => 'running']);
+            $statusUpdate = $event?->isTournament() ? [] : ['status' => 'running'];
+            $division?->update(array_merge(['awarded_places' => $awardedPlaces], $statusUpdate));
 
             if (! in_array($this->division_id, $this->completedRollcallDivisions)) {
                 $this->completedRollcallDivisions[] = $this->division_id;
@@ -757,6 +775,16 @@ class Scoring extends Page
         app(BracketService::class)->generate($division, $ordered);
 
         $this->bracketExists = true;
+
+        if ($division?->status !== 'running') {
+            $awardedPlaces = match (true) {
+                $n <= 2  => $event?->awarded_places_2    ?? 2,
+                $n === 3 => $event?->awarded_places_3    ?? 3,
+                default  => $event?->awarded_places_4plus ?? 3,
+            };
+            $division?->update(['status' => 'running', 'awarded_places' => $awardedPlaces]);
+        }
+
         Notification::make()->success()->title("Bracket generated for {$n} competitors.")->send();
     }
 
@@ -902,9 +930,21 @@ class Scoring extends Page
             $ordered->push($byeCompetitor);
         }
 
-        app(BracketService::class)->generate($this->getSelectedDivision(), $ordered);
+        $division = $this->getSelectedDivision();
+        app(BracketService::class)->generate($division, $ordered);
 
-        $this->bracketExists     = true;
+        $this->bracketExists = true;
+
+        if ($division?->status !== 'running') {
+            $event = $division?->competitionEvent;
+            $awardedPlaces = match (true) {
+                $n <= 2  => $event?->awarded_places_2    ?? 2,
+                $n === 3 => $event?->awarded_places_3    ?? 3,
+                default  => $event?->awarded_places_4plus ?? 3,
+            };
+            $division?->update(['status' => 'running', 'awarded_places' => $awardedPlaces]);
+        }
+
         $this->manualPairingMode = false;
         $this->manualPairings    = [];
         $this->pairingCompetitorList = [];

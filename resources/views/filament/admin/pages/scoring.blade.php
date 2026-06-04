@@ -546,6 +546,7 @@
                         {{-- Panel header: step indicator (hidden for completed read-only view) --}}
                         @if (! $isReadOnly)
                         <div class="flex items-center justify-between mb-4">
+                            @if ($this->rollcallRequired)
                             <div class="flex items-center gap-2 text-xs font-medium">
                                 <span class="flex items-center gap-1.5 {{ $this->rollcallMode ? 'text-primary-700 dark:text-primary-300' : 'text-gray-400 dark:text-gray-600' }}">
                                     <span class="flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold
@@ -559,6 +560,9 @@
                                     Scoring
                                 </span>
                             </div>
+                            @else
+                            <div></div>
+                            @endif
                             <div class="flex items-center gap-2">
                                 @if (! $this->rollcallMode)
                                     <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -584,6 +588,7 @@
                         @endif
 
                         @if ($this->rollcallMode)
+                            @if ($this->rollcallRequired)
                             {{-- Step 1: Rollcall --}}
                             @php
                                 $rollcall = $this->getRollcallRows();
@@ -624,6 +629,13 @@
                                     @endforeach
                                 </ul>
 
+                            @endif
+                            @else
+                            {{-- No rollcall — simple Begin Scoring gate --}}
+                            <div class="flex flex-col items-center justify-center gap-2 py-6 text-center">
+                                <x-heroicon-o-play-circle class="w-10 h-10 text-gray-300 dark:text-gray-600" />
+                                <p class="text-sm text-gray-500 dark:text-gray-400">All checked-in competitors will be included.</p>
+                            </div>
                             @endif
 
                         @else
@@ -741,12 +753,9 @@
                                     @else
                                         <div class="text-center py-4">
                                             <p class="text-sm text-gray-500 mb-1">{{ $competitorCount }} competitor(s) competing.</p>
-                                            <p class="text-xs text-gray-400 mb-3">
+                                            <p class="text-xs text-gray-400">
                                                 {{ match($format) { 'double_elimination' => 'Double elimination bracket', 'round_robin' => 'Round robin', 'repechage' => 'Single elimination with repechage', 'se_3rd_place' => 'Single elimination with 3rd place playoff', default => 'Single elimination bracket' } }}
                                             </p>
-                                            <x-filament::button color="primary" wire:click="generateBracket">
-                                                Generate bracket
-                                            </x-filament::button>
                                         </div>
                                     @endif
                                 @else
@@ -2286,11 +2295,18 @@
                                             Begin Scoring
                                         </x-filament::button>
                                     @endif
-                                    @if (! $this->rollcallMode)
+                                    @if (! $this->rollcallMode && $this->rollcallRequired)
                                         <x-filament::button color="gray" size="sm"
                                             x-on:click="$dispatch('open-modal', { id: 'confirm-rollcall-return' })"
                                             icon="heroicon-m-arrow-left">
                                             Back to rollcall
+                                        </x-filament::button>
+                                    @endif
+                                    @if (! $this->rollcallMode && $this->isTournament() && ! $this->bracketExists)
+                                        <x-filament::button color="primary" size="sm"
+                                            wire:click="generateBracket"
+                                            icon="heroicon-m-arrow-right" icon-position="after">
+                                            Generate bracket
                                         </x-filament::button>
                                     @endif
                                     @if ($this->isScoringComplete())

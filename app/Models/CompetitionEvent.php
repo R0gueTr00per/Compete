@@ -30,6 +30,7 @@ class CompetitionEvent extends Model
         'default_score',
         'division_filter',
         'requires_partner',
+        'rollcall_required',
         'status',
         'awarded_places_2',
         'awarded_places_3',
@@ -47,6 +48,7 @@ class CompetitionEvent extends Model
     {
         return [
             'requires_partner'              => 'boolean',
+            'rollcall_required'             => 'boolean',
             'manual_pairing'                => 'boolean',
             'bracket_prefer_different_dojo' => 'boolean',
             'bracket_avoid_repeat_matchups' => 'boolean',

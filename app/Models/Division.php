@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use App\Models\RoundRobinMatch;
 use App\Models\User;
 
 class Division extends Model
@@ -144,5 +145,10 @@ class Division extends Model
     public function activeEnrolmentEvents(): HasMany
     {
         return $this->hasMany(EnrolmentEvent::class)->where('removed', false);
+    }
+
+    public function roundRobinMatches(): HasMany
+    {
+        return $this->hasMany(RoundRobinMatch::class);
     }
 }

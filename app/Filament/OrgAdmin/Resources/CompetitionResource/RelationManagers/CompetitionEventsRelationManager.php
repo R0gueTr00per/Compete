@@ -80,6 +80,12 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->helperText('Competitors must nominate a partner when enrolling.')
                         ->columnSpanFull(),
 
+                    Toggle::make('rollcall_required')
+                        ->label('Roll call required')
+                        ->helperText('When off, scoring opens directly and all competitors are assumed present.')
+                        ->default(true)
+                        ->columnSpanFull(),
+
                     TextInput::make('default_max_competitors')
                         ->label('Target number of competitors')
                         ->helperText('Default target per division. Can be set per division on the Events page.')
