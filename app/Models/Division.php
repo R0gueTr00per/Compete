@@ -31,6 +31,8 @@ class Division extends Model
         'completed_at',
         'completed_by',
         'awarded_places',
+        'tournament_format',
+        'scoring_method',
         'max_competitors',
         'scoring_locked_by',
         'scoring_locked_at',

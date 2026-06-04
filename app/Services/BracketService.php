@@ -111,7 +111,8 @@ class BracketService
     {
         if ($format === null) {
             $match->loadMissing('division.competitionEvent');
-            $format = $match->division->competitionEvent->effectiveTournamentFormat();
+            $format = $match->division->tournament_format
+                ?? $match->division->competitionEvent->effectiveTournamentFormat();
         }
 
         if ($format === 'round_robin') return;

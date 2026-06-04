@@ -752,7 +752,7 @@ class Scoring extends Page
     public function getTournamentFormat(): ?string
     {
         $div = $this->getSelectedDivision();
-        return $div?->competitionEvent->effectiveTournamentFormat();
+        return $div?->tournament_format ?? $div?->competitionEvent->effectiveTournamentFormat();
     }
 
     public function generateBracket(): void
@@ -800,14 +800,20 @@ class Scoring extends Page
 
         $this->bracketExists = true;
 
+        $awardedPlaces = match (true) {
+            $n <= 2  => $event?->awarded_places_2    ?? 2,
+            $n === 3 => $event?->awarded_places_3    ?? 3,
+            default  => $event?->awarded_places_4plus ?? 3,
+        };
+        $updateData = [
+            'awarded_places'    => $awardedPlaces,
+            'tournament_format' => $event?->effectiveTournamentFormat(),
+            'scoring_method'    => $event?->effectiveScoringMethod(),
+        ];
         if ($division?->status !== 'running') {
-            $awardedPlaces = match (true) {
-                $n <= 2  => $event?->awarded_places_2    ?? 2,
-                $n === 3 => $event?->awarded_places_3    ?? 3,
-                default  => $event?->awarded_places_4plus ?? 3,
-            };
-            $division?->update(['status' => 'running', 'awarded_places' => $awardedPlaces]);
+            $updateData['status'] = 'running';
         }
+        $division?->update($updateData);
 
         Notification::make()->success()->title("Bracket generated for {$n} competitors.")->send();
     }
@@ -959,15 +965,21 @@ class Scoring extends Page
 
         $this->bracketExists = true;
 
+        $event = $division?->competitionEvent;
+        $awardedPlaces = match (true) {
+            $n <= 2  => $event?->awarded_places_2    ?? 2,
+            $n === 3 => $event?->awarded_places_3    ?? 3,
+            default  => $event?->awarded_places_4plus ?? 3,
+        };
+        $updateData = [
+            'awarded_places'    => $awardedPlaces,
+            'tournament_format' => $event?->effectiveTournamentFormat(),
+            'scoring_method'    => $event?->effectiveScoringMethod(),
+        ];
         if ($division?->status !== 'running') {
-            $event = $division?->competitionEvent;
-            $awardedPlaces = match (true) {
-                $n <= 2  => $event?->awarded_places_2    ?? 2,
-                $n === 3 => $event?->awarded_places_3    ?? 3,
-                default  => $event?->awarded_places_4plus ?? 3,
-            };
-            $division?->update(['status' => 'running', 'awarded_places' => $awardedPlaces]);
+            $updateData['status'] = 'running';
         }
+        $division?->update($updateData);
 
         $this->manualPairingMode = false;
         $this->manualPairings    = [];
@@ -1652,7 +1664,7 @@ class Scoring extends Page
         $div = $this->getSelectedDivision();
         if (! $div) return null;
 
-        return $div->competitionEvent->effectiveScoringMethod();
+        return $div->scoring_method ?? $div->competitionEvent->effectiveScoringMethod();
     }
 
     public function getJudgeCount(): int
