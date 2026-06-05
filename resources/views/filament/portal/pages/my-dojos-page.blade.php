@@ -90,21 +90,36 @@
                                 <div x-data="{ open: false }" class="px-4 py-3">
 
                                     {{-- Summary row — always visible --}}
-                                    <button
-                                        type="button"
-                                        x-on:click="open = !open"
-                                        class="flex w-full items-center justify-between gap-3 text-left">
-                                        <span class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{{ $name }}</span>
-                                        <div class="flex items-center gap-2 shrink-0">
-                                            <span class="text-xs text-gray-400 dark:text-gray-500">{{ $eventCount }} {{ Str::plural('event', $eventCount) }}</span>
-                                            @if ($isPaid)
-                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400">Paid</span>
-                                            @else
-                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400">Unpaid</span>
-                                            @endif
-                                            <x-heroicon-m-chevron-down x-bind:class="open ? 'rotate-180' : ''" class="h-4 w-4 text-gray-400 transition-transform" />
-                                        </div>
-                                    </button>
+                                    <div class="flex w-full items-center justify-between gap-3">
+                                        <button
+                                            type="button"
+                                            x-on:click="open = !open"
+                                            class="flex flex-1 min-w-0 items-center gap-3 text-left">
+                                            <span class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{{ $name }}</span>
+                                            <div class="flex items-center gap-2 shrink-0">
+                                                <span class="text-xs text-gray-400 dark:text-gray-500">{{ $eventCount }} {{ Str::plural('event', $eventCount) }}</span>
+                                                @if ($isPaid)
+                                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400">Paid</span>
+                                                @endif
+                                                <x-heroicon-m-chevron-down x-bind:class="open ? 'rotate-180' : ''" class="h-4 w-4 text-gray-400 transition-transform" />
+                                            </div>
+                                        </button>
+                                        @if (! $isPaid)
+                                            <div x-data="{ confirming: false }" class="shrink-0">
+                                                <button type="button" x-show="!confirming" x-on:click.stop="confirming = true"
+                                                    class="rounded-md bg-success-600 px-3 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
+                                                    Mark paid
+                                                </button>
+                                                <div x-show="confirming" class="flex items-center gap-1.5">
+                                                    <span class="text-xs text-gray-600 dark:text-gray-300">{{ tenant_money($totalAmountDue) }}?</span>
+                                                    <button type="button" wire:click="recordPayment({{ $enrolment->id }})" x-on:click.stop="confirming = false"
+                                                        class="rounded-md bg-success-600 px-2 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">Yes</button>
+                                                    <button type="button" x-on:click.stop="confirming = false"
+                                                        class="rounded-md bg-gray-200 dark:bg-gray-700 px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">No</button>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
 
                                     {{-- Expandable detail --}}
                                     <div x-show="open" x-collapse>
@@ -145,7 +160,7 @@
                                                 <span class="tabular-nums ml-4">{{ tenant_money($totalAmountDue) }}</span>
                                             </div>
 
-                                            {{-- Paid confirmation or payment form --}}
+                                            {{-- Payment status --}}
                                             @if ($isPaid)
                                                 <p class="text-xs text-success-600 pt-1">
                                                     ✓ Paid {{ tenant_money($enrolment->payment_amount ?? $totalAmountDue) }}
@@ -153,33 +168,6 @@
                                                         on {{ tenant_date($enrolment->payment_received_at) }}
                                                     @endif
                                                 </p>
-                                            @else
-                                                <div class="pt-2 mt-1 border-t border-gray-100 dark:border-gray-800" x-data="{ confirming: false }">
-                                                    <div x-show="!confirming">
-                                                        <button
-                                                            type="button"
-                                                            x-on:click="confirming = true"
-                                                            class="rounded-md bg-success-600 px-3 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
-                                                            Mark paid
-                                                        </button>
-                                                    </div>
-                                                    <div x-show="confirming" class="flex flex-wrap items-center gap-2">
-                                                        <span class="text-xs text-gray-600 dark:text-gray-300">Confirm {{ tenant_money($totalAmountDue) }} received?</span>
-                                                        <button
-                                                            type="button"
-                                                            wire:click="recordPayment({{ $enrolment->id }})"
-                                                            x-on:click="confirming = false"
-                                                            class="rounded-md bg-success-600 px-3 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
-                                                            Confirm
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            x-on:click="confirming = false"
-                                                            class="rounded-md bg-gray-200 dark:bg-gray-700 px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                                                            Cancel
-                                                        </button>
-                                                    </div>
-                                                </div>
                                             @endif
 
                                         </div>
