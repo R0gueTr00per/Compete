@@ -324,15 +324,16 @@ class EnrolmentService
 
     private function buildInvoiceData(EnrolmentCart $cart, array $cartTotal): array
     {
+        // Use stored cart rate snapshots so the invoice always reflects what was agreed at checkout.
         return [
-            'items'       => array_map(function ($item) {
-                $competition   = $item['competition'];
+            'items'       => array_map(function ($item) use ($cart) {
                 $isOfficial    = $item['is_official'];
                 $useOfficialFees = $isOfficial
-                    && $competition->fee_official_first_event !== null
-                    && $competition->fee_official_additional_event !== null;
-                $firstFee      = (float) ($useOfficialFees ? $competition->fee_official_first_event : $competition->fee_first_event);
-                $additionalFee = (float) ($useOfficialFees ? $competition->fee_official_additional_event : $competition->fee_additional_event);
+                    && $cart->fee_official_first_rate !== null
+                    && $cart->fee_official_additional_rate !== null;
+                $firstFee      = (float) ($useOfficialFees ? $cart->fee_official_first_rate : $cart->fee_first_rate);
+                $additionalFee = (float) ($useOfficialFees ? $cart->fee_official_additional_rate : $cart->fee_additional_rate);
+                $competition   = $item['competition'];
 
                 $eventLines = $item['enrolment']->activeEvents
                     ->values()

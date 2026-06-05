@@ -108,9 +108,10 @@
                                         <span class="font-semibold text-gray-900 dark:text-white tabular-nums">{{ tenant_money($enrolment->fee_calculated + $platformFee) }}</span>
                                     </div>
 
-                                    @if ($enrolment->payment_status === 'received' && $enrolment->payment_received_at)
+                                    @if ($enrolment->payment_status === 'received')
                                         <p class="text-xs text-success-600 text-right">
-                                            Paid {{ tenant_money($enrolment->payment_amount ?? $enrolment->fee_calculated) }} on {{ tenant_date($enrolment->payment_received_at) }}
+                                            Paid {{ tenant_money($enrolment->payment_amount ?? ($enrolment->fee_calculated + $platformFee)) }}
+                                            @if ($enrolment->payment_received_at) on {{ tenant_date($enrolment->payment_received_at) }}@endif
                                         </p>
                                     @endif
                                 </div>

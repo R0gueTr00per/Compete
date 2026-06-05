@@ -382,13 +382,14 @@ class EnrolmentResource extends Resource
                                 ->label('Amount received (' . tenant_currency() . ')')
                                 ->numeric()
                                 ->prefix(tenant_currency_symbol())
-                                ->default(fn () => $record->fee_calculated)
+                                ->default(fn () => $record->fee_calculated + (float) ($record->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0))
                                 ->required(),
                         ])
                         ->action(function (Enrolment $record, array $data) {
                             $record->forceFill([
-                                'payment_status' => 'received',
-                                'payment_amount' => $data['payment_amount'],
+                                'payment_status'      => 'received',
+                                'payment_amount'      => $data['payment_amount'],
+                                'payment_received_at' => now(),
                             ])->save();
                             Notification::make()->title('Payment recorded.')->success()->send();
                         })
@@ -401,8 +402,9 @@ class EnrolmentResource extends Resource
                         ->requiresConfirmation()
                         ->action(function (Enrolment $record) {
                             $record->forceFill([
-                                'payment_status' => 'outstanding',
-                                'payment_amount' => null,
+                                'payment_status'      => 'outstanding',
+                                'payment_amount'      => null,
+                                'payment_received_at' => null,
                             ])->save();
                             Notification::make()->title('Payment marked outstanding.')->warning()->send();
                         })

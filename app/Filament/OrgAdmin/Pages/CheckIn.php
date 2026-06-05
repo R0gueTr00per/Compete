@@ -184,13 +184,17 @@ class CheckIn extends Page
             return;
         }
 
+        $enrolment->load('cart');
+        $platformFee = (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+
         $amount = isset($this->paymentAmounts[$enrolmentId])
             ? (float) $this->paymentAmounts[$enrolmentId]
             : null;
 
         $enrolment->forceFill([
-            'payment_status' => 'received',
-            'payment_amount' => $amount ?? $enrolment->fee_calculated,
+            'payment_status'      => 'received',
+            'payment_amount'      => $amount ?? ($enrolment->fee_calculated + $platformFee),
+            'payment_received_at' => now(),
         ])->save();
 
         unset($this->paymentAmounts[$enrolmentId]);

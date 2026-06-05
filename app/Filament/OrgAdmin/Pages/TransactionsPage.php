@@ -31,14 +31,22 @@ class TransactionsPage extends Page implements HasTable
 
     public function getTotals(): array
     {
-        $base = \App\Models\Enrolment::query()
+        $enrolments = \App\Models\Enrolment::query()
             ->whereNotIn('status', ['draft'])
-            ->whereHas('competition', fn (Builder $q) => $q->where('organisation_id', app('tenant')?->id));
+            ->whereHas('competition', fn (Builder $q) => $q->where('organisation_id', app('tenant')?->id))
+            ->with('cart')
+            ->get();
+
+        $active      = $enrolments->whereNotIn('status', ['withdrawn']);
+        $totalFees   = $active->sum(fn ($e) => $e->fee_calculated + (float) ($e->cart?->platform_fee_rate ?? 0));
+        $totalPaid   = $enrolments->where('payment_status', 'received')->sum('payment_amount');
+        $outstanding = $active->where('payment_status', '!=', 'received')
+                              ->sum(fn ($e) => $e->fee_calculated + (float) ($e->cart?->platform_fee_rate ?? 0));
 
         return [
-            'total_fees'  => (float) (clone $base)->whereNotIn('status', ['withdrawn'])->sum('fee_calculated'),
-            'total_paid'  => (float) (clone $base)->where('payment_status', 'received')->sum('payment_amount'),
-            'outstanding' => (float) (clone $base)->where('payment_status', '!=', 'received')->whereNotIn('status', ['withdrawn'])->sum('fee_calculated'),
+            'total_fees'  => (float) $totalFees,
+            'total_paid'  => (float) $totalPaid,
+            'outstanding' => (float) $outstanding,
         ];
     }
 
