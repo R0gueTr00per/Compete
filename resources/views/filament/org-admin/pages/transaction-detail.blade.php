@@ -77,7 +77,7 @@
 
                     @if ($enrolment->payment_status === 'received' && $enrolment->payment_received_at)
                         <p class="text-xs text-success-600 text-right">
-                            Paid {{ tenant_money($enrolment->payment_amount ?? $enrolment->fee_calculated) }} on {{ tenant_date($enrolment->payment_received_at) }}
+                            Paid {{ tenant_money($enrolment->payment_amount ?? ($enrolment->fee_calculated + $platformFee)) }} on {{ tenant_date($enrolment->payment_received_at) }}
                         </p>
                     @endif
                 </div>

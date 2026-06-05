@@ -16,7 +16,6 @@ class MyDojosPage extends Page
     protected static ?string $slug            = 'my-dojos';
     protected static ?int    $navigationSort  = 10;
 
-    public array $paymentAmounts = [];
 
     public static function canAccess(): bool
     {
@@ -40,7 +39,7 @@ class MyDojosPage extends Page
             ->whereHas('enrolments', fn ($q) => $q->whereIn('dojo_name', $dojoNames))
             ->with([
                 'enrolments' => fn ($q) => $q->whereIn('dojo_name', $dojoNames)
-                    ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division', 'activeEvents.result']),
+                    ->with(['competitor', 'cart', 'activeEvents.competitionEvent', 'activeEvents.division', 'activeEvents.result']),
             ])
             ->orderBy('competition_date', 'desc')
             ->get();
@@ -48,24 +47,21 @@ class MyDojosPage extends Page
 
     public function recordPayment(int $enrolmentId): void
     {
-        $enrolment = Enrolment::find($enrolmentId);
+        $enrolment = Enrolment::with('cart')->find($enrolmentId);
 
         $dojoNames = auth()->user()->instructorOf()->pluck('name');
         if (! $enrolment || ! $dojoNames->contains($enrolment->dojo_name)) {
             return;
         }
 
-        $amount = isset($this->paymentAmounts[$enrolmentId])
-            ? (float) $this->paymentAmounts[$enrolmentId]
-            : null;
+        $platformFee = (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+        $totalDue    = (float) $enrolment->fee_calculated + $platformFee;
 
         $enrolment->forceFill([
             'payment_status'      => 'received',
-            'payment_amount'      => $amount ?? $enrolment->fee_calculated,
+            'payment_amount'      => $totalDue,
             'payment_received_at' => now(),
         ])->save();
-
-        unset($this->paymentAmounts[$enrolmentId]);
 
         Notification::make()->title('Payment recorded.')->success()->send();
     }

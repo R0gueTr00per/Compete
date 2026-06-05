@@ -374,21 +374,18 @@ class EnrolmentResource extends Resource
                         }),
 
                     Action::make('recordPayment')
-                        ->label('Record payment')
+                        ->label('Mark paid')
                         ->icon('heroicon-o-banknotes')
                         ->color('success')
-                        ->form(fn (Enrolment $record) => [
-                            TextInput::make('payment_amount')
-                                ->label('Amount received (' . tenant_currency() . ')')
-                                ->numeric()
-                                ->prefix(tenant_currency_symbol())
-                                ->default(fn () => $record->fee_calculated + (float) ($record->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0))
-                                ->required(),
-                        ])
-                        ->action(function (Enrolment $record, array $data) {
+                        ->requiresConfirmation()
+                        ->modalHeading('Confirm payment received')
+                        ->modalDescription(fn (Enrolment $record) => 'Confirm that ' . tenant_money($record->fee_calculated + (float) ($record->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0)) . ' has been received.')
+                        ->modalSubmitActionLabel('Confirm')
+                        ->action(function (Enrolment $record) {
+                            $totalDue = $record->fee_calculated + (float) ($record->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
                             $record->forceFill([
                                 'payment_status'      => 'received',
-                                'payment_amount'      => $data['payment_amount'],
+                                'payment_amount'      => $totalDue,
                                 'payment_received_at' => now(),
                             ])->save();
                             Notification::make()->title('Payment recorded.')->success()->send();

@@ -71,16 +71,20 @@
                         <div class="divide-y divide-gray-100 dark:divide-gray-800">
                             @foreach ($enrolments as $enrolment)
                                 @php
-                                    $name        = $enrolment->competitor?->full_name ?? '—';
-                                    $eventCount  = $enrolment->activeEvents->count();
-                                    $isPaid      = $enrolment->payment_status === 'received';
-                                    $isOfficial  = $enrolment->is_official_discount;
-                                    $firstRate   = $isOfficial && $competition->fee_official_first_event !== null
-                                        ? (float) $competition->fee_official_first_event
-                                        : (float) $competition->fee_first_event;
-                                    $addRate     = $isOfficial && $competition->fee_official_additional_event !== null
-                                        ? (float) $competition->fee_official_additional_event
-                                        : (float) $competition->fee_additional_event;
+                                    $name                  = $enrolment->competitor?->full_name ?? '—';
+                                    $eventCount            = $enrolment->activeEvents->count();
+                                    $isPaid                = $enrolment->payment_status === 'received';
+                                    $isOfficial            = $enrolment->is_official_discount;
+                                    $enrolmentCart         = $enrolment->cart;
+                                    $firstRate             = $isOfficial && ($enrolmentCart?->fee_official_first_rate ?? $competition->fee_official_first_event) !== null
+                                        ? (float) ($enrolmentCart?->fee_official_first_rate ?? $competition->fee_official_first_event)
+                                        : (float) ($enrolmentCart?->fee_first_rate ?? $competition->fee_first_event);
+                                    $addRate               = $isOfficial && ($enrolmentCart?->fee_official_additional_rate ?? $competition->fee_official_additional_event) !== null
+                                        ? (float) ($enrolmentCart?->fee_official_additional_rate ?? $competition->fee_official_additional_event)
+                                        : (float) ($enrolmentCart?->fee_additional_rate ?? $competition->fee_additional_event);
+                                    $lateSurchargeRate     = (float) ($enrolmentCart?->late_surcharge_rate ?? $competition->late_surcharge ?? 0);
+                                    $enrolmentPlatformFee  = (float) ($enrolmentCart?->platform_fee_rate ?? $platformFee);
+                                    $totalAmountDue        = (float) $enrolment->fee_calculated + $enrolmentPlatformFee;
                                 @endphp
 
                                 <div x-data="{ open: false }" class="px-4 py-3">
@@ -120,46 +124,59 @@
                                             @endforeach
 
                                             {{-- Late surcharge --}}
-                                            @if ($enrolment->is_late && $competition->late_surcharge)
+                                            @if ($enrolment->is_late && $lateSurchargeRate)
                                                 <div class="flex justify-between text-xs text-warning-600">
                                                     <span>Late surcharge</span>
-                                                    <span class="tabular-nums ml-4">{{ tenant_money($competition->late_surcharge) }}</span>
+                                                    <span class="tabular-nums ml-4">{{ tenant_money($lateSurchargeRate) }}</span>
+                                                </div>
+                                            @endif
+
+                                            {{-- Platform fee --}}
+                                            @if ($enrolmentPlatformFee > 0)
+                                                <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                                                    <span>Platform fee</span>
+                                                    <span class="tabular-nums ml-4">{{ tenant_money($enrolmentPlatformFee) }}</span>
                                                 </div>
                                             @endif
 
                                             {{-- Total line --}}
                                             <div class="flex justify-between text-xs pt-2 mt-1 border-t border-gray-100 dark:border-gray-800 font-semibold text-gray-900 dark:text-white">
                                                 <span>Total due</span>
-                                                <span class="tabular-nums ml-4">{{ tenant_money($enrolment->fee_calculated) }}</span>
+                                                <span class="tabular-nums ml-4">{{ tenant_money($totalAmountDue) }}</span>
                                             </div>
 
                                             {{-- Paid confirmation or payment form --}}
                                             @if ($isPaid)
                                                 <p class="text-xs text-success-600 pt-1">
-                                                    ✓ Paid {{ tenant_money($enrolment->payment_amount ?? $enrolment->fee_calculated) }}
+                                                    ✓ Paid {{ tenant_money($enrolment->payment_amount ?? $totalAmountDue) }}
                                                     @if ($enrolment->payment_received_at)
                                                         on {{ tenant_date($enrolment->payment_received_at) }}
                                                     @endif
                                                 </p>
                                             @else
-                                                <div class="pt-2 mt-1 border-t border-gray-100 dark:border-gray-800">
-                                                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-1.5">Record payment received</p>
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="text-xs text-gray-400">$</span>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            min="0"
-                                                            inputmode="decimal"
-                                                            wire:model="paymentAmounts.{{ $enrolment->id }}"
-                                                            placeholder="{{ number_format((float) $enrolment->fee_calculated, 2) }}"
-                                                            class="w-28 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                                        />
+                                                <div class="pt-2 mt-1 border-t border-gray-100 dark:border-gray-800" x-data="{ confirming: false }">
+                                                    <div x-show="!confirming">
+                                                        <button
+                                                            type="button"
+                                                            x-on:click="confirming = true"
+                                                            class="rounded-md bg-success-600 px-3 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
+                                                            Mark paid
+                                                        </button>
+                                                    </div>
+                                                    <div x-show="confirming" class="flex flex-wrap items-center gap-2">
+                                                        <span class="text-xs text-gray-600 dark:text-gray-300">Confirm {{ tenant_money($totalAmountDue) }} received?</span>
                                                         <button
                                                             type="button"
                                                             wire:click="recordPayment({{ $enrolment->id }})"
+                                                            x-on:click="confirming = false"
                                                             class="rounded-md bg-success-600 px-3 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
-                                                            Confirm payment
+                                                            Confirm
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            x-on:click="confirming = false"
+                                                            class="rounded-md bg-gray-200 dark:bg-gray-700 px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                                            Cancel
                                                         </button>
                                                     </div>
                                                 </div>

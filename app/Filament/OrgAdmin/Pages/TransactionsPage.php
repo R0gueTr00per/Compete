@@ -37,11 +37,12 @@ class TransactionsPage extends Page implements HasTable
             ->with('cart')
             ->get();
 
-        $active      = $enrolments->whereNotIn('status', ['withdrawn']);
-        $totalFees   = $active->sum(fn ($e) => $e->fee_calculated + (float) ($e->cart?->platform_fee_rate ?? 0));
-        $totalPaid   = $enrolments->where('payment_status', 'received')->sum('payment_amount');
-        $outstanding = $active->where('payment_status', '!=', 'received')
-                              ->sum(fn ($e) => $e->fee_calculated + (float) ($e->cart?->platform_fee_rate ?? 0));
+        $orgPlatformFee = (float) (app('tenant')?->platform_fee ?? 0);
+        $active         = $enrolments->whereNotIn('status', ['withdrawn']);
+        $totalFees      = $active->sum(fn ($e) => $e->fee_calculated + (float) ($e->cart?->platform_fee_rate ?? $orgPlatformFee));
+        $totalPaid      = $enrolments->where('payment_status', 'received')->sum('payment_amount');
+        $outstanding    = $active->where('payment_status', '!=', 'received')
+                                 ->sum(fn ($e) => $e->fee_calculated + (float) ($e->cart?->platform_fee_rate ?? $orgPlatformFee));
 
         return [
             'total_fees'  => (float) $totalFees,

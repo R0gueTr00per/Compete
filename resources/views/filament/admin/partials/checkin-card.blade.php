@@ -13,6 +13,8 @@
         default => null,
     };
     $paymentOutstanding = $enrolment->isPaymentOutstanding();
+    $platformFee        = (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+    $totalAmountDue     = (float) $enrolment->fee_calculated + $platformFee;
 @endphp
 
 <div data-enrolment-id="{{ $enrolment->id }}" class="rounded-xl border {{ $checkedIn ? 'border-success-200 dark:border-success-800' : 'border-gray-200 dark:border-slate-700' }} bg-white dark:bg-slate-900 shadow-sm p-4">
@@ -116,22 +118,25 @@
     @if ($paymentOutstanding)
         <div class="mb-3 p-3 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
             <p class="text-sm font-semibold text-warning-800 dark:text-warning-200 mb-2">
-                💰 Payment outstanding — {{ tenant_money($enrolment->fee_calculated) }}
+                💰 Payment outstanding — {{ tenant_money($totalAmountDue) }}
             </p>
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <x-filament::input.wrapper class="w-full sm:w-28">
-                    <x-filament::input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        wire:model="paymentAmounts.{{ $enrolment->id }}"
-                        placeholder="{{ number_format($enrolment->fee_calculated, 2) }}"
-                    />
-                </x-filament::input.wrapper>
-                <x-filament::button size="sm" color="warning"
-                    wire:click="recordPayment({{ $enrolment->id }})">
-                    Mark paid
-                </x-filament::button>
+            <div x-data="{ confirming: false }">
+                <div x-show="!confirming">
+                    <x-filament::button size="sm" color="warning" x-on:click="confirming = true">
+                        Mark paid
+                    </x-filament::button>
+                </div>
+                <div x-show="confirming" class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs text-warning-700 dark:text-warning-300">Confirm {{ tenant_money($totalAmountDue) }} received?</span>
+                    <x-filament::button size="sm" color="success"
+                        wire:click="recordPayment({{ $enrolment->id }})"
+                        x-on:click="confirming = false">
+                        Confirm
+                    </x-filament::button>
+                    <x-filament::button size="sm" color="gray" x-on:click="confirming = false">
+                        Cancel
+                    </x-filament::button>
+                </div>
             </div>
         </div>
     @else

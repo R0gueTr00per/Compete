@@ -374,11 +374,16 @@
       "Bash(findstr /n \"public function.*Penalty\\\\|public function.*forfeit\\\\|applyBracketPlacements\" app/Filament/OrgAdmin/Pages/Scoring.php)",
       "Bash([ -f \"$HOME/.claude/jira_token\" ])",
       "Bash(printenv)",
-      "Bash(xargs grep -l \"enum\\\\|Enum\")"
+      "Bash(xargs grep -l \"enum\\\\|Enum\")",
+      "WebFetch(domain:github.com)",
+      "PowerShell(irm https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.ps1 | iex)",
+      "PowerShell($script = Invoke-RestMethod https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.ps1; & \\([scriptblock]::Create\\($script\\)\\))",
+      "PowerShell($tmp = \"$env:TEMP\\\\caveman-install.ps1\"; Invoke-WebRequest -Uri \"https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.ps1\" -OutFile $tmp; Write-Host \"Downloaded to $tmp\"; Get-Content $tmp | Select-Object -First 30)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",
-      "x:\\Repos\\Compete\\resources\\views\\filament\\admin\\pages"
+      "x:\\Repos\\Compete\\resources\\views\\filament\\admin\\pages",
+      "C:\\Users\\Brad\\.claude\\skills"
     ]
   }
 }

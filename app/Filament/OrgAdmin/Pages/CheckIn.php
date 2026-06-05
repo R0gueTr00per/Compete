@@ -34,7 +34,6 @@ class CheckIn extends Page
 
     public string $search = '';
     public array $weights = [];
-    public array $paymentAmounts = [];
     public array $pendingWeightConfirm = [];
 
     public function mount(): void
@@ -116,6 +115,7 @@ class CheckIn extends Page
         $query = Enrolment::where('competition_id', $this->competition_id)
             ->with([
                 'competitor',
+                'cart',
                 'activeEvents.division',
                 'activeEvents.competitionEvent' => fn ($q) => $q->withExists([
                     'divisions as has_weight_divisions' => fn ($q) => $q->whereNotNull('weight_class_id'),
@@ -179,25 +179,20 @@ class CheckIn extends Page
 
     public function recordPayment(int $enrolmentId): void
     {
-        $enrolment = Enrolment::find($enrolmentId);
+        $enrolment = Enrolment::with('cart')->find($enrolmentId);
         if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
             return;
         }
 
-        $enrolment->load('cart');
         $platformFee = (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
-
-        $amount = isset($this->paymentAmounts[$enrolmentId])
-            ? (float) $this->paymentAmounts[$enrolmentId]
-            : null;
+        $totalDue    = (float) $enrolment->fee_calculated + $platformFee;
 
         $enrolment->forceFill([
             'payment_status'      => 'received',
-            'payment_amount'      => $amount ?? ($enrolment->fee_calculated + $platformFee),
+            'payment_amount'      => $totalDue,
             'payment_received_at' => now(),
         ])->save();
 
-        unset($this->paymentAmounts[$enrolmentId]);
         Notification::make()->title('Payment recorded.')->success()->send();
         $this->dispatch('payment-recorded', id: $enrolmentId);
     }
