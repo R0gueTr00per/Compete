@@ -403,7 +403,14 @@
       "Bash(grep -rn \"Admin\\\\\\\\\\\\\\\\Actions\\\\\\\\\\\\\\\\HistoryTableAction\\\\|Admin/Actions/History\" app/ --include=\"*.php\")",
       "Bash(grep -n '$format\\\\b\\\\|getTournamentFormat\\\\b' resources/views/livewire/org-admin/scoring-panel.blade.php)",
       "Bash(php -l app/Filament/OrgAdmin/Resources/DojoResource.php)",
-      "Bash(php -l app/Filament/Portal/Pages/MyDojosPage.php)"
+      "Bash(php -l app/Filament/Portal/Pages/MyDojosPage.php)",
+      "Bash(findstr /i \"version\")",
+      "Bash(findstr /S /I \"computedPropertyName\\\\|get.*Studly\\\\|Computed\" vendor\\\\livewire\\\\livewire\\\\src\\\\Mechanisms\\\\HandleComponents\\\\HandleComponents.php)",
+      "Bash(Remove-Item \"x:\\\\Repos\\\\Compete\\\\app\\\\Livewire\\\\OrgAdmin\\\\ScoreCategoryList.php\" -Force)",
+      "Bash(Remove-Item \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\livewire\\\\org-admin\\\\score-category-list.blade.php\" -Force)",
+      "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Resources\\\\CompetitionResource\\\\RelationManagers\\\\CompetitionEventsRelationManager.php\")",
+      "PowerShell(Remove-Item -Path \"x:\\\\Repos\\\\Compete\\\\app\\\\Livewire\\\\OrgAdmin\\\\ScoreCategoryList.php\" -Force -Confirm:$false)",
+      "PowerShell(Remove-Item -Path \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\livewire\\\\org-admin\\\\score-category-list.blade.php\" -Force -Confirm:$false)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

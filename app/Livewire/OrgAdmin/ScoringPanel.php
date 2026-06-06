@@ -62,14 +62,16 @@ class ScoringPanel extends Component
         $this->loadPerfOrderFromSession();
         $this->completedRollcallDivisions = $this->loadCompletedRollcallDivisionsFromDb();
 
-        $this->bracketExists     = RoundRobinMatch::where('division_id', $this->division_id)->exists();
-        $division                = Division::with('competitionEvent')->find($this->division_id);
+        $division                    = $this->selectedDivision;
+        $this->bracketExists         = RoundRobinMatch::where('division_id', $this->division_id)->exists();
         $this->placementOverrideMode = (bool) $division?->placement_override_mode;
-        $this->rollcallRequired  = (bool) ($division?->competitionEvent?->rollcall_required ?? true);
+        $this->rollcallRequired      = (bool) ($division?->competitionEvent?->rollcall_required ?? true);
+
+        $ees   = EnrolmentEvent::where('division_id', $this->division_id)->get(['id', 'removed']);
+        $eeIds = $ees->pluck('id');
 
         if ($division?->status === 'complete') {
             $this->rollcallMode   = false;
-            $eeIds                = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
             $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
                 ->where(fn ($q) => $q->whereNotNull('total_score')->orWhere('disqualified', true)->orWhere('forfeited', true))
                 ->pluck('id')
@@ -77,8 +79,7 @@ class ScoringPanel extends Component
             return;
         }
 
-        $eeIds     = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
-        $hasAbsent = EnrolmentEvent::where('division_id', $this->division_id)->where('removed', true)->exists();
+        $hasAbsent = $ees->contains('removed', true);
         $hasScores = $this->bracketExists
             || Result::whereIn('enrolment_event_id', $eeIds)
                 ->where(fn ($q) => $q->whereNotNull('total_score')->orWhereNotNull('win_loss'))
@@ -103,13 +104,22 @@ class ScoringPanel extends Component
         }
     }
 
+    public function placeholder()
+    {
+        return <<<'HTML'
+        <div class="flex items-center justify-center py-16 text-gray-400 dark:text-gray-500">
+            <svg class="animate-spin h-6 w-6 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+            <span class="text-sm">Loading scoring panel…</span>
+        </div>
+        HTML;
+    }
+
     public function render()
     {
-        $div = $this->division_id
-            ? Division::with(['competitionEvent', 'completedBy.selfProfile'])->find($this->division_id)
-            : null;
-
-        return view('livewire.org-admin.scoring-panel', ['div' => $div]);
+        return view('livewire.org-admin.scoring-panel', ['div' => $this->selectedDivision]);
     }
 
     public function closeSelf(): void
@@ -310,21 +320,22 @@ class ScoringPanel extends Component
 
     // ─── Division / scoring queries ──────────────────────────────────────────
 
-    public function getSelectedDivision(): ?Division
+    #[Computed]
+    public function selectedDivision(): ?Division
     {
         if (! $this->division_id) return null;
-        return Division::with('competitionEvent')->find($this->division_id);
+        return Division::with(['competitionEvent', 'completedBy.selfProfile'])->find($this->division_id);
     }
 
     #[Computed]
-    public function getCompetitorRows(): \Illuminate\Support\Collection
+    public function competitorRows(): \Illuminate\Support\Collection
     {
         if (! $this->division_id) return collect();
 
-        $division = $this->getSelectedDivision();
+        $division = $this->selectedDivision;
         $filter   = $division?->competitionEvent?->division_filter ?? '';
 
-        return EnrolmentEvent::where('division_id', $this->division_id)
+        $eeCollection = EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
             ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
             ->with([
@@ -332,10 +343,22 @@ class ScoringPanel extends Component
                 'enrolment.rank',
                 'result.judgeScores.judgeScoreDetails',
             ])
-            ->get()->toBase()
-            ->map(function (EnrolmentEvent $ee) use ($division, $filter) {
-                $result = $ee->result
-                    ?? app(ScoringService::class)->getOrCreateResult($ee);
+            ->get()->toBase();
+
+        $missing = $eeCollection->filter(fn ($ee) => $ee->result === null);
+        if ($missing->isNotEmpty()) {
+            Result::insertOrIgnore($missing->map(fn ($ee) => [
+                'enrolment_event_id' => $ee->id,
+                'division_id'        => $ee->division_id,
+                'created_at'         => now(),
+                'updated_at'         => now(),
+            ])->values()->all());
+            $newResults = Result::whereIn('enrolment_event_id', $missing->pluck('id'))->get()->keyBy('enrolment_event_id');
+            $missing->each(fn ($ee) => $ee->setRelation('result', $newResults->get($ee->id)));
+        }
+
+        return $eeCollection->map(function (EnrolmentEvent $ee) use ($division, $filter) {
+                $result = $ee->result ?? app(ScoringService::class)->getOrCreateResult($ee);
 
                 if (! isset($this->judgeScores[$result->id])) {
                     $scores = [];
@@ -452,7 +475,7 @@ class ScoringPanel extends Component
         }
 
         $method = $this->getScoringMethod();
-        $rows   = $this->getCompetitorRows();
+        $rows   = $this->competitorRows;
 
         if ($rows->isEmpty()) return false;
 
@@ -476,27 +499,27 @@ class ScoringPanel extends Component
 
     public function getTournamentFormat(): ?string
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         return $div?->tournament_format ?? $div?->competitionEvent->effectiveTournamentFormat();
     }
 
     public function getScoringMethod(): ?string
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return null;
         return $div->scoring_method ?? $div->competitionEvent->effectiveScoringMethod();
     }
 
     public function getJudgeCount(): int
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return 3;
         return $div->competitionEvent->effectiveJudgeCount();
     }
 
     public function getScoreCategories(): \Illuminate\Support\Collection
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return collect();
 
         $mode = $div->competitionEvent->score_category_mode ?? 'single';
@@ -526,42 +549,42 @@ class ScoringPanel extends Component
 
     public function getTargetScore(): ?int
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return null;
         return $div->competitionEvent->effectiveTargetScore();
     }
 
     public function getRoundDuration(): ?int
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return null;
         return $div->competitionEvent->round_duration_seconds;
     }
 
     public function getTiebreakerDuration(): ?int
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return null;
         return $div->competitionEvent->tiebreak_duration_seconds;
     }
 
     public function getTiebreakerMode(): string
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return 'sudden_death';
         return $div->competitionEvent->getTiebreakerMode();
     }
 
     public function getOvertimeRounds(): int
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return 1;
         return $div->competitionEvent->getOvertimeRounds();
     }
 
     public function getIncrementButtons(): array
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return [1];
         return $div->competitionEvent->getIncrementButtons();
     }
@@ -569,7 +592,7 @@ class ScoringPanel extends Component
     public function getAwardedPlacesLabel(): string
     {
         if (! $this->division_id) return '';
-        $division = Division::with('competitionEvent')->find($this->division_id);
+        $division = $this->selectedDivision;
         if (! $division) return '';
 
         $count = EnrolmentEvent::where('division_id', $this->division_id)
@@ -593,7 +616,7 @@ class ScoringPanel extends Component
 
     public function getScoringSettingPills(): array
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return [];
 
         $pills = [];
@@ -625,7 +648,7 @@ class ScoringPanel extends Component
 
     public function getEnabledPenaltyTypes(): array
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return [];
         $order   = ['warn', 'deduction', 'opponent_point', 'dq', 'forfeit'];
         $enabled = $div->competitionEvent->enabledPenaltyTypes();
@@ -894,7 +917,7 @@ class ScoringPanel extends Component
                 ->update(['placement_overridden' => false, 'placement' => null]);
 
             $divisionResultIds = [];
-            foreach ($this->getCompetitorRows() as $row) {
+            foreach ($this->competitorRows as $row) {
                 $id = $row->result->id;
                 unset($this->placementInput[$id]);
                 $divisionResultIds[] = $id;
@@ -1013,12 +1036,12 @@ class ScoringPanel extends Component
         $method = $this->getScoringMethod();
         if (! in_array($method, ['judges_total', 'judges_average'])) return collect();
 
-        $rows = $this->getCompetitorRows();
+        $rows = $this->competitorRows;
 
         $allSaved = $rows->every(fn ($row) => $row->result->disqualified || in_array($row->result->id, $this->savedResultIds));
         if (! $allSaved) return collect();
 
-        $division     = $this->getSelectedDivision();
+        $division     = $this->selectedDivision;
         $defaultScore = $division?->competitionEvent->default_score;
         $judgeCount   = $this->getJudgeCount();
 
@@ -1061,7 +1084,7 @@ class ScoringPanel extends Component
         $method = $this->getScoringMethod();
         if (! in_array($method, ['judges_total', 'judges_average'])) return collect();
 
-        $rows = $this->getCompetitorRows();
+        $rows = $this->competitorRows;
 
         $allSaved = $rows->every(fn ($row) => $row->result->disqualified || in_array($row->result->id, $this->savedResultIds));
         if (! $allSaved) return collect();
@@ -1077,7 +1100,7 @@ class ScoringPanel extends Component
 
     public function openPenaltyModal(int $resultId, string $type, ?int $matchId = null): void
     {
-        $div = $this->getSelectedDivision();
+        $div = $this->selectedDivision;
         if (! $div) return;
         if (! $this->findResult($resultId)) return;
 
@@ -1161,7 +1184,7 @@ class ScoringPanel extends Component
             return;
         }
 
-        $division = $this->getSelectedDivision();
+        $division = $this->selectedDivision;
         $event    = $division?->competitionEvent;
 
         if ($event?->manual_pairing) {
@@ -1195,6 +1218,7 @@ class ScoringPanel extends Component
         ];
         if ($division?->status !== 'running') $updateData['status'] = 'running';
         $division?->update($updateData);
+        unset($this->selectedDivision);
 
         Notification::make()->success()->title("Bracket generated for {$n} competitors.")->send();
     }
@@ -1320,7 +1344,7 @@ class ScoringPanel extends Component
 
         if ($byeCompetitor) $ordered->push($byeCompetitor);
 
-        $division = $this->getSelectedDivision();
+        $division = $this->selectedDivision;
         app(BracketService::class)->generate($division, $ordered);
 
         $this->bracketExists = true;
@@ -1338,6 +1362,7 @@ class ScoringPanel extends Component
         ];
         if ($division?->status !== 'running') $updateData['status'] = 'running';
         $division?->update($updateData);
+        unset($this->selectedDivision);
 
         $this->manualPairingMode     = false;
         $this->manualPairings        = [];
@@ -1577,7 +1602,7 @@ class ScoringPanel extends Component
             ->orderBy('bracket')->orderBy('round')->orderBy('bracket_slot')
             ->get();
 
-        $division = $this->getSelectedDivision();
+        $division = $this->selectedDivision;
         $filter   = $division?->competitionEvent?->division_filter ?? '';
 
         $eeNames = [];
@@ -1687,7 +1712,7 @@ class ScoringPanel extends Component
         } else {
             $method = $this->getScoringMethod();
             if (in_array($method, ['judges_total', 'judges_average'])) {
-                $missing = $this->getCompetitorRows()
+                $missing = $this->competitorRows
                     ->filter(fn ($row) => ! $row->result->disqualified && ! $row->result->forfeited && $row->result->total_score === null)
                     ->count();
                 if ($missing > 0) {
@@ -1695,7 +1720,7 @@ class ScoringPanel extends Component
                     return;
                 }
             } elseif ($method === 'win_loss') {
-                $missing = $this->getCompetitorRows()
+                $missing = $this->competitorRows
                     ->filter(fn ($row) => ! $row->result->disqualified && ! $row->result->forfeited && $row->result->win_loss === null)
                     ->count();
                 if ($missing > 0) {
@@ -1703,7 +1728,7 @@ class ScoringPanel extends Component
                     return;
                 }
             } elseif (in_array($method, ['first_to_n', 'timed_points'])) {
-                $missing = $this->getCompetitorRows()
+                $missing = $this->competitorRows
                     ->filter(fn ($row) => ! $row->result->disqualified && ! $row->result->forfeited && $row->result->total_score === null)
                     ->count();
                 if ($missing > 0) {

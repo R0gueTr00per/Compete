@@ -24,7 +24,7 @@
 
     @if($div)
                         @php
-                        $rows               = $this->getCompetitorRows();
+                        $rows               = $this->competitorRows;
                         $method             = $this->getScoringMethod();
                         $judges             = $this->getJudgeCount();
                         $categories         = $this->getScoreCategories();
@@ -1704,7 +1704,7 @@
 
                             {{-- Show tiebreaker scores already recorded --}}
                             @php
-                                $withTiebreaker = $this->getCompetitorRows()
+                                $withTiebreaker = $this->competitorRows
                                     ->filter(fn ($row) => $row->result->tiebreaker_score !== null);
                                 $stillTied = $this->getStillTiedAfterTiebreaker();
                             @endphp
@@ -1801,7 +1801,7 @@
                                             $groupTotalScore = (float) $group->first()->result->total_score;
                                             $groupTbScore    = (float) $group->first()->result->tiebreaker_score;
                                             $groupIds        = $group->map(fn ($r) => $r->result->id)->all();
-                                            $startPos        = $this->getCompetitorRows()
+                                            $startPos        = $this->competitorRows
                                                 ->filter(fn ($r) => ! $r->result->disqualified && ! in_array($r->result->id, $groupIds))
                                                 ->filter(fn ($r) => $r->result->total_score !== null && (
                                                     (float) $r->result->total_score > $groupTotalScore

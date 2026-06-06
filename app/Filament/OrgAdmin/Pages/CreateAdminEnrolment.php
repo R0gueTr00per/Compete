@@ -38,7 +38,7 @@ class CreateAdminEnrolment extends Page implements HasForms
     protected static ?string $navigationIcon  = 'heroicon-o-plus-circle';
     protected static ?string $navigationGroup = 'Competitions';
     protected static ?int    $navigationSort  = 4;
-    protected static ?string $navigationLabel = 'Create Enrolment';
+    protected static ?string $navigationLabel = 'Create Registration';
     protected static string  $view            = 'filament.admin.pages.create-admin-enrolment';
     protected static ?string $slug            = 'create-enrolment';
 

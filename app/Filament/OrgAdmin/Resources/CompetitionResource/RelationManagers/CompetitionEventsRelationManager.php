@@ -3,10 +3,11 @@
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
 use App\Models\CompetitionEvent;
+use Awcodes\TableRepeater\Components\TableRepeater;
+use Awcodes\TableRepeater\Header;
 
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
@@ -222,13 +223,16 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']))
                         ->columnSpanFull(),
 
-                    Repeater::make('scoreCategories')
+                    TableRepeater::make('scoreCategories')
                         ->label('Score categories')
-                        ->helperText(fn (Get $get) => ($get('score_category_mode') ?? 'single') === 'weighted'
-                            ? 'Weights must total 100%.'
-                            : 'Each category score is summed to produce the judge total.')
                         ->relationship()
                         ->orderColumn('sort_order')
+                        ->headers(fn (Get $get) => array_values(array_filter([
+                            Header::make('name')->label('Category name'),
+                            ($get('score_category_mode') ?? 'single') === 'weighted'
+                                ? Header::make('weight')->label('Weight %')->width('8rem')->markAsRequired()
+                                : null,
+                        ])))
                         ->schema([
                             TextInput::make('name')
                                 ->label('Name')
@@ -237,22 +241,19 @@ class CompetitionEventsRelationManager extends RelationManager
                             TextInput::make('weight')
                                 ->label('Weight %')
                                 ->numeric()
-                                ->step(0.01)
-                                ->minValue(0.01)
-                                ->maxValue(100)
-                                ->required(fn (Get $get) => ($get('../../score_category_mode') ?? 'single') === 'weighted')
-                                ->live(onBlur: true)
+                                ->step(1)
                                 ->suffix('%')
+                                ->formatStateUsing(fn ($state) => ($state !== null && $state !== '') ? (int) round((float) $state) : null)
+                                ->dehydrateStateUsing(fn ($state) => ($state !== null && $state !== '') ? (int) $state : null)
                                 ->hidden(fn (Get $get) => ($get('../../score_category_mode') ?? 'single') !== 'weighted')
                                 ->default(function (Get $get) {
                                     if (($get('../../score_category_mode') ?? 'single') !== 'weighted') return null;
                                     $used = collect($get('../../scoreCategories') ?? [])
-                                        ->sum(fn ($item) => isset($item['weight']) && $item['weight'] !== '' ? (float) $item['weight'] : 0);
-                                    $remaining = round(100 - $used, 2);
+                                        ->sum(fn ($item) => isset($item['weight']) && $item['weight'] !== '' ? (int) $item['weight'] : 0);
+                                    $remaining = 100 - $used;
                                     return $remaining > 0 ? $remaining : null;
                                 }),
                         ])
-                        ->columns(3)
                         ->addActionLabel('Add category')
                         ->reorderable()
                         ->rules([
@@ -260,9 +261,12 @@ class CompetitionEventsRelationManager extends RelationManager
                                 if (empty($value)) return;
                                 if (($get('score_category_mode') ?? 'single') !== 'weighted') return;
                                 $items = collect($value);
-                                if ($items->contains(fn ($item) => ! isset($item['weight']) || (string) $item['weight'] === '')) return;
-                                $total = $items->sum('weight');
-                                if (abs((float) $total - 100) > 0.01) {
+                                if ($items->contains(fn ($item) => ! isset($item['weight']) || (string) $item['weight'] === '')) {
+                                    $fail('All categories must have a weight in weighted mode.');
+                                    return;
+                                }
+                                $total = (int) $items->sum(fn ($item) => (int) $item['weight']);
+                                if ($total !== 100) {
                                     $fail("Category weights must total exactly 100% (currently {$total}%).");
                                 }
                             },
@@ -272,7 +276,12 @@ class CompetitionEventsRelationManager extends RelationManager
 
                     Placeholder::make('weight_total')
                         ->hiddenLabel()
-                        ->content(fn (Get $get): string => 'Weight total: ' . number_format(collect($get('scoreCategories') ?? [])->sum('weight'), 2) . '%')
+                        ->content(function (Get $get): HtmlString {
+                            $total = (int) collect($get('scoreCategories') ?? [])
+                                ->sum(fn ($i) => isset($i['weight']) && $i['weight'] !== '' ? (int) $i['weight'] : 0);
+                            $color = $total !== 100 ? 'color:var(--danger-500,#ef4444)' : 'color:var(--success-500,#22c55e)';
+                            return new HtmlString("<span style='{$color}'>Weight total: {$total}%</span>");
+                        })
                         ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']) || empty($get('scoreCategories')) || ($get('score_category_mode') ?? 'single') !== 'weighted')
                         ->columnSpanFull(),
 

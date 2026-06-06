@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    @php $divisionList = $this->getDivisionList(); @endphp
+    @php $divisionList = $this->divisionList; @endphp
     @php $selectedComp = $this->competition_id ? \App\Models\Competition::find($this->competition_id) : null; @endphp
     @php $incompleteCount = $divisionList->filter(fn ($item) => $item->division->status !== 'complete')->count(); @endphp
 
@@ -507,6 +507,7 @@
                         :division-id="$this->division_id"
                         :competition-id="$this->competition_id"
                         :key="'panel-' . $this->division_id"
+                        lazy
                     />
                 @endif
                 </div>{{-- outer ring wrapper --}}

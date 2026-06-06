@@ -9,6 +9,7 @@ use App\Models\Result;
 use App\Models\RoundRobinMatch;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Attributes\Locked;
@@ -89,7 +90,8 @@ class Scoring extends Page
         return array_combine($locations, $locations);
     }
 
-    public function getDivisionList(): \Illuminate\Support\Collection
+    #[Computed]
+    public function divisionList(): \Illuminate\Support\Collection
     {
         if (! $this->competition_id) return collect();
 
@@ -234,7 +236,7 @@ class Scoring extends Page
 
     public function jumpToNextIncomplete(): void
     {
-        $incomplete = $this->getDivisionList()
+        $incomplete = $this->divisionList
             ->filter(fn ($item) => $item->division->status !== 'complete');
 
         if ($incomplete->isEmpty()) return;
