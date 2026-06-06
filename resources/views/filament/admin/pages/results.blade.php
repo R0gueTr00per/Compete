@@ -140,7 +140,6 @@
                                                     <p class="text-sm font-medium text-gray-900 dark:text-white leading-tight">
                                                         {{ $name }}
                                                         @if ($result?->disqualified) <span class="text-xs text-danger-600 ml-1">DQ</span> @endif
-                                                        @if ($result?->placement_overridden) <span class="text-xs text-warning-600 ml-1">*</span> @endif
                                                     </p>
                                                     <p class="text-xs text-gray-400 leading-tight">{{ $dojo }}</p>
                                                 </div>

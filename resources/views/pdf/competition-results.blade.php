@@ -73,7 +73,7 @@
                 $displayPlace = $result?->disqualified ? '—' : ($result?->placement ? $ordinal($result->placement) : '—');
               @endphp
               <div class="place-cell {{ $isTop3 ? 'top3' : '' }} {{ $result?->disqualified ? 'dq' : '' }}">
-                <span class="place-ord {{ $isTop3 ? 'medal' : '' }}">{{ $displayPlace }}{{ $result?->placement_overridden ? ' *' : '' }}</span><span class="place-name">{{ $name }}{{ $result?->disqualified ? ' (DQ)' : '' }}</span>
+                <span class="place-ord {{ $isTop3 ? 'medal' : '' }}">{{ $displayPlace }}</span><span class="place-name">{{ $name }}{{ $result?->disqualified ? ' (DQ)' : '' }}</span>
                 <div class="place-dojo">{{ $dojo }}</div>
               </div>
             @endforeach
