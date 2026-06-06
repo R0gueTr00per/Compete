@@ -28,13 +28,13 @@ class EditCompetition extends EditRecord
     public function getRelationManagers(): array
     {
         return [
-            LocationsRelationManager::class,
-            OfficialsRelationManager::class,
-            CompetitionMessagesRelationManager::class,
             CompetitionEventsRelationManager::class,
             AgeBandsRelationManager::class,
             RankBandsRelationManager::class,
             WeightClassesRelationManager::class,
+            LocationsRelationManager::class,
+            OfficialsRelationManager::class,
+            CompetitionMessagesRelationManager::class,
         ];
     }
 

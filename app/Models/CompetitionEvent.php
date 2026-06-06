@@ -22,6 +22,7 @@ class CompetitionEvent extends Model
         'tournament_format',
         'manual_pairing',
         'bracket_sort',
+        'competitor_sort',
         'bracket_first_round_order',
         'bracket_prefer_different_dojo',
         'bracket_avoid_repeat_matchups',

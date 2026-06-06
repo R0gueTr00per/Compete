@@ -330,7 +330,10 @@ class ScoringService
 
                 case 'forfeit':
                     if (! $result->forfeited) {
-                        $result->forceFill(['forfeited' => true])->save();
+                        $result->forceFill(['forfeited' => true, 'placement' => null])->save();
+                        if ($result->division_id) {
+                            $this->autoRankDivision(Division::find($result->division_id));
+                        }
                     }
                     $triggeredDq = true;
                     break;

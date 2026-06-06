@@ -354,104 +354,110 @@ class CompetitionEventsRelationManager extends RelationManager
                         ]),
                 ]),
 
-                Tab::make('Brackets')->schema([
-                    Placeholder::make('brackets_na')
-                        ->hiddenLabel()
-                        ->content(new HtmlString('<p class="text-sm text-gray-500">Select a bracket tournament format on the Scoring tab to configure bracket options.</p>'))
-                        ->hidden(fn (Get $get) => ! in_array($get('tournament_format'), ['once_off', 'round_robin', null])),
+                Tab::make('Sorting')
+                    ->hidden(fn (Get $get) => ! in_array($get('tournament_format'), ['once_off', null]))
+                    ->schema([
+                        Radio::make('competitor_sort')
+                            ->label('Display competitors in order of')
+                            ->options([
+                                'first_name'         => 'First name',
+                                'surname'            => 'Surname',
+                                'registration_order' => 'Registration order',
+                                'random'             => 'Randomised',
+                            ])
+                            ->default('first_name'),
+                    ]),
 
-                    Radio::make('bracket_sort')
-                        ->label('Build division brackets using')
-                        ->options([
-                            'first_name'         => 'First name',
-                            'surname'            => 'Surname',
-                            'registration_order' => 'Registration order',
-                            'random'             => 'Randomised',
-                        ])
-                        ->default('first_name')
-                        ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['once_off', 'round_robin', null])),
+                Tab::make('Brackets')
+                    ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['once_off', null]))
+                    ->schema([
+                        Radio::make('bracket_sort')
+                            ->label('Build division brackets using')
+                            ->options([
+                                'first_name'         => 'First name',
+                                'surname'            => 'Surname',
+                                'registration_order' => 'Registration order',
+                                'random'             => 'Randomised',
+                            ])
+                            ->default('first_name')
+                            ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['round_robin'])),
 
-                    Section::make('First-round matching options')
-                        ->compact()
-                        ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['once_off', 'round_robin', null]))
-                        ->schema([
-                            Toggle::make('manual_pairing')
-                                ->label('Manual pairing')
-                                ->helperText('Manually assign first-round matchups. Disables all options below.')
-                                ->live()
-                                ->afterStateUpdated(function (bool $state, Set $set) {
-                                    if ($state) {
-                                        $set('bracket_first_round_order', null);
-                                        $set('bracket_prefer_different_dojo', false);
-                                        $set('bracket_avoid_repeat_matchups', false);
-                                    }
-                                })
-                                ->columnSpanFull(),
+                        Section::make('First-round matching options')
+                            ->compact()
+                            ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['round_robin']))
+                            ->schema([
+                                Toggle::make('manual_pairing')
+                                    ->label('Manual pairing')
+                                    ->helperText('Manually assign first-round matchups. Disables all options below.')
+                                    ->live()
+                                    ->afterStateUpdated(function (bool $state, Set $set) {
+                                        if ($state) {
+                                            $set('bracket_first_round_order', null);
+                                            $set('bracket_prefer_different_dojo', false);
+                                            $set('bracket_avoid_repeat_matchups', false);
+                                        }
+                                    })
+                                    ->columnSpanFull(),
 
-                            Select::make('bracket_first_round_order')
-                                ->label('First-round ordering')
-                                ->placeholder('None')
-                                ->options(function (Get $get) {
-                                    $filter = $get('division_filter');
-                                    $opts   = [];
-                                    if (in_array($filter, ['age_rank_sex', 'age_rank', 'rank_sex'])) {
-                                        $opts['seed_by_rank'] = 'Seed by rank';
-                                    }
-                                    if (in_array($filter, ['age_rank_sex', 'age_sex', 'age_rank', 'age_only', 'age_weight', 'age_weight_sex'])) {
-                                        $opts['match_similar_age'] = 'Match similar age';
-                                    }
-                                    if (in_array($filter, ['weight_sex', 'age_weight', 'age_weight_sex'])) {
-                                        $opts['match_similar_weight'] = 'Match similar weight';
-                                    }
-                                    return $opts;
-                                })
-                                ->helperText('Seed by rank: top seeds placed apart. Match similar age/weight: closest competitors paired together.')
-                                ->disabled(fn (Get $get) => (bool) $get('manual_pairing'))
-                                ->columnSpanFull(),
+                                Select::make('bracket_first_round_order')
+                                    ->label('First-round ordering')
+                                    ->placeholder('None')
+                                    ->options(function (Get $get) {
+                                        $filter = $get('division_filter');
+                                        $opts   = [];
+                                        if (in_array($filter, ['age_rank_sex', 'age_rank', 'rank_sex'])) {
+                                            $opts['seed_by_rank'] = 'Seed by rank';
+                                        }
+                                        if (in_array($filter, ['age_rank_sex', 'age_sex', 'age_rank', 'age_only', 'age_weight', 'age_weight_sex'])) {
+                                            $opts['match_similar_age'] = 'Match similar age';
+                                        }
+                                        if (in_array($filter, ['weight_sex', 'age_weight', 'age_weight_sex'])) {
+                                            $opts['match_similar_weight'] = 'Match similar weight';
+                                        }
+                                        return $opts;
+                                    })
+                                    ->helperText('Seed by rank: top seeds placed apart. Match similar age/weight: closest competitors paired together.')
+                                    ->disabled(fn (Get $get) => (bool) $get('manual_pairing'))
+                                    ->columnSpanFull(),
 
-                            Toggle::make('bracket_prefer_different_dojo')
-                                ->label('Prefer different dojo/club')
-                                ->helperText('Avoids same-dojo/club pairings in round 1.')
-                                ->disabled(fn (Get $get) => (bool) $get('manual_pairing')),
+                                Toggle::make('bracket_prefer_different_dojo')
+                                    ->label('Prefer different dojo/club')
+                                    ->helperText('Avoids same-dojo/club pairings in round 1.')
+                                    ->disabled(fn (Get $get) => (bool) $get('manual_pairing')),
 
-                            Toggle::make('bracket_avoid_repeat_matchups')
-                                ->label('Avoid repeat matchups')
-                                ->helperText('Avoids re-pairing competitors who have already met in this competition.')
-                                ->disabled(fn (Get $get) => (bool) $get('manual_pairing')),
-                        ]),
+                                Toggle::make('bracket_avoid_repeat_matchups')
+                                    ->label('Avoid repeat matchups')
+                                    ->helperText('Avoids re-pairing competitors who have already met in this competition.')
+                                    ->disabled(fn (Get $get) => (bool) $get('manual_pairing')),
+                            ]),
 
-                    Placeholder::make('bracket_options_note')
-                        ->hiddenLabel()
-                        ->content(new HtmlString('<p class="text-sm text-gray-500">Note: Changes take effect on the next scored event. Already-generated brackets are unaffected.</p>'))
-                        ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['once_off', 'round_robin', null])),
-                ]),
+                        Placeholder::make('bracket_options_note')
+                            ->hiddenLabel()
+                            ->content(new HtmlString('<p class="text-sm text-gray-500">Note: Changes take effect on the next scored event. Already-generated brackets are unaffected.</p>'))
+                            ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['round_robin'])),
+                    ]),
 
                 Tab::make('Penalties')->schema([
-                    Placeholder::make('penalties_na')
-                        ->hiddenLabel()
-                        ->content(new HtmlString('<p class="text-sm text-gray-500">Penalties are not used for judge-scored events.</p>'))
-                        ->hidden(fn (Get $get) => in_array($get('scoring_method'), ['win_loss', 'first_to_n', 'timed_points'])),
-
                     Section::make()
                         ->hiddenLabel()
                         ->compact()
-                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['win_loss', 'first_to_n', 'timed_points']))
                         ->schema([
                             Toggle::make('penalty_config.warn.enabled')
                                 ->label('Warnings')
                                 ->inline(false)
-                                ->live(),
+                                ->live()
+                                ->hidden(fn (Get $get) => in_array($get('scoring_method'), ['judges_total', 'judges_average'])),
 
                             TextInput::make('penalty_config.warn.auto_dq_after')
                                 ->label('Auto-DQ after N warnings')
                                 ->helperText('Leave blank to disable.')
                                 ->numeric()->integer()->minValue(1)->nullable()
-                                ->hidden(fn (Get $get) => ! $get('penalty_config.warn.enabled')),
+                                ->hidden(fn (Get $get) => in_array($get('scoring_method'), ['judges_total', 'judges_average']) || ! $get('penalty_config.warn.enabled')),
 
                             TagsInput::make('penalty_config.warn.reasons')
                                 ->label('Warning reasons')
                                 ->placeholder('Type and press Enter')
-                                ->hidden(fn (Get $get) => ! $get('penalty_config.warn.enabled')),
+                                ->hidden(fn (Get $get) => in_array($get('scoring_method'), ['judges_total', 'judges_average']) || ! $get('penalty_config.warn.enabled')),
 
                             Toggle::make('penalty_config.dq.enabled')
                                 ->label('DQ')
@@ -474,12 +480,12 @@ class CompetitionEventsRelationManager extends RelationManager
                                 ->hidden(fn (Get $get) => ! $get('penalty_config.forfeit.enabled')),
 
                             Toggle::make('penalty_config.deduction.enabled')
-                                ->label('−1 deduction (bracket only)')
+                                ->label('−1 deduction')
                                 ->inline(false)
                                 ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points'])),
 
                             Toggle::make('penalty_config.opponent_point.enabled')
-                                ->label('+1 to opponent (bracket only)')
+                                ->label('+1 to opponent')
                                 ->inline(false)
                                 ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points'])),
                         ]),

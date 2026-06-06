@@ -67,12 +67,6 @@
                             <div></div>
                             @endif
                             <div class="flex items-center gap-2">
-                                @if (! $this->rollcallMode)
-                                    <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
-                                        <x-heroicon-m-trophy class="w-3 h-3 shrink-0" />
-                                        {{ $this->getAwardedPlacesLabel() }}
-                                    </span>
-                                @endif
                                 @if (! $this->rollcallMode && ! $this->isTournament())
                                     @if (in_array($this->getScoringMethod(), ['judges_total', 'judges_average']))
                                         <x-filament::button size="xs" color="gray"
@@ -87,6 +81,19 @@
                                     </x-filament::button>
                                 @endif
                             </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5 mb-3">
+                            @if (! $this->rollcallMode)
+                                <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    <x-heroicon-m-trophy class="w-3 h-3 shrink-0" />
+                                    {{ $this->getAwardedPlacesLabel() }}
+                                </span>
+                            @endif
+                            @foreach ($this->getScoringSettingPills() as $pill)
+                                <span class="inline-flex items-center rounded-full bg-gray-100 dark:bg-slate-700 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    {{ $pill }}
+                                </span>
+                            @endforeach
                         </div>
                         @endif
 
@@ -255,25 +262,19 @@
                                         </div>
                                     @else
                                         <div class="text-center py-4">
-                                            <p class="text-sm text-gray-500 mb-1">{{ $competitorCount }} competitor(s) competing.</p>
-                                            <p class="text-xs text-gray-400">
-                                                {{ match($format) { 'double_elimination' => 'Double elimination bracket', 'round_robin' => 'Round robin', 'repechage' => 'Single elimination with repechage', 'se_3rd_place' => 'Single elimination with 3rd place playoff', default => 'Single elimination bracket' } }}
-                                            </p>
+                                            <p class="text-sm text-gray-500">{{ $competitorCount }} competitor(s) competing.</p>
                                         </div>
                                     @endif
                                 @else
                                     {{-- Bracket header --}}
-                                    <div class="flex items-center justify-between mb-3">
-                                        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                            {{ match($format) { 'double_elimination' => 'Double elimination', 'round_robin' => 'Round robin', 'repechage' => 'Repechage', 'se_3rd_place' => 'SE + 3rd place playoff', default => 'Single elimination' } }} bracket
-                                        </p>
-                                        @if (! $this->isScoringComplete())
+                                    @if (! $this->isScoringComplete())
+                                    <div class="flex justify-end mb-3">
                                         <x-filament::button size="xs" color="gray"
                                             x-on:click="$dispatch('open-modal', { id: 'confirm-reset-bracket' })">
                                             Reset bracket
                                         </x-filament::button>
-                                        @endif
                                     </div>
+                                    @endif
 
                                     @php
                                         $wbAll      = $bracketData['winners'] ?? [];
@@ -368,26 +369,30 @@
                                                                     @if ($match->home_info)
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->home_info }}</div>
                                                                     @endif
-                                                                    @if ($pending && ! $isReadOnly && ! empty($enabledPenalties) && $homeResult)
-                                                                        @php
-                                                                            $bWC = $this->getWarnCount($homeResult->id, $match->id);
-                                                                            $bLog = $this->getPenaltyLog($homeResult->id, $match->id);
-                                                                            $homeFlagged = $homeResult->disqualified || $homeResult->forfeited;
-                                                                        @endphp
-                                                                        <div class="flex flex-wrap gap-1 items-center mt-1">
-                                                                            @foreach ($enabledPenalties as $pType)
-                                                                                @if ($match->away_id !== null)
-                                                                                    @if ($pType === 'forfeit' && $homeFlagged) @continue @endif
-                                                                                    @if ($pType === 'dq' && $homeResult->forfeited) @continue @endif
-                                                                                    <button type="button" wire:click="openPenaltyModal({{ $homeResult->id }}, '{{ $pType }}', {{ $match->id }})"
-                                                                                        class="px-1.5 py-0.5 rounded text-xs font-medium border {{ in_array($pType,['dq','forfeit']) ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400' : 'border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 text-warning-700 dark:text-warning-400' }} active:scale-95 transition-transform">
-                                                                                        @if($pType==='warn'&&$bWC>0)Warn {{$bWC}}@else{{$this->getPenaltyLabel($pType)}}@endif
-                                                                                    </button>
-                                                                                @endif
-                                                                            @endforeach
-                                                                            <button type="button" wire:click="undoPenalty({{ $homeResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>
-                                                                        </div>
-                                                                        @if(!empty($bLog))<ul class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 space-y-0.5">@foreach($bLog as $e)<li>{{$e['label']}}</li>@endforeach</ul>@endif
+                                                                    @if ($homeResult)
+                                                                        @php $homeLog = $this->getPenaltyLog($homeResult->id, $match->id); @endphp
+                                                                        @if ($pending && ! $isReadOnly && ! empty($enabledPenalties))
+                                                                            @php
+                                                                                $bWC = $this->getWarnCount($homeResult->id, $match->id);
+                                                                                $homeFlagged = $homeResult->disqualified || $homeResult->forfeited;
+                                                                            @endphp
+                                                                            <div class="flex flex-wrap gap-1 items-center mt-1">
+                                                                                @foreach ($enabledPenalties as $pType)
+                                                                                    @if ($match->away_id !== null)
+                                                                                        @if ($pType === 'forfeit' && $homeFlagged) @continue @endif
+                                                                                        @if ($pType === 'dq' && $homeResult->forfeited) @continue @endif
+                                                                                        <button type="button" wire:click="openPenaltyModal({{ $homeResult->id }}, '{{ $pType }}', {{ $match->id }})"
+                                                                                            class="px-1.5 py-0.5 rounded text-xs font-medium border {{ in_array($pType,['dq','forfeit']) ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400' : 'border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 text-warning-700 dark:text-warning-400' }} active:scale-95 transition-transform">
+                                                                                            @if($pType==='warn'&&$bWC>0)Warn {{$bWC}}@else{{$this->getPenaltyLabel($pType)}}@endif
+                                                                                        </button>
+                                                                                    @endif
+                                                                                @endforeach
+                                                                                @if ($this->hasUndoablePenalty($homeResult->id, $match->id))
+                                                                                <button type="button" wire:click="undoPenalty({{ $homeResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>
+                                                                            @endif
+                                                                            </div>
+                                                                        @endif
+                                                                        @if(!empty($homeLog))<ul class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 space-y-0.5">@foreach($homeLog as $e)<li>{{$e['label']}}</li>@endforeach</ul>@endif
                                                                     @endif
                                                                 </div>
                                                                 <span class="text-xs text-gray-400 shrink-0 mt-0.5">vs</span>
@@ -398,26 +403,30 @@
                                                                     @if ($match->away_info)
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->away_info }}</div>
                                                                     @endif
-                                                                    @if ($pending && ! $isReadOnly && ! empty($enabledPenalties) && $awayResult)
-                                                                        @php
-                                                                            $bWC = $this->getWarnCount($awayResult->id, $match->id);
-                                                                            $bLog = $this->getPenaltyLog($awayResult->id, $match->id);
-                                                                            $awayFlagged = $awayResult->disqualified || $awayResult->forfeited;
-                                                                        @endphp
-                                                                        <div class="flex flex-wrap gap-1 items-center justify-end mt-1">
-                                                                            <button type="button" wire:click="undoPenalty({{ $awayResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>
-                                                                            @foreach ($enabledPenalties as $pType)
-                                                                                @if ($match->away_id !== null)
-                                                                                    @if ($pType === 'forfeit' && $awayFlagged) @continue @endif
-                                                                                    @if ($pType === 'dq' && $awayResult->forfeited) @continue @endif
-                                                                                    <button type="button" wire:click="openPenaltyModal({{ $awayResult->id }}, '{{ $pType }}', {{ $match->id }})"
-                                                                                        class="px-1.5 py-0.5 rounded text-xs font-medium border {{ in_array($pType,['dq','forfeit']) ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400' : 'border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 text-warning-700 dark:text-warning-400' }} active:scale-95 transition-transform">
-                                                                                        @if($pType==='warn'&&$bWC>0)Warn {{$bWC}}@else{{$this->getPenaltyLabel($pType)}}@endif
-                                                                                    </button>
+                                                                    @if ($awayResult)
+                                                                        @php $awayLog = $this->getPenaltyLog($awayResult->id, $match->id); @endphp
+                                                                        @if ($pending && ! $isReadOnly && ! empty($enabledPenalties))
+                                                                            @php
+                                                                                $bWC = $this->getWarnCount($awayResult->id, $match->id);
+                                                                                $awayFlagged = $awayResult->disqualified || $awayResult->forfeited;
+                                                                            @endphp
+                                                                            <div class="flex flex-wrap gap-1 items-center justify-end mt-1">
+                                                                                @if ($this->hasUndoablePenalty($awayResult->id, $match->id))
+                                                                                    <button type="button" wire:click="undoPenalty({{ $awayResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>
                                                                                 @endif
-                                                                            @endforeach
-                                                                        </div>
-                                                                        @if(!empty($bLog))<ul class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 space-y-0.5 text-right">@foreach($bLog as $e)<li>{{$e['label']}}</li>@endforeach</ul>@endif
+                                                                                @foreach ($enabledPenalties as $pType)
+                                                                                    @if ($match->away_id !== null)
+                                                                                        @if ($pType === 'forfeit' && $awayFlagged) @continue @endif
+                                                                                        @if ($pType === 'dq' && $awayResult->forfeited) @continue @endif
+                                                                                        <button type="button" wire:click="openPenaltyModal({{ $awayResult->id }}, '{{ $pType }}', {{ $match->id }})"
+                                                                                            class="px-1.5 py-0.5 rounded text-xs font-medium border {{ in_array($pType,['dq','forfeit']) ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400' : 'border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 text-warning-700 dark:text-warning-400' }} active:scale-95 transition-transform">
+                                                                                            @if($pType==='warn'&&$bWC>0)Warn {{$bWC}}@else{{$this->getPenaltyLabel($pType)}}@endif
+                                                                                        </button>
+                                                                                    @endif
+                                                                                @endforeach
+                                                                            </div>
+                                                                        @endif
+                                                                        @if(!empty($awayLog))<ul class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 space-y-0.5 text-right">@foreach($awayLog as $e)<li>{{$e['label']}}</li>@endforeach</ul>@endif
                                                                     @endif
                                                                 </div>
                                                             </div>
@@ -824,7 +833,7 @@
                                                     <p class="font-medium text-sm text-gray-900 dark:text-white truncate">
                                                         {{ $row->name }}
                                                         @if ($result->disqualified || $result->forfeited)
-                                                            <span class="ml-1 text-xs text-danger-600">{{ $result->forfeited ? 'Forfeit' : 'DQ' }}</span>
+                                                            <span class="ml-1 text-xs text-danger-600">{{ $result->forfeited ? '[Forfeit]' : '[DQ]' }}</span>
                                                         @endif
                                                     </p>
                                                     @if ($row->info)
@@ -854,6 +863,28 @@
                                                             @endif
                                                         @endif
                                                     </p>
+                                                    @if (in_array($method, ['judges_total', 'judges_average']))
+                                                        @php
+                                                            $penaltyLog    = $this->getPenaltyLog($result->id);
+                                                            $oncePenalties = array_filter($enabledPenalties, fn ($t) => ! in_array($t, ['deduction', 'opponent_point']));
+                                                        @endphp
+                                                        @if (! $isReadOnly && ! $isSaved && ! empty($oncePenalties))
+                                                            <div class="mt-1 flex flex-wrap gap-1">
+                                                                @foreach ($oncePenalties as $pType)
+                                                                    <button type="button"
+                                                                        wire:click="openPenaltyModal({{ $result->id }}, '{{ $pType }}')"
+                                                                        class="px-2 py-1 rounded text-xs font-medium border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 active:scale-95 transition-transform">
+                                                                        {{ $this->getPenaltyLabel($pType) }}
+                                                                    </button>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                        @if (! empty($penaltyLog))
+                                                            <ul class="mt-0.5 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                                                                @foreach ($penaltyLog as $entry)<li>{{ $entry['label'] }}</li>@endforeach
+                                                            </ul>
+                                                        @endif
+                                                    @endif
                                                 </div>
 
                                                 @if ($result->placement && (
@@ -921,8 +952,8 @@
                                                 @endif
                                             </div>{{-- end flex items-center --}}
 
-                                            {{-- Penalty buttons below name, no repeat --}}
-                                            @if (in_array($method, ['win_loss', 'first_to_n', 'timed_points']) && ! empty($enabledPenalties))
+                                            {{-- Non-judged: penalty buttons + undo + log --}}
+                                            @if (! in_array($method, ['judges_total', 'judges_average']))
                                                 @php
                                                     $penaltyLog     = $this->getPenaltyLog($result->id);
                                                     $warnCount      = $this->getWarnCount($result->id);
@@ -1044,7 +1075,15 @@
                                                         </div>
                                                     @endif
 
-                                                    <div class="flex gap-2 pt-1">
+                                                    <div class="flex flex-col gap-2 pt-1">
+                                                        @if (! $dqViaPenalties)
+                                                            <x-filament::button
+                                                                color="{{ $result->disqualified ? 'gray' : 'danger' }}"
+                                                                wire:click="toggleDisqualify({{ $result->id }})"
+                                                                :disabled="$inTiebreakerFlow">
+                                                                {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
+                                                            </x-filament::button>
+                                                        @endif
                                                         @if ($isSaved)
                                                             <x-filament::button color="gray" class="flex-1"
                                                                 wire:click="undoJudgeScores({{ $result->id }})"
@@ -1054,12 +1093,6 @@
                                                                 wire:click="saveJudgeScores({{ $result->id }})"
                                                                 x-on:click="open = false">Save scores</x-filament::button>
                                                         @endif
-                                                        <x-filament::button
-                                                            color="{{ $result->disqualified ? 'gray' : 'danger' }}"
-                                                            wire:click="toggleDisqualify({{ $result->id }})"
-                                                            :disabled="$inTiebreakerFlow">
-                                                            {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
-                                                        </x-filament::button>
                                                     </div>
                                                 </div>
                                             @endif
@@ -1151,11 +1184,40 @@
                                                         <div class="font-medium text-gray-900 dark:text-white">
                                                             {{ $row->name }}
                                                             @if ($result->disqualified || $result->forfeited)
-                                                                <span class="ml-1 text-xs text-danger-600">{{ $result->forfeited ? 'Forfeit' : 'DQ' }}</span>
+                                                                <span class="ml-1 text-xs text-danger-600">{{ $result->forfeited ? '[Forfeit]' : '[DQ]' }}</span>
                                                             @endif
                                                         </div>
                                                         @if ($row->info)
                                                             <div class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</div>
+                                                        @endif
+                                                        @if (in_array($method, ['judges_total', 'judges_average']))
+                                                            @php
+                                                                $dtPenaltyLog    = $this->getPenaltyLog($result->id);
+                                                                $dtOncePenalties = array_filter($enabledPenalties, fn ($t) => ! in_array($t, ['deduction', 'opponent_point']));
+                                                            @endphp
+                                                            @if (! $isReadOnly && ! $isSaved && ! empty($dtOncePenalties))
+                                                                <div class="mt-1 flex flex-wrap gap-1">
+                                                                    @foreach ($dtOncePenalties as $pType)
+                                                                        <button type="button"
+                                                                            wire:click="openPenaltyModal({{ $result->id }}, '{{ $pType }}')"
+                                                                            class="px-1.5 py-0.5 rounded text-xs font-medium border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 active:scale-95 transition-transform">
+                                                                            {{ $this->getPenaltyLabel($pType) }}
+                                                                        </button>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                            @if (! empty($dtPenaltyLog))
+                                                                <ul class="mt-0.5 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                                                                    @foreach ($dtPenaltyLog as $entry)<li>{{ $entry['label'] }}</li>@endforeach
+                                                                </ul>
+                                                            @endif
+                                                        @else
+                                                            @php $dtPenaltyLog = $this->getPenaltyLog($result->id); @endphp
+                                                            @if (! empty($dtPenaltyLog))
+                                                                <ul class="mt-0.5 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                                                                    @foreach ($dtPenaltyLog as $entry)<li>{{ $entry['label'] }}</li>@endforeach
+                                                                </ul>
+                                                            @endif
                                                         @endif
                                                     </td>
 
@@ -1313,7 +1375,35 @@
 
                                                     @if (! $isReadOnly)
                                                         <td class="py-2">
-                                                            <div class="flex flex-wrap gap-1">
+                                                            <div class="flex flex-col gap-1 items-start">
+                                                                @if (! in_array($method, ['judges_total', 'judges_average']))
+                                                                    @php
+                                                                        $dtOncePenalties = array_filter($enabledPenalties, fn ($t) => ! in_array($t, ['deduction', 'opponent_point']));
+                                                                        $dtWarnCount     = $this->getWarnCount($result->id);
+                                                                        $dtCanUndo       = $this->hasUndoablePenalty($result->id);
+                                                                    @endphp
+                                                                    @foreach ($dtOncePenalties as $pType)
+                                                                        <button type="button"
+                                                                            wire:click="openPenaltyModal({{ $result->id }}, '{{ $pType }}')"
+                                                                            class="px-1.5 py-0.5 rounded text-xs font-medium border {{ in_array($pType, ['dq','forfeit']) ? 'border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400' : 'border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 text-warning-700 dark:text-warning-400' }} active:scale-95 transition-transform">
+                                                                            @if ($pType === 'warn' && $dtWarnCount > 0)Warn {{ $dtWarnCount }}@else{{ $this->getPenaltyLabel($pType) }}@endif
+                                                                        </button>
+                                                                    @endforeach
+                                                                    @if ($dtCanUndo)
+                                                                        <button type="button" wire:click="undoPenalty({{ $result->id }})"
+                                                                            class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform">
+                                                                            <x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" />
+                                                                        </button>
+                                                                    @endif
+                                                                @endif
+                                                                @if (! $dqViaPenalties)
+                                                                    <x-filament::button size="xs"
+                                                                        color="{{ $result->disqualified ? 'gray' : 'danger' }}"
+                                                                        wire:click="toggleDisqualify({{ $result->id }})"
+                                                                        :disabled="$inTiebreakerFlow ?? false">
+                                                                        {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
+                                                                    </x-filament::button>
+                                                                @endif
                                                                 @if (in_array($method, ['judges_total', 'judges_average']))
                                                                     @if ($isSaved)
                                                                         <x-filament::button size="xs" color="gray"
@@ -1327,14 +1417,6 @@
                                                                             Save
                                                                         </x-filament::button>
                                                                     @endif
-                                                                @endif
-                                                                @if (! $dqViaPenalties || in_array($method, ['judges_total', 'judges_average']))
-                                                                    <x-filament::button size="xs"
-                                                                        color="{{ $result->disqualified ? 'gray' : 'danger' }}"
-                                                                        wire:click="toggleDisqualify({{ $result->id }})"
-                                                                        :disabled="$inTiebreakerFlow ?? false">
-                                                                        {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
-                                                                    </x-filament::button>
                                                                 @endif
                                                             </div>
                                                         </td>
@@ -1971,31 +2053,20 @@
         <x-slot name="heading">
             Select reason
             @if ($penaltyModalType)
-                <span class="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">— {{ ucfirst($penaltyModalType) }}</span>
+                <span class="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">— {{ $this->getPenaltyLabel($penaltyModalType) }}</span>
             @endif
         </x-slot>
         <div class="space-y-2">
             @foreach ($penaltyModalReasons as $reason)
                 <button type="button"
-                    wire:click="$set('penaltyModalSelectedReason', @js($reason))"
-                    class="w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors
-                        {{ $penaltyModalSelectedReason === $reason
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium'
-                            : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500' }}">
+                    wire:click="confirmPenalty(@js($reason))"
+                    x-on:click="$dispatch('close-modal', { id: 'penalty-reason-modal' })"
+                    class="w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400 hover:bg-primary-50 dark:hover:border-primary-600 dark:hover:bg-primary-900/20 active:scale-95">
                     {{ $reason }}
                 </button>
             @endforeach
-            @if (empty($penaltyModalReasons))
-                <p class="text-sm text-gray-400 dark:text-gray-500">No reasons configured for this event.</p>
-            @endif
         </div>
         <x-slot name="footerActions">
-            <x-filament::button
-                wire:click="confirmPenalty"
-                x-on:click="$dispatch('close-modal', { id: 'penalty-reason-modal' })"
-                :disabled="empty($penaltyModalReasons)">
-                Apply
-            </x-filament::button>
             <x-filament::button color="gray"
                 x-on:click="$dispatch('close-modal', { id: 'penalty-reason-modal' })">
                 Cancel

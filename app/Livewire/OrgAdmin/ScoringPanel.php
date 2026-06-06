@@ -40,6 +40,8 @@ class ScoringPanel extends Component
     public array $manualPairings            = [];
     public array $pairingCompetitorList     = [];
 
+    public array  $perfOrder    = [];
+
     public bool   $penaltyModalOpen           = false;
     #[Locked]
     public ?int   $penaltyModalResultId       = null;
@@ -56,6 +58,7 @@ class ScoringPanel extends Component
         $this->competition_id = $competitionId;
 
         $this->loadRollcallFromSession();
+        $this->loadPerfOrderFromSession();
         $this->completedRollcallDivisions = $this->loadCompletedRollcallDivisionsFromDb();
 
         $this->bracketExists     = RoundRobinMatch::where('division_id', $this->division_id)->exists();
@@ -398,11 +401,27 @@ class ScoringPanel extends Component
                     'info'   => $this->buildRollcallInfo($ee, $filter),
                 ];
             })
-            ->when(
-                $division?->status === 'complete',
-                fn ($c) => $c->sortBy(fn ($row) => [$row->result->placement ?? 999, $row->name]),
-                fn ($c) => $c->sortBy('name'),
-            );
+            ->pipe(function ($c) use ($division) {
+                if ($division?->status === 'complete') {
+                    return $c->sortBy(fn ($row) => [$row->result->placement ?? 999, $row->name]);
+                }
+                $sortMode = $division?->competitionEvent?->competitor_sort ?? 'first_name';
+                if ($sortMode === 'random') {
+                    if (! empty($this->perfOrder)) {
+                        $index = array_flip($this->perfOrder);
+                        return $c->sortBy(fn ($row) => $index[$row->ee->id] ?? PHP_INT_MAX);
+                    }
+                    $shuffled = $c->shuffle();
+                    $this->perfOrder = $shuffled->pluck('ee.id')->values()->all();
+                    session([$this->perfOrderSessionKey() => $this->perfOrder]);
+                    return $shuffled;
+                }
+                return match ($sortMode) {
+                    'surname'            => $c->sortBy(fn ($row) => strtolower($row->ee->enrolment->competitor?->surname ?? $row->name)),
+                    'registration_order' => $c->sortBy(fn ($row) => $row->ee->enrolment->created_at),
+                    default              => $c->sortBy(fn ($row) => strtolower($row->name)),
+                };
+            });
     }
 
     public function isTournament(): bool
@@ -437,9 +456,9 @@ class ScoringPanel extends Component
         if ($rows->isEmpty()) return false;
 
         if (in_array($method, ['judges_total', 'judges_average'])) {
-            $allSaved = $rows->every(fn ($row) => $row->result->disqualified || in_array($row->result->id, $this->savedResultIds));
+            $allSaved = $rows->every(fn ($row) => $row->result->disqualified || $row->result->forfeited || in_array($row->result->id, $this->savedResultIds));
             if (! $allSaved) return false;
-            if (! $rows->every(fn ($row) => $row->result->disqualified || $row->result->total_score !== null)) return false;
+            if (! $rows->every(fn ($row) => $row->result->disqualified || $row->result->forfeited || $row->result->total_score !== null)) return false;
             $stillTied = $this->getStillTiedAfterTiebreaker();
             if ($stillTied->isNotEmpty()) {
                 return $stillTied->every(fn ($group) => $group->every(fn ($r) => $r->result->placement_overridden));
@@ -571,6 +590,38 @@ class ScoringPanel extends Component
         };
     }
 
+    public function getScoringSettingPills(): array
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return [];
+
+        $pills = [];
+
+        $pills[] = match ($this->getTournamentFormat()) {
+            'once_off'           => 'Single Perf',
+            'single_elimination' => 'Single Elim',
+            'double_elimination' => 'Double Elim',
+            'round_robin'        => 'Round Robin',
+            'se_3rd_place'       => 'SE 3rd Place',
+            default              => $this->getTournamentFormat(),
+        };
+
+        $pills[] = match ($this->getScoringMethod()) {
+            'judges_average' => 'Judges Avg',
+            'judges_total'   => 'Judges Total',
+            'win_loss'       => 'Win/Loss',
+            'first_to_n'     => 'First to N',
+            'timed_points'   => 'Timed Pts',
+            default          => $this->getScoringMethod(),
+        };
+
+        if ($div->competitionEvent->high_low_drop) {
+            $pills[] = 'Hi-Low Drop';
+        }
+
+        return $pills;
+    }
+
     public function getEnabledPenaltyTypes(): array
     {
         $div = $this->getSelectedDivision();
@@ -698,31 +749,37 @@ class ScoringPanel extends Component
     public function undoJudgeScores(int $resultId): void
     {
         $result = $this->findResult($resultId);
-        if ($result) {
-            $service       = app(ScoringService::class);
-            $hasTiebreaker = $result->tiebreaker_score !== null;
+        if (! $result) return;
 
-            if ($hasTiebreaker) {
-                $service->clearTiebreakerScore($result);
-                unset($this->tiebreakerJudgeInputs[$resultId]);
-            }
+        $service = app(ScoringService::class);
 
-            $eeIds   = EnrolmentEvent::where('division_id', $result->division_id)->pluck('id');
-            $cleared = Result::whereIn('enrolment_event_id', $eeIds)
-                ->where('total_score', $result->total_score)
-                ->where('placement_overridden', true)
-                ->pluck('id');
-
-            if ($cleared->isNotEmpty()) {
-                Result::whereIn('id', $cleared)->update(['placement_overridden' => false]);
-                foreach ($cleared as $rid) {
-                    unset($this->placementInput[$rid]);
-                }
-                if (! $hasTiebreaker) {
-                    $service->autoRankDivision(Division::find($result->division_id));
-                }
-            }
+        // Clear tiebreaker scores first
+        if ($result->tiebreaker_score !== null) {
+            $service->clearTiebreakerScore($result);
+            unset($this->tiebreakerJudgeInputs[$resultId]);
         }
+
+        // Clear all regular judge scores and total from DB
+        $result->judgeScores()->where('is_tiebreaker', false)->each(function ($js) {
+            $js->judgeScoreDetails()->delete();
+            $js->delete();
+        });
+        $result->update(['total_score' => null]);
+        $result->forceFill(['placement' => null, 'placement_overridden' => false])->save();
+
+        // Clear DQ/Forfeit and penalty records
+        MatchPenalty::where('result_id', $resultId)->delete();
+        $result->disqualified = false;
+        $result->forfeited    = false;
+        $result->save();
+
+        // Re-rank remaining scored competitors
+        $service->autoRankDivision(Division::find($result->division_id));
+
+        // Clear Livewire input state for this result
+        unset($this->judgeScores[$resultId]);
+        unset($this->categoryScores[$resultId]);
+        unset($this->placementInput[$resultId]);
 
         $this->savedResultIds = array_values(array_diff($this->savedResultIds, [$resultId]));
     }
@@ -858,6 +915,7 @@ class ScoringPanel extends Component
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
+            MatchPenalty::where('result_id', $result->id)->delete();
             $result->forceFill([
                 'total_score'          => null,
                 'tiebreaker_score'     => null,
@@ -871,6 +929,7 @@ class ScoringPanel extends Component
         $this->judgeScores           = [];
         $this->categoryScores        = [];
         $this->tiebreakerJudgeInputs = [];
+        $this->savedResultIds        = [];
         $this->placementOverrideMode = false;
         Notification::make()->title('Scores cleared.')->success()->send();
     }
@@ -1040,14 +1099,14 @@ class ScoringPanel extends Component
         }
     }
 
-    public function confirmPenalty(): void
+    public function confirmPenalty(?string $reason = null): void
     {
         if (! $this->penaltyModalResultId || ! $this->penaltyModalType) return;
 
         $this->applyPenalty(
             $this->penaltyModalResultId,
             $this->penaltyModalType,
-            $this->penaltyModalSelectedReason ?: null,
+            $reason ?? ($this->penaltyModalSelectedReason ?: null),
             $this->penaltyModalMatchId,
         );
 
@@ -1701,6 +1760,9 @@ class ScoringPanel extends Component
             'category_config'         => null,
         ]);
 
+        $this->perfOrder = [];
+        session()->forget($this->perfOrderSessionKey());
+
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
             $result->judgeScores()->delete();
@@ -1745,6 +1807,19 @@ class ScoringPanel extends Component
     private function clearRollcallFromSession(): void
     {
         session()->forget($this->rollcallSessionKey());
+    }
+
+    private function perfOrderSessionKey(): string
+    {
+        return 'scoring_perf_order_' . ($this->division_id ?? 0);
+    }
+
+    private function loadPerfOrderFromSession(): void
+    {
+        $stored = session($this->perfOrderSessionKey());
+        if (is_array($stored)) {
+            $this->perfOrder = $stored;
+        }
     }
 
     private function loadCompletedRollcallDivisionsFromDb(): array
@@ -1855,6 +1930,10 @@ class ScoringPanel extends Component
             $this->handleDqAutoAdvance($result);
             if ($this->isTournament()) {
                 $this->applyBracketPlacements();
+            } else {
+                if (! in_array($result->id, $this->savedResultIds)) {
+                    $this->savedResultIds[] = $result->id;
+                }
             }
         }
     }
