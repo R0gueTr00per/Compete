@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\InvitationController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicScheduleController;
 use App\Http\Controllers\ResultsPdfController;
 use Illuminate\Support\Facades\Route;
@@ -39,14 +38,7 @@ Route::get('admin/login', fn () => redirect()->route('filament.portal.auth.login
 // Profile completion alias — named route used by RequireCompleteProfile middleware and SocialiteController
 Route::middleware(['auth'])->get('/portal/profile-setup', fn () => redirect()->route('filament.portal.pages.profile'))->name('profile.complete');
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
-
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/admin/results/pdf', [ResultsPdfController::class, 'show'])->name('results.pdf');
     Route::get('/admin/results/pdf/medal-tally-competitor', [ResultsPdfController::class, 'medalTallyCompetitor'])->name('results.pdf.medal-tally-competitor');
     Route::get('/admin/results/pdf/medal-tally-dojo', [ResultsPdfController::class, 'medalTallyDojo'])->name('results.pdf.medal-tally-dojo');

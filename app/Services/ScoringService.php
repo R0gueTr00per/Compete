@@ -5,9 +5,11 @@ namespace App\Services;
 use App\Models\Division;
 use App\Models\EnrolmentEvent;
 use App\Models\JudgeScore;
+use App\Models\JudgeScoreDetail;
 use App\Models\MatchPenalty;
 use App\Models\Result;
 use App\Models\RoundRobinMatch;
+use App\Models\ScoreCategory;
 use App\Models\ScoreEvent;
 use Illuminate\Support\Facades\DB;
 
@@ -30,16 +32,97 @@ class ScoringService
             );
 
             if (! $isTiebreaker) {
-                $scores   = $result->judgeScores()->where('is_tiebreaker', false)->get();
-                $method   = $result->enrolmentEvent->competitionEvent->effectiveScoringMethod();
-                $count    = $scores->count();
-                $sum      = $scores->sum('score');
+                $scores = $result->judgeScores()->where('is_tiebreaker', false)->get();
+                $event  = $result->enrolmentEvent->competitionEvent;
+                $method = $event->effectiveScoringMethod();
+
+                $minScore = $event->min_score !== null ? (float) $event->min_score : null;
+                $maxScore = $event->max_score !== null ? (float) $event->max_score : null;
+
+                $values = $scores->pluck('score')->map(function ($s) use ($minScore, $maxScore) {
+                    $v = (float) $s;
+                    if ($minScore !== null) $v = max($v, $minScore);
+                    if ($maxScore !== null) $v = min($v, $maxScore);
+                    return $v;
+                });
+
+                if ($event->high_low_drop && $values->count() >= 4) {
+                    $sorted = $values->sort()->values();
+                    $values = $sorted->slice(1, $sorted->count() - 2)->values();
+                }
+
+                $count    = $values->count();
+                $sum      = $values->sum();
                 $computed = ($method === 'judges_average' && $count > 0) ? round($sum / $count, 3) : $sum;
                 $result->update(['total_score' => $computed]);
 
                 if ($result->division_id) {
                     $this->autoRankDivision(Division::find($result->division_id));
                 }
+            }
+        });
+    }
+
+    /**
+     * Submit per-category scores for one judge. Calculates the weighted total,
+     * stores it in JudgeScore.score, and upserts JudgeScoreDetail records.
+     * High-low drop (if enabled) operates on the per-judge weighted totals.
+     *
+     * @param  array<int, float>  $categoryScores  [category_id => raw_score]
+     */
+    public function submitCategoryJudgeScore(Result $result, int $judgeNumber, array $categoryScores): void
+    {
+        DB::transaction(function () use ($result, $judgeNumber, $categoryScores) {
+            $categories = ScoreCategory::whereIn('id', array_keys($categoryScores))->get()->keyBy('id');
+
+            $event    = $result->enrolmentEvent->competitionEvent;
+            $minScore = $event->min_score !== null ? (float) $event->min_score : null;
+            $maxScore = $event->max_score !== null ? (float) $event->max_score : null;
+
+            $mode          = $event->score_category_mode ?? 'single';
+            $judgeTotal    = 0.0;
+            $clampedScores = [];
+            foreach ($categoryScores as $catId => $rawScore) {
+                $cat   = $categories->get($catId);
+                if (! $cat) continue;
+                $score = (float) $rawScore;
+                if ($minScore !== null) $score = max($score, $minScore);
+                if ($maxScore !== null) $score = min($score, $maxScore);
+                $clampedScores[$catId] = $score;
+                $judgeTotal += $mode === 'weighted'
+                    ? $score * ((float) $cat->weight / 100)
+                    : $score;
+            }
+
+            $judgeScore = JudgeScore::updateOrCreate(
+                ['result_id' => $result->id, 'judge_number' => $judgeNumber, 'is_tiebreaker' => false],
+                ['score' => round($judgeTotal, 3)]
+            );
+
+            foreach ($clampedScores as $catId => $score) {
+                JudgeScoreDetail::updateOrCreate(
+                    ['judge_score_id' => $judgeScore->id, 'score_category_id' => $catId],
+                    ['score' => round($score, 3)]
+                );
+            }
+
+            $scores = $result->judgeScores()->where('is_tiebreaker', false)->get();
+            $method = $event->effectiveScoringMethod();
+
+            $values = $scores->pluck('score')->map(fn ($s) => (float) $s);
+
+            if ($event->high_low_drop && $values->count() >= 4) {
+                $sorted = $values->sort()->values();
+                $values = $sorted->slice(1, $sorted->count() - 2)->values();
+            }
+
+            $count    = $values->count();
+            $sum      = $values->sum();
+            $computed = ($method === 'judges_average' && $count > 0) ? round($sum / $count, 3) : $sum;
+            $result->update(['total_score' => $computed]);
+
+            if ($result->division_id) {
+                $this->autoRankDivision(Division::find($result->division_id));
             }
         });
     }

@@ -23,6 +23,7 @@ class ScoringPanel extends Component
     public ?int $competition_id = null;
 
     public array $judgeScores               = [];
+    public array $categoryScores           = [];
     public array $pointsInput               = [];
     public array $placementInput            = [];
     public array $tiebreakerJudgeInputs     = [];
@@ -90,6 +91,9 @@ class ScoringPanel extends Component
                 ->whereNotNull('total_score')
                 ->pluck('id')
                 ->toArray();
+            if (empty($division->category_config)) {
+                $this->snapshotCategories($division);
+            }
         } else {
             $this->rollcallMode = true;
         }
@@ -202,11 +206,15 @@ class ScoringPanel extends Component
                 $this->completedRollcallDivisions[] = $this->division_id;
             }
             $this->rollcallMode = false;
+            $division = Division::with('competitionEvent')->find($this->division_id);
+            if ($division && empty($division->category_config)) {
+                $this->snapshotCategories($division);
+            }
         } else {
             $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
             RoundRobinMatch::where('division_id', $this->division_id)->delete();
 
-            Division::find($this->division_id)?->update(['placement_override_mode' => false, 'awarded_places' => null, 'status' => 'assigned']);
+            Division::find($this->division_id)?->update(['placement_override_mode' => false, 'awarded_places' => null, 'status' => 'assigned', 'category_config' => null]);
 
             $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
             Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
@@ -225,6 +233,7 @@ class ScoringPanel extends Component
             EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
 
             $this->judgeScores           = [];
+            $this->categoryScores        = [];
             $this->savedResultIds        = [];
             $this->tiebreakerJudgeInputs = [];
             $this->pointsInput           = [];
@@ -317,7 +326,7 @@ class ScoringPanel extends Component
             ->with([
                 'enrolment.competitor',
                 'enrolment.rank',
-                'result.judgeScores',
+                'result.judgeScores.judgeScoreDetails',
             ])
             ->get()->toBase()
             ->map(function (EnrolmentEvent $ee) use ($division, $filter) {
@@ -328,13 +337,40 @@ class ScoringPanel extends Component
                     $scores = [];
                     foreach ($result->judgeScores->where('is_tiebreaker', false) as $js) {
                         $scores[$js->judge_number] = number_format((float) $js->score, 1);
-                    }
-                    if (empty($scores) && $division?->competitionEvent?->default_score !== null) {
-                        $judgeCount = $division->competitionEvent->effectiveJudgeCount();
-                        for ($i = 1; $i <= $judgeCount; $i++) {
-                            $scores[$i] = number_format((float) $division->competitionEvent->default_score, 1);
+
+                        if ($js->judgeScoreDetails->isNotEmpty() && ! isset($this->categoryScores[$result->id][$js->judge_number])) {
+                            foreach ($js->judgeScoreDetails as $detail) {
+                                $this->categoryScores[$result->id][$js->judge_number][$detail->score_category_id] =
+                                    number_format((float) $detail->score, 1);
+                            }
                         }
                     }
+
+                    $eventCategories = $division?->competitionEvent?->scoreCategories;
+                    if ($eventCategories && $eventCategories->isNotEmpty()) {
+                        // Category mode: pre-fill each judge × category with default_score if not yet loaded
+                        $prefill    = $division->competitionEvent->default_score ?? $division->competitionEvent->min_score;
+                        $judgeCount = $division->competitionEvent->effectiveJudgeCount();
+                        if ($prefill !== null) {
+                            for ($i = 1; $i <= $judgeCount; $i++) {
+                                foreach ($eventCategories as $cat) {
+                                    if (! isset($this->categoryScores[$result->id][$i][$cat->id])) {
+                                        $this->categoryScores[$result->id][$i][$cat->id] = number_format((float) $prefill, 1);
+                                    }
+                                }
+                            }
+                        }
+                    } elseif (empty($scores)) {
+                        // Flat mode: pre-fill judge inputs
+                        $prefill = $division?->competitionEvent?->default_score ?? $division?->competitionEvent?->min_score;
+                        if ($prefill !== null) {
+                            $judgeCount = $division->competitionEvent->effectiveJudgeCount();
+                            for ($i = 1; $i <= $judgeCount; $i++) {
+                                $scores[$i] = number_format((float) $prefill, 1);
+                            }
+                        }
+                    }
+
                     $this->judgeScores[$result->id] = $scores;
                 }
 
@@ -436,6 +472,36 @@ class ScoringPanel extends Component
         $div = $this->getSelectedDivision();
         if (! $div) return 3;
         return $div->competitionEvent->effectiveJudgeCount();
+    }
+
+    public function getScoreCategories(): \Illuminate\Support\Collection
+    {
+        $div = $this->getSelectedDivision();
+        if (! $div) return collect();
+
+        $mode = $div->competitionEvent->score_category_mode ?? 'single';
+        if ($mode === 'single') return collect();
+
+        if (! empty($div->category_config)) {
+            return collect($div->category_config)->map(fn ($c) => (object) $c);
+        }
+
+        return $div->competitionEvent->scoreCategories()->get();
+    }
+
+    private function snapshotCategories(Division $division): void
+    {
+        $mode = $division->competitionEvent->score_category_mode ?? 'single';
+        if ($mode === 'single') return;
+        $categories = $division->competitionEvent->scoreCategories()->get();
+        if ($categories->isNotEmpty()) {
+            $division->update(['category_config' => $categories->map(fn ($c) => [
+                'id'         => $c->id,
+                'name'       => $c->name,
+                'weight'     => $c->weight,
+                'sort_order' => $c->sort_order,
+            ])->values()->all()]);
+        }
     }
 
     public function getTargetScore(): ?int
@@ -602,10 +668,23 @@ class ScoringPanel extends Component
         $result = $this->findResult($resultId);
         if (! $result) return;
 
-        $service = app(ScoringService::class);
-        foreach ($this->judgeScores[$resultId] ?? [] as $judgeNum => $score) {
-            if ($score !== null && $score !== '') {
-                $service->submitJudgeScore($result, (int) $judgeNum, (float) $score);
+        $service       = app(ScoringService::class);
+        $event         = $result->enrolmentEvent->competitionEvent;
+        $mode          = $event->score_category_mode ?? 'single';
+        $hasCategories = $mode !== 'single' && $event->scoreCategories()->exists();
+
+        if ($hasCategories) {
+            foreach ($this->categoryScores[$resultId] ?? [] as $judgeNum => $catScores) {
+                $filled = array_filter($catScores, fn ($v) => $v !== null && $v !== '');
+                if (! empty($filled)) {
+                    $service->submitCategoryJudgeScore($result, (int) $judgeNum, array_map('floatval', $filled));
+                }
+            }
+        } else {
+            foreach ($this->judgeScores[$resultId] ?? [] as $judgeNum => $score) {
+                if ($score !== null && $score !== '') {
+                    $service->submitJudgeScore($result, (int) $judgeNum, (float) $score);
+                }
             }
         }
 
@@ -774,7 +853,7 @@ class ScoringPanel extends Component
     {
         if (! $this->division_id) return;
 
-        Division::find($this->division_id)?->update(['placement_override_mode' => false]);
+        Division::find($this->division_id)?->update(['placement_override_mode' => false, 'category_config' => null]);
 
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
@@ -790,6 +869,7 @@ class ScoringPanel extends Component
         });
 
         $this->judgeScores           = [];
+        $this->categoryScores        = [];
         $this->tiebreakerJudgeInputs = [];
         $this->placementOverrideMode = false;
         Notification::make()->title('Scores cleared.')->success()->send();
@@ -1618,6 +1698,7 @@ class ScoringPanel extends Component
             'status'                  => 'assigned',
             'scoring_locked_by'       => null,
             'scoring_locked_at'       => null,
+            'category_config'         => null,
         ]);
 
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');

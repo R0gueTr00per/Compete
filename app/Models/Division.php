@@ -36,6 +36,7 @@ class Division extends Model
         'max_competitors',
         'scoring_locked_by',
         'scoring_locked_at',
+        'category_config',
     ];
 
     protected $casts = [
@@ -43,6 +44,7 @@ class Division extends Model
         'completed_at'            => 'datetime',
         'scoring_locked_at'       => 'datetime',
         'awarded_places'          => 'integer',
+        'category_config'         => 'array',
     ];
 
     public function getActivitylogOptions(): LogOptions

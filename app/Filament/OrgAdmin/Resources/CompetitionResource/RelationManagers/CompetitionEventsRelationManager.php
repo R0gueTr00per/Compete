@@ -3,8 +3,10 @@
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
 use App\Models\CompetitionEvent;
+
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
@@ -122,7 +124,8 @@ class CompetitionEventsRelationManager extends RelationManager
                         })
                         ->default('once_off')
                         ->required()
-                        ->live(),
+                        ->live()
+                        ->afterStateUpdated(fn (Set $set) => $set('scoring_method', null)),
 
                     Select::make('scoring_method')
                         ->label('Scoring method')
@@ -145,15 +148,133 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->numeric()
                         ->default(0)
                         ->nullable()
+                        ->live()
                         ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average'])),
+
+                    Toggle::make('high_low_drop')
+                        ->label('High-low drop')
+                        ->helperText('Drop the highest and lowest judge scores before calculating. Requires at least 4 judges.')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']))
+                        ->rules([
+                            fn (Get $get) => function (string $attribute, mixed $value, \Closure $fail) use ($get) {
+                                if ($value && (int) $get('judge_count') < 4) {
+                                    $fail('High-low drop requires at least 4 judges.');
+                                }
+                            },
+                        ]),
+
+                    TextInput::make('min_score')
+                        ->label('Min score')
+                        ->numeric()
+                        ->step(0.1)
+                        ->minValue(0)
+                        ->nullable()
+                        ->formatStateUsing(fn ($state) => $state !== null ? number_format((float) $state, 1) : null)
+                        ->helperText('Lowest score a judge may enter.')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average'])),
+
+                    TextInput::make('max_score')
+                        ->label('Max score')
+                        ->numeric()
+                        ->step(0.1)
+                        ->minValue(0)
+                        ->nullable()
+                        ->formatStateUsing(fn ($state) => $state !== null ? number_format((float) $state, 1) : null)
+                        ->helperText('Highest score a judge may enter.')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']))
+                        ->rules([
+                            fn (Get $get) => function (string $attr, mixed $value, \Closure $fail) use ($get) {
+                                if ($value === null || $value === '') return;
+                                $max = (float) $value;
+                                $min = $get('min_score') !== null && $get('min_score') !== '' ? (float) $get('min_score') : null;
+                                if ($min !== null && $max <= $min) $fail('Max score must be greater than min score.');
+                            },
+                        ]),
 
                     TextInput::make('default_score')
                         ->label('Default judge score')
                         ->numeric()
                         ->step(0.1)
                         ->nullable()
-                        ->helperText('Pre-fills judge score inputs on the scoring screen.')
-                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average'])),
+                        ->formatStateUsing(fn ($state) => $state !== null ? number_format((float) $state, 1) : null)
+                        ->helperText('Pre-fills judge score inputs on the scoring screen. Ignored when score categories are defined.')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']))
+                        ->rules([
+                            fn (Get $get) => function (string $attr, mixed $value, \Closure $fail) use ($get) {
+                                if ($value === null || $value === '') return;
+                                $v   = (float) $value;
+                                $min = $get('min_score') !== null && $get('min_score') !== '' ? (float) $get('min_score') : null;
+                                $max = $get('max_score') !== null && $get('max_score') !== '' ? (float) $get('max_score') : null;
+                                if ($min !== null && $v < $min) $fail("Default score must be ≥ min score ({$min}).");
+                                if ($max !== null && $v > $max) $fail("Default score must be ≤ max score ({$max}).");
+                            },
+                        ]),
+
+                    Radio::make('score_category_mode')
+                        ->label('Judge score entry')
+                        ->options([
+                            'single'   => 'Single score — one score per judge',
+                            'sum'      => 'Categories (sum) — categories scored, judge total = sum',
+                            'weighted' => 'Categories (weighted) — each category × its weight %',
+                        ])
+                        ->default('single')
+                        ->live()
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']))
+                        ->columnSpanFull(),
+
+                    Repeater::make('scoreCategories')
+                        ->label('Score categories')
+                        ->helperText(fn (Get $get) => ($get('score_category_mode') ?? 'single') === 'weighted'
+                            ? 'Weights must total 100%.'
+                            : 'Each category score is summed to produce the judge total.')
+                        ->relationship()
+                        ->orderColumn('sort_order')
+                        ->schema([
+                            TextInput::make('name')
+                                ->label('Name')
+                                ->required()
+                                ->maxLength(100),
+                            TextInput::make('weight')
+                                ->label('Weight %')
+                                ->numeric()
+                                ->step(0.01)
+                                ->minValue(0.01)
+                                ->maxValue(100)
+                                ->required(fn (Get $get) => ($get('../../score_category_mode') ?? 'single') === 'weighted')
+                                ->live(onBlur: true)
+                                ->suffix('%')
+                                ->hidden(fn (Get $get) => ($get('../../score_category_mode') ?? 'single') !== 'weighted')
+                                ->default(function (Get $get) {
+                                    if (($get('../../score_category_mode') ?? 'single') !== 'weighted') return null;
+                                    $used = collect($get('../../scoreCategories') ?? [])
+                                        ->sum(fn ($item) => isset($item['weight']) && $item['weight'] !== '' ? (float) $item['weight'] : 0);
+                                    $remaining = round(100 - $used, 2);
+                                    return $remaining > 0 ? $remaining : null;
+                                }),
+                        ])
+                        ->columns(3)
+                        ->addActionLabel('Add category')
+                        ->reorderable()
+                        ->rules([
+                            fn (Get $get) => function (string $attribute, mixed $value, \Closure $fail) use ($get) {
+                                if (empty($value)) return;
+                                if (($get('score_category_mode') ?? 'single') !== 'weighted') return;
+                                $items = collect($value);
+                                if ($items->contains(fn ($item) => ! isset($item['weight']) || (string) $item['weight'] === '')) return;
+                                $total = $items->sum('weight');
+                                if (abs((float) $total - 100) > 0.01) {
+                                    $fail("Category weights must total exactly 100% (currently {$total}%).");
+                                }
+                            },
+                        ])
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']) || ($get('score_category_mode') ?? 'single') === 'single')
+                        ->columnSpanFull(),
+
+                    Placeholder::make('weight_total')
+                        ->hiddenLabel()
+                        ->content(fn (Get $get): string => 'Weight total: ' . number_format(collect($get('scoreCategories') ?? [])->sum('weight'), 2) . '%')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']) || empty($get('scoreCategories')) || ($get('score_category_mode') ?? 'single') !== 'weighted')
+                        ->columnSpanFull(),
 
                     TextInput::make('target_score')
                         ->label('Target score (first-to-N)')

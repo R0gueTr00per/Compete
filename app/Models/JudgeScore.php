@@ -30,4 +30,9 @@ class JudgeScore extends Model
     {
         return $this->belongsTo(Result::class);
     }
+
+    public function judgeScoreDetails(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(JudgeScoreDetail::class);
+    }
 }

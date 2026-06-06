@@ -28,6 +28,8 @@ class CompetitionEvent extends Model
         'judge_count',
         'target_score',
         'default_score',
+        'min_score',
+        'max_score',
         'division_filter',
         'requires_partner',
         'rollcall_required',
@@ -42,6 +44,8 @@ class CompetitionEvent extends Model
         'overtime_rounds',
         'increment_buttons',
         'penalty_config',
+        'high_low_drop',
+        'score_category_mode',
     ];
 
     protected function casts(): array
@@ -52,6 +56,9 @@ class CompetitionEvent extends Model
             'manual_pairing'                => 'boolean',
             'bracket_prefer_different_dojo' => 'boolean',
             'bracket_avoid_repeat_matchups' => 'boolean',
+            'high_low_drop'                 => 'boolean',
+            'min_score'                     => 'decimal:3',
+            'max_score'                     => 'decimal:3',
             'awarded_places_2'              => 'integer',
             'awarded_places_3'              => 'integer',
             'awarded_places_4plus'          => 'integer',
@@ -105,6 +112,11 @@ class CompetitionEvent extends Model
     public function enrolmentEvents(): HasMany
     {
         return $this->hasMany(EnrolmentEvent::class);
+    }
+
+    public function scoreCategories(): HasMany
+    {
+        return $this->hasMany(ScoreCategory::class)->orderBy('sort_order');
     }
 
     public function supportsPenalties(): bool

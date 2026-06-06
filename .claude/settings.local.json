@@ -392,7 +392,15 @@
       "Bash(grep -n 'deselectDivision\\\\|selectDivision\\\\|$wire\\\\.' 'x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\filament\\\\admin\\\\pages\\\\scoring.blade.php')",
       "PowerShell(\\(Get-Content \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\filament\\\\admin\\\\pages\\\\scoring.blade.php\" | Measure-Object -Line\\).Lines)",
       "PowerShell(grep -c '�?' \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\livewire\\\\org-admin\\\\scoring-panel.blade.php\")",
-      "Bash(php -l \"app/Livewire/OrgAdmin/ScoringPanel.php\")"
+      "Bash(php -l \"app/Livewire/OrgAdmin/ScoringPanel.php\")",
+      "Bash(Get-ChildItem \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\\" | Sort-Object Name | Select-Object -Last 20 | Select-Object -ExpandProperty Name)",
+      "Bash(Get-Content \"x:\\\\Repos\\\\Compete\\\\storage\\\\logs\\\\laravel.log\" -Tail 60)",
+      "Bash(php -r \"require 'x:/Repos/Compete/vendor/autoload.php'; echo 'autoload ok';\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Livewire/OrgAdmin/ScoringPanel.php\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Services/ScoringService.php\")",
+      "Bash(php -l \"x:/Repos/Compete/app/Models/Division.php\")",
+      "Bash(php -l \"x:/Repos/Compete/resources/views/livewire/org-admin/scoring-panel.blade.php\")",
+      "Bash(grep -rn \"Admin\\\\\\\\\\\\\\\\Actions\\\\\\\\\\\\\\\\HistoryTableAction\\\\|Admin/Actions/History\" app/ --include=\"*.php\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",
