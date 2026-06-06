@@ -421,8 +421,8 @@ class CompetitionEventsRelationManager extends RelationManager
                                     ->columnSpanFull(),
 
                                 Toggle::make('bracket_prefer_different_dojo')
-                                    ->label('Prefer different dojo/club')
-                                    ->helperText('Avoids same-dojo/club pairings in round 1.')
+                                    ->label(fn () => 'Prefer different ' . strtolower(tenant_group_name()))
+                                    ->helperText(fn () => 'Avoids same-' . strtolower(tenant_group_name()) . ' pairings in round 1.')
                                     ->disabled(fn (Get $get) => (bool) $get('manual_pairing')),
 
                                 Toggle::make('bracket_avoid_repeat_matchups')

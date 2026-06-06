@@ -323,7 +323,7 @@ class EnrolPage extends Page implements HasForms
                         ->extraFieldWrapperAttributes(['style' => 'gap:4px']),
 
                     Select::make('dojo_name')
-                        ->label(fn () => app('tenant')?->name . ' Dojo')
+                        ->label(fn () => app('tenant')?->name . ' ' . tenant_group_name())
                         ->options(fn () => \App\Models\Dojo::active()->where('organisation_id', app('tenant')?->id)->orderBy('name')->pluck('name', 'name'))
                         ->searchable()
                         ->visible(fn () => $this->dojo_type === 'lfp')

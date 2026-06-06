@@ -51,6 +51,7 @@ class ScoringPanel extends Component
     public string $penaltyModalType           = '';
     public array  $penaltyModalReasons        = [];
     public string $penaltyModalSelectedReason = '';
+    public string $penaltyModalFreeText       = '';
 
     public function mount(int $divisionId, ?int $competitionId = null): void
     {
@@ -70,7 +71,7 @@ class ScoringPanel extends Component
             $this->rollcallMode   = false;
             $eeIds                = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
             $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
-                ->whereNotNull('total_score')
+                ->where(fn ($q) => $q->whereNotNull('total_score')->orWhere('disqualified', true)->orWhere('forfeited', true))
                 ->pluck('id')
                 ->toArray();
             return;
@@ -91,7 +92,7 @@ class ScoringPanel extends Component
                 $this->completedRollcallDivisions[] = $this->division_id;
             }
             $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
-                ->whereNotNull('total_score')
+                ->where(fn ($q) => $q->whereNotNull('total_score')->orWhere('disqualified', true)->orWhere('forfeited', true))
                 ->pluck('id')
                 ->toArray();
             if (empty($division->category_config)) {
@@ -1084,10 +1085,11 @@ class ScoringPanel extends Component
         $this->penaltyModalMatchId        = $matchId;
         $this->penaltyModalType           = $type;
         $this->penaltyModalSelectedReason = '';
+        $this->penaltyModalFreeText       = '';
 
         if (in_array($type, ['warn', 'dq', 'forfeit'])) {
             $reasons = $div->competitionEvent->penaltyReasonsFor($type);
-            if (empty($reasons)) {
+            if (empty($reasons) && $type === 'warn') {
                 $this->applyPenalty($resultId, $type, null, $matchId);
                 return;
             }
@@ -1106,12 +1108,13 @@ class ScoringPanel extends Component
         $this->applyPenalty(
             $this->penaltyModalResultId,
             $this->penaltyModalType,
-            $reason ?? ($this->penaltyModalSelectedReason ?: null),
+            $reason ?? ($this->penaltyModalFreeText ?: null),
             $this->penaltyModalMatchId,
         );
 
         $this->penaltyModalOpen           = false;
         $this->penaltyModalSelectedReason = '';
+        $this->penaltyModalFreeText       = '';
     }
 
     public function undoPenalty(int $resultId, ?int $matchId = null): void
@@ -1733,7 +1736,7 @@ class ScoringPanel extends Component
 
         $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
         $this->savedResultIds = Result::whereIn('enrolment_event_id', $eeIds)
-            ->whereNotNull('total_score')
+            ->where(fn ($q) => $q->whereNotNull('total_score')->orWhere('disqualified', true)->orWhere('forfeited', true))
             ->pluck('id')
             ->toArray();
 

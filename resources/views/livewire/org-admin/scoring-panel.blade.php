@@ -1076,14 +1076,6 @@
                                                     @endif
 
                                                     <div class="flex flex-col gap-2 pt-1">
-                                                        @if (! $dqViaPenalties)
-                                                            <x-filament::button
-                                                                color="{{ $result->disqualified ? 'gray' : 'danger' }}"
-                                                                wire:click="toggleDisqualify({{ $result->id }})"
-                                                                :disabled="$inTiebreakerFlow">
-                                                                {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
-                                                            </x-filament::button>
-                                                        @endif
                                                         @if ($isSaved)
                                                             <x-filament::button color="gray" class="flex-1"
                                                                 wire:click="undoJudgeScores({{ $result->id }})"
@@ -1396,7 +1388,7 @@
                                                                         </button>
                                                                     @endif
                                                                 @endif
-                                                                @if (! $dqViaPenalties)
+                                                                @if (! $dqViaPenalties && ! in_array($method, ['judges_total', 'judges_average']))
                                                                     <x-filament::button size="xs"
                                                                         color="{{ $result->disqualified ? 'gray' : 'danger' }}"
                                                                         wire:click="toggleDisqualify({{ $result->id }})"
@@ -2065,8 +2057,23 @@
                     {{ $reason }}
                 </button>
             @endforeach
+            @if (in_array($penaltyModalType, ['dq', 'forfeit']))
+                <div class="{{ $penaltyModalReasons ? 'border-t border-gray-100 dark:border-gray-700 pt-3 mt-1' : '' }}">
+                    <input type="text"
+                        wire:model="penaltyModalFreeText"
+                        placeholder="Enter reason (optional)..."
+                        class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-2 px-3 focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                </div>
+            @endif
         </div>
         <x-slot name="footerActions">
+            @if (in_array($penaltyModalType, ['dq', 'forfeit']))
+                <x-filament::button
+                    wire:click="confirmPenalty"
+                    x-on:click="$dispatch('close-modal', { id: 'penalty-reason-modal' })">
+                    Apply
+                </x-filament::button>
+            @endif
             <x-filament::button color="gray"
                 x-on:click="$dispatch('close-modal', { id: 'penalty-reason-modal' })">
                 Cancel

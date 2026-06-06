@@ -27,6 +27,7 @@ class Organisation extends Model
         'currency',
         'platform_fee',
         'cancellation_days_before',
+        'group_name',
         'created_by_user_id',
     ];
 

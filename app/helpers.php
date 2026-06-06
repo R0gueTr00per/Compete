@@ -92,6 +92,22 @@ function tenant_date_format(): string
 }
 
 /**
+ * Return the singular group name for the current tenant (e.g. 'Dojo', 'Club', 'Team').
+ */
+function tenant_group_name(): string
+{
+    return app('tenant')?->group_name ?? 'Dojo';
+}
+
+/**
+ * Return the plural group name for the current tenant (e.g. 'Dojos', 'Clubs', 'Teams').
+ */
+function tenant_group_name_plural(): string
+{
+    return tenant_group_name() . 's';
+}
+
+/**
  * Return a Carbon instance with the tenant's timezone applied.
  */
 function tenant_now(): Carbon

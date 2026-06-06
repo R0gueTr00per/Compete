@@ -26,9 +26,21 @@ class DojoResource extends Resource
     protected static ?string $navigationIcon  = 'heroicon-o-building-office';
     protected static ?string $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 3;
-    protected static ?string $navigationLabel  = 'Dojos/Clubs';
-    protected static ?string $modelLabel       = 'Dojo/Club';
-    protected static ?string $pluralModelLabel = 'Dojos/Clubs';
+
+    public static function getNavigationLabel(): string
+    {
+        return tenant_group_name_plural();
+    }
+
+    public static function getModelLabel(): string
+    {
+        return tenant_group_name();
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return tenant_group_name_plural();
+    }
 
     public static function canAccess(): bool
     {

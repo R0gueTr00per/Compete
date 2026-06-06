@@ -9,9 +9,17 @@ use Filament\Pages\Page;
 
 class MyDojosPage extends Page
 {
-    protected static ?string $title           = 'My Dojos/Clubs';
     protected static ?string $navigationIcon  = 'heroicon-o-building-storefront';
-    protected static ?string $navigationLabel = 'My Dojos/Clubs';
+
+    public function getTitle(): string
+    {
+        return 'My ' . tenant_group_name_plural();
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return 'My ' . tenant_group_name_plural();
+    }
     protected static string  $view            = 'filament.portal.pages.my-dojos-page';
     protected static ?string $slug            = 'my-dojos';
     protected static ?int    $navigationSort  = 10;

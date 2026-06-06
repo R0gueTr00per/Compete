@@ -31,13 +31,13 @@
   @if ($competition->location_name) | {{ $competition->location_name }} @endif
 </p>
 
-<h2>Medal Tally — By Dojo</h2>
+<h2>Medal Tally — By {{ tenant_group_name() }}</h2>
 
 <table>
   <thead>
     <tr>
       <th>#</th>
-      <th>Dojo</th>
+      <th>{{ tenant_group_name() }}</th>
       <th class="center">Gold</th>
       <th class="center">Silver</th>
       <th class="center">Bronze</th>

@@ -182,7 +182,7 @@
         </div>
     @empty
         <x-filament::section>
-            <p class="text-sm text-center text-gray-500 py-4">No active competitions with registrations from your dojo{{ $dojos->count() > 1 ? 's' : '' }}.</p>
+            <p class="text-sm text-center text-gray-500 py-4">No active competitions with registrations from your {{ strtolower($dojos->count() > 1 ? tenant_group_name_plural() : tenant_group_name()) }}.</p>
         </x-filament::section>
     @endforelse
 </x-filament-panels::page>

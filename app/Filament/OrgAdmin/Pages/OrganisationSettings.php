@@ -2,6 +2,7 @@
 
 namespace App\Filament\OrgAdmin\Pages;
 
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -10,6 +11,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 
@@ -34,6 +36,9 @@ class OrganisationSettings extends Page implements HasForms
     public function mount(): void
     {
         $tenant = app('tenant');
+        $groupName = $tenant?->group_name;
+        $groupPreset = in_array($groupName, ['Dojo', 'Club', 'Team', null]) ? ($groupName ?? 'Dojo') : 'Other';
+
         $this->form->fill([
             'ai_context'               => $tenant?->ai_context,
             'auto_email_insights'      => $tenant?->auto_email_insights ?? true,
@@ -43,6 +48,8 @@ class OrganisationSettings extends Page implements HasForms
             'date_format'              => $tenant?->date_format,
             'currency'                 => $tenant?->currency,
             'cancellation_days_before' => $tenant?->cancellation_days_before ?? 0,
+            'group_name_preset'        => $groupPreset,
+            'group_name_custom'        => $groupPreset === 'Other' ? $groupName : null,
         ]);
     }
 
@@ -111,6 +118,28 @@ class OrganisationSettings extends Page implements HasForms
                             ->maxLength(500),
                     ]),
 
+                Section::make('Groups')
+                    ->description('Customise what groups are called in your organisation.')
+                    ->schema([
+                        Radio::make('group_name_preset')
+                            ->label('Group name')
+                            ->options([
+                                'Dojo'  => 'Dojo',
+                                'Club'  => 'Club',
+                                'Team'  => 'Team',
+                                'Other' => 'Other',
+                            ])
+                            ->default('Dojo')
+                            ->live(),
+                        TextInput::make('group_name_custom')
+                            ->label('Custom group name')
+                            ->placeholder('e.g. Academy, Studio, Gym')
+                            ->helperText('Singular form — plural will be this name with "s" appended.')
+                            ->maxLength(50)
+                            ->required()
+                            ->visible(fn (Get $get) => $get('group_name_preset') === 'Other'),
+                    ]),
+
                 Section::make('Regional')
                     ->description('Set your timezone, date format, and currency for consistent display across the platform.')
                     ->schema([
@@ -151,6 +180,11 @@ class OrganisationSettings extends Page implements HasForms
 
         $data = $this->form->getState();
 
+        $groupPreset = $data['group_name_preset'] ?? 'Dojo';
+        $groupName   = $groupPreset === 'Other'
+            ? ($data['group_name_custom'] ?? 'Dojo')
+            : $groupPreset;
+
         $tenant->update([
             'ai_context'               => $data['ai_context'] ?? null,
             'auto_email_insights'      => $data['auto_email_insights'] ?? true,
@@ -163,12 +197,15 @@ class OrganisationSettings extends Page implements HasForms
             'contact_phone'            => $data['contact_phone'] ?? null,
             'contact_email'            => $data['contact_email'] ?? null,
             'website'                  => $data['website'] ?? null,
+            'group_name'               => $groupName,
         ]);
 
         Notification::make()
             ->success()
             ->title('Preferences saved')
             ->send();
+
+        $this->redirect(static::getUrl());
     }
 
     public function getTitle(): string

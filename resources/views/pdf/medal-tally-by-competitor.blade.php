@@ -40,7 +40,7 @@
     <tr>
       <th>#</th>
       <th>Competitor</th>
-      <th>Dojo</th>
+      <th>{{ tenant_group_name() }}</th>
       <th class="center">Gold</th>
       <th class="center">Silver</th>
       <th class="center">Bronze</th>

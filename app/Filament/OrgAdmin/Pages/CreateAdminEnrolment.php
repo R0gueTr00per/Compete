@@ -227,13 +227,13 @@ class CreateAdminEnrolment extends Page implements HasForms
                 ]),
 
             Section::make('Competition entry details')
-                ->description('Rank, weight, and dojo for this competition.')
+                ->description('Rank, weight, and ' . strtolower(tenant_group_name()) . ' for this competition.')
                 ->visible(fn () => $this->competition_id && ($this->competitor_profile_id || ($this->create_new_user && $this->newCompetitorReady())))
                 ->disabled(fn () => $this->details_confirmed)
                 ->columns(2)
                 ->schema([
                     Select::make('dojo_name')
-                        ->label('Dojo')
+                        ->label(tenant_group_name())
                         ->options(fn () => Dojo::active()->where('organisation_id', app('tenant')?->id)->orderBy('name')->pluck('name', 'name'))
                         ->searchable()
                         ->required(),
@@ -475,7 +475,7 @@ class CreateAdminEnrolment extends Page implements HasForms
         }
 
         if (! $this->dojo_type || ! $this->rank_id) {
-            Notification::make()->title('Please fill in the competitor\'s entry details (dojo and rank).')->warning()->send();
+            Notification::make()->title('Please fill in the competitor\'s entry details (' . strtolower(tenant_group_name()) . ' and rank).')->warning()->send();
             return;
         }
 

@@ -15,7 +15,7 @@
         @if ($this->competition_id)
             {{-- View switcher --}}
             <div class="mt-3 flex gap-1">
-                @foreach (['events' => 'Results', 'by-competitor' => 'Competitor Rankings', 'by-dojo' => 'Dojo Rankings'] as $view => $label)
+                @foreach (['events' => 'Results', 'by-competitor' => 'Competitor Rankings', 'by-dojo' => tenant_group_name() . ' Rankings'] as $view => $label)
                     <button
                         wire:click="$set('activeView', '{{ $view }}')"
                         class="px-3 py-1 rounded-full text-xs font-medium transition-colors
@@ -62,7 +62,7 @@
                     </select>
                     <select wire:model.live="selectedDojo"
                         style="width: 13rem" class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1 px-2 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
-                        <option value="">— All Dojos/Clubs —</option>
+                        <option value="">— All {{ tenant_group_name_plural() }} —</option>
                         @foreach ($this->getDojoOptions() as $dojo)
                             <option value="{{ $dojo }}">{{ $dojo }}</option>
                         @endforeach
@@ -187,7 +187,7 @@
                         <tr class="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-12">#</th>
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Competitor</th>
-                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Dojo</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{{ tenant_group_name() }}</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥇</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥈</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">🥉</th>
@@ -237,7 +237,7 @@
                     <thead>
                         <tr class="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 w-12">#</th>
-                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Dojo</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">{{ tenant_group_name() }}</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥇</span></th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥈</span></th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400"><span class="text-xl">🥉</span></th>
