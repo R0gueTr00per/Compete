@@ -71,7 +71,9 @@ class EnrolmentResource extends Resource
     {
         return $table
             ->defaultPaginationPageOption(25)
-            ->modifyQueryUsing(fn ($query) => $query->with(['competitor', 'rank', 'competition']))
+            ->modifyQueryUsing(fn ($query) => $query
+                ->with(['competitor', 'rank', 'competition'])
+                ->withCount(['enrolmentEvents as removed_events_count' => fn ($q) => $q->where('removed', true)]))
             ->header(view('filament.admin.partials.enrolment-competition-header'))
             ->columns([
                 TextColumn::make('competitor_name')
@@ -346,8 +348,7 @@ class EnrolmentResource extends Resource
                                 Notification::make()->title('Competitor re-added to event.')->success()->send();
                             }
                         })
-                        ->visible(fn (Enrolment $record) => $record->enrolmentEvents()
-                            ->where('removed', true)->exists()),
+                        ->visible(fn (Enrolment $record) => $record->removed_events_count > 0),
 
                     Action::make('toggleOfficialDiscount')
                         ->label(fn (Enrolment $record) => $record->is_official_discount

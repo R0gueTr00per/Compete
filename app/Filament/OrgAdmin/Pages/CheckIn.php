@@ -7,6 +7,7 @@ use App\Models\Enrolment;
 use App\Services\CheckInService;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 
 class CheckIn extends Page
@@ -76,17 +77,13 @@ class CheckIn extends Page
         $this->code = strtoupper(trim($this->code ?? '')) ?: null;
 
         if ($this->code) {
-            if (! $this->competition_id) {
-                $enrolment = Enrolment::where('checkin_code', $this->code)->first();
-                if ($enrolment) {
-                    $this->competition_id = $enrolment->competition_id;
-                }
+            $enrolment = Enrolment::where('checkin_code', $this->code)->first();
+
+            if (! $this->competition_id && $enrolment) {
+                $this->competition_id = $enrolment->competition_id;
             }
 
-            if (Enrolment::where('checkin_code', $this->code)
-                ->where('competition_id', $this->competition_id)
-                ->exists()
-            ) {
+            if ($enrolment && $enrolment->competition_id === $this->competition_id) {
                 $this->dispatch('checkin-code-matched');
             }
         }
@@ -106,6 +103,7 @@ class CheckIn extends Page
             ->toArray();
     }
 
+    #[Computed]
     public function getEnrolments()
     {
         if (! $this->competition_id) {

@@ -57,7 +57,7 @@ class ScoringService
                 $result->update(['total_score' => $computed]);
 
                 if ($result->division_id) {
-                    $this->autoRankDivision(Division::find($result->division_id));
+                    $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
                 }
             }
         });
@@ -122,7 +122,7 @@ class ScoringService
             $result->update(['total_score' => $computed]);
 
             if ($result->division_id) {
-                $this->autoRankDivision(Division::find($result->division_id));
+                $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
             }
         });
     }
@@ -133,7 +133,7 @@ class ScoringService
             $result->update(['win_loss' => $winLoss]);
 
             if ($result->division_id) {
-                $this->autoRankDivision(Division::find($result->division_id));
+                $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
             }
         });
     }
@@ -146,7 +146,7 @@ class ScoringService
             $result->update(['total_score' => $total]);
 
             if ($result->division_id) {
-                $this->autoRankDivision(Division::find($result->division_id));
+                $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
             }
         });
     }
@@ -163,7 +163,7 @@ class ScoringService
             $result->update(['total_score' => $total]);
 
             if ($result->division_id) {
-                $this->autoRankDivision(Division::find($result->division_id));
+                $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
             }
         });
     }
@@ -175,7 +175,7 @@ class ScoringService
             $result->update(['total_score' => $points]);
 
             if ($result->division_id) {
-                $this->autoRankDivision(Division::find($result->division_id));
+                $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
             }
         });
     }
@@ -243,12 +243,26 @@ class ScoringService
             default                => $event->awarded_places_4plus ?? 3,
         };
 
-        foreach ($updates as $update) {
-            Result::where('id', $update['id'])
-                ->update([
-                    'placement'  => $update['placement'] <= $cap ? $update['placement'] : null,
-                    'updated_at' => $update['updated_at'],
-                ]);
+        if (! empty($updates)) {
+            $whens    = [];
+            $bindings = [];
+
+            foreach ($updates as $u) {
+                $whens[]    = 'WHEN ? THEN ?';
+                $bindings[] = $u['id'];
+                $bindings[] = $u['placement'] <= $cap ? $u['placement'] : null;
+            }
+
+            $ids          = array_column($updates, 'id');
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $case         = 'CASE id ' . implode(' ', $whens) . ' END';
+            $bindings[]   = $now;
+            array_push($bindings, ...$ids);
+
+            DB::update(
+                "UPDATE results SET placement = {$case}, updated_at = ? WHERE id IN ({$placeholders})",
+                $bindings,
+            );
         }
     }
 
@@ -258,7 +272,7 @@ class ScoringService
             $result->update(['tiebreaker_score' => $score]);
 
             if ($result->division_id) {
-                $this->autoRankDivision(Division::find($result->division_id));
+                $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
             }
         });
     }
@@ -270,7 +284,7 @@ class ScoringService
             $result->update(['tiebreaker_score' => null]);
 
             if ($result->division_id) {
-                $this->autoRankDivision(Division::find($result->division_id));
+                $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
             }
         });
     }
@@ -285,7 +299,7 @@ class ScoringService
         $result->forceFill(['placement_overridden' => false])->save();
 
         if ($result->division_id) {
-            $this->autoRankDivision(Division::find($result->division_id));
+            $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
         }
     }
 
@@ -294,7 +308,7 @@ class ScoringService
         $result->forceFill(['disqualified' => ! $result->disqualified, 'placement' => null])->save();
 
         if ($result->division_id) {
-            $this->autoRankDivision(Division::find($result->division_id));
+            $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
         }
     }
 
@@ -332,7 +346,7 @@ class ScoringService
                     if (! $result->forfeited) {
                         $result->forceFill(['forfeited' => true, 'placement' => null])->save();
                         if ($result->division_id) {
-                            $this->autoRankDivision(Division::find($result->division_id));
+                            $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
                         }
                     }
                     $triggeredDq = true;
@@ -423,7 +437,7 @@ class ScoringService
                     if ($result->disqualified) {
                         $result->forceFill(['disqualified' => false, 'placement' => null])->save();
                         if ($result->division_id) {
-                            $this->autoRankDivision(Division::find($result->division_id));
+                            $this->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
                         }
                         $reversedDq = true;
                     }

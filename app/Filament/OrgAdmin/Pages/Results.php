@@ -8,6 +8,7 @@ use App\Models\Enrolment;
 use App\Models\Result;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 
 class Results extends Page
@@ -64,6 +65,7 @@ class Results extends Page
         $this->search        = null;
     }
 
+    #[Computed]
     public function getMedalTallyByCompetitor(): \Illuminate\Support\Collection
     {
         if (! $this->competition_id) {
@@ -100,6 +102,7 @@ class Results extends Page
         return $this->assignRanks($tally);
     }
 
+    #[Computed]
     public function getMedalTallyByDojo(): \Illuminate\Support\Collection
     {
         if (! $this->competition_id) {
@@ -149,6 +152,7 @@ class Results extends Page
         });
     }
 
+    #[Computed]
     public function getCompetitions(): array
     {
         return Competition::whereNotIn('status', ['planning'])
@@ -158,6 +162,7 @@ class Results extends Page
             ->toArray();
     }
 
+    #[Computed]
     public function getEventOptions(): array
     {
         if (! $this->competition_id) {
@@ -171,6 +176,7 @@ class Results extends Page
             ->toArray();
     }
 
+    #[Computed]
     public function getDojoOptions(): array
     {
         if (! $this->competition_id) {
@@ -178,6 +184,7 @@ class Results extends Page
         }
 
         return Enrolment::where('competition_id', $this->competition_id)
+            ->distinct()
             ->get(['dojo_type', 'dojo_name', 'guest_style'])
             ->map(fn ($e) => $e->dojo_type === 'guest' ? $e->guest_style : $e->dojo_name)
             ->filter()
@@ -187,6 +194,7 @@ class Results extends Page
             ->toArray();
     }
 
+    #[Computed]
     public function getResultsData(): \Illuminate\Support\Collection
     {
         if (! $this->competition_id) {

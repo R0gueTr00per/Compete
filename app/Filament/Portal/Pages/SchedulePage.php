@@ -7,6 +7,7 @@ use App\Models\Division;
 use App\Models\EnrolmentEvent;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 
 class SchedulePage extends Page
@@ -38,6 +39,7 @@ class SchedulePage extends Page
         return $comp ? $comp->name . ' — Schedule' : 'Schedule';
     }
 
+    #[Computed]
     public function getCompetition(): ?Competition
     {
         return $this->competition_id ? Competition::find($this->competition_id) : null;

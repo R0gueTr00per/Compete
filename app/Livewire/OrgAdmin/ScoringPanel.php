@@ -293,6 +293,7 @@ class ScoringPanel extends Component
         Notification::make()->title('Competitor added.')->success()->send();
     }
 
+    #[Computed]
     public function getRollcallRows(): \Illuminate\Support\Collection
     {
         if (! $this->division_id) return collect();
@@ -798,7 +799,7 @@ class ScoringPanel extends Component
         $result->save();
 
         // Re-rank remaining scored competitors
-        $service->autoRankDivision(Division::find($result->division_id));
+        $service->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
 
         // Clear Livewire input state for this result
         unset($this->judgeScores[$resultId]);
@@ -877,7 +878,7 @@ class ScoringPanel extends Component
 
         $service = app(ScoringService::class);
         $service->overridePlacement($result, $placement);
-        $service->autoRankDivision(Division::find($result->division_id));
+        $service->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
         Notification::make()->title('Placement saved.')->success()->send();
     }
 

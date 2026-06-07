@@ -17,9 +17,9 @@ class Dashboard extends BaseDashboard
     {
         $count = EnrolmentCart::where('user_id', auth()->id())
             ->where('status', 'draft')
+            ->withCount(['enrolments as draft_count' => fn ($q) => $q->where('status', 'draft')])
             ->first()
-            ?->draftEnrolments()
-            ->count() ?? 0;
+            ?->draft_count ?? 0;
 
         return [
             Action::make('cart')

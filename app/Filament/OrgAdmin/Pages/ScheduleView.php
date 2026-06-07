@@ -6,6 +6,7 @@ use App\Models\Competition;
 use App\Models\Division;
 use Filament\Pages\Page;
 use Filament\Support\Enums\MaxWidth;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 
 class ScheduleView extends Page
@@ -51,6 +52,7 @@ class ScheduleView extends Page
         return $comp ? $comp->name . ' — Schedule' : 'Schedule';
     }
 
+    #[Computed]
     public function getCompetition(): ?Competition
     {
         return $this->competition_id ? Competition::find($this->competition_id) : null;
