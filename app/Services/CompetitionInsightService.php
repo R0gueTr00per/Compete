@@ -100,7 +100,7 @@ class CompetitionInsightService
         return CompetitionInsight::updateOrCreate(
             ['competition_id' => $competition->id],
             [
-                'content'       => $content,
+                'content'       => strip_tags($content ?? ''),
                 'data_snapshot' => $data,
                 'model_used'    => $model,
                 'generated_at'  => now(),

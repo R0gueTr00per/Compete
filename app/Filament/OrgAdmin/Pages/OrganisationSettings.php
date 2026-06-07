@@ -65,7 +65,8 @@ class OrganisationSettings extends Page implements HasForms
                             ->placeholder('e.g. This is a judo competition organised by Judo Australia. Competitors are graded from white belt (10th kyu) to black belt (1st dan and above).')
                             ->helperText('This text is included in every AI insight prompt. Describe your sport, grading system, or any domain knowledge that helps the AI give better advice.')
                             ->rows(4)
-                            ->maxLength(1000),
+                            ->maxLength(1000)
+                            ->rules(['not_regex:/<[^>]+>/']),
                         Toggle::make('insights_auto_refresh')
                             ->label('Auto-generate insights when competition status changes')
                             ->helperText('When enabled, AI insights are automatically regenerated each time a competition moves to a new status.')
@@ -186,7 +187,7 @@ class OrganisationSettings extends Page implements HasForms
             : $groupPreset;
 
         $tenant->update([
-            'ai_context'               => $data['ai_context'] ?? null,
+            'ai_context'               => strip_tags($data['ai_context'] ?? ''),
             'auto_email_insights'      => $data['auto_email_insights'] ?? true,
             'insights_auto_refresh'    => $data['insights_auto_refresh'] ?? true,
             'dashboard_closed_days'    => $data['dashboard_closed_days'] ?? 7,

@@ -410,7 +410,12 @@
       "Bash(Remove-Item \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\livewire\\\\org-admin\\\\score-category-list.blade.php\" -Force)",
       "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Resources\\\\CompetitionResource\\\\RelationManagers\\\\CompetitionEventsRelationManager.php\")",
       "PowerShell(Remove-Item -Path \"x:\\\\Repos\\\\Compete\\\\app\\\\Livewire\\\\OrgAdmin\\\\ScoreCategoryList.php\" -Force -Confirm:$false)",
-      "PowerShell(Remove-Item -Path \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\livewire\\\\org-admin\\\\score-category-list.blade.php\" -Force -Confirm:$false)"
+      "PowerShell(Remove-Item -Path \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\livewire\\\\org-admin\\\\score-category-list.blade.php\" -Force -Confirm:$false)",
+      "Bash(xargs grep -l \"Filament\\\\|Resource\")",
+      "Bash(xargs grep -l \"insight\\\\|markdown\")",
+      "Bash(curl -s -u \"bgouldson@optusnet.com.au:$\\(cat ~/.claude/jira_token || echo ''\\)\" \"https://competeapp.atlassian.net/rest/api/3/issue/COM-283\" -H \"Accept: application/json\")",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); f=d['fields']; print\\('Summary:', f['summary']\\); print\\('Status:', f['status']['name']\\); print\\(\\); desc=f.get\\('description'\\); [print\\(b.get\\('text',''\\) if b.get\\('type'\\)=='text' else \\('['+b.get\\('type',''\\)+']' if b.get\\('type'\\) not in ['text','hardBreak'] else '\\\\n'\\)\\) for block in \\(desc.get\\('content',[]\\) if desc else []\\) for b in block.get\\('content',[]\\)]\")",
+      "Bash(php -r \"var_dump\\(strip_tags\\(null\\)\\);\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

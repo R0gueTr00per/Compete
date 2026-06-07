@@ -48,8 +48,8 @@ class CompetitionInsightsMail extends Mailable
         $raw = preg_split('/(?=^## )/m', $content, -1, PREG_SPLIT_NO_EMPTY);
         return collect($raw)->map(function ($section) {
             $lines   = explode("\n", trim($section), 2);
-            $heading = ltrim(trim($lines[0] ?? ''), '# ');
-            $body    = trim($lines[1] ?? '');
+            $heading = strip_tags(ltrim(trim($lines[0] ?? ''), '# '));
+            $body    = strip_tags(trim($lines[1] ?? ''));
             return compact('heading', 'body');
         })->all();
     }

@@ -410,7 +410,7 @@
                                                 @foreach ($bulletLines as $line)
                                                     <li class="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1.5">
                                                         <span class="text-primary-500 mt-0.5 flex-shrink-0">•</span>
-                                                        <span class="line-clamp-1 sm:line-clamp-none">{!! $line !!}</span>
+                                                        <span class="line-clamp-1 sm:line-clamp-none">{{ $line }}</span>
                                                     </li>
                                                 @endforeach
                                             </ul>
