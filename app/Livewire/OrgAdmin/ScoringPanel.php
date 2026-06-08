@@ -1240,6 +1240,15 @@ class ScoringPanel extends Component
         $this->pairingCompetitorList = [];
     }
 
+    public function cancelPairing(): void
+    {
+        $this->closePairingWizard();
+
+        if (! $this->bracketExists) {
+            $this->js("window.dispatchEvent(new Event('pairing-cancelled'))");
+        }
+    }
+
     public function isPairingComplete(): bool
     {
         if (empty($this->manualPairings) || empty($this->pairingCompetitorList)) return false;

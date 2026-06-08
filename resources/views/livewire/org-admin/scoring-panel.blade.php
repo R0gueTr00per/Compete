@@ -1,10 +1,15 @@
 <div>
+    <style>
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
             {{-- Save while timer active confirmation modal --}}
         <div x-data="{
                 open: false,
                 matchId: null,
                 show(id) { this.matchId = id; this.open = true; },
-                confirm() { this.open = false; $wire.recordBracketScore(this.matchId); this.matchId = null; },
+                confirm() { const mid = this.matchId; window.dispatchEvent(new CustomEvent('timer-reset', { detail: { matchId: mid } })); this.open = false; $wire.recordBracketScore(mid); this.matchId = null; },
                 cancel() { this.open = false; this.matchId = null; }
              }"
              x-on:save-confirm.window="show($event.detail.matchId)">
@@ -247,9 +252,16 @@
                                             @endforeach
 
                                             <div class="flex justify-end gap-2 pt-1">
-                                                <x-filament::button size="sm" color="gray" wire:click="closePairingWizard">
-                                                    Cancel
-                                                </x-filament::button>
+                                                @if ($this->bracketExists)
+                                                    <x-filament::button size="sm" color="gray" wire:click="closePairingWizard">
+                                                        Cancel
+                                                    </x-filament::button>
+                                                @else
+                                                    <x-filament::button size="sm" color="gray"
+                                                        x-on:click="window.dispatchEvent(new Event('pairing-cancelled'))">
+                                                        Cancel
+                                                    </x-filament::button>
+                                                @endif
                                                 @if ($this->isPairingComplete())
                                                     <x-filament::button size="sm" color="primary" wire:click="confirmManualPairings">
                                                         Confirm pairings
@@ -549,7 +561,7 @@
                                                                                     @if (! $isReadOnly)
                                                                                         <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}">
                                                                                             <x-filament::button size="xs" color="success"
-                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'home')">Win</x-filament::button>
+                                                                                            @click="window.dispatchEvent(new CustomEvent('timer-reset',{detail:{matchId:{{$match->id}}}}));$wire.declareBracketWinner({{$match->id}},'home')">Win</x-filament::button>
                                                                                         </span>
                                                                                     @endif
                                                                                 </div>
@@ -584,7 +596,7 @@
                                                                                     @if (! $isReadOnly)
                                                                                         <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}">
                                                                                             <x-filament::button size="xs" color="success"
-                                                                                            wire:click="declareBracketWinner({{ $match->id }}, 'away')">Win</x-filament::button>
+                                                                                            @click="window.dispatchEvent(new CustomEvent('timer-reset',{detail:{matchId:{{$match->id}}}}));$wire.declareBracketWinner({{$match->id}},'away')">Win</x-filament::button>
                                                                                         </span>
                                                                                     @endif
                                                                                 </div>
@@ -652,7 +664,7 @@
                                                                                 @if (! $isReadOnly)
                                                                                     <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}" class="block">
                                                                                         <x-filament::button size="xs" color="success"
-                                                                                        wire:click="declareBracketWinner({{ $match->id }}, 'home')">← Win</x-filament::button>
+                                                                                        @click="window.dispatchEvent(new CustomEvent('timer-reset',{detail:{matchId:{{$match->id}}}}));$wire.declareBracketWinner({{$match->id}},'home')">← Win</x-filament::button>
                                                                                     </span>
                                                                                 @endif
                                                                             </div>
@@ -687,7 +699,7 @@
                                                                                 @if (! $isReadOnly)
                                                                                     <span x-data x-show="$store.roundTimer.sdActive && $store.roundTimer.matchId === {{ $match->id }}" class="block">
                                                                                         <x-filament::button size="xs" color="success"
-                                                                                        wire:click="declareBracketWinner({{ $match->id }}, 'away')">Win →</x-filament::button>
+                                                                                        @click="window.dispatchEvent(new CustomEvent('timer-reset',{detail:{matchId:{{$match->id}}}}));$wire.declareBracketWinner({{$match->id}},'away')">Win →</x-filament::button>
                                                                                     </span>
                                                                                 @endif
                                                                             </div>
@@ -847,7 +859,7 @@
                                         @endphp
                                         <div wire:key="mobile-row-{{ $result->id }}"
                                              data-scoring-key="row-{{ $result->id }}"
-                                             x-data="{ open: false }"
+                                             x-data="{ open: false, saving: false }"
                                              class="rounded-lg border {{ $result->disqualified ? 'opacity-60' : '' }} border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
 
                                             {{-- Card header --}}
@@ -1053,7 +1065,7 @@
                                                                     @if ($judgeMin !== null) min="{{ $judgeMin }}" @else min="0" @endif
                                                                     @if ($judgeMax !== null) max="{{ $judgeMax }}" @endif
                                                                     wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 {{ ($isSaved && $isDropped) ? 'opacity-40' : ($isSaved ? 'opacity-50' : '') }}"
+                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 text-center {{ ($isSaved && $isDropped) ? 'opacity-40' : ($isSaved ? 'opacity-50' : '') }}"
                                                                     placeholder="{{ $judgeMin ?? '0.0' }}"
                                                                     @if ($isSaved) disabled @endif />
                                                                 @if (! $isSaved)
@@ -1093,8 +1105,12 @@
                                                                 wire:click="undoJudgeScores({{ $result->id }})"
                                                                 :disabled="$inTiebreakerFlow">Undo</x-filament::button>
                                                         @else
-                                                            <x-filament::button color="primary" class="flex-1"
-                                                                x-on:click="const d={};($el.closest('[data-scoring-key=row-{{ $result->id }}]')?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;});$wire.saveJudgeScores({{ $result->id }},d);open=false">Save scores</x-filament::button>
+                                                            <x-filament::button color="success" class="flex-1"
+                                                                x-bind:disabled="saving"
+                                                                x-on:click="saving=true; const d={}; ($el.closest('[data-scoring-key=row-{{ $result->id }}]')?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;}); $wire.saveJudgeScores({{ $result->id }},d).then(()=>open=false).finally(()=>saving=false)">
+                                                                <span x-show="saving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                                Save scores
+                                                            </x-filament::button>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -1297,7 +1313,7 @@
                                                                             @if ($judgeMin !== null) min="{{ $judgeMin }}" @else min="0" @endif
                                                                             @if ($judgeMax !== null) max="{{ $judgeMax }}" @endif
                                                                             wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                            class="w-9 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-0.5"
+                                                                            class="w-12 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-0.5"
                                                                             placeholder="{{ $judgeMin ?? '0.0' }}"
                                                                             @if ($isSaved) disabled @endif />
                                                                         <button type="button"
@@ -1410,7 +1426,7 @@
 
                                                     @if (! $isReadOnly)
                                                         <td class="py-2">
-                                                            <div class="flex flex-col gap-1 items-start">
+                                                            <div class="flex flex-col gap-1 items-start" x-data="{ saving: false }">
                                                                 @if (! in_array($method, ['judges_total', 'judges_average']))
                                                                     @php
                                                                         $dtOncePenalties = array_filter($enabledPenalties, fn ($t) => ! in_array($t, ['deduction', 'opponent_point']));
@@ -1447,8 +1463,10 @@
                                                                             Undo
                                                                         </x-filament::button>
                                                                     @else
-                                                                        <x-filament::button size="xs" color="primary"
-                                                                            x-on:click="const d={};($el.closest('[data-scoring-key=row-{{ $result->id }}]')?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;});$wire.saveJudgeScores({{ $result->id }},d)">
+                                                                        <x-filament::button size="xs" color="success"
+                                                                            x-bind:disabled="saving"
+                                                                            x-on:click="saving=true; const d={}; ($el.closest('[data-scoring-key=row-{{ $result->id }}]')?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;}); $wire.saveJudgeScores({{ $result->id }},d).finally(()=>saving=false)">
+                                                                            <span x-show="saving" class="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                                                             Save
                                                                         </x-filament::button>
                                                                     @endif
@@ -1481,7 +1499,7 @@
                                                                             @if ($catMax !== null) max="{{ $catMax }}" @endif
                                                                             wire:model.blur="categoryScores.{{ $result->id }}.{{ $j }}.{{ $cat->id }}"
                                                                             data-cat-j="{{ $j }}" data-cat-id="{{ $cat->id }}"
-                                                                            class="w-9 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-0.5"
+                                                                            class="w-12 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-0.5"
                                                                             placeholder="{{ number_format($catMin, 1) }}"
                                                                             @if ($isSaved) disabled @endif />
                                                                         <button type="button"
@@ -1561,7 +1579,7 @@
                                                     @endphp
                                                     <div wire:key="tb-mobile-{{ $result->id }}"
                                                          data-scoring-key="tb-{{ $result->id }}"
-                                                         x-data="{ open: false, tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$this->tbPendingFlat[$result->id][$j] ?? ($defaultScore !== null ? number_format((float)$defaultScore,1) : null)])->all()) }} }"
+                                                         x-data="{ open: false, saving: false, tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$this->tbPendingFlat[$result->id][$j] ?? ($defaultScore !== null ? number_format((float)$defaultScore,1) : null)])->all()) }} }"
                                                          class="rounded-lg border border-warning-200 dark:border-warning-700 bg-white dark:bg-slate-900">
 
                                                         {{-- Card header --}}
@@ -1675,7 +1693,7 @@
                                                                             <div class="flex items-center gap-2">
                                                                                 <input type="number" step="0.1" min="0" max="10"
                                                                                     x-model="tbJ['{{ $j }}']"
-                                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3"
+                                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 text-center"
                                                                                     placeholder="0.0" />
                                                                                 <div class="flex gap-1 shrink-0">
                                                                                     <button type="button"
@@ -1692,11 +1710,19 @@
 
                                                                 <div class="pt-1">
                                                                     @if ($hasCategories)
-                                                                        <x-filament::button color="warning" class="w-full"
-                                                                            x-on:click="const r=$el.closest('[data-scoring-key=tb-{{ $result->id }}]');const d={};(r?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;});$wire.saveTiebreakerScores({{ $result->id }},d);open=false">Save scores</x-filament::button>
+                                                                        <x-filament::button color="success" class="w-full"
+                                                                            x-bind:disabled="saving"
+                                                                            x-on:click="saving=true; const r=$el.closest('[data-scoring-key=tb-{{ $result->id }}]'); const d={}; (r?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;}); $wire.saveTiebreakerScores({{ $result->id }},d).then(()=>open=false).finally(()=>saving=false)">
+                                                                            <span x-show="saving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                                            Save scores
+                                                                        </x-filament::button>
                                                                     @else
-                                                                        <x-filament::button color="warning" class="w-full"
-                                                                            x-on:click="$wire.saveTiebreakerScores({{ $result->id }}, {}, tbJ); open=false">Save scores</x-filament::button>
+                                                                        <x-filament::button color="success" class="w-full"
+                                                                            x-bind:disabled="saving"
+                                                                            x-on:click="saving=true; $wire.saveTiebreakerScores({{ $result->id }}, tbJ).then(()=>open=false).finally(()=>saving=false)">
+                                                                            <span x-show="saving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                                                            Save scores
+                                                                        </x-filament::button>
                                                                     @endif
                                                                 </div>
                                                             </div>
@@ -1741,7 +1767,7 @@
                                                             }
                                                         @endphp
                                                         <tbody class="border-b border-warning-100 dark:border-warning-900/40 last:border-b-0"
-                                                            x-data="{ tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$this->tbPendingFlat[$result->id][$j] ?? ($defaultScore !== null ? number_format((float)$defaultScore,1) : null)])->all()) }} }">
+                                                            x-data="{ saving: false, tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$this->tbPendingFlat[$result->id][$j] ?? ($defaultScore !== null ? number_format((float)$defaultScore,1) : null)])->all()) }} }">
                                                             <tr>
                                                                 <td class="py-2 pr-4">
                                                                     <div class="font-medium text-gray-900 dark:text-white">{{ $row->name }}</div>
@@ -1830,13 +1856,17 @@
                                                                             </x-filament::button>
                                                                         @else
                                                                             @if ($hasCategories)
-                                                                                <x-filament::button size="xs" color="warning"
-                                                                                    x-on:click="const r=$el.closest('tbody');const d={};(r?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;});$wire.saveTiebreakerScores({{ $result->id }},d)">
+                                                                                <x-filament::button size="xs" color="success"
+                                                                                    x-bind:disabled="saving"
+                                                                                    x-on:click="saving=true; const r=$el.closest('tbody'); const d={}; (r?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;}); $wire.saveTiebreakerScores({{ $result->id }},d).finally(()=>saving=false)">
+                                                                                    <span x-show="saving" class="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                                                                     Save
                                                                                 </x-filament::button>
                                                                             @else
-                                                                                <x-filament::button size="xs" color="warning"
-                                                                                    x-on:click="$wire.saveTiebreakerScores({{ $result->id }}, {}, tbJ)">
+                                                                                <x-filament::button size="xs" color="success"
+                                                                                    x-bind:disabled="saving"
+                                                                                    x-on:click="saving=true; $wire.saveTiebreakerScores({{ $result->id }}, tbJ).finally(()=>saving=false)">
+                                                                                    <span x-show="saving" class="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                                                                                     Save
                                                                                 </x-filament::button>
                                                                             @endif
@@ -2087,6 +2117,7 @@
                                     @endif
                                 </div>
                                 <div class="flex items-center gap-2">
+                                    @if (! $this->manualPairingMode)
                                     @if ($this->rollcallMode)
                                         <x-filament::button color="primary" size="sm"
                                             wire:click="toggleRollcall"
@@ -2107,6 +2138,7 @@
                                             icon="heroicon-m-arrow-right" icon-position="after">
                                             Generate bracket
                                         </x-filament::button>
+                                    @endif
                                     @endif
                                     @if ($this->isScoringComplete())
                                         <x-filament::button color="success" size="sm"

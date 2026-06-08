@@ -423,7 +423,9 @@
       "Bash(grep -n '$commit\\\\|dataSet\\\\|commit\\(\\)' 'x:\\\\Repos\\\\Compete\\\\vendor\\\\livewire\\\\livewire\\\\dist\\\\livewire.esm.js')",
       "Bash(grep -v \"//\\\\|wire:model\\\\|label\")",
       "Bash(grep -v \"//\\\\|comment\")",
-      "Bash(grep -v \"//\\\\|<\")"
+      "Bash(grep -v \"//\\\\|<\")",
+      "PowerShell(\\(Get-Content \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Pages\\\\Scoring.php\" | Measure-Object -Line\\).Lines)",
+      "Bash(awk -F'[\\(\\)]' '{print $1}')"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

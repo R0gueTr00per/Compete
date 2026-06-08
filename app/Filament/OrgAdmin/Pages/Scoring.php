@@ -2,25 +2,23 @@
 
 namespace App\Filament\OrgAdmin\Pages;
 
+use App\Filament\OrgAdmin\Concerns\HasScoringLock;
 use App\Models\Competition;
 use App\Models\Division;
-use App\Models\EnrolmentEvent;
-use App\Models\Result;
-use App\Models\RoundRobinMatch;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
-use Livewire\Attributes\Locked;
 
 class Scoring extends Page
 {
+    use HasScoringLock;
+
     protected static ?string $navigationIcon  = 'heroicon-o-calculator';
     protected static ?string $navigationGroup = 'Competitions';
     protected static ?int    $navigationSort  = 5;
     protected static ?string $navigationLabel = 'Scoring';
-    protected static string  $view            = 'filament.admin.pages.scoring';
+    protected static string  $view            = 'filament.org-admin.pages.scoring';
 
     public static function canAccess(): bool
     {
@@ -37,14 +35,8 @@ class Scoring extends Page
     #[Url]
     public ?string $filter_location = null;
 
-    #[Locked]
-    public ?int $division_id = null;
-
-    public bool $panelOpen = false;
-
-    public ?int $pendingLockDivisionId = null;
-
-    private const LOCK_MINUTES = 15;
+    #[Url]
+    public ?int $highlight_division = null;
 
     public function mount(): void
     {
@@ -103,7 +95,7 @@ class Scoring extends Page
               ->whereIn('status', ['scheduled', 'running', 'complete'])
         )
         ->whereNotNull('location_label')
-        ->with(['competitionEvent', 'completedBy.selfProfile'])
+        ->with(['competitionEvent', 'completedBy.selfProfile', 'scoringLockedBy'])
         ->withCount([
             'enrolmentEvents as checked_in_count' => fn ($q) => $q->whereHas(
                 'enrolment', fn ($q2) => $q2->where('status', 'checked_in')
@@ -125,7 +117,7 @@ class Scoring extends Page
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
         ->orderBy('code');
 
-        $divisions = $query->with('scoringLockedBy')->get()->toBase();
+        $divisions = $query->get()->toBase();
 
         $completeDivisionIds = $divisions->where('status', 'complete')->pluck('id');
 
@@ -163,32 +155,19 @@ class Scoring extends Page
             'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0 || $div->status === 'running' || $div->has_bracket,
             'locked_by_other'   => $this->lockedByOtherName($div),
             'top_results'       => $topResultsByDivision->get($div->id) ?? collect(),
+            'is_bracket'        => $div->competitionEvent?->isTournament() ?? false,
         ]);
     }
 
-    // ─── Division selection ───────────────────────────────────────────────────
+    // ─── Navigation ───────────────────────────────────────────────────────────
 
-    public function selectDivision(int $divisionId): void
+    public function navigateToDivision(int $divisionId): void
     {
-        if ($this->division_id === $divisionId) {
-            $this->panelOpen = ! $this->panelOpen;
-            if ($this->panelOpen) {
-                $this->dispatch('scroll-to-division', divisionId: $divisionId);
-                $this->acquireLock($divisionId);
-            }
-            return;
-        }
+        $division = Division::with(['scoringLockedBy', 'competitionEvent'])->find($divisionId);
+        if (! $division) return;
 
-        $this->pendingLockDivisionId = null;
-
-        if ($this->division_id) {
-            $this->releaseLock($this->division_id);
-        }
-
-        $division   = Division::with('scoringLockedBy')->find($divisionId);
         $lockerName = $this->lockedByOtherName($division);
         if ($lockerName) {
-            $this->pendingLockDivisionId = $divisionId;
             Notification::make()
                 ->title('Division in use')
                 ->body("{$lockerName} is currently scoring this division.")
@@ -197,41 +176,16 @@ class Scoring extends Page
             return;
         }
 
-        $this->acquireLock($divisionId);
-        $this->division_id = $divisionId;
-        $this->panelOpen   = true;
-        $this->dispatch('scroll-to-division', divisionId: $divisionId);
-    }
+        $isBracket  = $division->competitionEvent?->isTournament() ?? false;
+        $entryClass = $isBracket ? ScoringBracketEntry::class : ScoringEntry::class;
 
-    public function proceedOpenLocked(): void
-    {
-        if (! $this->pendingLockDivisionId) return;
-        $divisionId                  = $this->pendingLockDivisionId;
-        $this->pendingLockDivisionId = null;
-        $this->acquireLock($divisionId);
-        $this->division_id = $divisionId;
-        $this->panelOpen   = true;
-        $this->dispatch('scroll-to-division', divisionId: $divisionId);
-    }
-
-    public function cancelOpenLocked(): void
-    {
-        $this->pendingLockDivisionId = null;
-    }
-
-    public function deselectDivision(): void
-    {
-        $this->releaseLock($this->division_id);
-        $this->division_id = null;
-        $this->panelOpen   = false;
-    }
-
-    #[On('scoring-panel-closed')]
-    public function onScoringPanelClosed(): void
-    {
-        $this->releaseLock($this->division_id);
-        $this->division_id = null;
-        $this->panelOpen   = false;
+        $this->redirect(
+            $entryClass::getUrl(array_filter([
+                'division_id'    => $divisionId,
+                'competition_id' => $this->competition_id,
+            ])),
+            navigate: true
+        );
     }
 
     public function jumpToNextIncomplete(): void
@@ -241,64 +195,14 @@ class Scoring extends Page
 
         if ($incomplete->isEmpty()) return;
 
-        if ($this->division_id && $this->panelOpen) {
-            $ids        = $incomplete->map(fn ($item) => $item->division->id)->values();
-            $currentPos = $ids->search($this->division_id);
-
-            $nextId = ($currentPos !== false && $currentPos < $ids->count() - 1)
-                ? $ids->get($currentPos + 1)
-                : $ids->first();
-        } else {
-            $nextId = $incomplete->first()->division->id;
-        }
-
-        if ($nextId === $this->division_id && $this->panelOpen) {
-            $this->dispatch('scroll-to-division', divisionId: $nextId);
-            return;
-        }
-
-        $this->selectDivision($nextId);
-    }
-
-    // ─── Lock management ──────────────────────────────────────────────────────
-
-    private function acquireLock(int $divisionId): void
-    {
-        Division::where('id', $divisionId)->update([
-            'scoring_locked_by' => auth()->id(),
-            'scoring_locked_at' => now(),
-        ]);
-    }
-
-    private function releaseLock(?int $divisionId): void
-    {
-        if (! $divisionId) return;
-        Division::where('id', $divisionId)
-            ->where('scoring_locked_by', auth()->id())
-            ->update(['scoring_locked_by' => null, 'scoring_locked_at' => null]);
-    }
-
-    private function lockedByOtherName(Division $division): ?string
-    {
-        if (! $division->scoring_locked_by) return null;
-        if ($division->scoring_locked_by === auth()->id()) return null;
-        if (! $division->scoring_locked_at || $division->scoring_locked_at->lt(now()->subMinutes(self::LOCK_MINUTES))) return null;
-        return $division->scoringLockedBy?->name ?? 'Another user';
+        $first = $incomplete->first();
+        $this->navigateToDivision($first->division->id);
     }
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
     public function updatedCompetitionId(): void
     {
-        $this->filter_location       = null;
-        $this->division_id           = null;
-        $this->panelOpen             = false;
-        $this->pendingLockDivisionId = null;
-    }
-
-    public function updatedFilterLocation(): void
-    {
-        $this->division_id = null;
-        $this->panelOpen   = false;
+        $this->filter_location = null;
     }
 }
