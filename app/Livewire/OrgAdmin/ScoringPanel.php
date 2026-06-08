@@ -4,9 +4,11 @@ namespace App\Livewire\OrgAdmin;
 
 use App\Models\Division;
 use App\Models\EnrolmentEvent;
+use App\Models\JudgeScore;
 use App\Models\MatchPenalty;
 use App\Models\Result;
 use App\Models\RoundRobinMatch;
+use App\Models\ScoreEvent;
 use App\Services\BracketService;
 use App\Services\ScoringService;
 use App\Notifications\Notification;
@@ -164,8 +166,11 @@ class ScoringPanel extends Component
         $this->saveRollcallToSession();
     }
 
-    public function toggleRollcall(): void
+    public function toggleRollcall(?array $presentIds = null): void
     {
+        if ($this->rollcallMode && $presentIds !== null) {
+            $this->rollcallPresent = array_values(array_map('intval', $presentIds));
+        }
         if ($this->rollcallMode) {
             $division = Division::with('competitionEvent')->find($this->division_id);
             $event    = $division?->competitionEvent;
@@ -682,20 +687,29 @@ class ScoringPanel extends Component
         return $result?->forfeited ? 'Forfeit' : 'DQ';
     }
 
+    #[Computed]
+    public function allPenalties(): \Illuminate\Support\Collection
+    {
+        if (! $this->division_id) return collect();
+        $resultIds = Result::where('division_id', $this->division_id)->pluck('id');
+        if ($resultIds->isEmpty()) return collect();
+        return MatchPenalty::whereIn('result_id', $resultIds)->orderBy('created_at')->get();
+    }
+
     public function getWarnCount(int $resultId, ?int $matchId = null): int
     {
-        return MatchPenalty::where('result_id', $resultId)
+        return $this->allPenalties
+            ->where('result_id', $resultId)
             ->where('type', 'warn')
-            ->when($matchId, fn ($q) => $q->where('round_robin_match_id', $matchId))
+            ->when($matchId, fn ($c) => $c->where('round_robin_match_id', $matchId))
             ->count();
     }
 
     public function getPenaltyLog(int $resultId, ?int $matchId = null): array
     {
-        $penalties = MatchPenalty::where('result_id', $resultId)
-            ->when($matchId, fn ($q) => $q->where('round_robin_match_id', $matchId))
-            ->orderBy('created_at')
-            ->get();
+        $penalties = $this->allPenalties
+            ->where('result_id', $resultId)
+            ->when($matchId, fn ($c) => $c->where('round_robin_match_id', $matchId));
 
         $warnCount = 0;
         $log       = [];
@@ -722,16 +736,13 @@ class ScoringPanel extends Component
 
     public function hasUndoablePenalty(int $resultId, ?int $matchId = null): bool
     {
-        return MatchPenalty::where('result_id', $resultId)
-            ->when($matchId, fn ($q) => $q->where('round_robin_match_id', $matchId))
-            ->where(fn ($q) => $q
-                ->whereNotIn('type', ['dq'])
-                ->orWhere(fn ($q2) => $q2
-                    ->where('type', 'dq')
-                    ->where(fn ($q3) => $q3->whereNull('reason')->orWhere('reason', 'NOT LIKE', 'Auto-DQ:%'))
-                )
-            )
-            ->exists();
+        return $this->allPenalties
+            ->where('result_id', $resultId)
+            ->when($matchId, fn ($c) => $c->where('round_robin_match_id', $matchId))
+            ->first(fn ($p) =>
+                $p->type !== 'dq' ||
+                ($p->type === 'dq' && (is_null($p->reason) || ! str_starts_with($p->reason ?? '', 'Auto-DQ:')))
+            ) !== null;
     }
 
     public function hasSavedScores(): bool
@@ -1816,21 +1827,21 @@ class ScoringPanel extends Component
         $this->perfOrder = [];
         session()->forget($this->perfOrderSessionKey());
 
-        $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
-        Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
-            $result->judgeScores()->delete();
-            $result->scoreEvents()->delete();
-            $result->penalties()->delete();
-            $result->forceFill([
-                'total_score'          => null,
-                'tiebreaker_score'     => null,
-                'placement'            => null,
-                'placement_overridden' => false,
-                'win_loss'             => null,
-                'disqualified'         => false,
-                'forfeited'            => false,
-            ])->save();
-        });
+        $eeIds     = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+        $resultIds = Result::whereIn('enrolment_event_id', $eeIds)->pluck('id');
+
+        JudgeScore::whereIn('result_id', $resultIds)->delete();
+        ScoreEvent::whereIn('result_id', $resultIds)->delete();
+        MatchPenalty::whereIn('result_id', $resultIds)->delete();
+        Result::whereIn('id', $resultIds)->update([
+            'total_score'          => null,
+            'tiebreaker_score'     => null,
+            'placement'            => null,
+            'placement_overridden' => false,
+            'win_loss'             => null,
+            'disqualified'         => false,
+            'forfeited'            => false,
+        ]);
 
         $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
         $cancelledEeIds                   = $eeIds->toArray();

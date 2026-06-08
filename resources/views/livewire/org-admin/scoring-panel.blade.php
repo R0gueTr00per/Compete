@@ -112,39 +112,51 @@
                             @if ($rollcall->isEmpty())
                                 <p class="text-center text-sm text-gray-400 py-4">No checked-in competitors in this division.</p>
                             @else
-                                @php
-                                    $activeEeIds = $rollcall->where('absent', false)->pluck('ee_id');
-                                    $allMarked   = $activeEeIds->isNotEmpty() && $activeEeIds->every(fn ($id) => in_array($id, $this->rollcallPresent));
-                                @endphp
-                                <div class="flex items-center justify-between mb-3">
-                                    <p class="text-xs text-gray-400">Tap each competitor to confirm they are present.</p>
-                                    <x-filament::button
-                                        size="xs"
-                                        color="gray"
-                                        wire:click="{{ $allMarked ? 'unmarkAllPresent' : 'markAllPresent' }}">
-                                        {{ $allMarked ? 'Unmark all present' : 'Mark all present' }}
-                                    </x-filament::button>
+                                @php $activeEeIds = $rollcall->where('absent', false)->pluck('ee_id')->values()->all(); @endphp
+                                <div x-data="{
+                                        present: {{ json_encode($this->rollcallPresent) }},
+                                        allActive: {{ json_encode($activeEeIds) }},
+                                        get allMarked() {
+                                            return this.allActive.length > 0 && this.allActive.every(id => this.present.includes(id));
+                                        },
+                                        toggle(id) {
+                                            const idx = this.present.indexOf(id);
+                                            if (idx >= 0) { this.present = this.present.filter(i => i !== id); }
+                                            else { this.present = [...this.present, id]; }
+                                        },
+                                        markAll()   { this.present = [...new Set([...this.present, ...this.allActive])]; },
+                                        unmarkAll() { this.present = this.present.filter(id => !this.allActive.includes(id)); }
+                                     }"
+                                     x-on:begin-scoring-pressed.window="$wire.call('toggleRollcall', present)">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <p class="text-xs text-gray-400">Tap each competitor to confirm they are present.</p>
+                                        <x-filament::button size="xs" color="gray"
+                                            x-on:click="allMarked ? unmarkAll() : markAll()"
+                                            x-text="allMarked ? 'Unmark all present' : 'Mark all present'">
+                                            Mark all present
+                                        </x-filament::button>
+                                    </div>
+                                    <ul class="divide-y divide-gray-100 dark:divide-slate-800">
+                                        @foreach ($rollcall->where('absent', false) as $rc)
+                                            <li x-on:click="toggle({{ $rc->ee_id }})"
+                                                class="flex items-center gap-3 py-2.5 cursor-pointer select-none">
+                                                <template x-if="present.includes({{ $rc->ee_id }})">
+                                                    <x-heroicon-m-check-circle class="w-6 h-6 text-success-500 shrink-0" />
+                                                </template>
+                                                <template x-if="!present.includes({{ $rc->ee_id }})">
+                                                    <div class="w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-600 shrink-0"></div>
+                                                </template>
+                                                <span class="text-sm"
+                                                    :class="present.includes({{ $rc->ee_id }}) ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'">
+                                                    {{ $rc->name }}
+                                                    @if ($rc->info)
+                                                        <span class="font-normal text-gray-400 dark:text-gray-500">({{ $rc->info }})</span>
+                                                    @endif
+                                                </span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
                                 </div>
-                                <ul class="divide-y divide-gray-100 dark:divide-slate-800">
-                                    @foreach ($rollcall->where('absent', false) as $rc)
-                                        @php $confirmed = in_array($rc->ee_id, $this->rollcallPresent); @endphp
-                                        <li wire:click="toggleRollcallPresent({{ $rc->ee_id }})"
-                                            class="flex items-center gap-3 py-2.5 cursor-pointer select-none">
-                                            @if ($confirmed)
-                                                <x-heroicon-m-check-circle class="w-6 h-6 text-success-500 shrink-0" />
-                                            @else
-                                                <div class="w-6 h-6 rounded-full border-2 border-gray-300 dark:border-gray-600 shrink-0"></div>
-                                            @endif
-                                            <span class="text-sm {{ $confirmed ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400' }}">
-                                                {{ $rc->name }}
-                                                @if ($rc->info)
-                                                    <span class="font-normal text-gray-400 dark:text-gray-500">({{ $rc->info }})</span>
-                                                @endif
-                                            </span>
-                                        </li>
-                                    @endforeach
-                                </ul>
-
                             @endif
                             @else
                             {{-- No rollcall — simple Begin Scoring gate --}}
@@ -334,6 +346,7 @@
                                         }
                                     @endphp
 
+                                    @php $rowsByEeId = $rows->keyBy(fn($r) => $r->ee->id); @endphp
                                     @foreach ($displaySections as $displaySection)
                                         @php
                                             $displayBracketKey  = $displaySection['key'];
@@ -367,8 +380,8 @@
                                                             $pending    = $match->is_pending;
                                                             $homeWon    = $match->home_result === 'win';
                                                             $awayWon    = $match->home_result === 'loss';
-                                                            $homeResult = $rows->first(fn($r) => $r->ee->id === $match->home_id)?->result;
-                                                            $awayResult = $rows->first(fn($r) => $r->ee->id === $match->away_id)?->result;
+                                                            $homeResult = ($rowsByEeId[$match->home_id] ?? null)?->result;
+                                                            $awayResult = ($rowsByEeId[$match->away_id] ?? null)?->result;
                                                         @endphp
                                                         <div class="rounded-lg border px-3 py-2 text-sm
                                                             {{ ! $pending ? 'border-success-200 dark:border-success-800 bg-success-50 dark:bg-success-900/20' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900' }}">
@@ -2122,7 +2135,7 @@
                                     @if (! $this->manualPairingMode)
                                     @if ($this->rollcallMode)
                                         <x-filament::button color="primary" size="sm"
-                                            wire:click="toggleRollcall"
+                                            x-on:click="$dispatch('begin-scoring-pressed')"
                                             icon="heroicon-m-arrow-right" icon-position="after">
                                             Begin Scoring
                                         </x-filament::button>
