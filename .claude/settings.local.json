@@ -428,7 +428,15 @@
       "Bash(awk -F'[\\(\\)]' '{print $1}')",
       "Bash(cd /d x:\\\\Repos\\\\Compete)",
       "Bash(php -l app/Livewire/OrgAdmin/ScoringPanel.php)",
-      "Bash(grep -n '$wire\\\\.\\\\|wire:' 'x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\filament\\\\admin\\\\pages\\\\scoring.blade.php')"
+      "Bash(grep -n '$wire\\\\.\\\\|wire:' 'x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\filament\\\\admin\\\\pages\\\\scoring.blade.php')",
+      "mcp__jira__jira_download_attachments",
+      "Bash(cat ~/.claude/jira_token)",
+      "Bash(echo \"\")",
+      "Bash(curl -s -u bgouldson@optusnet.com.au:__CMDSUB_OUTPUT__ https://competeapp.atlassian.net/rest/api/3/issue/COM-291?fields=attachment -H 'Accept: application/json')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(a['id'], a['filename'], a['content']\\) for a in d['fields'].get\\('attachment',[]\\)]\")",
+      "Bash(python3 -c \"import json,sys; print\\(json.dumps\\(json.load\\(sys.stdin\\), indent=2\\)\\)\")",
+      "PowerShell($token = $env:JIRA_API_TOKEN; if \\($token\\) { \"Token length: $\\($token.Length\\)\" } else { \"No env token, checking file...\"; Get-Content \"C:\\\\Users\\\\Brad\\\\.claude\\\\jira_token\" -ErrorAction SilentlyContinue | ForEach-Object { \"File token length: $\\($_.Length\\)\" } })",
+      "PowerShell(Get-ChildItem \"$env:APPDATA\\\\Claude\" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | head -20; Get-ChildItem \"$env:LOCALAPPDATA\\\\Claude\" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | head -20)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

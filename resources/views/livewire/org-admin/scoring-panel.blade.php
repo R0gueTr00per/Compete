@@ -389,8 +389,17 @@
                                                             {{-- Names row --}}
                                                             <div class="flex items-start gap-2">
                                                                 <div class="flex-1 min-w-0">
-                                                                    <div class="font-medium truncate {{ $homeWon ? 'text-success-700 dark:text-success-400' : ($awayWon ? 'text-gray-400' : 'text-gray-900 dark:text-white') }}">
-                                                                        @if ($homeWon && ! $match->is_bye)🏆 @endif<span class="{{ $awayWon ? 'line-through' : '' }}">{{ $match->home_name }}</span>@if (($match->home_dq_in_match || $match->home_forfeit_in_match) && ! $homeWon) <span class="text-xs font-normal text-danger-600">[{{ $match->home_forfeit_in_match ? 'Forfeit' : 'DQ' }}]</span>@endif
+                                                                    <div class="flex items-center gap-1 font-medium {{ $homeWon ? 'text-success-700 dark:text-success-400' : ($awayWon ? 'text-gray-400' : 'text-gray-900 dark:text-white') }}">
+                                                                        @if ($homeWon && ! $match->is_bye)<span>🏆</span>@endif<span class="truncate min-w-0 {{ $awayWon ? 'line-through' : '' }}">{{ $match->home_name }}</span>@if (($match->home_dq_in_match || $match->home_forfeit_in_match) && ! $homeWon) <span class="text-xs font-normal text-danger-600 shrink-0">[{{ $match->home_forfeit_in_match ? 'Forfeit' : 'DQ' }}]</span>@endif
+                                                                        @if ($homeResult && (! $isReadOnly || $homeResult->note))
+                                                                            <button type="button"
+                                                                                data-result-id="{{ $homeResult->id }}"
+                                                                                data-note="{{ $homeResult->note ?? '' }}"
+                                                                                x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
+                                                                                class="shrink-0 {{ $homeResult->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
+                                                                                <x-heroicon-o-document-text class="w-4 h-4" />
+                                                                            </button>
+                                                                        @endif
                                                                     </div>
                                                                     @if ($match->home_info)
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->home_info }}</div>
@@ -403,15 +412,6 @@
                                                                                 $homeFlagged = $homeResult->disqualified || $homeResult->forfeited;
                                                                             @endphp
                                                                             <div class="flex flex-wrap gap-1 items-center mt-1">
-                                                                                @if (! $isReadOnly || $homeResult->note)
-                                                                                    <button type="button"
-                                                                                        data-result-id="{{ $homeResult->id }}"
-                                                                                        data-note="{{ $homeResult->note ?? '' }}"
-                                                                                        x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                                        class="{{ $homeResult->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
-                                                                                        <x-heroicon-o-document-text class="w-4 h-4" />
-                                                                                    </button>
-                                                                                @endif
                                                                                 @foreach ($enabledPenalties as $pType)
                                                                                     @if ($match->away_id !== null)
                                                                                         @if ($pType === 'forfeit' && $homeFlagged) @continue @endif
@@ -426,24 +426,23 @@
                                                                                     <button type="button" wire:click="undoPenalty({{ $homeResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>
                                                                                 @endif
                                                                             </div>
-                                                                        @elseif (! $isReadOnly || $homeResult->note)
-                                                                            <div class="flex mt-1">
-                                                                                <button type="button"
-                                                                                    data-result-id="{{ $homeResult->id }}"
-                                                                                    data-note="{{ $homeResult->note ?? '' }}"
-                                                                                    x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                                    class="{{ $homeResult->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
-                                                                                    <x-heroicon-o-document-text class="w-4 h-4" />
-                                                                                </button>
-                                                                            </div>
                                                                         @endif
                                                                         @if(!empty($homeLog))<ul class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 space-y-0.5">@foreach($homeLog as $e)<li>{{$e['label']}}</li>@endforeach</ul>@endif
                                                                     @endif
                                                                 </div>
                                                                 <span class="text-xs text-gray-400 shrink-0 mt-0.5">vs</span>
                                                                 <div class="flex-1 min-w-0 text-right">
-                                                                    <div class="font-medium truncate {{ $awayWon ? 'text-success-700 dark:text-success-400' : ($homeWon ? 'text-gray-400' : 'text-gray-900 dark:text-white') }}">
-                                                                        @if (($match->away_dq_in_match || $match->away_forfeit_in_match) && ! $awayWon) <span class="text-xs font-normal text-danger-600">[{{ $match->away_forfeit_in_match ? 'Forfeit' : 'DQ' }}]</span> @endif<span class="{{ ($homeWon && ! $match->is_bye) ? 'line-through' : '' }}">{{ $match->away_name }}</span>@if ($awayWon) 🏆@endif
+                                                                    <div class="flex items-center justify-end gap-1 font-medium {{ $awayWon ? 'text-success-700 dark:text-success-400' : ($homeWon ? 'text-gray-400' : 'text-gray-900 dark:text-white') }}">
+                                                                        @if ($awayResult && (! $isReadOnly || $awayResult->note))
+                                                                            <button type="button"
+                                                                                data-result-id="{{ $awayResult->id }}"
+                                                                                data-note="{{ $awayResult->note ?? '' }}"
+                                                                                x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
+                                                                                class="shrink-0 {{ $awayResult->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
+                                                                                <x-heroicon-o-document-text class="w-4 h-4" />
+                                                                            </button>
+                                                                        @endif
+                                                                        @if (($match->away_dq_in_match || $match->away_forfeit_in_match) && ! $awayWon) <span class="text-xs font-normal text-danger-600 shrink-0">[{{ $match->away_forfeit_in_match ? 'Forfeit' : 'DQ' }}]</span> @endif<span class="truncate min-w-0 {{ ($homeWon && ! $match->is_bye) ? 'line-through' : '' }}">{{ $match->away_name }}</span>@if ($awayWon) <span>🏆</span>@endif
                                                                     </div>
                                                                     @if ($match->away_info)
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500 truncate">{{ $match->away_info }}</div>
@@ -456,15 +455,6 @@
                                                                                 $awayFlagged = $awayResult->disqualified || $awayResult->forfeited;
                                                                             @endphp
                                                                             <div class="flex flex-wrap gap-1 items-center justify-end mt-1">
-                                                                                @if (! $isReadOnly || $awayResult->note)
-                                                                                    <button type="button"
-                                                                                        data-result-id="{{ $awayResult->id }}"
-                                                                                        data-note="{{ $awayResult->note ?? '' }}"
-                                                                                        x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                                        class="{{ $awayResult->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
-                                                                                        <x-heroicon-o-document-text class="w-4 h-4" />
-                                                                                    </button>
-                                                                                @endif
                                                                                 @if ($this->hasUndoablePenalty($awayResult->id, $match->id))
                                                                                     <button type="button" wire:click="undoPenalty({{ $awayResult->id }}, {{ $match->id }})" class="px-1.5 py-0.5 rounded text-xs border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 active:scale-95 transition-transform"><x-heroicon-m-arrow-uturn-left class="inline w-3 h-3" /></button>
                                                                                 @endif
@@ -478,16 +468,6 @@
                                                                                         </button>
                                                                                     @endif
                                                                                 @endforeach
-                                                                            </div>
-                                                                        @elseif (! $isReadOnly || $awayResult->note)
-                                                                            <div class="flex mt-1">
-                                                                                <button type="button"
-                                                                                    data-result-id="{{ $awayResult->id }}"
-                                                                                    data-note="{{ $awayResult->note ?? '' }}"
-                                                                                    x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                                    class="{{ $awayResult->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
-                                                                                    <x-heroicon-o-document-text class="w-4 h-4" />
-                                                                                </button>
                                                                             </div>
                                                                         @endif
                                                                         @if(!empty($awayLog))<ul class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 space-y-0.5 text-right">@foreach($awayLog as $e)<li>{{$e['label']}}</li>@endforeach</ul>@endif
@@ -917,12 +897,21 @@
                                             <div class="px-3 py-3">
                                             <div class="flex items-center gap-2">
                                                 <div class="min-w-0 flex-1">
-                                                    <p class="font-medium text-sm text-gray-900 dark:text-white truncate">
-                                                        {{ $row->name }}
+                                                    <div class="flex items-center gap-1 font-medium text-sm text-gray-900 dark:text-white">
+                                                        <span class="truncate min-w-0">{{ $row->name }}</span>
                                                         @if ($result->disqualified || $result->forfeited)
-                                                            <span class="ml-1 text-xs text-danger-600">{{ $result->forfeited ? '[Forfeit]' : '[DQ]' }}</span>
+                                                            <span class="shrink-0 text-xs text-danger-600">{{ $result->forfeited ? '[Forfeit]' : '[DQ]' }}</span>
                                                         @endif
-                                                    </p>
+                                                        @if (! $isReadOnly || $result->note)
+                                                            <button type="button"
+                                                                data-result-id="{{ $result->id }}"
+                                                                data-note="{{ $result->note ?? '' }}"
+                                                                x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
+                                                                class="shrink-0 {{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
+                                                                <x-heroicon-o-document-text class="w-4 h-4" />
+                                                            </button>
+                                                        @endif
+                                                    </div>
                                                     @if ($row->info)
                                                         <p class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</p>
                                                     @endif
@@ -1049,15 +1038,6 @@
                                                 @endphp
                                                 @if (! $isReadOnly && ! empty($oncePenalties))
                                                     <div class="mt-1.5 flex flex-wrap gap-1 items-center">
-                                                        @if (! $isReadOnly || $result->note)
-                                                            <button type="button"
-                                                                data-result-id="{{ $result->id }}"
-                                                                data-note="{{ $result->note ?? '' }}"
-                                                                x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                class="{{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
-                                                                <x-heroicon-o-document-text class="w-5 h-5" />
-                                                            </button>
-                                                        @endif
                                                         @foreach ($oncePenalties as $pType)
                                                             <button type="button"
                                                                 wire:click="openPenaltyModal({{ $result->id }}, '{{ $pType }}')"
@@ -1072,34 +1052,11 @@
                                                             </button>
                                                         @endif
                                                     </div>
-                                                @elseif (! $isReadOnly || $result->note)
-                                                    <div class="mt-1.5 flex">
-                                                        <button type="button"
-                                                            data-result-id="{{ $result->id }}"
-                                                            data-note="{{ $result->note ?? '' }}"
-                                                            x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                            class="{{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
-                                                            <x-heroicon-o-document-text class="w-5 h-5" />
-                                                        </button>
-                                                    </div>
                                                 @endif
                                                 @if (! empty($penaltyLog))
                                                     <ul class="mt-1 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
                                                         @foreach ($penaltyLog as $entry)<li>{{ $entry['label'] }}</li>@endforeach
                                                     </ul>
-                                                @endif
-                                            @else
-                                                {{-- Judged method: note icon standalone --}}
-                                                @if (! $isReadOnly || $result->note)
-                                                    <div class="mt-1.5 flex">
-                                                        <button type="button"
-                                                            data-result-id="{{ $result->id }}"
-                                                            data-note="{{ $result->note ?? '' }}"
-                                                            x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                            class="{{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
-                                                            <x-heroicon-o-document-text class="w-5 h-5" />
-                                                        </button>
-                                                    </div>
                                                 @endif
                                             @endif
                                             </div>{{-- end px-3 py-3 --}}
@@ -1284,10 +1241,19 @@
                                                     class="border-b border-gray-100 dark:border-slate-800 last:border-b-0">
                                                 <tr class="{{ $result->disqualified ? 'opacity-50' : '' }}">
                                                     <td class="py-2 pr-4">
-                                                        <div class="font-medium text-gray-900 dark:text-white">
-                                                            {{ $row->name }}
+                                                        <div class="flex items-center gap-1 font-medium text-gray-900 dark:text-white">
+                                                            <span class="truncate min-w-0">{{ $row->name }}</span>
                                                             @if ($result->disqualified || $result->forfeited)
-                                                                <span class="ml-1 text-xs text-danger-600">{{ $result->forfeited ? '[Forfeit]' : '[DQ]' }}</span>
+                                                                <span class="shrink-0 text-xs text-danger-600">{{ $result->forfeited ? '[Forfeit]' : '[DQ]' }}</span>
+                                                            @endif
+                                                            @if (! $isReadOnly || $result->note)
+                                                                <button type="button"
+                                                                    data-result-id="{{ $result->id }}"
+                                                                    data-note="{{ $result->note ?? '' }}"
+                                                                    x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
+                                                                    class="shrink-0 {{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
+                                                                    <x-heroicon-o-document-text class="w-4 h-4" />
+                                                                </button>
                                                             @endif
                                                         </div>
                                                         @if ($row->info)
@@ -1300,15 +1266,6 @@
                                                             @endphp
                                                             @if (! $isReadOnly && ! $isSaved && ! empty($dtOncePenalties))
                                                                 <div class="mt-1 flex flex-wrap gap-1 items-center">
-                                                                    @if (! $isReadOnly || $result->note)
-                                                                        <button type="button"
-                                                                            data-result-id="{{ $result->id }}"
-                                                                            data-note="{{ $result->note ?? '' }}"
-                                                                            x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                            class="{{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
-                                                                            <x-heroicon-o-document-text class="w-4 h-4" />
-                                                                        </button>
-                                                                    @endif
                                                                     @foreach ($dtOncePenalties as $pType)
                                                                         <button type="button"
                                                                             wire:click="openPenaltyModal({{ $result->id }}, '{{ $pType }}')"
@@ -1317,14 +1274,6 @@
                                                                         </button>
                                                                     @endforeach
                                                                 </div>
-                                                            @elseif (! $isReadOnly || $result->note)
-                                                                <button type="button"
-                                                                    data-result-id="{{ $result->id }}"
-                                                                    data-note="{{ $result->note ?? '' }}"
-                                                                    x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                    class="{{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} mt-1.5 transition-colors">
-                                                                    <x-heroicon-o-document-text class="w-4 h-4" />
-                                                                </button>
                                                             @endif
                                                             @if (! empty($dtPenaltyLog))
                                                                 <ul class="mt-0.5 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
@@ -1333,15 +1282,6 @@
                                                             @endif
                                                         @else
                                                             @php $dtPenaltyLog = $this->getPenaltyLog($result->id); @endphp
-                                                            @if (! $isReadOnly || $result->note)
-                                                                <button type="button"
-                                                                    data-result-id="{{ $result->id }}"
-                                                                    data-note="{{ $result->note ?? '' }}"
-                                                                    x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                    class="{{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} mt-1.5 transition-colors">
-                                                                    <x-heroicon-o-document-text class="w-4 h-4" />
-                                                                </button>
-                                                            @endif
                                                             @if (! empty($dtPenaltyLog))
                                                                 <ul class="mt-0.5 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
                                                                     @foreach ($dtPenaltyLog as $entry)<li>{{ $entry['label'] }}</li>@endforeach
