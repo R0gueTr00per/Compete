@@ -1726,6 +1726,19 @@
                                                             $tbDisplay = $result->tiebreaker_score !== null
                                                                 ? number_format((float) $result->tiebreaker_score, 1)
                                                                 : '—';
+                                                            $tbDroppedMinJ = null; $tbDroppedMaxJ = null;
+                                                            if ($highLowDrop && $tbSaved) {
+                                                                $tbJTotals = $result->judgeScores
+                                                                    ->where('is_tiebreaker', true)
+                                                                    ->pluck('score', 'judge_number')
+                                                                    ->map(fn ($s) => (float) $s)
+                                                                    ->all();
+                                                                if (count($tbJTotals) >= 3) {
+                                                                    $tbMinV = min($tbJTotals); $tbMaxV = max($tbJTotals);
+                                                                    foreach ($tbJTotals as $jj => $v) { if ($tbDroppedMinJ === null && $v == $tbMinV) { $tbDroppedMinJ = $jj; break; } }
+                                                                    foreach ($tbJTotals as $jj => $v) { if ($tbDroppedMaxJ === null && $v == $tbMaxV && $jj !== $tbDroppedMinJ) { $tbDroppedMaxJ = $jj; break; } }
+                                                                }
+                                                            }
                                                         @endphp
                                                         <tbody class="border-b border-warning-100 dark:border-warning-900/40 last:border-b-0"
                                                             x-data="{ tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$defaultScore !== null ? number_format((float)$defaultScore,1) : null])->all()) }} }">
@@ -1759,12 +1772,13 @@
                                                                     @endif
                                                                 </td>
                                                                 @for ($j = 1; $j <= $judges; $j++)
+                                                                    @php $tbIsDropped = $highLowDrop && ($j === $tbDroppedMinJ || $j === $tbDroppedMaxJ); @endphp
                                                                     <td class="py-2 pr-2">
                                                                         @if ($isReadOnly || $tbSaved)
                                                                             @php
                                                                                 $tbJScore = $result->judgeScores->where('is_tiebreaker', true)->where('judge_number', $j)->first();
                                                                             @endphp
-                                                                            <span class="text-base text-gray-700 dark:text-gray-300 {{ $tbSaved ? 'opacity-50' : '' }}">
+                                                                            <span class="text-base {{ $tbIsDropped ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300' }} {{ ($tbSaved && ! $tbIsDropped) ? 'opacity-50' : '' }}">
                                                                                 {{ $tbJScore ? number_format((float) $tbJScore->score, 1) : '—' }}
                                                                             </span>
                                                                         @elseif ($hasCategories)
@@ -1915,6 +1929,21 @@
                                                     </thead>
                                                     <tbody class="divide-y divide-warning-100 dark:divide-warning-900/40">
                                                         @foreach ($tbGroup->sortByDesc(fn ($row) => (float) $row->result->tiebreaker_score) as $tbRow)
+                                                            @php
+                                                                $roDroppedMinJ = null; $roDroppedMaxJ = null;
+                                                                if ($highLowDrop) {
+                                                                    $roJTotals = $tbRow->result->judgeScores
+                                                                        ->where('is_tiebreaker', true)
+                                                                        ->pluck('score', 'judge_number')
+                                                                        ->map(fn ($s) => (float) $s)
+                                                                        ->all();
+                                                                    if (count($roJTotals) >= 3) {
+                                                                        $roMinV = min($roJTotals); $roMaxV = max($roJTotals);
+                                                                        foreach ($roJTotals as $jj => $v) { if ($roDroppedMinJ === null && $v == $roMinV) { $roDroppedMinJ = $jj; break; } }
+                                                                        foreach ($roJTotals as $jj => $v) { if ($roDroppedMaxJ === null && $v == $roMaxV && $jj !== $roDroppedMinJ) { $roDroppedMaxJ = $jj; break; } }
+                                                                    }
+                                                                }
+                                                            @endphp
                                                             <tr>
                                                                 <td class="py-2 pr-4">
                                                                     <div class="font-medium text-gray-900 dark:text-white">{{ $tbRow->name }}</div>
@@ -1923,11 +1952,12 @@
                                                                     @endif
                                                                 </td>
                                                                 @for ($j = 1; $j <= $judges; $j++)
+                                                                    @php
+                                                                        $roIsDropped = $highLowDrop && ($j === $roDroppedMinJ || $j === $roDroppedMaxJ);
+                                                                        $tbJScore    = $tbRow->result->judgeScores->where('is_tiebreaker', true)->where('judge_number', $j)->first();
+                                                                    @endphp
                                                                     <td class="py-2 pr-2">
-                                                                        @php
-                                                                            $tbJScore = $tbRow->result->judgeScores->where('is_tiebreaker', true)->where('judge_number', $j)->first();
-                                                                        @endphp
-                                                                        <span class="text-base text-gray-700 dark:text-gray-300">
+                                                                        <span class="text-base {{ $roIsDropped ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300' }}">
                                                                             {{ $tbJScore ? number_format((float) $tbJScore->score, 1) : '—' }}
                                                                         </span>
                                                                     </td>
