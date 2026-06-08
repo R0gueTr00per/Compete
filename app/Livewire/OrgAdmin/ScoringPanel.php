@@ -24,6 +24,8 @@ class ScoringPanel extends Component
 
     public array $judgeScores               = [];
     public array $categoryScores           = [];
+    public array $tbPendingFlat             = [];
+    public array $tbPendingCat              = [];
     public array $pointsInput               = [];
     public array $placementInput            = [];
     public array $rollcallPresent           = [];
@@ -471,6 +473,13 @@ class ScoringPanel extends Component
             $allSaved = $rows->every(fn ($row) => $row->result->disqualified || $row->result->forfeited || in_array($row->result->id, $this->savedResultIds));
             if (! $allSaved) return false;
             if (! $rows->every(fn ($row) => $row->result->disqualified || $row->result->forfeited || $row->result->total_score !== null)) return false;
+            $tiedGroups = $this->getTiedGroups();
+            if ($tiedGroups->isNotEmpty()) {
+                $allTiebreakersSaved = $tiedGroups->every(fn ($tg) => $tg->group->every(
+                    fn ($row) => $row->result->tiebreaker_score !== null || $row->result->placement_overridden
+                ));
+                if (! $allTiebreakersSaved) return false;
+            }
             $stillTied = $this->getStillTiedAfterTiebreaker();
             if ($stillTied->isNotEmpty()) {
                 return $stillTied->every(fn ($group) => $group->every(fn ($r) => $r->result->placement_overridden));
@@ -1019,6 +1028,18 @@ class ScoringPanel extends Component
     {
         $result = $this->findResult($resultId);
         if (! $result) return;
+
+        // Preserve scores so inputs re-populate after undo
+        $result->loadMissing(['judgeScores' => fn ($q) => $q->where('is_tiebreaker', true), 'judgeScores.judgeScoreDetails']);
+        foreach ($result->judgeScores->where('is_tiebreaker', true) as $js) {
+            if ($js->judgeScoreDetails->isNotEmpty()) {
+                foreach ($js->judgeScoreDetails as $detail) {
+                    $this->tbPendingCat[$resultId][$js->judge_number][$detail->score_category_id] = number_format((float) $detail->score, 1);
+                }
+            } else {
+                $this->tbPendingFlat[$resultId][$js->judge_number] = number_format((float) $js->score, 1);
+            }
+        }
 
         $eeIds   = EnrolmentEvent::where('division_id', $result->division_id)->pluck('id');
         $cleared = Result::whereIn('enrolment_event_id', $eeIds)

@@ -1561,7 +1561,7 @@
                                                     @endphp
                                                     <div wire:key="tb-mobile-{{ $result->id }}"
                                                          data-scoring-key="tb-{{ $result->id }}"
-                                                         x-data="{ open: false, tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$defaultScore !== null ? number_format((float)$defaultScore,1) : null])->all()) }} }"
+                                                         x-data="{ open: false, tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$this->tbPendingFlat[$result->id][$j] ?? ($defaultScore !== null ? number_format((float)$defaultScore,1) : null)])->all()) }} }"
                                                          class="rounded-lg border border-warning-200 dark:border-warning-700 bg-white dark:bg-slate-900">
 
                                                         {{-- Card header --}}
@@ -1655,7 +1655,7 @@
                                                                                             <input type="number" step="0.1"
                                                                                                 min="{{ $catMin }}"
                                                                                                 @if ($catMax !== null) max="{{ $catMax }}" @endif
-                                                                                                value="{{ $defaultScore !== null ? number_format((float)$defaultScore, 1) : '' }}"
+                                                                                                value="{{ $this->tbPendingCat[$result->id][$j][$cat->id] ?? ($defaultScore !== null ? number_format((float)$defaultScore, 1) : '') }}"
                                                                                                 data-cat-j="{{ $j }}" data-cat-id="{{ $cat->id }}"
                                                                                                 class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 text-center"
                                                                                                 placeholder="{{ number_format($catMin, 1) }}" />
@@ -1741,7 +1741,7 @@
                                                             }
                                                         @endphp
                                                         <tbody class="border-b border-warning-100 dark:border-warning-900/40 last:border-b-0"
-                                                            x-data="{ tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$defaultScore !== null ? number_format((float)$defaultScore,1) : null])->all()) }} }">
+                                                            x-data="{ tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$this->tbPendingFlat[$result->id][$j] ?? ($defaultScore !== null ? number_format((float)$defaultScore,1) : null)])->all()) }} }">
                                                             <tr>
                                                                 <td class="py-2 pr-4">
                                                                     <div class="font-medium text-gray-900 dark:text-white">{{ $row->name }}</div>
@@ -1860,7 +1860,7 @@
                                                                                     <input type="number" step="0.1"
                                                                                         min="{{ $catMin }}"
                                                                                         @if ($catMax !== null) max="{{ $catMax }}" @endif
-                                                                                        value="{{ $defaultScore !== null ? number_format((float)$defaultScore, 1) : '' }}"
+                                                                                        value="{{ $this->tbPendingCat[$result->id][$j][$cat->id] ?? ($defaultScore !== null ? number_format((float)$defaultScore, 1) : '') }}"
                                                                                         data-cat-j="{{ $j }}" data-cat-id="{{ $cat->id }}"
                                                                                         class="w-9 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-0.5"
                                                                                         placeholder="{{ number_format($catMin, 1) }}" />
