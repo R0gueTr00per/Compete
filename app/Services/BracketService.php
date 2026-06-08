@@ -10,6 +10,20 @@ use Illuminate\Support\Collection;
 
 class BracketService
 {
+    private array $r1CountCache = [];
+
+    private function getR1Count(int $divisionId, string $bracket): int
+    {
+        $key = "{$divisionId}_{$bracket}";
+        if (! isset($this->r1CountCache[$key])) {
+            $this->r1CountCache[$key] = RoundRobinMatch::where('division_id', $divisionId)
+                ->where('bracket', $bracket)
+                ->where('round', 1)
+                ->count();
+        }
+        return $this->r1CountCache[$key];
+    }
+
     /**
      * Generate round-1 matches for a division.
      * $sortedCompetitors: Collection of EnrolmentEvent sorted by display name.
@@ -126,10 +140,7 @@ class BracketService
         // ── Repechage brackets (se_3rd_place uses 'repechage'; repechage format uses 'repechage_a'/'repechage_b') ──
         if (in_array($match->bracket, ['repechage', 'repechage_a', 'repechage_b'])) {
             $bracket     = $match->bracket;
-            $repR1Count  = RoundRobinMatch::where('division_id', $match->division_id)
-                ->where('bracket', $bracket)
-                ->where('round', 1)
-                ->count();
+            $repR1Count  = $this->getR1Count($match->division_id, $bracket);
             $maxRepRound = $repR1Count > 1 ? (int) ceil(log($repR1Count, 2)) + 1 : 1;
             $nextRound   = $match->round + 1;
 
@@ -163,10 +174,7 @@ class BracketService
             return;
         }
 
-        $r1Count    = RoundRobinMatch::where('division_id', $match->division_id)
-            ->where('bracket', 'winners')
-            ->where('round', 1)
-            ->count();
+        $r1Count    = $this->getR1Count($match->division_id, 'winners');
         $maxWbRound = $r1Count > 1 ? (int) ceil(log($r1Count, 2)) + 1 : 1;
         // LB has 2*(WB rounds - 1) rounds: odd rounds keep slot (face incoming WB loser next round),
         // even rounds merge (pairs of LB survivors compete).
@@ -498,7 +506,7 @@ class BracketService
 
     private function checkThirdPlace(int $divisionId): void
     {
-        $r1Count    = RoundRobinMatch::where('division_id', $divisionId)->where('bracket', 'winners')->where('round', 1)->count();
+        $r1Count    = $this->getR1Count($divisionId, 'winners');
         $maxWbRound = $r1Count > 1 ? (int) ceil(log($r1Count, 2)) + 1 : 1;
 
         if ($maxWbRound < 2) return;

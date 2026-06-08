@@ -40,9 +40,6 @@
                         $isReadOnly         = $div->status === 'complete';
                         $targetScore        = $method === 'first_to_n' ? $this->getTargetScore() : null;
                         $incrementButtons   = in_array($method, ['first_to_n', 'timed_points']) ? $this->getIncrementButtons() : [];
-                        $totalCheckedIn     = \App\Models\EnrolmentEvent::where('division_id', $this->division_id)
-                            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
-                            ->count();
                         $competitorCount    = $rows->count();
                         $usedPlacements     = $rows->pluck('result.placement')->filter()->values()->all();
                         $enabledPenalties   = $this->getEnabledPenaltyTypes();
@@ -984,13 +981,16 @@
                                                             <div class="flex gap-1">
                                                                 <x-filament::button size="xs"
                                                                     color="{{ $result->win_loss === 'win' ? 'success' : 'gray' }}"
-                                                                    wire:click="saveWinLoss({{ $result->id }}, 'win')">W</x-filament::button>
+                                                                    wire:click="saveWinLoss({{ $result->id }}, 'win')"
+                                                                    wire:loading.attr="disabled" wire:target="saveWinLoss({{ $result->id }}, 'win')">W</x-filament::button>
                                                                 <x-filament::button size="xs"
                                                                     color="{{ $result->win_loss === 'loss' ? 'danger' : 'gray' }}"
-                                                                    wire:click="saveWinLoss({{ $result->id }}, 'loss')">L</x-filament::button>
+                                                                    wire:click="saveWinLoss({{ $result->id }}, 'loss')"
+                                                                    wire:loading.attr="disabled" wire:target="saveWinLoss({{ $result->id }}, 'loss')">L</x-filament::button>
                                                                 <x-filament::button size="xs"
                                                                     color="{{ $result->win_loss === 'draw' ? 'warning' : 'gray' }}"
-                                                                    wire:click="saveWinLoss({{ $result->id }}, 'draw')">D</x-filament::button>
+                                                                    wire:click="saveWinLoss({{ $result->id }}, 'draw')"
+                                                                    wire:loading.attr="disabled" wire:target="saveWinLoss({{ $result->id }}, 'draw')">D</x-filament::button>
                                                                 @if (! $dqViaPenalties)
                                                                     <x-filament::button size="xs"
                                                                         color="{{ $result->disqualified ? 'gray' : 'danger' }}"
@@ -1198,6 +1198,7 @@
                                                                 placeholder="0" />
                                                             <x-filament::button size="sm" color="gray"
                                                                 wire:click="savePoints({{ $result->id }})"
+                                                                wire:loading.attr="disabled" wire:target="savePoints({{ $result->id }})"
                                                                 x-on:click="open = false">Set</x-filament::button>
                                                         </div>
                                                     </details>
@@ -1393,13 +1394,16 @@
                                                                 <div class="flex gap-1">
                                                                     <x-filament::button size="xs"
                                                                         color="{{ $result->win_loss === 'win' ? 'success' : 'gray' }}"
-                                                                        wire:click="saveWinLoss({{ $result->id }}, 'win')">W</x-filament::button>
+                                                                        wire:click="saveWinLoss({{ $result->id }}, 'win')"
+                                                                        wire:loading.attr="disabled" wire:target="saveWinLoss({{ $result->id }}, 'win')">W</x-filament::button>
                                                                     <x-filament::button size="xs"
                                                                         color="{{ $result->win_loss === 'loss' ? 'danger' : 'gray' }}"
-                                                                        wire:click="saveWinLoss({{ $result->id }}, 'loss')">L</x-filament::button>
+                                                                        wire:click="saveWinLoss({{ $result->id }}, 'loss')"
+                                                                        wire:loading.attr="disabled" wire:target="saveWinLoss({{ $result->id }}, 'loss')">L</x-filament::button>
                                                                     <x-filament::button size="xs"
                                                                         color="{{ $result->win_loss === 'draw' ? 'warning' : 'gray' }}"
-                                                                        wire:click="saveWinLoss({{ $result->id }}, 'draw')">D</x-filament::button>
+                                                                        wire:click="saveWinLoss({{ $result->id }}, 'draw')"
+                                                                        wire:loading.attr="disabled" wire:target="saveWinLoss({{ $result->id }}, 'draw')">D</x-filament::button>
                                                                 </div>
                                                             @endif
                                                         </td>
