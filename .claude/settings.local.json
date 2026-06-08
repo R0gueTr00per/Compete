@@ -427,7 +427,8 @@
       "PowerShell(\\(Get-Content \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Pages\\\\Scoring.php\" | Measure-Object -Line\\).Lines)",
       "Bash(awk -F'[\\(\\)]' '{print $1}')",
       "Bash(cd /d x:\\\\Repos\\\\Compete)",
-      "Bash(php -l app/Livewire/OrgAdmin/ScoringPanel.php)"
+      "Bash(php -l app/Livewire/OrgAdmin/ScoringPanel.php)",
+      "Bash(grep -n '$wire\\\\.\\\\|wire:' 'x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\filament\\\\admin\\\\pages\\\\scoring.blade.php')"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

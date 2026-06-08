@@ -2,6 +2,7 @@
 
 namespace App\Livewire\OrgAdmin;
 
+use App\Filament\OrgAdmin\Pages\Scoring as ScoringPage;
 use App\Models\Division;
 use App\Models\EnrolmentEvent;
 use App\Models\JudgeScore;
@@ -44,6 +45,11 @@ class ScoringPanel extends Component
     public array $pairingCompetitorList     = [];
 
     public array  $perfOrder    = [];
+    public array  $noteInput    = [];
+
+    public bool   $noteModalOpen    = false;
+    #[Locked]
+    public ?int   $noteModalResultId = null;
 
     public bool   $penaltyModalOpen           = false;
     #[Locked]
@@ -417,6 +423,10 @@ class ScoringPanel extends Component
 
                 if (! isset($this->placementInput[$result->id]) && $result->placement_overridden && $result->placement !== null) {
                     $this->placementInput[$result->id] = $result->placement;
+                }
+
+                if (! isset($this->noteInput[$result->id])) {
+                    $this->noteInput[$result->id] = $result->note ?? '';
                 }
 
                 return (object) [
@@ -903,6 +913,25 @@ class ScoringPanel extends Component
         app(ScoringService::class)->clearPlacementOverride($result);
         unset($this->placementInput[$resultId]);
         Notification::make()->title('Placement cleared.')->success()->send();
+    }
+
+    public function openNoteModal(int $resultId): void
+    {
+        $this->noteModalResultId = $resultId;
+        if (! isset($this->noteInput[$resultId])) {
+            $result = $this->findResult($resultId);
+            $this->noteInput[$resultId] = $result?->note ?? '';
+        }
+        $this->dispatch('open-modal', id: 'note-modal');
+    }
+
+    public function saveNote(int $resultId, ?string $note = ''): void
+    {
+        $result = $this->findResult($resultId);
+        if (! $result) return;
+        $result->update(['note' => $note ?: null]);
+        $this->noteInput[$resultId] = $note ?? '';
+        $this->dispatch('close-modal', id: 'note-modal');
     }
 
     public function clearOverride(int $resultId): void
@@ -1782,7 +1811,13 @@ class ScoringPanel extends Component
             'scoring_locked_at' => null,
         ]);
         Notification::make()->title('Division marked complete.')->success()->send();
-        $this->dispatch('division-complete');
+        $this->redirect(
+            ScoringPage::getUrl(array_filter([
+                'competition_id'     => $this->competition_id,
+                'highlight_division' => $this->division_id,
+            ])),
+            navigate: true
+        );
     }
 
     public function reactivateDivision(): void
@@ -1848,7 +1883,13 @@ class ScoringPanel extends Component
         $this->rollcallPresent            = array_values(array_diff($this->rollcallPresent, $cancelledEeIds));
         $this->saveRollcallToSession();
         $this->dispatch('scoring-cleared');
-        $this->dispatch('scoring-panel-closed');
+        $this->redirect(
+            ScoringPage::getUrl(array_filter([
+                'competition_id'     => $this->competition_id,
+                'highlight_division' => $this->division_id,
+            ])),
+            navigate: true
+        );
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────

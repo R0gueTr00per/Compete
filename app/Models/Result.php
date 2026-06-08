@@ -19,6 +19,7 @@ class Result extends Model
         'total_score',
         'tiebreaker_score',
         'win_loss',
+        'note',
     ];
 
     protected function casts(): array

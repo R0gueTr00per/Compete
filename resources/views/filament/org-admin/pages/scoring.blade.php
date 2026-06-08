@@ -98,12 +98,12 @@
                     x-data="{ tapped: false }"
                     @mousedown="tapped = true"
                     :class="tapped ? 'ring-2 ring-primary-400 dark:ring-primary-500 opacity-75' : ''"
-                    class="flex items-center justify-between gap-3 rounded-lg border px-4 py-3 cursor-pointer
+                    class="relative flex items-center justify-between gap-3 rounded-lg border px-4 py-3 cursor-pointer
                         {{ $rowClass }}
                         hover:border-primary-300 dark:hover:border-primary-600
                         {{ $this->highlight_division === $div->id ? 'scoring-row-return' : '' }}"
                     @if ($this->highlight_division === $div->id)
-                        x-init="$nextTick(() => { $el.scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => { const u = new URL(location.href); u.searchParams.delete('highlight_division'); history.replaceState({}, '', u); }, 2500); })"
+                        x-init="$nextTick(() => { $el.scrollIntoView({ behavior: 'instant', block: 'center' }); setTimeout(() => { const u = new URL(location.href); u.searchParams.delete('highlight_division'); history.replaceState({}, '', u); }, 2500); })"
                     @endif
                 >
                     <div class="flex items-center gap-3 min-w-0">
@@ -150,7 +150,11 @@
                         @elseif ($inProgress)
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">In progress</span>
                         @else
-                            <x-heroicon-m-chevron-right class="w-4 h-4 text-gray-400" />
+                            <x-heroicon-m-chevron-right wire:loading.remove wire:target="navigateToDivision({{ $div->id }})" class="w-4 h-4 text-gray-400" />
+                            <svg wire:loading wire:target="navigateToDivision({{ $div->id }})" class="animate-spin w-4 h-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                            </svg>
                         @endif
                     </div>
                 </div>
