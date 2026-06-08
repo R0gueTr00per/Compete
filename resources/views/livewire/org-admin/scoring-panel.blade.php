@@ -1,4 +1,4 @@
-<div>
+<div x-data="{ cancelling: false }" x-on:scoring-cancel-confirmed.window="cancelling = true">
     <style>
         input[type=number]::-webkit-outer-spin-button,
         input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -50,7 +50,7 @@
                         $isBracket          = $this->isTournament();
                         $highLowDrop        = $div->competitionEvent->high_low_drop ?? false;
                     @endphp
-                    <div class="mb-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-800 p-4 scoring-panel-glow">
+                    <div x-show="!cancelling" class="mb-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-800 p-4 scoring-panel-glow">
 
                         {{-- Panel header: step indicator (hidden for completed read-only view) --}}
                         @if (! $isReadOnly)
@@ -2103,6 +2103,7 @@
                         {{-- Panel footer --}}
                         @if ($div->status !== 'complete')
                             <div class="mt-4 flex items-center justify-between gap-3">
+                                @if (! $this->manualPairingMode)
                                 <div>
                                     @if ($this->rollcallMode)
                                         <x-filament::button color="gray" size="sm"
@@ -2116,6 +2117,7 @@
                                         </x-filament::button>
                                     @endif
                                 </div>
+                                @endif
                                 <div class="flex items-center gap-2">
                                     @if (! $this->manualPairingMode)
                                     @if ($this->rollcallMode)
@@ -2184,7 +2186,7 @@
         <x-slot name="footerActions">
             <x-filament::button color="danger"
                 wire:click="cancelScoring"
-                x-on:click="$dispatch('close-modal', { id: 'confirm-cancel-scoring' })">
+                x-on:click="window.dispatchEvent(new CustomEvent('scoring-cancel-confirmed')); $dispatch('close-modal', { id: 'confirm-cancel-scoring' })">
                 Yes, cancel
             </x-filament::button>
             <x-filament::button color="gray"

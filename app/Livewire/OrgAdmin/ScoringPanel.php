@@ -225,6 +225,12 @@ class ScoringPanel extends Component
             if ($division && empty($division->category_config)) {
                 $this->snapshotCategories($division);
             }
+            if (! $this->bracketExists) {
+                $fmt = $division?->tournament_format ?? $division?->competitionEvent?->effectiveTournamentFormat();
+                if (in_array($fmt, ['round_robin', 'single_elimination', 'double_elimination', 'repechage', 'se_3rd_place'])) {
+                    $this->generateBracket();
+                }
+            }
         } else {
             $this->completedRollcallDivisions = array_values(array_diff($this->completedRollcallDivisions, [$this->division_id]));
             RoundRobinMatch::where('division_id', $this->division_id)->delete();
