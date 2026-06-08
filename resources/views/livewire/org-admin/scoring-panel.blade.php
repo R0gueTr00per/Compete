@@ -396,7 +396,7 @@
                                                                                 data-result-id="{{ $homeResult->id }}"
                                                                                 data-note="{{ $homeResult->note ?? '' }}"
                                                                                 x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                                class="shrink-0 {{ $homeResult->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
+                                                                                class="shrink-0 {{ $homeResult->note ? 'text-primary-500 animate-pulse' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
                                                                                 <x-heroicon-o-document-text class="w-4 h-4" />
                                                                             </button>
                                                                         @endif
@@ -438,7 +438,7 @@
                                                                                 data-result-id="{{ $awayResult->id }}"
                                                                                 data-note="{{ $awayResult->note ?? '' }}"
                                                                                 x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                                class="shrink-0 {{ $awayResult->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
+                                                                                class="shrink-0 {{ $awayResult->note ? 'text-primary-500 animate-pulse' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
                                                                                 <x-heroicon-o-document-text class="w-4 h-4" />
                                                                             </button>
                                                                         @endif
@@ -907,7 +907,7 @@
                                                                 data-result-id="{{ $result->id }}"
                                                                 data-note="{{ $result->note ?? '' }}"
                                                                 x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                class="shrink-0 {{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
+                                                                class="shrink-0 {{ $result->note ? 'text-primary-500 animate-pulse' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
                                                                 <x-heroicon-o-document-text class="w-4 h-4" />
                                                             </button>
                                                         @endif
@@ -1251,7 +1251,7 @@
                                                                     data-result-id="{{ $result->id }}"
                                                                     data-note="{{ $result->note ?? '' }}"
                                                                     x-on:click="$dispatch('open-note-modal', { resultId: parseInt($el.dataset.resultId), note: $el.dataset.note })"
-                                                                    class="shrink-0 {{ $result->note ? 'text-primary-500' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
+                                                                    class="shrink-0 {{ $result->note ? 'text-primary-500 animate-pulse' : 'text-gray-400 hover:text-primary-500 dark:hover:text-primary-400' }} transition-colors">
                                                                     <x-heroicon-o-document-text class="w-4 h-4" />
                                                                 </button>
                                                             @endif
