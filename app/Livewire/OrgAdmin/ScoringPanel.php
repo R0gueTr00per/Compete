@@ -26,7 +26,6 @@ class ScoringPanel extends Component
     public array $categoryScores           = [];
     public array $pointsInput               = [];
     public array $placementInput            = [];
-    public array $tiebreakerJudgeInputs     = [];
     public array $rollcallPresent           = [];
     public array $bracketScoreInput         = [];
     public array $savedResultIds            = [];
@@ -246,15 +245,14 @@ class ScoringPanel extends Component
 
             EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
 
-            $this->judgeScores           = [];
-            $this->categoryScores        = [];
-            $this->savedResultIds        = [];
-            $this->tiebreakerJudgeInputs = [];
-            $this->pointsInput           = [];
-            $this->placementInput        = [];
-            $this->bracketScoreInput     = [];
-            $this->bracketExists         = false;
-            $this->rollcallMode          = true;
+            $this->judgeScores              = [];
+            $this->categoryScores           = [];
+            $this->savedResultIds           = [];
+            $this->pointsInput              = [];
+            $this->placementInput           = [];
+            $this->bracketScoreInput        = [];
+            $this->bracketExists            = false;
+            $this->rollcallMode             = true;
             $this->dispatch('scoring-cleared');
         }
     }
@@ -285,9 +283,8 @@ class ScoringPanel extends Component
                 'disqualified'         => false,
             ])->save();
         });
-        $this->judgeScores           = [];
-        $this->savedResultIds        = [];
-        $this->tiebreakerJudgeInputs = [];
+        $this->judgeScores    = [];
+        $this->savedResultIds = [];
 
         $ee->forceFill(['removed' => false])->save();
         Notification::make()->title('Competitor added.')->success()->send();
@@ -376,7 +373,6 @@ class ScoringPanel extends Component
 
                     $eventCategories = $division?->competitionEvent?->scoreCategories;
                     if ($eventCategories && $eventCategories->isNotEmpty()) {
-                        // Category mode: pre-fill each judge × category with default_score if not yet loaded
                         $prefill    = $division->competitionEvent->default_score ?? $division->competitionEvent->min_score;
                         $judgeCount = $division->competitionEvent->effectiveJudgeCount();
                         if ($prefill !== null) {
@@ -400,15 +396,6 @@ class ScoringPanel extends Component
                     }
 
                     $this->judgeScores[$result->id] = $scores;
-                }
-
-                if (! isset($this->tiebreakerJudgeInputs[$result->id])) {
-                    $tbScores = $result->judgeScores->where('is_tiebreaker', true);
-                    if ($tbScores->isNotEmpty()) {
-                        foreach ($tbScores as $js) {
-                            $this->tiebreakerJudgeInputs[$result->id][$js->judge_number] = (float) $js->score;
-                        }
-                    }
                 }
 
                 if (! isset($this->pointsInput[$result->id]) && $result->total_score !== null) {
@@ -739,7 +726,7 @@ class ScoringPanel extends Component
 
     // ─── Scoring actions ─────────────────────────────────────────────────────
 
-    public function saveJudgeScores(int $resultId): void
+    public function saveJudgeScores(int $resultId, array $clientCatScores = []): void
     {
         $result = $this->findResult($resultId);
         if (! $result) return;
@@ -750,6 +737,12 @@ class ScoringPanel extends Component
         $hasCategories = $mode !== 'single' && $event->scoreCategories()->exists();
 
         if ($hasCategories) {
+            // Merge DOM-collected values (fixes wire:model.blur + +/− button race condition)
+            foreach ($clientCatScores as $judgeNum => $cats) {
+                foreach ((array) $cats as $catId => $value) {
+                    $this->categoryScores[$resultId][$judgeNum][$catId] = $value;
+                }
+            }
             foreach ($this->categoryScores[$resultId] ?? [] as $judgeNum => $catScores) {
                 $filled = array_filter($catScores, fn ($v) => $v !== null && $v !== '');
                 if (! empty($filled)) {
@@ -781,7 +774,6 @@ class ScoringPanel extends Component
         // Clear tiebreaker scores first
         if ($result->tiebreaker_score !== null) {
             $service->clearTiebreakerScore($result);
-            unset($this->tiebreakerJudgeInputs[$resultId]);
         }
 
         // Clear all regular judge scores and total from DB
@@ -801,11 +793,8 @@ class ScoringPanel extends Component
         // Re-rank remaining scored competitors
         $service->autoRankDivision(Division::with('competitionEvent')->find($result->division_id));
 
-        // Clear Livewire input state for this result
-        unset($this->judgeScores[$resultId]);
-        unset($this->categoryScores[$resultId]);
+        // Remove from saved set (inputs preserved so user sees old values to re-edit)
         unset($this->placementInput[$resultId]);
-
         $this->savedResultIds = array_values(array_diff($this->savedResultIds, [$resultId]));
     }
 
@@ -862,7 +851,6 @@ class ScoringPanel extends Component
 
         if ($result->fresh()->tiebreaker_score !== null) {
             $service->clearTiebreakerScore($result);
-            unset($this->tiebreakerJudgeInputs[$resultId]);
         }
     }
 
@@ -951,11 +939,10 @@ class ScoringPanel extends Component
             ])->save();
         });
 
-        $this->judgeScores           = [];
-        $this->categoryScores        = [];
-        $this->tiebreakerJudgeInputs = [];
-        $this->savedResultIds        = [];
-        $this->placementOverrideMode = false;
+        $this->judgeScores    = [];
+        $this->categoryScores = [];
+        $this->savedResultIds = [];
+        $this->placementOverrideMode    = false;
         Notification::make()->title('Scores cleared.')->success()->send();
     }
 
@@ -981,30 +968,49 @@ class ScoringPanel extends Component
         }
     }
 
-    public function saveTiebreakerScores(int $resultId): void
+    public function saveTiebreakerScores(int $resultId, array $scores): void
     {
         $result = $this->findResult($resultId);
         if (! $result) return;
 
-        $inputs  = $this->tiebreakerJudgeInputs[$resultId] ?? [];
-        $method  = $this->getScoringMethod();
-        $scores  = collect($inputs)->filter(fn ($v) => $v !== null && $v !== '')->map(fn ($v) => (float) $v);
+        $service       = app(ScoringService::class);
+        $event         = $result->enrolmentEvent->competitionEvent;
+        $mode          = $event->score_category_mode ?? 'single';
+        $hasCategories = $mode !== 'single' && $event->scoreCategories()->exists();
+        $method        = $this->getScoringMethod();
+        $judgeTotals   = [];
 
-        if ($scores->isEmpty()) {
+        if ($hasCategories) {
+            $categories = $this->getScoreCategories();
+            foreach ($scores as $judgeNum => $data) {
+                $cats = array_filter((array) $data, fn ($v) => $v !== null && $v !== '');
+                if (empty($cats)) continue;
+                $service->submitTiebreakerCategoryScore($result, (int) $judgeNum, $cats);
+                $jTotal = 0.0;
+                foreach ($categories as $cat) {
+                    $v = (float) ($cats[$cat->id] ?? $cats[(string) $cat->id] ?? 0);
+                    $jTotal += $mode === 'weighted' ? $v * ((float) $cat->weight / 100) : $v;
+                }
+                $judgeTotals[(int) $judgeNum] = $jTotal;
+            }
+        } else {
+            foreach ($scores as $judgeNum => $val) {
+                if ($val === null || $val === '') continue;
+                $service->submitJudgeScore($result, (int) $judgeNum, (float) $val, true);
+                $judgeTotals[(int) $judgeNum] = (float) $val;
+            }
+        }
+
+        if (empty($judgeTotals)) {
             Notification::make()->title('Enter at least one judge score.')->warning()->send();
             return;
         }
 
-        $total = $method === 'judges_average'
-            ? round($scores->avg(), 3)
-            : round($scores->sum(), 3);
+        $values = collect($judgeTotals);
+        $total  = $method === 'judges_average'
+            ? round($values->avg(), 3)
+            : round($values->sum(), 3);
 
-        $service = app(ScoringService::class);
-        foreach ($inputs as $judgeNum => $score) {
-            if ($score !== null && $score !== '') {
-                $service->submitJudgeScore($result, (int) $judgeNum, (float) $score, true);
-            }
-        }
         $service->saveTiebreakerScore($result, $total);
         Notification::make()->title('Tiebreaker score saved.')->success()->send();
     }
@@ -1027,7 +1033,6 @@ class ScoringPanel extends Component
             }
         }
 
-        unset($this->tiebreakerJudgeInputs[$resultId]);
         app(ScoringService::class)->clearTiebreakerScore($result);
         Notification::make()->title('Tiebreaker score cleared.')->success()->send();
     }
@@ -1037,14 +1042,9 @@ class ScoringPanel extends Component
         $method = $this->getScoringMethod();
         if (! in_array($method, ['judges_total', 'judges_average'])) return collect();
 
-        $rows = $this->competitorRows;
-
+        $rows     = $this->competitorRows;
         $allSaved = $rows->every(fn ($row) => $row->result->disqualified || in_array($row->result->id, $this->savedResultIds));
         if (! $allSaved) return collect();
-
-        $division     = $this->selectedDivision;
-        $defaultScore = $division?->competitionEvent->default_score;
-        $judgeCount   = $this->getJudgeCount();
 
         $scoreGroups = $rows
             ->filter(fn ($row) => $row->result->total_score !== null && ! $row->result->disqualified)
@@ -1056,24 +1056,12 @@ class ScoringPanel extends Component
 
         foreach ($scoreGroups as $group) {
             $startingPosition = $cumulative + 1;
-
             if ($group->count() > 1 && $startingPosition <= 3) {
-                if ($defaultScore !== null) {
-                    foreach ($group as $row) {
-                        $resultId = $row->result->id;
-                        if (! isset($this->tiebreakerJudgeInputs[$resultId])) {
-                            for ($j = 1; $j <= $judgeCount; $j++) {
-                                $this->tiebreakerJudgeInputs[$resultId][$j] = (float) $defaultScore;
-                            }
-                        }
-                    }
-                }
                 $tiedGroups->push((object) [
                     'group'             => $group,
                     'starting_position' => $startingPosition,
                 ]);
             }
-
             $cumulative += $group->count();
         }
 

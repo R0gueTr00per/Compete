@@ -110,6 +110,10 @@ class CheckIn extends Page
             return collect();
         }
 
+        if (! $this->code && ! $this->search) {
+            return collect();
+        }
+
         $query = Enrolment::where('competition_id', $this->competition_id)
             ->with([
                 'competitor',

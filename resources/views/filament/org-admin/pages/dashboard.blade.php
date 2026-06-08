@@ -338,7 +338,7 @@
                             </x-filament::button>
                         @endif
 
-                        @if ($isOrgAdmin || $officialRole?->can_access_enrolments)
+                        @if (($isOrgAdmin || $officialRole?->can_access_enrolments) && $competition->status !== 'complete')
                             <div class="{{ in_array('enrolments', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$enrolmentsColor" tag="a" href="{{ route('filament.org-admin.resources.enrolments.index') }}?competition_id={{ $competition->id }}">
                                     Registrations
@@ -346,7 +346,7 @@
                             </div>
                         @endif
 
-                        @if ($isOrgAdmin || $officialRole?->can_access_checkin)
+                        @if (($isOrgAdmin || $officialRole?->can_access_checkin) && in_array($competition->status, ['check_in', 'running']))
                             <div class="{{ in_array('checkin', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$checkInColor" tag="a" href="{{ route('filament.org-admin.pages.check-in') }}?competition_id={{ $competition->id }}">
                                     Check-in
@@ -354,7 +354,7 @@
                             </div>
                         @endif
 
-                        @if ($isOrgAdmin)
+                        @if ($isOrgAdmin && $competition->status !== 'complete')
                             <div class="{{ in_array('scheduling', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$schedulingColor" tag="a" href="{{ route('filament.org-admin.resources.competitions.schedule', $competition) }}">
                                     Scheduling
@@ -362,7 +362,16 @@
                             </div>
                         @endif
 
-                        @if ($isOrgAdmin || $officialRole?->can_access_scoring)
+                        @if ($isOrgAdmin && $competition->status === 'complete')
+                            <x-filament::button size="sm" color="gray" tag="a" href="{{ route('filament.org-admin.pages.results') }}?competition_id={{ $competition->id }}">
+                                Results
+                            </x-filament::button>
+                            <x-filament::button size="sm" color="gray" tag="a" href="{{ route('filament.org-admin.pages.transactions-page') }}">
+                                Transactions
+                            </x-filament::button>
+                        @endif
+
+                        @if (($isOrgAdmin || $officialRole?->can_access_scoring) && $competition->status === 'running')
                             <div class="{{ in_array('scoring', $hideOnMobile) ? 'hidden sm:block' : '' }}">
                                 <x-filament::button size="sm" :color="$scoringColor" tag="a" href="{{ route('filament.org-admin.pages.scoring') }}?competition_id={{ $competition->id }}">
                                     Scoring

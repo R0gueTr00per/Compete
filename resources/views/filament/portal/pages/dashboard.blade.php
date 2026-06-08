@@ -198,38 +198,40 @@
                                     {{-- Events list --}}
                                     <div class="divide-y divide-gray-100 dark:divide-slate-700 px-4">
                                         @forelse ($enrolment->activeEvents as $ee)
-                                            <div class="py-1.5 flex items-center gap-2 min-w-0">
-                                                <span class="text-sm font-medium text-gray-900 dark:text-white truncate flex-1">{{ $ee->competitionEvent->name }}</span>
-                                                <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                                            <div class="py-1.5 min-w-0 sm:flex sm:items-center sm:gap-2">
+                                                <div class="flex items-center gap-2 min-w-0 sm:flex-1">
+                                                    <span class="text-sm font-medium text-gray-900 dark:text-white flex-1 min-w-0 sm:truncate">{{ $ee->competitionEvent->name }}</span>
+                                                    @if ($ee->result)
+                                                        @if ($ee->result->disqualified)
+                                                            <span class="text-danger-600 font-semibold text-xs shrink-0">DQ</span>
+                                                        @elseif ($ee->result->placement)
+                                                            <span class="font-bold text-xs text-primary-600 shrink-0">
+                                                                @switch($ee->result->placement)
+                                                                    @case(1) 🥇 1st @break
+                                                                    @case(2) 🥈 2nd @break
+                                                                    @case(3) 🥉 3rd @break
+                                                                    @default {{ $ee->result->placement }}th
+                                                                @endswitch
+                                                            </span>
+                                                        @elseif ($ee->result->win_loss)
+                                                            <span class="text-xs shrink-0 {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
+                                                        @elseif (! $ee->result->total_score)
+                                                            <span class="text-gray-400 text-xs shrink-0">Pending</span>
+                                                        @endif
+                                                    @else
+                                                        <span class="text-gray-400 text-xs shrink-0">Pending</span>
+                                                    @endif
+                                                    @if ($ee->competitionEvent->requires_partner)
+                                                        <span class="text-xs shrink-0 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}</span>
+                                                    @endif
+                                                </div>
+                                                <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 sm:mt-0 sm:shrink-0">
                                                     @if ($ee->division)
                                                         {{ $ee->division->code }} &mdash; {{ $ee->division->label }}{{ $ee->division->location_label ? ' (' . $ee->division->location_label . ')' : '' }}
                                                     @else
                                                         TBC
                                                     @endif
-                                                </span>
-                                                @if ($ee->result)
-                                                    @if ($ee->result->disqualified)
-                                                        <span class="text-danger-600 font-semibold text-xs shrink-0">DQ</span>
-                                                    @elseif ($ee->result->placement)
-                                                        <span class="font-bold text-xs text-primary-600 shrink-0">
-                                                            @switch($ee->result->placement)
-                                                                @case(1) 🥇 1st @break
-                                                                @case(2) 🥈 2nd @break
-                                                                @case(3) 🥉 3rd @break
-                                                                @default {{ $ee->result->placement }}th
-                                                            @endswitch
-                                                        </span>
-                                                    @elseif ($ee->result->win_loss)
-                                                        <span class="text-xs shrink-0 {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
-                                                    @elseif (! $ee->result->total_score)
-                                                        <span class="text-gray-400 text-xs shrink-0">Pending</span>
-                                                    @endif
-                                                @else
-                                                    <span class="text-gray-400 text-xs shrink-0">Pending</span>
-                                                @endif
-                                                @if ($ee->competitionEvent->requires_partner)
-                                                    <span class="text-xs shrink-0 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}</span>
-                                                @endif
+                                                </div>
                                             </div>
                                         @empty
                                             <p class="py-3 text-xs text-gray-400">No events in this enrolment.</p>

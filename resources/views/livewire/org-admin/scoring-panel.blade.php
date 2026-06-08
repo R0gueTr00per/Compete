@@ -43,6 +43,7 @@
                         $enabledPenalties   = $this->getEnabledPenaltyTypes();
                         $dqViaPenalties     = in_array('dq', $enabledPenalties);
                         $isBracket          = $this->isTournament();
+                        $highLowDrop        = $div->competitionEvent->high_low_drop ?? false;
                     @endphp
                     <div class="mb-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-white dark:bg-slate-800 p-4 scoring-panel-glow">
 
@@ -821,8 +822,31 @@
                                                     ? round(array_sum($rawScores) / $scoreCount, 1)
                                                     : round(array_sum($rawScores), 1))
                                                 : null;
+                                            $droppedMinJ = null; $droppedMaxJ = null;
+                                            if ($highLowDrop && $isSaved) {
+                                                $jTotals = [];
+                                                for ($jj = 1; $jj <= $judges; $jj++) {
+                                                    if ($hasCategories) {
+                                                        $allF = $categories->every(fn ($cat) => isset($this->categoryScores[$result->id][$jj][$cat->id]) && (string) $this->categoryScores[$result->id][$jj][$cat->id] !== '');
+                                                        if ($allF) {
+                                                            $jTotals[$jj] = $categoryMode === 'weighted'
+                                                                ? $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$jj][$cat->id] ?? 0) * ((float) $cat->weight / 100))
+                                                                : $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$jj][$cat->id] ?? 0));
+                                                        }
+                                                    } else {
+                                                        $s = $this->judgeScores[$result->id][$jj] ?? null;
+                                                        if ($s !== null && $s !== '') $jTotals[$jj] = (float) $s;
+                                                    }
+                                                }
+                                                if (count($jTotals) >= 3) {
+                                                    $minV = min($jTotals); $maxV = max($jTotals);
+                                                    foreach ($jTotals as $jj => $v) { if ($droppedMinJ === null && $v == $minV) { $droppedMinJ = $jj; break; } }
+                                                    foreach ($jTotals as $jj => $v) { if ($droppedMaxJ === null && $v == $maxV && $jj !== $droppedMinJ) { $droppedMaxJ = $jj; break; } }
+                                                }
+                                            }
                                         @endphp
                                         <div wire:key="mobile-row-{{ $result->id }}"
+                                             data-scoring-key="row-{{ $result->id }}"
                                              x-data="{ open: false }"
                                              class="rounded-lg border {{ $result->disqualified ? 'opacity-60' : '' }} border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900">
 
@@ -990,29 +1014,16 @@
                                                 <div x-show="open" x-transition
                                                      class="border-t border-gray-100 dark:border-slate-700 px-3 pb-3 pt-3 space-y-3">
                                                     @for ($j = 1; $j <= $judges; $j++)
+                                                        @php $isDropped = $highLowDrop && ($j === $droppedMinJ || $j === $droppedMaxJ); @endphp
                                                         @if ($hasCategories)
-                                                            @php
-                                                                $mJFilled = $categories->every(fn ($cat) => isset($this->categoryScores[$result->id][$j][$cat->id]) && (string) $this->categoryScores[$result->id][$j][$cat->id] !== '');
-                                                                $mJRaw = $mJFilled
-                                                                    ? ($categoryMode === 'weighted'
-                                                                        ? $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$j][$cat->id] ?? 0) * ((float) $cat->weight / 100))
-                                                                        : $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$j][$cat->id] ?? 0)))
-                                                                    : null;
-                                                                $mJTotal = $mJRaw !== null ? rtrim(rtrim(number_format($mJRaw, 3), '0'), '.') : null;
-                                                            @endphp
                                                             <div>
-                                                                <div class="flex items-center justify-between mb-1.5">
-                                                                    <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Judge {{ $j }}</p>
-                                                                    @if ($mJTotal !== null)
-                                                                        <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">= {{ $mJTotal }}</span>
-                                                                    @endif
-                                                                </div>
-                                                                <div class="space-y-1.5 {{ $isSaved ? 'opacity-50' : '' }}">
+                                                                <p class="text-xs font-semibold mb-1.5 {{ $isDropped ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400' }}">Judge {{ $j }}</p>
+                                                                <div class="space-y-1.5 {{ ($isSaved && $isDropped) ? 'opacity-40' : ($isSaved ? 'opacity-50' : '') }}">
                                                                     @foreach ($categories as $cat)
                                                                         @php $catMin = $judgeMin ?? 0; $catMax = $judgeMax; @endphp
                                                                         <div class="flex items-center gap-2">
                                                                             <span class="text-xs text-gray-500 dark:text-gray-400 w-28 shrink-0">{{ $cat->name }}@if ($categoryMode === 'weighted') <span class="text-gray-400">({{ $cat->weight }}%)</span>@endif</span>
-                                                                            <div x-data="{}" class="flex items-center gap-1 flex-1">
+                                                                            <div class="flex items-center gap-1 flex-1" x-data="{}">
                                                                                 <button type="button"
                                                                                     x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||{{ $catMin }})-0.1)*10)/10; i.value=Math.max({{ $catMin }},v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
                                                                                     class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform"
@@ -1020,7 +1031,8 @@
                                                                                 <input type="number" step="0.1"
                                                                                     min="{{ $catMin }}"
                                                                                     @if ($catMax !== null) max="{{ $catMax }}" @endif
-                                                                                    wire:model="categoryScores.{{ $result->id }}.{{ $j }}.{{ $cat->id }}"
+                                                                                    wire:model.blur="categoryScores.{{ $result->id }}.{{ $j }}.{{ $cat->id }}"
+                                                                                    data-cat-j="{{ $j }}" data-cat-id="{{ $cat->id }}"
                                                                                     class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 text-center"
                                                                                     placeholder="{{ number_format($catMin, 1) }}"
                                                                                     @if ($isSaved) disabled @endif />
@@ -1035,13 +1047,13 @@
                                                             </div>
                                                         @else
                                                         <div x-data="{}">
-                                                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Judge {{ $j }}</label>
+                                                            <label class="block text-xs font-medium mb-1 {{ $isDropped ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400' }}">Judge {{ $j }}</label>
                                                             <div class="flex items-center gap-2">
                                                                 <input x-ref="inp" type="number" step="0.1"
                                                                     @if ($judgeMin !== null) min="{{ $judgeMin }}" @else min="0" @endif
                                                                     @if ($judgeMax !== null) max="{{ $judgeMax }}" @endif
                                                                     wire:model="judgeScores.{{ $result->id }}.{{ $j }}"
-                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 {{ $isSaved ? 'opacity-50' : '' }}"
+                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 {{ ($isSaved && $isDropped) ? 'opacity-40' : ($isSaved ? 'opacity-50' : '') }}"
                                                                     placeholder="{{ $judgeMin ?? '0.0' }}"
                                                                     @if ($isSaved) disabled @endif />
                                                                 @if (! $isSaved)
@@ -1082,8 +1094,7 @@
                                                                 :disabled="$inTiebreakerFlow">Undo</x-filament::button>
                                                         @else
                                                             <x-filament::button color="primary" class="flex-1"
-                                                                wire:click="saveJudgeScores({{ $result->id }})"
-                                                                x-on:click="open = false">Save scores</x-filament::button>
+                                                                x-on:click="const d={};($el.closest('[data-scoring-key=row-{{ $result->id }}]')?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;});$wire.saveJudgeScores({{ $result->id }},d);open=false">Save scores</x-filament::button>
                                                         @endif
                                                     </div>
                                                 </div>
@@ -1170,6 +1181,7 @@
                                                     $isSaved = in_array($result->id, $this->savedResultIds);
                                                 @endphp
                                                 <tbody wire:key="dtrow-{{ $result->id }}"
+                                                    data-scoring-key="row-{{ $result->id }}"
                                                     class="border-b border-gray-100 dark:border-slate-800 last:border-b-0">
                                                 <tr class="{{ $result->disqualified ? 'opacity-50' : '' }}">
                                                     <td class="py-2 pr-4">
@@ -1224,28 +1236,59 @@
                                                                     ? round(array_sum($rawScores) / $scoreCount, 1)
                                                                     : round(array_sum($rawScores), 1))
                                                                 : null;
+                                                            $droppedMinJ = null; $droppedMaxJ = null;
+                                                            if ($highLowDrop && ($isSaved || $isReadOnly)) {
+                                                                $jTotals = [];
+                                                                for ($jj = 1; $jj <= $judges; $jj++) {
+                                                                    if ($hasCategories) {
+                                                                        $allF = $categories->every(fn ($cat) => isset($this->categoryScores[$result->id][$jj][$cat->id]) && (string) $this->categoryScores[$result->id][$jj][$cat->id] !== '');
+                                                                        if ($allF) {
+                                                                            $jTotals[$jj] = $categoryMode === 'weighted'
+                                                                                ? $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$jj][$cat->id] ?? 0) * ((float) $cat->weight / 100))
+                                                                                : $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$jj][$cat->id] ?? 0));
+                                                                        }
+                                                                    } else {
+                                                                        $s = $this->judgeScores[$result->id][$jj] ?? null;
+                                                                        if ($s !== null && $s !== '') $jTotals[$jj] = (float) $s;
+                                                                    }
+                                                                }
+                                                                if (count($jTotals) >= 3) {
+                                                                    $minV = min($jTotals); $maxV = max($jTotals);
+                                                                    foreach ($jTotals as $jj => $v) { if ($droppedMinJ === null && $v == $minV) { $droppedMinJ = $jj; break; } }
+                                                                    foreach ($jTotals as $jj => $v) { if ($droppedMaxJ === null && $v == $maxV && $jj !== $droppedMinJ) { $droppedMaxJ = $jj; break; } }
+                                                                }
+                                                            }
                                                         @endphp
                                                         @for ($j = 1; $j <= $judges; $j++)
+                                                            @php $isDropped = $highLowDrop && ($j === $droppedMinJ || $j === $droppedMaxJ); @endphp
                                                             <td class="py-2 pr-1">
                                                                 @if ($isReadOnly || $hasCategories)
-                                                                    @php
-                                                                        if ($hasCategories) {
-                                                                            $allFilled = $categories->every(fn ($cat) => isset($this->categoryScores[$result->id][$j][$cat->id]) && (string) $this->categoryScores[$result->id][$j][$cat->id] !== '');
-                                                                            if ($allFilled) {
-                                                                                $raw = $categoryMode === 'weighted'
-                                                                                    ? $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$j][$cat->id] ?? 0) * ((float) $cat->weight / 100))
-                                                                                    : $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$j][$cat->id] ?? 0));
-                                                                                $judgeTotal = rtrim(rtrim(number_format($raw, 3), '0'), '.');
-                                                                            } else {
-                                                                                $judgeTotal = null;
-                                                                            }
-                                                                        }
-                                                                    @endphp
-                                                                    <span class="text-sm font-medium {{ ($hasCategories ? $judgeTotal : ($this->judgeScores[$result->id][$j] ?? null)) ? 'text-gray-900 dark:text-white' : 'text-gray-400' }}">
-                                                                        {{ $hasCategories ? ($judgeTotal ?? '—') : ($this->judgeScores[$result->id][$j] ?? '—') }}
-                                                                    </span>
+                                                                    @if ($hasCategories)
+                                                                        @if ($isSaved || $isReadOnly)
+                                                                            @php
+                                                                                $allFilled = $categories->every(fn ($cat) => isset($this->categoryScores[$result->id][$j][$cat->id]) && (string) $this->categoryScores[$result->id][$j][$cat->id] !== '');
+                                                                                if ($allFilled) {
+                                                                                    $raw = $categoryMode === 'weighted'
+                                                                                        ? $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$j][$cat->id] ?? 0) * ((float) $cat->weight / 100))
+                                                                                        : $categories->sum(fn ($cat) => (float) ($this->categoryScores[$result->id][$j][$cat->id] ?? 0));
+                                                                                    $judgeTotal = rtrim(rtrim(number_format($raw, 3), '0'), '.');
+                                                                                } else {
+                                                                                    $judgeTotal = null;
+                                                                                }
+                                                                            @endphp
+                                                                            <span class="text-base font-medium {{ $isDropped ? 'line-through text-gray-400 dark:text-gray-500' : ($judgeTotal ? 'text-gray-900 dark:text-white' : 'text-gray-400') }}">
+                                                                                {{ $judgeTotal ?? '—' }}
+                                                                            </span>
+                                                                        @else
+                                                                            <span class="text-base text-gray-400">—</span>
+                                                                        @endif
+                                                                    @else
+                                                                        <span class="text-base font-medium {{ $isDropped ? 'line-through text-gray-400 dark:text-gray-500' : (($this->judgeScores[$result->id][$j] ?? null) ? 'text-gray-900 dark:text-white' : 'text-gray-400') }}">
+                                                                            {{ $this->judgeScores[$result->id][$j] ?? '—' }}
+                                                                        </span>
+                                                                    @endif
                                                                 @else
-                                                                    <div class="flex items-center gap-0.5 {{ $isSaved ? 'opacity-50' : '' }}" x-data="{}">
+                                                                    <div class="flex items-center gap-0.5 {{ ($isSaved && $isDropped) ? 'opacity-40' : ($isSaved ? 'opacity-50' : '') }}" x-data="{}">
                                                                         <button type="button"
                                                                             x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||0)-0.1)*10)/10; i.value=Math.max(0,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
                                                                             class="w-6 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform"
@@ -1405,7 +1448,7 @@
                                                                         </x-filament::button>
                                                                     @else
                                                                         <x-filament::button size="xs" color="primary"
-                                                                            wire:click="saveJudgeScores({{ $result->id }})">
+                                                                            x-on:click="const d={};($el.closest('[data-scoring-key=row-{{ $result->id }}]')?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;});$wire.saveJudgeScores({{ $result->id }},d)">
                                                                             Save
                                                                         </x-filament::button>
                                                                     @endif
@@ -1428,7 +1471,7 @@
                                                                         {{ $this->categoryScores[$result->id][$j][$cat->id] ?? '—' }}
                                                                     </span>
                                                                 @else
-                                                                    <div x-data="{}" class="flex items-center gap-0.5 {{ $isSaved ? 'opacity-50' : '' }}">
+                                                                    <div x-data="{}" class="flex items-center gap-0.5">
                                                                         <button type="button"
                                                                             x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||{{ $catMin }})-0.1)*10)/10; i.value=Math.max({{ $catMin }},v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
                                                                             class="w-6 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform"
@@ -1436,7 +1479,8 @@
                                                                         <input type="number" step="0.1"
                                                                             min="{{ $catMin }}"
                                                                             @if ($catMax !== null) max="{{ $catMax }}" @endif
-                                                                            wire:model="categoryScores.{{ $result->id }}.{{ $j }}.{{ $cat->id }}"
+                                                                            wire:model.blur="categoryScores.{{ $result->id }}.{{ $j }}.{{ $cat->id }}"
+                                                                            data-cat-j="{{ $j }}" data-cat-id="{{ $cat->id }}"
                                                                             class="w-9 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-0.5"
                                                                             placeholder="{{ number_format($catMin, 1) }}"
                                                                             @if ($isSaved) disabled @endif />
@@ -1463,7 +1507,10 @@
 
                         {{-- Sudden death tiebreaker (hidden when placement override mode is active) --}}
                         @if (! $this->rollcallMode && ! $this->isRoundRobin() && ! $this->placementOverrideMode)
-                            @php $tiedGroups = $this->getTiedGroups(); @endphp
+                            @php
+                                $tiedGroups   = $this->getTiedGroups();
+                                $defaultScore = $this->selectedDivision?->competitionEvent->default_score;
+                            @endphp
                             @if ($tiedGroups->isNotEmpty() && ! $isReadOnly)
                                 @php
                                     $ordinals = [1 => '1st', 2 => '2nd', 3 => '3rd'];
@@ -1513,7 +1560,8 @@
                                                         $tbDisplay = $result->tiebreaker_score !== null ? number_format((float) $result->tiebreaker_score, 1) : '—';
                                                     @endphp
                                                     <div wire:key="tb-mobile-{{ $result->id }}"
-                                                         x-data="{ open: false }"
+                                                         data-scoring-key="tb-{{ $result->id }}"
+                                                         x-data="{ open: false, tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$defaultScore !== null ? number_format((float)$defaultScore,1) : null])->all()) }} }"
                                                          class="rounded-lg border border-warning-200 dark:border-warning-700 bg-white dark:bg-slate-900">
 
                                                         {{-- Card header --}}
@@ -1550,6 +1598,25 @@
                                                             @endif
 
                                                             @if (! $isReadOnly)
+                                                                @if (! $tbSaved && ! $result->placement_overridden)
+                                                                    @php
+                                                                        $tbOncePenalties = array_filter($enabledPenalties, fn ($t) => in_array($t, ['dq', 'forfeit']));
+                                                                    @endphp
+                                                                    @foreach ($tbOncePenalties as $pType)
+                                                                        <button type="button"
+                                                                            wire:click="openPenaltyModal({{ $result->id }}, '{{ $pType }}')"
+                                                                            class="shrink-0 px-2 py-1 rounded text-xs font-medium border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 active:scale-95 transition-transform">
+                                                                            {{ $this->getPenaltyLabel($pType) }}
+                                                                        </button>
+                                                                    @endforeach
+                                                                    @if (! in_array('dq', $enabledPenalties) && ! in_array('forfeit', $enabledPenalties))
+                                                                        <button type="button"
+                                                                            wire:click="toggleDisqualify({{ $result->id }})"
+                                                                            class="shrink-0 px-2 py-1 rounded text-xs font-medium border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 active:scale-95 transition-transform">
+                                                                            {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
+                                                                        </button>
+                                                                    @endif
+                                                                @endif
                                                                 <div class="shrink-0">
                                                                     @if ($result->placement_overridden)
                                                                         {{-- locked by head judge, no action --}}
@@ -1572,30 +1639,65 @@
                                                         @if (! $isReadOnly && ! $tbSaved)
                                                             <div x-show="open" x-transition
                                                                  class="border-t border-warning-100 dark:border-warning-900/40 px-3 pb-3 pt-3 space-y-3">
-                                                                @for ($j = 1; $j <= $judges; $j++)
-                                                                    <div x-data="{}">
-                                                                        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Judge {{ $j }}</label>
-                                                                        <div class="flex items-center gap-2">
-                                                                            <input x-ref="inp" type="number" step="0.1" min="0" max="10"
-                                                                                wire:model="tiebreakerJudgeInputs.{{ $result->id }}.{{ $j }}"
-                                                                                class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3"
-                                                                                placeholder="0.0" />
-                                                                            <div class="flex gap-1 shrink-0">
-                                                                                <button type="button"
-                                                                                    x-on:click="let v = Math.round((parseFloat($refs.inp.value || 0) - 0.1) * 10) / 10; $refs.inp.value = Math.max(0, v).toFixed(1); $refs.inp.dispatchEvent(new Event('input', {bubbles: true}));"
-                                                                                    class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">−</button>
-                                                                                <button type="button"
-                                                                                    x-on:click="let v = Math.round((parseFloat($refs.inp.value || 0) + 0.1) * 10) / 10; $refs.inp.value = Math.min(10, v).toFixed(1); $refs.inp.dispatchEvent(new Event('input', {bubbles: true}));"
-                                                                                    class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">+</button>
+                                                                @if ($hasCategories)
+                                                                    @for ($j = 1; $j <= $judges; $j++)
+                                                                        <div>
+                                                                            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Judge {{ $j }}</p>
+                                                                            <div class="space-y-1.5">
+                                                                                @foreach ($categories as $cat)
+                                                                                    @php $catMin = $judgeMin ?? 0; $catMax = $judgeMax; @endphp
+                                                                                    <div class="flex items-center gap-2">
+                                                                                        <span class="text-xs text-gray-500 dark:text-gray-400 w-28 shrink-0">{{ $cat->name }}@if ($categoryMode === 'weighted') <span class="text-gray-400">({{ $cat->weight }}%)</span>@endif</span>
+                                                                                        <div class="flex items-center gap-1 flex-1" x-data="{}">
+                                                                                            <button type="button"
+                                                                                                x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||{{ $catMin }})-0.1)*10)/10; i.value=Math.max({{ $catMin }},v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                                class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">−</button>
+                                                                                            <input type="number" step="0.1"
+                                                                                                min="{{ $catMin }}"
+                                                                                                @if ($catMax !== null) max="{{ $catMax }}" @endif
+                                                                                                value="{{ $defaultScore !== null ? number_format((float)$defaultScore, 1) : '' }}"
+                                                                                                data-cat-j="{{ $j }}" data-cat-id="{{ $cat->id }}"
+                                                                                                class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3 text-center"
+                                                                                                placeholder="{{ number_format($catMin, 1) }}" />
+                                                                                            <button type="button"
+                                                                                                x-on:click="const i=$el.previousElementSibling; const v=Math.round((parseFloat(i.value||{{ $catMin }})+0.1)*10)/10; i.value={{ $catMax !== null ? 'Math.min('.$catMax.',v)' : 'v' }}.toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                                class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">+</button>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                @endforeach
                                                                             </div>
                                                                         </div>
-                                                                    </div>
-                                                                @endfor
+                                                                    @endfor
+                                                                @else
+                                                                    @for ($j = 1; $j <= $judges; $j++)
+                                                                        <div>
+                                                                            <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Judge {{ $j }}</label>
+                                                                            <div class="flex items-center gap-2">
+                                                                                <input type="number" step="0.1" min="0" max="10"
+                                                                                    x-model="tbJ['{{ $j }}']"
+                                                                                    class="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-2.5 px-3"
+                                                                                    placeholder="0.0" />
+                                                                                <div class="flex gap-1 shrink-0">
+                                                                                    <button type="button"
+                                                                                        x-on:click="tbJ['{{ $j }}'] = Math.max(0, Math.round((parseFloat(tbJ['{{ $j }}']||0)-0.1)*10)/10).toFixed(1)"
+                                                                                        class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">−</button>
+                                                                                    <button type="button"
+                                                                                        x-on:click="tbJ['{{ $j }}'] = Math.min(10, Math.round((parseFloat(tbJ['{{ $j }}']||0)+0.1)*10)/10).toFixed(1)"
+                                                                                        class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 text-xl font-medium active:scale-95 transition-transform">+</button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    @endfor
+                                                                @endif
 
                                                                 <div class="pt-1">
-                                                                    <x-filament::button color="warning" class="w-full"
-                                                                        wire:click="saveTiebreakerScores({{ $result->id }})"
-                                                                        x-on:click="open = false">Save scores</x-filament::button>
+                                                                    @if ($hasCategories)
+                                                                        <x-filament::button color="warning" class="w-full"
+                                                                            x-on:click="const r=$el.closest('[data-scoring-key=tb-{{ $result->id }}]');const d={};(r?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;});$wire.saveTiebreakerScores({{ $result->id }},d);open=false">Save scores</x-filament::button>
+                                                                    @else
+                                                                        <x-filament::button color="warning" class="w-full"
+                                                                            x-on:click="$wire.saveTiebreakerScores({{ $result->id }}, {}, tbJ); open=false">Save scores</x-filament::button>
+                                                                    @endif
                                                                 </div>
                                                             </div>
                                                         @endif
@@ -1617,39 +1719,67 @@
                                                             <th class="pb-2"></th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody class="divide-y divide-warning-100 dark:divide-warning-900/40">
-                                                        @foreach ($group as $row)
-                                                            @php
-                                                                $result    = $row->result;
-                                                                $tbSaved   = $result->tiebreaker_score !== null || $result->placement_overridden;
-                                                                $tbDisplay = $result->tiebreaker_score !== null
-                                                                    ? number_format((float) $result->tiebreaker_score, 1)
-                                                                    : '—';
-                                                            @endphp
+                                                    @foreach ($group as $row)
+                                                        @php
+                                                            $result    = $row->result;
+                                                            $tbSaved   = $result->tiebreaker_score !== null || $result->placement_overridden;
+                                                            $tbDisplay = $result->tiebreaker_score !== null
+                                                                ? number_format((float) $result->tiebreaker_score, 1)
+                                                                : '—';
+                                                        @endphp
+                                                        <tbody class="border-b border-warning-100 dark:border-warning-900/40 last:border-b-0"
+                                                            x-data="{ tbJ: {{ Js::from(collect(range(1,$judges))->mapWithKeys(fn($j)=>[(string)$j=>$defaultScore !== null ? number_format((float)$defaultScore,1) : null])->all()) }} }">
                                                             <tr>
                                                                 <td class="py-2 pr-4">
                                                                     <div class="font-medium text-gray-900 dark:text-white">{{ $row->name }}</div>
                                                                     @if ($row->info)
                                                                         <div class="text-xs text-gray-400 dark:text-gray-500">{{ $row->info }}</div>
                                                                     @endif
+                                                                    @if (! $isReadOnly && ! $tbSaved)
+                                                                        @php $tbDtPenalties = array_filter($enabledPenalties, fn ($t) => in_array($t, ['dq', 'forfeit'])); @endphp
+                                                                        @if (! empty($tbDtPenalties))
+                                                                            <div class="mt-1 flex flex-wrap gap-1">
+                                                                                @foreach ($tbDtPenalties as $pType)
+                                                                                    <button type="button"
+                                                                                        wire:click="openPenaltyModal({{ $result->id }}, '{{ $pType }}')"
+                                                                                        class="px-1.5 py-0.5 rounded text-xs font-medium border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 active:scale-95 transition-transform">
+                                                                                        {{ $this->getPenaltyLabel($pType) }}
+                                                                                    </button>
+                                                                                @endforeach
+                                                                            </div>
+                                                                        @elseif (! in_array('dq', $enabledPenalties) && ! in_array('forfeit', $enabledPenalties))
+                                                                            <div class="mt-1">
+                                                                                <button type="button"
+                                                                                    wire:click="toggleDisqualify({{ $result->id }})"
+                                                                                    class="px-1.5 py-0.5 rounded text-xs font-medium border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-900/20 text-danger-700 dark:text-danger-400 active:scale-95 transition-transform">
+                                                                                    {{ $result->disqualified ? 'Un-DQ' : 'DQ' }}
+                                                                                </button>
+                                                                            </div>
+                                                                        @endif
+                                                                    @endif
                                                                 </td>
                                                                 @for ($j = 1; $j <= $judges; $j++)
                                                                     <td class="py-2 pr-2">
                                                                         @if ($isReadOnly || $tbSaved)
+                                                                            @php
+                                                                                $tbJScore = $result->judgeScores->where('is_tiebreaker', true)->where('judge_number', $j)->first();
+                                                                            @endphp
                                                                             <span class="text-base text-gray-700 dark:text-gray-300 {{ $tbSaved ? 'opacity-50' : '' }}">
-                                                                                {{ number_format((float) ($this->tiebreakerJudgeInputs[$result->id][$j] ?? 0), 1) }}
+                                                                                {{ $tbJScore ? number_format((float) $tbJScore->score, 1) : '—' }}
                                                                             </span>
+                                                                        @elseif ($hasCategories)
+                                                                            <span class="text-base text-gray-500 dark:text-gray-400">—</span>
                                                                         @else
-                                                                            <div class="flex items-center gap-1" x-data="{}">
+                                                                            <div class="flex items-center gap-1">
                                                                                 <button type="button"
-                                                                                    x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||0)-0.1)*10)/10; i.value=Math.max(0,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    x-on:click="tbJ['{{ $j }}'] = Math.max(0, Math.round((parseFloat(tbJ['{{ $j }}']||0)-0.1)*10)/10).toFixed(1)"
                                                                                     class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
                                                                                 <input type="number" step="0.1" min="0" max="10"
-                                                                                    wire:model="tiebreakerJudgeInputs.{{ $result->id }}.{{ $j }}"
+                                                                                    x-model="tbJ['{{ $j }}']"
                                                                                     class="w-[3.25rem] text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-base py-0.5 px-1"
                                                                                     placeholder="0.0" />
                                                                                 <button type="button"
-                                                                                    x-on:click="const i=$el.previousElementSibling; const v=Math.round((parseFloat(i.value||0)+0.1)*10)/10; i.value=Math.min(10,v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                    x-on:click="tbJ['{{ $j }}'] = Math.min(10, Math.round((parseFloat(tbJ['{{ $j }}']||0)+0.1)*10)/10).toFixed(1)"
                                                                                     class="w-7 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
                                                                             </div>
                                                                         @endif
@@ -1685,16 +1815,55 @@
                                                                                 Undo
                                                                             </x-filament::button>
                                                                         @else
-                                                                            <x-filament::button size="xs" color="warning"
-                                                                                wire:click="saveTiebreakerScores({{ $result->id }})">
-                                                                                Save
-                                                                            </x-filament::button>
+                                                                            @if ($hasCategories)
+                                                                                <x-filament::button size="xs" color="warning"
+                                                                                    x-on:click="const r=$el.closest('tbody');const d={};(r?.querySelectorAll('input[data-cat-j]')||[]).forEach(i=>{if(!d[i.dataset.catJ])d[i.dataset.catJ]={};d[i.dataset.catJ][i.dataset.catId]=i.value;});$wire.saveTiebreakerScores({{ $result->id }},d)">
+                                                                                    Save
+                                                                                </x-filament::button>
+                                                                            @else
+                                                                                <x-filament::button size="xs" color="warning"
+                                                                                    x-on:click="$wire.saveTiebreakerScores({{ $result->id }}, {}, tbJ)">
+                                                                                    Save
+                                                                                </x-filament::button>
+                                                                            @endif
                                                                         @endif
                                                                     </td>
                                                                 @endif
                                                             </tr>
-                                                        @endforeach
-                                                    </tbody>
+                                                            @if ($hasCategories && ! $isReadOnly && ! $tbSaved)
+                                                                @php $catMin = $judgeMin ?? 0; $catMax = $judgeMax; @endphp
+                                                                @foreach ($categories as $cat)
+                                                                    <tr>
+                                                                        <td class="py-1 pl-4 pr-4 text-xs text-gray-500 dark:text-gray-400">
+                                                                            {{ $cat->name }}@if ($categoryMode === 'weighted') <span class="text-gray-400 dark:text-gray-500">({{ number_format((float) $cat->weight, 0) }}%)</span>@endif
+                                                                        </td>
+                                                                        @for ($j = 1; $j <= $judges; $j++)
+                                                                            <td class="py-1 pr-1">
+                                                                                <div x-data="{}" class="flex items-center gap-0.5">
+                                                                                    <button type="button"
+                                                                                        x-on:click="const i=$el.nextElementSibling; const v=Math.round((parseFloat(i.value||{{ $catMin }})-0.1)*10)/10; i.value=Math.max({{ $catMin }},v).toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        class="w-6 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">−</button>
+                                                                                    <input type="number" step="0.1"
+                                                                                        min="{{ $catMin }}"
+                                                                                        @if ($catMax !== null) max="{{ $catMax }}" @endif
+                                                                                        value="{{ $defaultScore !== null ? number_format((float)$defaultScore, 1) : '' }}"
+                                                                                        data-cat-j="{{ $j }}" data-cat-id="{{ $cat->id }}"
+                                                                                        class="w-9 text-center rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-sm py-0.5 px-0.5"
+                                                                                        placeholder="{{ number_format($catMin, 1) }}" />
+                                                                                    <button type="button"
+                                                                                        x-on:click="const i=$el.previousElementSibling; const v=Math.round((parseFloat(i.value||{{ $catMin }})+0.1)*10)/10; i.value={{ $catMax !== null ? 'Math.min('.$catMax.',v)' : 'v' }}.toFixed(1); i.dispatchEvent(new Event('input',{bubbles:true}));"
+                                                                                        class="w-6 h-7 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-slate-800 text-gray-700 dark:text-gray-200 font-medium active:scale-95 transition-transform">+</button>
+                                                                                </div>
+                                                                            </td>
+                                                                        @endfor
+                                                                        <td class="py-1"></td>
+                                                                        <td class="py-1"></td>
+                                                                        @if (! $isReadOnly)<td class="py-1"></td>@endif
+                                                                    </tr>
+                                                                @endforeach
+                                                            @endif
+                                                        </tbody>
+                                                    @endforeach
                                                 </table>
                                             </div>
                                         </div>
@@ -1755,8 +1924,11 @@
                                                                 </td>
                                                                 @for ($j = 1; $j <= $judges; $j++)
                                                                     <td class="py-2 pr-2">
+                                                                        @php
+                                                                            $tbJScore = $tbRow->result->judgeScores->where('is_tiebreaker', true)->where('judge_number', $j)->first();
+                                                                        @endphp
                                                                         <span class="text-base text-gray-700 dark:text-gray-300">
-                                                                            {{ number_format((float) ($this->tiebreakerJudgeInputs[$tbRow->result->id][$j] ?? 0), 1) }}
+                                                                            {{ $tbJScore ? number_format((float) $tbJScore->score, 1) : '—' }}
                                                                         </span>
                                                                     </td>
                                                                 @endfor

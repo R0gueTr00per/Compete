@@ -127,6 +127,41 @@ class ScoringService
         });
     }
 
+    public function submitTiebreakerCategoryScore(Result $result, int $judgeNumber, array $categoryScores): void
+    {
+        DB::transaction(function () use ($result, $judgeNumber, $categoryScores) {
+            $categories = ScoreCategory::whereIn('id', array_keys($categoryScores))->get()->keyBy('id');
+            $event      = $result->enrolmentEvent->competitionEvent;
+            $mode       = $event->score_category_mode ?? 'single';
+            $minScore   = $event->min_score !== null ? (float) $event->min_score : null;
+            $maxScore   = $event->max_score !== null ? (float) $event->max_score : null;
+
+            $judgeTotal = 0.0;
+            $clamped    = [];
+            foreach ($categoryScores as $catId => $rawScore) {
+                $cat = $categories->get((int) $catId);
+                if (! $cat) continue;
+                $score = (float) $rawScore;
+                if ($minScore !== null) $score = max($score, $minScore);
+                if ($maxScore !== null) $score = min($score, $maxScore);
+                $clamped[(int) $catId] = $score;
+                $judgeTotal += $mode === 'weighted' ? $score * ((float) $cat->weight / 100) : $score;
+            }
+
+            $judgeScore = JudgeScore::updateOrCreate(
+                ['result_id' => $result->id, 'judge_number' => $judgeNumber, 'is_tiebreaker' => true],
+                ['score' => round($judgeTotal, 3)]
+            );
+
+            foreach ($clamped as $catId => $score) {
+                JudgeScoreDetail::updateOrCreate(
+                    ['judge_score_id' => $judgeScore->id, 'score_category_id' => $catId],
+                    ['score' => round($score, 3)]
+                );
+            }
+        });
+    }
+
     public function recordWinLoss(Result $result, string $winLoss): void
     {
         DB::transaction(function () use ($result, $winLoss) {

@@ -2,43 +2,38 @@
     {{-- Competition + Search bar --}}
     <div class="mb-6 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>
-        <div class="flex flex-col sm:flex-row gap-3">
-            <div class="flex-1">
-                <x-filament::input.wrapper class="dark:bg-slate-900">
-                    <select
-                        wire:model.live="competition_id"
-                        class="w-full block border-0 bg-transparent py-1.5 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6 dark:bg-slate-900"
-                    >
-                        <option value="">— Select competition —</option>
-                        @foreach ($this->getCompetitions() as $id => $name)
-                            <option value="{{ $id }}">{{ $name }}</option>
-                        @endforeach
-                    </select>
-                </x-filament::input.wrapper>
-            </div>
+        <x-filament::input.wrapper class="dark:bg-slate-900">
+            <select
+                wire:model.live="competition_id"
+                class="w-full block border-0 bg-transparent py-1.5 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6 dark:bg-slate-900"
+            >
+                <option value="">— Select competition —</option>
+                @foreach ($this->getCompetitions() as $id => $name)
+                    <option value="{{ $id }}">{{ $name }}</option>
+                @endforeach
+            </select>
+        </x-filament::input.wrapper>
 
-            <div class="flex-1">
-                <div class="flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-primary-500">
-                    <input
-                        type="text"
-                        wire:model.live.debounce.300ms="search"
-                        placeholder="Search competitor name…"
-                        inputmode="search"
-                        enterkeyhint="search"
-                        x-on:keydown.enter="$el.blur()"
-                        class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-base text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
-                    />
-                    @if ($this->search)
-                        <button
-                            wire:click="$set('search', '')"
-                            class="pr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                            aria-label="Clear search"
-                        >
-                            <x-heroicon-m-x-mark class="h-4 w-4" />
-                        </button>
-                    @endif
-                </div>
-            </div>
+        <div class="mt-3 flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-primary-500">
+            <input
+                type="text"
+                wire:model.live.debounce.300ms="search"
+                placeholder="Search competitor name…"
+                inputmode="search"
+                enterkeyhint="search"
+                x-on:keydown.enter="$el.blur()"
+                x-init="$nextTick(() => $el.focus())"
+                class="flex-1 bg-transparent py-1.5 pl-3 pr-1 text-base text-gray-900 dark:text-white border-0 focus:outline-none focus:ring-0 min-w-0"
+            />
+            @if ($this->search)
+                <button
+                    wire:click="$set('search', '')"
+                    class="pr-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    aria-label="Clear search"
+                >
+                    <x-heroicon-m-x-mark class="h-4 w-4" />
+                </button>
+            @endif
         </div>
 
         {{-- QR / Code quick-lookup --}}
@@ -104,7 +99,13 @@
         @php $enrolments = $this->getEnrolments(); @endphp
 
         @if ($enrolments->isEmpty())
-            <p class="text-center text-gray-400 py-12">No competitors found.</p>
+            <p class="text-center text-gray-400 py-12">
+                @if (! $this->search && ! $this->code)
+                    Search by name or enter a check-in code to find competitors.
+                @else
+                    No competitors found.
+                @endif
+            </p>
         @else
             <div id="enrolment-list"></div>
             @php

@@ -415,7 +415,15 @@
       "Bash(xargs grep -l \"insight\\\\|markdown\")",
       "Bash(curl -s -u \"bgouldson@optusnet.com.au:$\\(cat ~/.claude/jira_token || echo ''\\)\" \"https://competeapp.atlassian.net/rest/api/3/issue/COM-283\" -H \"Accept: application/json\")",
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); f=d['fields']; print\\('Summary:', f['summary']\\); print\\('Status:', f['status']['name']\\); print\\(\\); desc=f.get\\('description'\\); [print\\(b.get\\('text',''\\) if b.get\\('type'\\)=='text' else \\('['+b.get\\('type',''\\)+']' if b.get\\('type'\\) not in ['text','hardBreak'] else '\\\\n'\\)\\) for block in \\(desc.get\\('content',[]\\) if desc else []\\) for b in block.get\\('content',[]\\)]\")",
-      "Bash(php -r \"var_dump\\(strip_tags\\(null\\)\\);\")"
+      "Bash(php -r \"var_dump\\(strip_tags\\(null\\)\\);\")",
+      "mcp__jira__jira_edit_comment",
+      "Bash(xargs grep -l \"registerComponent.*button\\\\|button.*View::make\\\\|'button'\")",
+      "Bash(grep -n 'droppedTb\\\\|isTbDrop\\\\|tbJudge\\\\|data-judge-j\\\\|saveTiebreakerScores\\\\|tb-{{ $result->id }}')",
+      "Bash(dir \"x:\\\\Repos\\\\Compete\\\\public\")",
+      "Bash(grep -n '$commit\\\\|dataSet\\\\|commit\\(\\)' 'x:\\\\Repos\\\\Compete\\\\vendor\\\\livewire\\\\livewire\\\\dist\\\\livewire.esm.js')",
+      "Bash(grep -v \"//\\\\|wire:model\\\\|label\")",
+      "Bash(grep -v \"//\\\\|comment\")",
+      "Bash(grep -v \"//\\\\|<\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",
