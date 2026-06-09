@@ -20,9 +20,10 @@ class Dashboard extends BaseDashboard
     public function getRecentOrgs()
     {
         return Organisation::withCount([
-                'memberships' => fn ($q) => $q->where('role', 'administrator'),
-                'users'       => fn ($q) => $q->where('users.status', 'active'),
+                'memberships'        => fn ($q) => $q->where('role', 'administrator'),
+                'users'              => fn ($q) => $q->where('users.status', 'active'),
                 'competitions',
+                'competitorProfiles',
             ])
             ->with(['nextCompetition' => fn ($q) => $q->withCount('enrolments')])
             ->latest()

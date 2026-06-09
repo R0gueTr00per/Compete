@@ -57,11 +57,6 @@ class OrgAdminPanelProvider extends PanelProvider
                     ->url('/portal'),
             ])
             ->navigationItems([
-                NavigationItem::make('My Profile')
-                    ->icon('heroicon-o-user-circle')
-                    ->url('/portal/profile')
-                    ->group('Account')
-                    ->sort(100),
                 NavigationItem::make('Competitor Portal')
                     ->icon('heroicon-o-globe-alt')
                     ->url('/portal')

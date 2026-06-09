@@ -124,6 +124,12 @@ class OrganisationResource extends Resource
                     ->sortable()
                     ->visibleFrom('sm'),
 
+                TextColumn::make('competitor_profiles_count')
+                    ->label('Profiles')
+                    ->counts('competitorProfiles')
+                    ->sortable()
+                    ->visibleFrom('sm'),
+
                 TextColumn::make('competitions_count')
                     ->label('Competitions')
                     ->counts('competitions')

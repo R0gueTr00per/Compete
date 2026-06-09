@@ -31,7 +31,7 @@
                         </div>
                         <div class="flex items-center gap-3 shrink-0">
                             <span class="text-xs text-gray-500">{{ $org->memberships_count }} admin{{ $org->memberships_count === 1 ? '' : 's' }}</span>
-                            <span class="text-xs text-gray-500">{{ $org->users_count }} user{{ $org->users_count === 1 ? '' : 's' }}</span>
+                            <span class="text-xs text-gray-500">{{ $org->users_count }} user{{ $org->users_count === 1 ? '' : 's' }} ({{ $org->competitor_profiles_count }} profile{{ $org->competitor_profiles_count === 1 ? '' : 's' }})</span>
                             <span class="text-xs text-gray-500">{{ $org->competitions_count }} competition{{ $org->competitions_count === 1 ? '' : 's' }}</span>
                             <span @class([
                                 'text-xs font-medium px-2 py-0.5 rounded-full',
