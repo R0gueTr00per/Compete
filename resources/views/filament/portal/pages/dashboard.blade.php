@@ -240,6 +240,11 @@
                                     @if ($enrolment->is_late)
                                         <span class="text-warning-600">(late)</span>
                                     @endif
+                                    @if ($enrolment->payment_status === 'received')
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Paid</span>
+                                    @else
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">Unpaid</span>
+                                    @endif
                                     @if ($enrolment->display_rank !== '—')
                                         &bull; {{ $enrolment->display_rank }}
                                     @endif
