@@ -90,6 +90,23 @@ class Dashboard extends BaseDashboard
             ->toArray();
     }
 
+    public function getAllEnrolments(): \Illuminate\Support\Collection
+    {
+        $profileIds = $this->getProfiles()->pluck('id');
+        return Enrolment::whereIn('competitor_profile_id', $profileIds)
+            ->whereNotIn('status', ['draft'])
+            ->with([
+                'competition',
+                'cart',
+                'activeEvents.competitionEvent',
+                'activeEvents.division',
+                'activeEvents.result',
+            ])
+            ->get()
+            ->groupBy('competitor_profile_id')
+            ->map(fn ($group) => $group->keyBy('competition_id'));
+    }
+
     public function getEnrolmentsForProfile(\App\Models\CompetitorProfile $profile)
     {
         return $profile->enrolments()

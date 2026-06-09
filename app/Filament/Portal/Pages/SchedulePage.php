@@ -20,6 +20,9 @@ class SchedulePage extends Page
     #[Url]
     public ?int $competition_id = null;
 
+    #[Url]
+    public ?int $profile_id = null;
+
     public function mount(): void
     {
         if (! $this->competition_id) {
@@ -36,7 +39,16 @@ class SchedulePage extends Page
     public function getTitle(): string
     {
         $comp = $this->getCompetition();
-        return $comp ? $comp->name . ' — Schedule' : 'Schedule';
+        if (! $comp) return 'Schedule';
+
+        if ($this->profile_id) {
+            $profile = \App\Models\CompetitorProfile::find($this->profile_id);
+            if ($profile) {
+                return $comp->name . ' — ' . $profile->full_name . ' — Schedule';
+            }
+        }
+
+        return $comp->name . ' — Schedule';
     }
 
     #[Computed]
@@ -57,7 +69,9 @@ class SchedulePage extends Page
             return [];
         }
 
-        $profileIds = Auth::user()->ownedProfiles()->pluck('id');
+        $profileIds = $this->profile_id
+            ? collect([$this->profile_id])
+            : Auth::user()->ownedProfiles()->pluck('id');
 
         return EnrolmentEvent::whereHas('enrolment', fn ($q) =>
                 $q->where('competition_id', $this->competition_id)
