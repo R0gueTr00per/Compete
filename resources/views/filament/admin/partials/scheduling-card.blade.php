@@ -97,7 +97,22 @@
                         else                     $driftCls = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
                         $driftLabel = $driftMin < 0 ? abs($driftMin) . 'm early' : ($driftMin === 0 ? 'On time' : '+' . $driftMin . 'm');
                     @endphp
-                    <span class="inline-block rounded px-1 py-0.5 text-xs font-medium {{ $driftCls }}">{{ $driftLabel }}</span>
+                    @if(abs($driftMin) < 1440)
+                        <span class="inline-block rounded px-1 py-0.5 text-xs font-medium {{ $driftCls }}">{{ $driftLabel }}</span>
+                    @endif
+                @endif
+                @if($div->actual_start_at && $div->actual_end_at && $slotMins > 0)
+                    @php
+                        $actualDurMin = (int) round($div->actual_start_at->diffInMinutes($div->actual_end_at));
+                        $durDevMin = $actualDurMin - $slotMins;
+                        if ($durDevMin < 0)      $durDevCls = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+                        elseif ($durDevMin === 0) $durDevCls = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300';
+                        elseif ($durDevMin <= 5)  $durDevCls = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300';
+                        elseif ($durDevMin <= 10) $durDevCls = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+                        else                     $durDevCls = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+                        $durDevLabel = $durDevMin < 0 ? abs($durDevMin) . 'm short' : ($durDevMin === 0 ? 'exact' : '+' . $durDevMin . 'm over');
+                    @endphp
+                    <span class="inline-block rounded px-1 py-0.5 text-xs font-medium {{ $durDevCls }}" title="Actual {{ $actualDurMin }}min vs planned {{ $slotMins }}min">{{ $durDevLabel }}</span>
                 @endif
             </div>
         @endif

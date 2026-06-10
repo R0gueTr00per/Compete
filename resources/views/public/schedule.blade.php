@@ -154,7 +154,7 @@
                                         @endphp
                                         <div class="flex items-center gap-1.5 mt-1">
                                             <span class="text-xs text-gray-400 tabular-nums">{{ tenant_time($div->planned_start_at) }}</span>
-                                            @if ($driftMin !== null)
+                                            @if ($driftMin !== null && abs($driftMin) < 1440)
                                                 @php
                                                     if ($driftMin < 0)      $driftCls = 'bg-blue-100 text-blue-700';
                                                     elseif ($driftMin === 0) $driftCls = 'bg-green-100 text-green-700';
@@ -257,7 +257,7 @@
                                                     @endphp
                                                     <span class="flex items-center gap-1 shrink-0">
                                                         <span class="text-xs tabular-nums text-gray-400">{{ tenant_time($div->planned_start_at) }}</span>
-                                                        @if ($driftMin !== null)
+                                                        @if ($driftMin !== null && abs($driftMin) < 1440)
                                                             @php
                                                                 if ($driftMin < 0)      $driftCls = 'bg-blue-100 text-blue-700';
                                                                 elseif ($driftMin === 0) $driftCls = 'bg-green-100 text-green-700';

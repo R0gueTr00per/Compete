@@ -230,8 +230,8 @@
                                             <div class="flex items-center gap-2">
                                                 <x-heroicon-m-flag class="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
                                                 <span class="text-sm font-semibold text-gray-600 dark:text-gray-400">Planned finish</span>
-                                                <span class="ml-auto text-xs tabular-nums text-gray-500 dark:text-gray-500">{{ tenant_time($row['end_time']) }}</span>
                                             </div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-500 mt-0.5 pl-6">{{ tenant_time($row['end_time']) }}</div>
                                         </div>
                                         <div class="sm:hidden px-1 py-1.5 text-center bg-gray-50 dark:bg-gray-800/60 cursor-default">
                                             <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">End {{ tenant_time($row['end_time']) }}</span>

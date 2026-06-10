@@ -688,6 +688,8 @@ PROMPT;
 
     private function buildTimingData(Competition $competition): array
     {
+        $scheduler = app(\App\Services\ScheduleCalculatorService::class);
+
         $activeDivisions = $competition->competitionEvents->flatMap(function ($event) {
             return $event->divisions
                 ->filter(fn ($d) => $d->location_label !== null || $d->status === 'combined')
@@ -705,8 +707,8 @@ PROMPT;
 
         $perEvent = $activeDivisions
             ->groupBy('event_name')
-            ->map(function ($items, $eventName) {
-                $divRows = $items->map(function ($item) {
+            ->map(function ($items, $eventName) use ($scheduler) {
+                $divRows = $items->map(function ($item) use ($scheduler) {
                     $div  = $item['div'];
                     $drift = ($div->planned_start_at && $div->actual_start_at)
                         ? (int) round($div->planned_start_at->diffInMinutes($div->actual_start_at, false))
@@ -714,25 +716,35 @@ PROMPT;
                     $actualDuration = ($div->actual_start_at && $div->actual_end_at)
                         ? (int) round($div->actual_start_at->diffInMinutes($div->actual_end_at))
                         : null;
+                    $plannedDuration = $div->planned_start_at
+                        ? ($scheduler->divisionSlotMinutes($div) ?: null)
+                        : null;
+                    $durationDeviation = ($actualDuration !== null && $plannedDuration !== null)
+                        ? $actualDuration - $plannedDuration
+                        : null;
 
                     return [
-                        'code'                    => $div->code,
-                        'status'                  => $div->status,
-                        'planned_start'           => $div->planned_start_at?->format('H:i'),
-                        'actual_start'            => $div->actual_start_at?->format('H:i'),
-                        'drift_minutes'           => $drift,
-                        'actual_duration_minutes' => $actualDuration,
+                        'code'                      => $div->code,
+                        'status'                    => $div->status,
+                        'planned_start'             => $div->planned_start_at?->format('H:i'),
+                        'actual_start'              => $div->actual_start_at?->format('H:i'),
+                        'drift_minutes'             => $drift,
+                        'planned_duration_minutes'  => $plannedDuration,
+                        'actual_duration_minutes'   => $actualDuration,
+                        'duration_deviation_minutes' => $durationDeviation,
                     ];
                 })->values()->all();
 
                 $drifts    = collect($divRows)->whereNotNull('drift_minutes')->pluck('drift_minutes');
                 $durations = collect($divRows)->whereNotNull('actual_duration_minutes')->pluck('actual_duration_minutes');
+                $durDevs   = collect($divRows)->whereNotNull('duration_deviation_minutes')->pluck('duration_deviation_minutes');
 
                 return [
-                    'event_name'          => $eventName,
-                    'divisions'           => $divRows,
-                    'avg_drift_minutes'   => $drifts->isNotEmpty()    ? round($drifts->avg(), 1)    : null,
-                    'avg_actual_duration' => $durations->isNotEmpty() ? round($durations->avg(), 1) : null,
+                    'event_name'              => $eventName,
+                    'divisions'               => $divRows,
+                    'avg_drift_minutes'       => $drifts->isNotEmpty()    ? round($drifts->avg(), 1)    : null,
+                    'avg_actual_duration'     => $durations->isNotEmpty() ? round($durations->avg(), 1) : null,
+                    'avg_duration_deviation'  => $durDevs->isNotEmpty()   ? round($durDevs->avg(), 1)   : null,
                 ];
             })->values()->all();
 
@@ -828,6 +840,9 @@ PROMPT;
                 ? ($e['avg_drift_minutes'] >= 0 ? '+' . $e['avg_drift_minutes'] : (string) $e['avg_drift_minutes']) . ' min avg drift'
                 : 'no timing data';
             $avgDur = $e['avg_actual_duration'] !== null ? ", avg actual duration: {$e['avg_actual_duration']} min" : '';
+            $avgDev = $e['avg_duration_deviation'] !== null
+                ? ', avg duration deviation: ' . ($e['avg_duration_deviation'] >= 0 ? '+' : '') . $e['avg_duration_deviation'] . ' min vs plan'
+                : '';
 
             $divLines = collect($e['divisions'])
                 ->filter(fn ($d) => $d['planned_start'] !== null || $d['actual_start'] !== null)
@@ -835,13 +850,18 @@ PROMPT;
                     $driftStr = $d['drift_minutes'] !== null
                         ? ($d['drift_minutes'] >= 0 ? '+' . $d['drift_minutes'] : (string) $d['drift_minutes']) . 'min'
                         : '—';
-                    $durStr = $d['actual_duration_minutes'] !== null ? ", ran {$d['actual_duration_minutes']}min" : '';
+                    $durStr = $d['actual_duration_minutes'] !== null
+                        ? ", ran {$d['actual_duration_minutes']}min" . ($d['planned_duration_minutes'] !== null ? " (plan: {$d['planned_duration_minutes']}min)" : '')
+                        : '';
+                    $devStr = $d['duration_deviation_minutes'] !== null
+                        ? ', dev: ' . ($d['duration_deviation_minutes'] >= 0 ? '+' : '') . $d['duration_deviation_minutes'] . 'min'
+                        : '';
                     $planned = $d['planned_start'] ?? '—';
                     $actual  = $d['actual_start'] ?? 'not started';
-                    return "  - {$d['code']} ({$d['status']}): planned {$planned} → actual {$actual} ({$driftStr}{$durStr})";
+                    return "  - {$d['code']} ({$d['status']}): planned {$planned} → actual {$actual} ({$driftStr}{$durStr}{$devStr})";
                 })->join("\n");
 
-            return "- {$e['event_name']}: {$avgDrift}{$avgDur}" . ($divLines ? "\n{$divLines}" : '');
+            return "- {$e['event_name']}: {$avgDrift}{$avgDur}{$avgDev}" . ($divLines ? "\n{$divLines}" : '');
         })->join("\n");
 
         return <<<PROMPT
@@ -979,6 +999,9 @@ PROMPT;
                 ? ($ev['avg_drift_minutes'] >= 0 ? '+' . $ev['avg_drift_minutes'] : (string) $ev['avg_drift_minutes']) . ' min avg drift'
                 : 'no timing data';
             $avgDur = $ev['avg_actual_duration'] !== null ? ", avg actual duration: {$ev['avg_actual_duration']} min" : '';
+            $avgDev = $ev['avg_duration_deviation'] !== null
+                ? ', avg duration deviation: ' . ($ev['avg_duration_deviation'] >= 0 ? '+' : '') . $ev['avg_duration_deviation'] . ' min vs plan'
+                : '';
 
             $divLines = collect($ev['divisions'])
                 ->filter(fn ($div) => $div['planned_start'] !== null || $div['actual_start'] !== null)
@@ -986,13 +1009,18 @@ PROMPT;
                     $driftStr = $div['drift_minutes'] !== null
                         ? ($div['drift_minutes'] >= 0 ? '+' . $div['drift_minutes'] : (string) $div['drift_minutes']) . 'min'
                         : '—';
-                    $durStr = $div['actual_duration_minutes'] !== null ? ", ran {$div['actual_duration_minutes']}min" : '';
+                    $durStr = $div['actual_duration_minutes'] !== null
+                        ? ", ran {$div['actual_duration_minutes']}min" . ($div['planned_duration_minutes'] !== null ? " (plan: {$div['planned_duration_minutes']}min)" : '')
+                        : '';
+                    $devStr = $div['duration_deviation_minutes'] !== null
+                        ? ', dev: ' . ($div['duration_deviation_minutes'] >= 0 ? '+' : '') . $div['duration_deviation_minutes'] . 'min'
+                        : '';
                     $planned = $div['planned_start'] ?? '—';
                     $actual  = $div['actual_start'] ?? 'not started';
-                    return "  - {$div['code']} ({$div['status']}): planned {$planned} → actual {$actual} ({$driftStr}{$durStr})";
+                    return "  - {$div['code']} ({$div['status']}): planned {$planned} → actual {$actual} ({$driftStr}{$durStr}{$devStr})";
                 })->join("\n");
 
-            return "- {$ev['event_name']}: {$avgDrift}{$avgDur}" . ($divLines ? "\n{$divLines}" : '');
+            return "- {$ev['event_name']}: {$avgDrift}{$avgDur}{$avgDev}" . ($divLines ? "\n{$divLines}" : '');
         })->join("\n");
 
         return <<<PROMPT
