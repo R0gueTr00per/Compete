@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
         $schedule->command('compete:send-reminders')->dailyAt('07:00');
+        $schedule->command('queue:work --stop-when-empty --max-time=50')->everyMinute()->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // When the CSRF token has expired (session timeout), redirect to the appropriate

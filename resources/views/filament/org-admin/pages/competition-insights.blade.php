@@ -47,7 +47,9 @@
 
                         <div class="prose prose-sm dark:prose-invert max-w-none
                                     prose-p:my-1 prose-ul:my-1 prose-li:my-0.5
-                                    prose-strong:font-semibold">
+                                    prose-strong:font-semibold
+                                    [&_ul]:list-disc [&_ul]:pl-5
+                                    [&_ol]:list-decimal [&_ol]:pl-5">
                             {!! \Illuminate\Support\Str::markdown($body) !!}
                         </div>
                     </x-filament::section>

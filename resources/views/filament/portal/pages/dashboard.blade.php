@@ -75,19 +75,11 @@
                     default             => null,
                 };
 
-                $borderClass = match($competition->status) {
-                    'open'              => 'border-l-green-500',
-                    'check_in'          => 'border-l-amber-400',
-                    'running'           => 'border-l-blue-500',
-                    'enrolments_closed' => 'border-l-gray-400 dark:border-l-gray-600',
-                    default             => 'border-l-gray-300 dark:border-l-gray-700',
-                };
-
                 $showSchedule   = in_array($competition->status, ['check_in', 'running', 'complete']);
                 $enrolmentOpen  = $competition->isEnrolmentOpen();
             @endphp
 
-            <div class="rounded-lg border border-l-4 {{ $borderClass }} border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
+            <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
 
                 {{-- Competition header --}}
                 <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 flex items-center gap-3">
@@ -261,14 +253,27 @@
                                 {{-- Events list --}}
                                 <div class="ml-10 space-y-1">
                                     @forelse ($enrolment->activeEvents as $ee)
-                                        <div class="min-w-0 sm:flex sm:items-center sm:gap-2">
+                                        <div class="min-w-0 sm:flex sm:items-center sm:gap-3">
                                             <div class="flex items-center gap-2 min-w-0 sm:flex-1">
                                                 <span class="text-sm text-gray-800 dark:text-gray-200 flex-1 min-w-0 sm:truncate">{{ $ee->competitionEvent->name }}</span>
+                                                @if ($ee->competitionEvent->requires_partner)
+                                                    <span class="text-xs shrink-0 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}</span>
+                                                @endif
+                                            </div>
+                                            <div class="flex items-center gap-2 mt-1 sm:mt-0 sm:shrink-0">
                                                 @if ($ee->result)
                                                     @if ($ee->result->disqualified)
                                                         <span class="text-danger-600 font-semibold text-xs shrink-0">DQ</span>
                                                     @elseif ($ee->result->placement)
-                                                        <span class="font-bold text-xs text-primary-600 shrink-0">
+                                                        @php
+                                                            [$placeClass, $placeGlow] = match($ee->result->placement) {
+                                                                1 => ['bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-600/50', 'box-shadow:0 0 10px 3px rgba(234,179,8,0.55)'],
+                                                                2 => ['bg-slate-50 text-slate-600 border-slate-300 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-500/50', 'box-shadow:0 0 10px 3px rgba(148,163,184,0.65)'],
+                                                                3 => ['bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-600/50', 'box-shadow:0 0 10px 3px rgba(234,88,12,0.5)'],
+                                                                default => ['text-primary-600', ''],
+                                                            };
+                                                        @endphp
+                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border shrink-0 {{ $placeClass }}" style="{{ $placeGlow }}">
                                                             @switch($ee->result->placement)
                                                                 @case(1) 🥇 1st @break
                                                                 @case(2) 🥈 2nd @break
@@ -280,22 +285,32 @@
                                                         <span class="text-xs shrink-0 {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
                                                     @endif
                                                 @endif
-                                                @if ($ee->competitionEvent->requires_partner)
-                                                    <span class="text-xs shrink-0 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}</span>
-                                                @endif
-                                            </div>
-                                            <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 sm:mt-0 sm:shrink-0">
-                                                @if ($ee->division)
-                                                    {{ $ee->division->code }} &mdash; {{ $ee->division->label }}
-                                                @else
-                                                    TBC
-                                                @endif
+                                                <span class="text-xs text-gray-400 dark:text-gray-500">
+                                                    @if ($ee->division)
+                                                        {{ $ee->division->code }} &mdash; {{ $ee->division->label }}
+                                                    @else
+                                                        TBC
+                                                    @endif
+                                                </span>
                                             </div>
                                         </div>
                                     @empty
                                         <p class="text-xs text-gray-400">No events in this enrolment.</p>
                                     @endforelse
                                 </div>
+
+                                {{-- AI summary --}}
+                                @if ($enrolment->ai_summary)
+                                    <div class="ml-10 mt-2 flex items-start gap-1.5 rounded-lg border border-primary-200/70 dark:border-primary-600/30 bg-primary-50/30 dark:bg-primary-900/10 px-2.5 py-2" style="box-shadow:0 0 12px 4px rgba(99,102,241,0.25)">
+                                        <x-heroicon-m-sparkles class="w-3.5 h-3.5 text-primary-400 dark:text-primary-500 shrink-0 mt-0.5" />
+                                        <p class="text-xs italic text-gray-500 dark:text-gray-400 whitespace-pre-line">{!! nl2br(e($enrolment->ai_summary)) !!}</p>
+                                    </div>
+                                @elseif ($this->isSummaryGenerating($competition->id))
+                                    <div wire:poll.10s class="ml-10 mt-2 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                                        <svg class="w-3.5 h-3.5 animate-spin text-primary-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                                        <span class="italic">Generating your summary…</span>
+                                    </div>
+                                @endif
 
                                 {{-- QR modal --}}
                                 @if (in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)

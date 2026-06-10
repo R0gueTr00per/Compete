@@ -130,27 +130,21 @@ class Dashboard extends BaseDashboard
             ->action(function (array $arguments, array $data) {
                 $competition = Competition::find($arguments['competitionId'] ?? null);
                 $target = $arguments['targetStatus'] ?? null;
-                if (! $competition || ! $target || $competition->status === $target) return;
+                if (! $competition || ! $target) return;
+
+                if ($competition->status === $target) return;
                 $competition->update(['status' => $target]);
                 if ($target === 'open' && ($data['send_promo_email'] ?? false)) {
                     SendCompetitionPromoEmailJob::dispatch($competition);
                 }
                 Notification::make()->title('Competition status updated.')->success()->send();
                 $this->dispatch('competition-status-changed', competitionId: $competition->id, newStatus: $target);
-                if ($competition->organisation->insights_auto_refresh ?? true) {
-                    try {
-                        GenerateCompetitionInsightsJob::dispatchFor($competition->fresh());
-                        Notification::make()
-                            ->success()
-                            ->title('AI insights refreshed')
-                            ->send();
-                    } catch (\Throwable) {
-                        Notification::make()
-                            ->warning()
-                            ->title('AI insights could not be generated')
-                            ->body('You can refresh them manually from the Insights page.')
-                            ->send();
-                    }
+                if ($competition->organisation?->insights_auto_refresh ?? true) {
+                    GenerateCompetitionInsightsJob::dispatchFor($competition->fresh());
+                    Notification::make()
+                        ->success()
+                        ->title('AI insights generated')
+                        ->send();
                 }
             });
     }

@@ -2,6 +2,8 @@
 
 namespace App\Filament\OrgAdmin\Pages;
 
+use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -12,6 +14,7 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Illuminate\Support\HtmlString;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 
@@ -41,8 +44,10 @@ class OrganisationSettings extends Page implements HasForms
 
         $this->form->fill([
             'ai_context'               => $tenant?->ai_context,
+            'ai_tone_presets'          => $tenant?->ai_tone_presets ?? [],
             'auto_email_insights'      => $tenant?->auto_email_insights ?? true,
-            'insights_auto_refresh'    => $tenant?->insights_auto_refresh ?? true,
+            'insights_auto_refresh'         => $tenant?->insights_auto_refresh ?? true,
+            'competitor_summaries_enabled'  => $tenant?->competitor_summaries_enabled ?? true,
             'dashboard_closed_days'    => $tenant?->dashboard_closed_days ?? 7,
             'timezone'                 => $tenant?->timezone,
             'date_format'              => $tenant?->date_format,
@@ -67,6 +72,19 @@ class OrganisationSettings extends Page implements HasForms
                             ->rows(4)
                             ->maxLength(1000)
                             ->rules(['not_regex:/<[^>]+>/']),
+                        CheckboxList::make('ai_tone_presets')
+                            ->label('Tone presets')
+                            ->helperText('Selected presets are appended to your context and shape how the AI writes its insights.')
+                            ->options([
+                                'humorous'      => '😄 Humorous — light humour and an upbeat tone',
+                                'sensei'        => '🥋 Your sensei — speaks as an instructor to a student',
+                                'motivational'  => '🔥 Motivational coach — high-energy and encouraging',
+                                'traditional'   => '⛩️ Traditional — formal language with honour and discipline',
+                                'brief'         => '⚡ Brief — short sentences, no fluff',
+                                'parent_friendly' => '👨‍👩‍👧 Parent-friendly — warm, community-focused tone',
+                            ])
+                            ->columns(2)
+                            ->gridDirection('row'),
                         Toggle::make('insights_auto_refresh')
                             ->label('Auto-generate insights when competition status changes')
                             ->helperText('When enabled, AI insights are automatically regenerated each time a competition moves to a new status.')
@@ -74,6 +92,14 @@ class OrganisationSettings extends Page implements HasForms
                         Toggle::make('auto_email_insights')
                             ->label('Email all administrators when insights are generated')
                             ->helperText('When enabled, all active organisation administrators receive an email each time insights are generated.')
+                            ->default(true),
+                        Placeholder::make('_competitor_summaries_divider')
+                            ->label('')
+                            ->content(new HtmlString('<div class="border-t border-gray-200 dark:border-white/10 pt-2"><p class="text-sm font-semibold text-gray-950 dark:text-white">Competitor Summaries</p></div>'))
+                            ->columnSpanFull(),
+                        Toggle::make('competitor_summaries_enabled')
+                            ->label('Enable AI competitor summaries on the portal')
+                            ->helperText('When enabled, personalised AI summaries are generated for competitors and shown on their portal dashboard after a competition completes.')
                             ->default(true),
                     ]),
 
@@ -188,8 +214,10 @@ class OrganisationSettings extends Page implements HasForms
 
         $tenant->update([
             'ai_context'               => strip_tags($data['ai_context'] ?? ''),
+            'ai_tone_presets'          => $data['ai_tone_presets'] ?? [],
             'auto_email_insights'      => $data['auto_email_insights'] ?? true,
-            'insights_auto_refresh'    => $data['insights_auto_refresh'] ?? true,
+            'insights_auto_refresh'         => $data['insights_auto_refresh'] ?? true,
+            'competitor_summaries_enabled'  => $data['competitor_summaries_enabled'] ?? true,
             'dashboard_closed_days'    => $data['dashboard_closed_days'] ?? 7,
             'timezone'                 => $data['timezone'] ?? null,
             'date_format'              => $data['date_format'] ?? null,

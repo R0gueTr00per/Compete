@@ -8,6 +8,7 @@ use App\Models\CompetitionTask;
 use App\Services\CompetitionInsightService;
 use Filament\Actions\Action;
 use App\Notifications\Notification;
+use App\Models\User;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\Mail;
@@ -76,12 +77,29 @@ class ManageCompetitionInsights extends Page
                             ->send();
 
                         $this->record->refresh();
-                    } catch (\Throwable) {
+                    } catch (\Throwable $e) {
                         Notification::make()
                             ->danger()
                             ->title('Failed to generate insights')
-                            ->body('Please try again.')
+                            ->body($e->getMessage())
                             ->send();
+
+                        $emails = User::role('system_admin')->where('status', 'active')->pluck('email')->toArray();
+                        if (! empty($emails)) {
+                            try {
+                                $competition = $this->getRecord();
+                                $body = implode("\n\n", [
+                                    "Competition: {$competition->name} (ID {$competition->id})",
+                                    "Triggered by: " . auth()->user()?->email,
+                                    "Error: " . $e->getMessage(),
+                                    "Trace:\n" . $e->getTraceAsString(),
+                                ]);
+                                Mail::raw(
+                                    $body,
+                                    fn ($m) => $m->to($emails)->subject('[Kompetic] AI Insights generation failed')
+                                );
+                            } catch (\Throwable) {}
+                        }
                     }
                 }),
 

@@ -11,6 +11,7 @@ use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\Officia
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\RankBandsRelationManager;
 use App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers\WeightClassesRelationManager;
 use App\Jobs\GenerateCompetitionInsightsJob;
+use App\Jobs\GenerateEnrolmentSummariesJob;
 use App\Jobs\SendCompetitionPromoEmailJob;
 use App\Models\Division;
 use App\Notifications\Notification;
@@ -157,6 +158,14 @@ class EditCompetition extends EditRecord
                         ->title('AI insights could not be generated')
                         ->body('You can refresh them manually from the Insights page.')
                         ->send();
+                }
+            }
+
+            if ($this->record->status === 'complete') {
+                try {
+                    GenerateEnrolmentSummariesJob::dispatchFor($this->record->fresh());
+                } catch (\Throwable) {
+                    // Summaries are non-critical; silently skip on failure
                 }
             }
         }

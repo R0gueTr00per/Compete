@@ -14,19 +14,16 @@ class CompetitionInsightService
     // Preferred model keywords in priority order (first match wins)
     private const MODEL_PREFERENCES = [
         'gemini-2.5-flash',
-        'gemini-2.5-pro',
         'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
         'gemini',
     ];
 
     private function resolveModel(): string
     {
-        return Cache::remember('google_ai_model', now()->addHours(24), function () {
+        return Cache::remember('google_ai_model_v4', now()->addHours(24), function () {
             $apiKey = config('services.google_ai.api_key');
 
-            $response = Http::get(
+            $response = Http::timeout(10)->get(
                 self::BASE_URL . '/models',
                 ['key' => $apiKey]
             );
@@ -35,7 +32,10 @@ class CompetitionInsightService
                 return 'gemini-2.5-flash';
             }
 
-            $ids = collect($response->json('data', []))->pluck('id');
+            // Strip models/ prefix Google sometimes includes in IDs
+            $ids = collect($response->json('data', []))
+                ->pluck('id')
+                ->map(fn ($id) => str_starts_with($id, 'models/') ? substr($id, 7) : $id);
 
             foreach (self::MODEL_PREFERENCES as $preference) {
                 $match = $ids->first(fn ($id) => str_starts_with($id, $preference));
@@ -44,7 +44,7 @@ class CompetitionInsightService
                 }
             }
 
-            return $ids->first() ?? 'gemini-2.5-flash';
+            return $ids->first() ?? 'gemini-2.0-flash';
         });
     }
 
@@ -75,10 +75,15 @@ class CompetitionInsightService
             $userPrompt   = $this->buildUserPrompt($data);
         }
 
-        $client = \OpenAI::factory()
+        $factory = \OpenAI::factory()
             ->withApiKey(config('services.google_ai.api_key'))
-            ->withBaseUri(self::BASE_URL)
-            ->make();
+            ->withBaseUri(self::BASE_URL);
+
+        if (app()->isLocal()) {
+            $factory = $factory->withHttpClient(new \GuzzleHttp\Client(['verify' => false]));
+        }
+
+        $client = $factory->make();
 
         $response = $client->chat()->create([
             'model'    => $model,
@@ -151,7 +156,7 @@ class CompetitionInsightService
         // Age band breakdown
         $ageBandBreakdown = [];
         foreach ($competition->ageBands as $band) {
-            $count = $competitors->filter(fn ($c) => $c && $band->matchesAge($c->age))->count();
+            $count = $competitors->filter(fn ($c) => $c && $c->age !== null && $band->matchesAge($c->age))->count();
             if ($count > 0) {
                 $ageBandBreakdown[$band->label] = $count;
             }
@@ -265,11 +270,36 @@ class CompetitionInsightService
         ];
     }
 
+    private static array $TONE_PRESET_TEXT = [
+        'humorous'       => 'Use light humour and keep the tone fun and upbeat.',
+        'sensei'         => 'Write as a martial arts instructor addressing a student. Use instructional language and a mentoring tone.',
+        'motivational'   => 'Use an energetic, motivational coaching tone — high-energy and encouraging.',
+        'traditional'    => 'Use formal language that reflects traditional martial arts values: honour, discipline, and respect.',
+        'brief'          => 'Be concise. Use short sentences and avoid unnecessary elaboration.',
+        'parent_friendly' => 'Use warm, community-focused language appropriate for parents and families.',
+    ];
+
+    private function buildOrgContext(Competition $competition): string
+    {
+        $parts = [];
+
+        if ($text = $competition->organisation?->ai_context) {
+            $parts[] = $text;
+        }
+
+        $presets = $competition->organisation?->ai_tone_presets ?? [];
+        foreach ($presets as $preset) {
+            if (isset(self::$TONE_PRESET_TEXT[$preset])) {
+                $parts[] = self::$TONE_PRESET_TEXT[$preset];
+            }
+        }
+
+        return $parts ? "\n\n" . implode(' ', $parts) : '';
+    }
+
     private function buildSystemPrompt(Competition $competition): string
     {
-        $orgContext = $competition->organisation?->ai_context
-            ? "\n\n" . $competition->organisation->ai_context
-            : '';
+        $orgContext = $this->buildOrgContext($competition);
 
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
@@ -444,9 +474,7 @@ PROMPT;
 
     private function buildPlanningSystemPrompt(Competition $competition): string
     {
-        $orgContext = $competition->organisation?->ai_context
-            ? "\n\n" . $competition->organisation->ai_context
-            : '';
+        $orgContext = $this->buildOrgContext($competition);
 
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
@@ -460,7 +488,7 @@ List specific things requiring immediate attention before the competition can op
 Highlight 2–4 genuine positives about the competition setup so far: events configured, divisions generated, bands set up, venue set, or any other solid foundations already in place. Be specific and encouraging.
 
 ## 🏗️ Structure Overview
-Summarise the event types and division setup: how many events, divisions generated, how many are scheduled to locations vs unscheduled. Comment on whether the structure looks complete.
+Use bullet points to summarise the event types and division setup. Include a bullet for: total events and their formats, total divisions generated (by event where notable), how many are scheduled vs unscheduled, and whether the structure looks complete.
 
 ## 📋 Readiness Checklist
 Review what has been configured and what is missing: enrolment due date, start time, check-in time, venue/location, location zones, age/rank/weight bands, target competitor count. Call out anything not yet set.
@@ -531,9 +559,7 @@ PROMPT;
 
     private function buildClosedSystemPrompt(Competition $competition): string
     {
-        $orgContext = $competition->organisation?->ai_context
-            ? "\n\n" . $competition->organisation->ai_context
-            : '';
+        $orgContext = $this->buildOrgContext($competition);
 
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
@@ -660,9 +686,7 @@ PROMPT;
 
     private function buildRunningSystemPrompt(Competition $competition): string
     {
-        $orgContext = $competition->organisation?->ai_context
-            ? "\n\n" . $competition->organisation->ai_context
-            : '';
+        $orgContext = $this->buildOrgContext($competition);
 
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
@@ -776,9 +800,7 @@ PROMPT;
 
     private function buildCompleteSystemPrompt(Competition $competition): string
     {
-        $orgContext = $competition->organisation?->ai_context
-            ? "\n\n" . $competition->organisation->ai_context
-            : '';
+        $orgContext = $this->buildOrgContext($competition);
 
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 class AppServiceProvider extends ServiceProvider
@@ -28,5 +29,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Password::defaults(fn () => Password::min(8)->mixedCase()->numbers()->symbols());
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::statement('PRAGMA journal_mode=WAL;');
+            DB::statement('PRAGMA busy_timeout=5000;');
+        }
     }
 }

@@ -19,8 +19,10 @@ class Organisation extends Model
         'contact_email',
         'website',
         'ai_context',
+        'ai_tone_presets',
         'auto_email_insights',
         'insights_auto_refresh',
+        'competitor_summaries_enabled',
         'dashboard_closed_days',
         'timezone',
         'date_format',
@@ -32,9 +34,11 @@ class Organisation extends Model
     ];
 
     protected $casts = [
+        'ai_tone_presets'          => 'array',
         'auto_email_insights'      => 'boolean',
-        'insights_auto_refresh'    => 'boolean',
-        'dashboard_closed_days'    => 'integer',
+        'insights_auto_refresh'           => 'boolean',
+        'competitor_summaries_enabled'    => 'boolean',
+        'dashboard_closed_days'           => 'integer',
         'platform_fee'             => 'decimal:2',
         'cancellation_days_before' => 'integer',
     ];

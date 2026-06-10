@@ -437,7 +437,14 @@
       "Bash(python3 -c \"import json,sys; print\\(json.dumps\\(json.load\\(sys.stdin\\), indent=2\\)\\)\")",
       "PowerShell($token = $env:JIRA_API_TOKEN; if \\($token\\) { \"Token length: $\\($token.Length\\)\" } else { \"No env token, checking file...\"; Get-Content \"C:\\\\Users\\\\Brad\\\\.claude\\\\jira_token\" -ErrorAction SilentlyContinue | ForEach-Object { \"File token length: $\\($_.Length\\)\" } })",
       "PowerShell(Get-ChildItem \"$env:APPDATA\\\\Claude\" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | head -20; Get-ChildItem \"$env:LOCALAPPDATA\\\\Claude\" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | head -20)",
-      "Bash(php -l \"x:/Repos/Compete/app/Services/BracketService.php\")"
+      "Bash(php -l \"x:/Repos/Compete/app/Services/BracketService.php\")",
+      "Bash(xargs grep -l \"class\")",
+      "Bash(grep -n 'result->id\\\\|\\\\.e\\(\\\\$result' x:/Repos/Compete/resources/views/livewire/org-admin/scoring-panel.blade.php)",
+      "Bash(grep -n ''\\\\''\\\\\\(\\\\|'\\\\''\\\\\\)\\\\|'\\\\''\\\\s*\\\\.\\\\s*\\\\$result->id\\\\|\\\\$result->id\\\\s*\\\\.\\\\s*'\\\\''' x:/Repos/Compete/resources/views/livewire/org-admin/scoring-panel.blade.php)",
+      "Bash(git -C \"x:/Repos/Compete\" log --oneline -10 -- \"app/Filament/OrgAdmin/Pages/ScoringEntry.php\" \"app/Filament/OrgAdmin/Pages/ScoringBracketEntry.php\")",
+      "Bash(git -C \"x:/Repos/Compete\" show --stat e099253)",
+      "Bash(git -C \"x:/Repos/Compete\" show e099253 -- app/Providers/Filament/OrgAdminPanelProvider.php)",
+      "Bash(git -C \"x:/Repos/Compete\" log --oneline -5 -- \"app/Filament/OrgAdmin/Pages/ScoringEntry.php\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\Brad\\.claude\\projects\\c--Users-Brad-OneDrive-Documents-Repos-Compete\\memory",

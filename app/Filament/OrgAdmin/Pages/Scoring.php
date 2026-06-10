@@ -115,6 +115,7 @@ class Scoring extends Page
         ->withExists(['roundRobinMatches as has_bracket'])
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
+        ->orderBy('running_order')
         ->orderBy('code');
 
         $divisions = $query->get()->toBase();

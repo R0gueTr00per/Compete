@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Mail\CompetitionInsightsMail;
 use App\Models\Competition;
 use App\Models\CompetitionInsight;
+use App\Models\User;
 use App\Services\CompetitionInsightService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -37,11 +38,34 @@ class GenerateCompetitionInsightsJob implements ShouldQueue
             return;
         }
 
-        $insight = retry(2, fn () => $service->generate($this->competition, $this->generation), 2000);
+        try {
+            $insight = retry(2, fn () => $service->generate($this->competition, $this->generation), 3000);
+        } catch (\Throwable $e) {
+            $this->notifySysadmin('AI Insights generation failed', $e);
+            throw $e;
+        }
 
         if ($insight && ($this->competition->organisation->auto_email_insights ?? true)) {
             $this->emailOrgAdmins($insight);
         }
+    }
+
+    private function notifySysadmin(string $subject, \Throwable $e): void
+    {
+        $emails = User::role('system_admin')->where('status', 'active')->pluck('email')->toArray();
+        if (empty($emails)) {
+            return;
+        }
+
+        $body = implode("\n\n", [
+            "Competition: {$this->competition->name} (ID {$this->competition->id})",
+            "Error: " . $e->getMessage(),
+            "Trace:\n" . $e->getTraceAsString(),
+        ]);
+
+        try {
+            Mail::raw($body, fn ($m) => $m->to($emails)->subject("[Kompetic] {$subject}"));
+        } catch (\Throwable) {}
     }
 
     private function emailOrgAdmins(CompetitionInsight $insight): void

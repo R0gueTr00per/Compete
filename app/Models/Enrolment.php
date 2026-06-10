@@ -34,6 +34,7 @@ class Enrolment extends Model
         'withdrawal_reason',
         'refund_requested',
         'payment_received_at',
+        'ai_summary',
     ];
 
     protected function casts(): array
