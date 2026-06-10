@@ -48,7 +48,10 @@
             </div>
             <div class="flex items-center gap-2 shrink-0">
                 @if($div->status === 'complete')
-                    <x-heroicon-m-check-circle class="h-4 w-4 text-success-500" />
+                    <span class="flex items-center gap-0.5 text-xs text-success-600 dark:text-success-400 tabular-nums">
+                        @if($checkedIn > 0)<span>{{ $checkedIn }}</span>@endif
+                        <x-heroicon-m-check-circle class="h-4 w-4 text-success-500" />
+                    </span>
                 @else
                     @if($enrolled > 0)
                         <span title="{{ $cap ? 'Registrations / cap' : 'Registrations' }}" class="flex items-center gap-0.5 text-xs sched-text-meta tabular-nums">
@@ -75,6 +78,29 @@
         <div class="text-xs mt-0.5 truncate sched-text-meta">
             {{ $div->label }}
         </div>
+
+        @if($div->planned_start_at)
+            @php
+                $slotMins = app(\App\Services\ScheduleCalculatorService::class)->divisionSlotMinutes($div);
+            @endphp
+            <div class="flex items-center gap-1.5 mt-1">
+                <span class="text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                    {{ tenant_time($div->planned_start_at) }}@if($slotMins) <span class="opacity-70">({{ $slotMins }}min)</span>@endif
+                </span>
+                @if($div->actual_start_at)
+                    @php
+                        $driftMin = (int) round($div->planned_start_at->diffInMinutes($div->actual_start_at, false));
+                        if ($driftMin < 0)      $driftCls = 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+                        elseif ($driftMin === 0) $driftCls = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300';
+                        elseif ($driftMin <= 5)  $driftCls = 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300';
+                        elseif ($driftMin <= 15) $driftCls = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+                        else                     $driftCls = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+                        $driftLabel = $driftMin < 0 ? abs($driftMin) . 'm early' : ($driftMin === 0 ? 'On time' : '+' . $driftMin . 'm');
+                    @endphp
+                    <span class="inline-block rounded px-1 py-0.5 text-xs font-medium {{ $driftCls }}">{{ $driftLabel }}</span>
+                @endif
+            </div>
+        @endif
 
         @if($capPct !== null)
             <div class="mt-1.5 rounded-full overflow-hidden h-1 bg-gray-200 dark:bg-gray-700">

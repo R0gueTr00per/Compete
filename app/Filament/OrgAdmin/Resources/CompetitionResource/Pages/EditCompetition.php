@@ -131,7 +131,20 @@ class EditCompetition extends EditRecord
                 ->whereNotIn('divisions.status', ['combined'])
                 ->count();
 
-            $this->mountAction('confirmOpenRegistrations', ['unscheduled' => $unscheduled]);
+            $missingTarget = $this->record->competitionEvents()
+                ->whereNull('default_max_competitors')
+                ->count();
+
+            $missingTiming = $this->record->competitionEvents()
+                ->whereNull('seconds_per_competitor')
+                ->whereNull('round_duration_seconds')
+                ->count();
+
+            $this->mountAction('confirmOpenRegistrations', [
+                'unscheduled'    => $unscheduled,
+                'missing_target' => $missingTarget,
+                'missing_timing' => $missingTiming,
+            ]);
             $this->halt();
         }
 
@@ -175,10 +188,19 @@ class EditCompetition extends EditRecord
     {
         return Action::make('confirmOpenRegistrations')
             ->modalHeading('Open registrations')
-            ->modalDescription(fn (array $arguments) => ($arguments['unscheduled'] ?? 0) > 0
-                ? "{$arguments['unscheduled']} division(s) have not been assigned to a location. Open for registration anyway?"
-                : null
-            )
+            ->modalDescription(function (array $arguments) {
+                $warnings = [];
+                if (($arguments['unscheduled'] ?? 0) > 0) {
+                    $warnings[] = "{$arguments['unscheduled']} division(s) have not been assigned to a location.";
+                }
+                if (($arguments['missing_target'] ?? 0) > 0) {
+                    $warnings[] = "{$arguments['missing_target']} event(s) are missing a competitor target — schedule times cannot be calculated.";
+                }
+                if (($arguments['missing_timing'] ?? 0) > 0) {
+                    $warnings[] = "{$arguments['missing_timing']} event(s) are missing timing values — schedule times cannot be calculated.";
+                }
+                return $warnings ? implode(' ', $warnings) . ' Open for registration anyway?' : null;
+            })
             ->form([
                 Toggle::make('send_promo_email')
                     ->label('Send promotional email to eligible users')

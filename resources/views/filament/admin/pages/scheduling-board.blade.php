@@ -1,4 +1,28 @@
 <x-filament-panels::page>
+    {{-- Warning: event types with no competitor target set --}}
+    @if(!empty($missingTarget))
+        <div class="mb-3 rounded-lg border border-warning-300 dark:border-warning-700 bg-warning-50 dark:bg-warning-900/20 px-4 py-3 text-sm text-warning-800 dark:text-warning-300">
+            <span class="font-semibold">Schedule times cannot be calculated</span> for the following event
+            {{ Str::plural('type', count($missingTarget)) }} — no competitor target is set:
+            <span class="font-mono">{{ implode(', ', $missingTarget) }}</span>.
+            Set a target in the <a href="{{ \App\Filament\OrgAdmin\Resources\CompetitionResource::getUrl('edit', ['record' => $this->getRecord()]) }}" class="underline font-medium">Event Types</a> tab.
+        </div>
+    @endif
+
+    {{-- Breaks summary --}}
+    @if($breaks->isNotEmpty())
+        <div class="mb-3 flex flex-wrap gap-2">
+            @foreach($breaks as $break)
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+                    <x-heroicon-o-pause-circle class="h-3.5 w-3.5" />
+                    {{ $break->name }}
+                    · {{ \Carbon\Carbon::parse($break->start_time)->format('g:i a') }}
+                    – {{ \Carbon\Carbon::parse($break->start_time)->addMinutes($break->duration_minutes)->format('g:i a') }}
+                </span>
+            @endforeach
+        </div>
+    @endif
+
     @if(empty($columns))
         <div class="flex flex-col items-center justify-center py-16 text-center">
             <x-heroicon-o-map-pin class="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
@@ -70,6 +94,19 @@
             </div>
             @endif
 
+            @php
+                $colCompDate = ($colComp = $this->getRecord()) && $colComp->competition_date
+                    ? \Carbon\Carbon::parse($colComp->competition_date)->format('Y-m-d')
+                    : null;
+                $colSortedBreaks = $colCompDate
+                    ? $breaks->map(fn ($b) => [
+                        'name'      => $b->name,
+                        'start_str' => substr($b->start_time, 0, 5),
+                        'end_str'   => $b->endTime(),
+                        'ts'        => \Carbon\Carbon::parse($colCompDate . ' ' . $b->start_time)->timestamp,
+                    ])->sortBy('ts')->values()
+                    : collect();
+            @endphp
             <div
                 class="flex gap-3 pb-6 px-1 py-1 overflow-x-auto"
                 @mousedown.capture="onCardMousedown($event)"
@@ -143,8 +180,59 @@
                             style="min-height: 300px; padding-bottom: 80px;"
                             data-location="{{ $col }}"
                         >
-                            @foreach($divisionsByColumn[$col] ?? [] as $div)
-                                @include('filament.admin.partials.scheduling-card', ['div' => $div])
+                            @php
+                                // Build timeline: divisions in order with breaks inserted at the right position
+                                $colTimeline = [];
+                                $bIdx = 0;
+                                foreach ($divisionsByColumn[$col] ?? [] as $div) {
+                                    if ($div->planned_start_at) {
+                                        while ($bIdx < $colSortedBreaks->count()
+                                            && $colSortedBreaks[$bIdx]['ts'] <= $div->planned_start_at->timestamp) {
+                                            $colTimeline[] = ['type' => 'break'] + $colSortedBreaks[$bIdx];
+                                            $bIdx++;
+                                        }
+                                    }
+                                    $colTimeline[] = ['type' => 'div', 'div' => $div];
+                                }
+                                if (($colComp = $this->getRecord()) && $colComp->end_time) {
+                                    $colTimeline[] = ['type' => 'end', 'end_time' => $colComp->end_time];
+                                }
+                            @endphp
+                            @foreach($colTimeline as $row)
+                                @if($row['type'] === 'break')
+                                    <div class="sched-break-row -mx-2 mt-2 mb-4 border-y border-amber-200 dark:border-amber-700 select-none"
+                                         data-break-name="{{ $row['name'] }}"
+                                         data-break-start="{{ $row['start_str'] }}"
+                                         data-break-end="{{ $row['end_str'] }}">
+                                        {{-- Mobile: compact tap target --}}
+                                        <div class="sm:hidden px-1 py-1.5 text-center bg-amber-50 dark:bg-amber-900/20 cursor-pointer">
+                                            <span class="text-xs font-semibold text-amber-700 dark:text-amber-400">Break</span>
+                                        </div>
+                                        {{-- Desktop: full display --}}
+                                        <div class="hidden sm:block px-3 py-3 bg-amber-50 dark:bg-amber-900/20 cursor-default">
+                                            <div class="flex items-center gap-2">
+                                                <x-heroicon-m-pause class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                                <span class="text-sm font-semibold text-amber-700 dark:text-amber-400 truncate">{{ $row['name'] }}</span>
+                                            </div>
+                                            <div class="text-xs text-amber-600 dark:text-amber-500 mt-0.5 pl-6">{{ $row['start_str'] }}–{{ $row['end_str'] }}</div>
+                                        </div>
+                                    </div>
+                                @elseif($row['type'] === 'end')
+                                    <div class="-mx-2 mt-2 border-y border-gray-200 dark:border-gray-700 select-none">
+                                        <div class="hidden sm:block px-3 py-3 bg-gray-50 dark:bg-gray-800/60 cursor-default">
+                                            <div class="flex items-center gap-2">
+                                                <x-heroicon-m-flag class="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                                                <span class="text-sm font-semibold text-gray-600 dark:text-gray-400">Planned finish</span>
+                                                <span class="ml-auto text-xs tabular-nums text-gray-500 dark:text-gray-500">{{ tenant_time($row['end_time']) }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="sm:hidden px-1 py-1.5 text-center bg-gray-50 dark:bg-gray-800/60 cursor-default">
+                                            <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">End {{ tenant_time($row['end_time']) }}</span>
+                                        </div>
+                                    </div>
+                                @else
+                                    @include('filament.admin.partials.scheduling-card', ['div' => $row['div']])
+                                @endif
                             @endforeach
                         </div>
                     </div>
@@ -199,54 +287,78 @@
                 </div>
             </div>
 
-            {{-- Mobile detail panel --}}
-            <div x-show="detailDivision !== null" x-cloak class="fixed inset-x-0 bottom-0 z-50 sm:hidden">
-                <div class="relative bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl px-3" style="padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));">
-                    {{-- Drag handle / tap to close --}}
-                    <div @click="closeDetail()" class="flex justify-center pt-2 pb-1 cursor-pointer" aria-label="Close">
-                        <div class="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></div>
-                    </div>
-                    <div class="flex items-center gap-2 mb-0.5">
-                        <span class="font-mono text-sm font-bold text-gray-900 dark:text-white shrink-0" x-text="detailDivision?.code"></span>
-                        <span class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="detailDivision?.event"></span>
-                    </div>
-                    <p class="text-xs text-gray-700 dark:text-gray-200 mb-1 truncate" x-text="detailDivision?.label"></p>
-
-                    <div class="flex items-center gap-3 mb-2 text-xs text-gray-400 dark:text-gray-500">
-                        <span class="capitalize" x-text="detailDivision?.status"></span>
-                        <template x-if="(detailDivision?.maxCompetitors ?? 0) > 0">
-                            <span>
-                                <span x-text="detailDivision?.enrolled ?? 0"></span>/<span x-text="detailDivision?.maxCompetitors"></span> cap
-                            </span>
-                        </template>
-                        <template x-if="!(detailDivision?.maxCompetitors) && (detailDivision?.enrolled ?? 0) > 0">
-                            <span><span x-text="detailDivision?.enrolled"></span> registered</span>
-                        </template>
-                        <span x-show="(detailDivision?.checkedIn ?? 0) > 0" class="text-success-600 dark:text-success-400">
-                            <span x-text="detailDivision?.checkedIn"></span> checked in
-                        </span>
-                        <span x-show="detailDivision?.noneShowed" class="text-warning-600 dark:text-warning-400">0 checked in</span>
-                    </div>
-                    <template x-if="(detailDivision?.maxCompetitors ?? 0) > 0">
-                        <div class="rounded-full overflow-hidden h-1 bg-gray-200 dark:bg-gray-700 mb-2">
-                            <div class="h-full rounded-full transition-all duration-500"
-                                 :style="`width: ${Math.min(100, Math.round(((detailDivision?.enrolled ?? 0) / detailDivision.maxCompetitors) * 100))}%; background-color: ${(() => { const p = Math.round(((detailDivision?.enrolled ?? 0) / detailDivision.maxCompetitors) * 100); return p >= 100 ? '#f87171' : p >= 80 ? '#fbbf24' : '#22c55e'; })()}`">
-                            </div>
-                        </div>
-                    </template>
-
-                    <template x-if="selectedLocation">
-                        <button
-                            @click="assignDetailToLocation()"
-                            class="w-full rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 text-center transition-colors"
-                        >
-                            Assign to <span x-text="selectedLocation"></span>
-                        </button>
-                    </template>
-                </div>
-            </div>
         </div>
     @endif
+
+    {{-- Mobile detail panel — teleported to body to escape Filament stacking context --}}
+    <template x-teleport="body">
+    <div
+        x-data="{ detailDivision: null, breakDetail: null, selectedLocation: null }"
+        @sched-board-open.window="detailDivision = $event.detail.division; breakDetail = null"
+        @sched-board-break.window="breakDetail = $event.detail; detailDivision = null"
+        @sched-board-close.window="detailDivision = null; breakDetail = null"
+        @sched-board-location.window="selectedLocation = $event.detail.location"
+        x-show="detailDivision !== null || breakDetail !== null"
+        style="display:none;"
+        class="fixed inset-x-0 bottom-0 z-[200] sm:hidden"
+    >
+        <div class="relative bg-white dark:bg-gray-800 rounded-t-2xl shadow-xl px-3" style="padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));">
+            <div @click="detailDivision = null; breakDetail = null; $dispatch('sched-board-close')" class="flex justify-center pt-2 pb-1 cursor-pointer" aria-label="Close">
+                <div class="w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></div>
+            </div>
+
+            {{-- Break detail --}}
+            <div x-show="breakDetail !== null" style="display:none;">
+                <div class="flex items-center gap-2 mb-1">
+                    <x-heroicon-m-pause class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span class="text-sm font-semibold text-amber-700 dark:text-amber-400" x-text="breakDetail?.name"></span>
+                </div>
+                <p class="text-xs text-amber-600 dark:text-amber-500 mb-2" x-text="breakDetail ? breakDetail.start_str + ' – ' + breakDetail.end_str : ''"></p>
+            </div>
+
+            {{-- Division detail --}}
+            <div x-show="detailDivision !== null" style="display:none;">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <span class="font-mono text-sm font-bold text-gray-900 dark:text-white shrink-0" x-text="detailDivision?.code"></span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 truncate" x-text="detailDivision?.event"></span>
+                </div>
+                <p class="text-xs text-gray-700 dark:text-gray-200 mb-1 truncate" x-text="detailDivision?.label"></p>
+
+                <div class="flex items-center gap-3 mb-2 text-xs text-gray-400 dark:text-gray-500">
+                    <span class="capitalize" x-text="detailDivision?.status"></span>
+                    <template x-if="(detailDivision?.maxCompetitors ?? 0) > 0">
+                        <span>
+                            <span x-text="detailDivision?.enrolled ?? 0"></span>/<span x-text="detailDivision?.maxCompetitors"></span> cap
+                        </span>
+                    </template>
+                    <template x-if="!(detailDivision?.maxCompetitors) && (detailDivision?.enrolled ?? 0) > 0">
+                        <span><span x-text="detailDivision?.enrolled"></span> registered</span>
+                    </template>
+                    <span x-show="(detailDivision?.checkedIn ?? 0) > 0" style="display:none;" class="text-success-600 dark:text-success-400">
+                        <span x-text="detailDivision?.checkedIn"></span> checked in
+                    </span>
+                    <span x-show="detailDivision?.noneShowed" style="display:none;" class="text-warning-600 dark:text-warning-400">0 checked in</span>
+                </div>
+                <template x-if="(detailDivision?.maxCompetitors ?? 0) > 0">
+                    <div class="rounded-full overflow-hidden h-1 bg-gray-200 dark:bg-gray-700 mb-2">
+                        <div class="h-full rounded-full transition-all duration-500"
+                             :style="`width: ${Math.min(100, Math.round(((detailDivision?.enrolled ?? 0) / detailDivision.maxCompetitors) * 100))}%; background-color: ${(() => { const p = Math.round(((detailDivision?.enrolled ?? 0) / detailDivision.maxCompetitors) * 100); return p >= 100 ? '#f87171' : p >= 80 ? '#fbbf24' : '#22c55e'; })()}`">
+                        </div>
+                    </div>
+                </template>
+
+                <template x-if="selectedLocation">
+                    <button
+                        @click="$dispatch('sched-board-assign'); detailDivision = null; breakDetail = null"
+                        class="w-full rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium py-2 text-center transition-colors"
+                    >
+                        Assign to <span x-text="selectedLocation"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
+    </template>
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script>
@@ -257,6 +369,7 @@
                 selectedIds: [],
                 selectedCount: 0,
                 detailDivision: null,
+                breakDetail: null,
                 touchStartX: 0,
                 touchStartY: 0,
                 touchStartTime: 0,
@@ -297,10 +410,12 @@
                         wire.moveDivisions([...this.selectedIds], location, 9999);
                         this.clearItems();
                         this.selectedLocation = null;
+                        window.dispatchEvent(new CustomEvent('sched-board-location', { detail: { location: null } }));
                         return;
                     }
 
                     this.selectedLocation = selecting ? location : null;
+                    window.dispatchEvent(new CustomEvent('sched-board-location', { detail: { location: this.selectedLocation } }));
                 },
 
                 selectOnly(id) {
@@ -343,12 +458,14 @@
                 clearSelection() {
                     this.clearItems();
                     this.selectedLocation = null;
+                    window.dispatchEvent(new CustomEvent('sched-board-location', { detail: { location: null } }));
                 },
 
                 showDetail(id) {
                     const card = document.querySelector(`[data-id="${id}"]`);
                     if (card && card.dataset.division) {
                         this.detailDivision = JSON.parse(card.dataset.division);
+                        window.dispatchEvent(new CustomEvent('sched-board-open', { detail: { division: this.detailDivision } }));
                         this.$nextTick(() => {
                             const panelHeight = 170;
                             const rect = card.getBoundingClientRect();
@@ -362,6 +479,8 @@
 
                 closeDetail() {
                     this.detailDivision = null;
+                    this.breakDetail = null;
+                    window.dispatchEvent(new CustomEvent('sched-board-close'));
                 },
 
                 assignDetailToLocation() {
@@ -388,14 +507,29 @@
                 onTouchEnd(e) {
                     if (window.innerWidth >= 640) return;
                     if (e.target.closest('button')) return;
-                    const card = e.target.closest('[data-id]');
-                    if (!card) return;
-                    if (Date.now() - this.touchStartTime >= 200) return;
+                    if (Date.now() - this.touchStartTime >= 300) return;
                     const touch = e.changedTouches[0];
                     const dx = touch.clientX - this.touchStartX;
                     const dy = touch.clientY - this.touchStartY;
-                    if (dx * dx + dy * dy > 64) return;
+                    if (dx * dx + dy * dy > 100) return;
+
+                    const breakRow = e.target.closest('.sched-break-row');
+                    if (breakRow) {
+                        e.preventDefault();
+                        this.detailDivision = null;
+                        this.breakDetail = {
+                            name: breakRow.dataset.breakName,
+                            start_str: breakRow.dataset.breakStart,
+                            end_str: breakRow.dataset.breakEnd,
+                        };
+                        window.dispatchEvent(new CustomEvent('sched-board-break', { detail: this.breakDetail }));
+                        return;
+                    }
+
+                    const card = e.target.closest('[data-id]');
+                    if (!card) return;
                     e.preventDefault();
+                    this.breakDetail = null;
                     const id = parseInt(card.dataset.id);
                     this.selectOnly(id);
                     this.showDetail(id);
@@ -432,15 +566,31 @@
                     };
                     this._onNavigating = () => {
                         this.detailDivision = null;
+                        this.breakDetail = null;
                         this.clearItems();
+                        window.dispatchEvent(new CustomEvent('sched-board-close'));
+                    };
+                    this._onAssign = () => {
+                        if (!this.selectedLocation || !this.detailDivision) return;
+                        wire.moveDivisions([this.detailDivision.id], this.selectedLocation, 9999);
+                        this.closeDetail();
+                        this.clearItems();
+                    };
+                    this._onClose = () => {
+                        this.detailDivision = null;
+                        this.breakDetail = null;
                     };
                     document.addEventListener('livewire:update', this._onLivewireUpdate);
                     document.addEventListener('livewire:navigating', this._onNavigating);
+                    window.addEventListener('sched-board-assign', this._onAssign);
+                    window.addEventListener('sched-board-close', this._onClose);
                 },
 
                 destroy() {
                     document.removeEventListener('livewire:update', this._onLivewireUpdate);
                     document.removeEventListener('livewire:navigating', this._onNavigating);
+                    window.removeEventListener('sched-board-assign', this._onAssign);
+                    window.removeEventListener('sched-board-close', this._onClose);
                 },
 
                 initSortables() {
@@ -455,6 +605,7 @@
                             delay: 200,
                             delayOnTouchOnly: true,
                             filter: function(e, el) {
+                                if (el.classList.contains('sched-break-row')) return true;
                                 if (window.innerWidth >= 640) return false;
                                 return !el.classList.contains('sched-draggable-item');
                             },
@@ -473,7 +624,11 @@
                                     })();
 
                                 if (!ids.length) return;
-                                wire.moveDivisions(ids, evt.to.dataset.location, evt.newIndex);
+                                // Exclude break separators from index count
+                                const divCards = Array.from(evt.to.children)
+                                    .filter(el => !el.classList.contains('sched-break-row'));
+                                const cardIndex = divCards.indexOf(evt.item);
+                                wire.moveDivisions(ids, evt.to.dataset.location, cardIndex >= 0 ? cardIndex : 9999);
                                 this.clearItems();
                             },
                         });

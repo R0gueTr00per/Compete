@@ -47,6 +47,8 @@ class CompetitionEvent extends Model
         'penalty_config',
         'high_low_drop',
         'score_category_mode',
+        'seconds_per_competitor',
+        'transition_padding_seconds',
     ];
 
     protected function casts(): array

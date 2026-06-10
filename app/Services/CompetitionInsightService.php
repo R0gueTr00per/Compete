@@ -681,7 +681,70 @@ PROMPT;
             'total_active' => collect($scoringProgress)->sum('total'),
         ];
 
+        $data['timing'] = $this->buildTimingData($competition);
+
         return $data;
+    }
+
+    private function buildTimingData(Competition $competition): array
+    {
+        $activeDivisions = $competition->competitionEvents->flatMap(function ($event) {
+            return $event->divisions
+                ->filter(fn ($d) => $d->location_label !== null || $d->status === 'combined')
+                ->map(fn ($d) => ['event_name' => $event->name, 'div' => $d]);
+        });
+
+        $withPlanned = $activeDivisions->filter(fn ($item) => $item['div']->planned_start_at !== null);
+        $started     = $withPlanned->filter(fn ($item) => $item['div']->actual_start_at !== null);
+
+        $driftValues = $started->map(fn ($item) =>
+            (int) round($item['div']->planned_start_at->diffInMinutes($item['div']->actual_start_at, false))
+        );
+
+        $avgDrift = $driftValues->isNotEmpty() ? round($driftValues->avg(), 1) : null;
+
+        $perEvent = $activeDivisions
+            ->groupBy('event_name')
+            ->map(function ($items, $eventName) {
+                $divRows = $items->map(function ($item) {
+                    $div  = $item['div'];
+                    $drift = ($div->planned_start_at && $div->actual_start_at)
+                        ? (int) round($div->planned_start_at->diffInMinutes($div->actual_start_at, false))
+                        : null;
+                    $actualDuration = ($div->actual_start_at && $div->actual_end_at)
+                        ? (int) round($div->actual_start_at->diffInMinutes($div->actual_end_at))
+                        : null;
+
+                    return [
+                        'code'                    => $div->code,
+                        'status'                  => $div->status,
+                        'planned_start'           => $div->planned_start_at?->format('H:i'),
+                        'actual_start'            => $div->actual_start_at?->format('H:i'),
+                        'drift_minutes'           => $drift,
+                        'actual_duration_minutes' => $actualDuration,
+                    ];
+                })->values()->all();
+
+                $drifts    = collect($divRows)->whereNotNull('drift_minutes')->pluck('drift_minutes');
+                $durations = collect($divRows)->whereNotNull('actual_duration_minutes')->pluck('actual_duration_minutes');
+
+                return [
+                    'event_name'          => $eventName,
+                    'divisions'           => $divRows,
+                    'avg_drift_minutes'   => $drifts->isNotEmpty()    ? round($drifts->avg(), 1)    : null,
+                    'avg_actual_duration' => $durations->isNotEmpty() ? round($durations->avg(), 1) : null,
+                ];
+            })->values()->all();
+
+        return [
+            'divisions_with_planned'      => $withPlanned->count(),
+            'divisions_started'           => $started->count(),
+            'divisions_completed_actuals' => $activeDivisions->filter(fn ($i) => $i['div']->actual_end_at !== null)->count(),
+            'avg_start_drift_minutes'     => $avgDrift,
+            'behind_5min_count'           => $driftValues->filter(fn ($v) => $v > 5)->count(),
+            'ahead_5min_count'            => $driftValues->filter(fn ($v) => $v < -5)->count(),
+            'per_event'                   => $perEvent,
+        ];
     }
 
     private function buildRunningSystemPrompt(Competition $competition): string
@@ -691,19 +754,23 @@ PROMPT;
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
 
-You provide real-time insights to organisers during an active competition (check-in or running). Always respond using exactly these five section headings in markdown — no other headings:
+You provide real-time insights to organisers during an active competition (check-in or running). Always respond using exactly these six section headings in markdown — no other headings:
 
 ## ✅ Action Items
 Urgent items requiring immediate attention right now. Check each of the following and raise a bullet for every issue found:
 - Any event where check-in is zero (competitors enrolled but none checked in) — may indicate a no-show or check-in table issue
 - Outstanding payments that need collecting today
 - Any events with no active competitors (empty) that may still be on the run sheet
+- Any mat or event running significantly behind schedule (>15 min drift) — flag which division/event and by how much
 
 ## 🌟 What's Going Well
-Highlight 2–4 genuine positives about how the competition is running: strong check-in rates, good competitor turnout, events running smoothly, scoring progressing well, or strong payment collection. Keep it brief and encouraging.
+Highlight 2–4 genuine positives about how the competition is running: strong check-in rates, good competitor turnout, events running smoothly, scoring progressing well, or the schedule holding to time. Keep it brief and encouraging.
 
 ## 🏃 Scoring Progress
 Report the scoring state for each event: how many divisions are scored vs remaining. State the counts factually — do not characterise low percentages as a problem, since competitions score sequentially and progress naturally increases throughout the day. Only flag an event if it has fallen notably behind all other events for no apparent reason.
+
+## ⏱️ Schedule Status
+Summarise how the competition is tracking against its planned schedule. Report the overall average start drift (positive = running late, negative = running early). For each event type, note the average drift and whether any divisions stand out as significantly late or early. If no planned times are set, say so.
 
 ## 👥 Check-in Status
 Overall check-in rate. For each event, note the check-in count vs enrolled. Keep observations factual — check-in typically happens close to event start time, so low rates early in the day are normal.
@@ -730,6 +797,7 @@ PROMPT;
             : (abs($data['days_until']) === 0 ? 'today' : abs($data['days_until']) . ' days ago');
 
         $s = $data['scoring'];
+        $t = $data['timing'];
 
         $scoringTotal = $s['total_active'] > 0
             ? round(($s['total_scored'] / $s['total_active']) * 100) . '%'
@@ -751,6 +819,31 @@ PROMPT;
         $en = $data['enrolments'];
         $eventCount = count($data['events']);
 
+        $avgDriftStr = $t['avg_start_drift_minutes'] !== null
+            ? ($t['avg_start_drift_minutes'] >= 0 ? '+' . $t['avg_start_drift_minutes'] : (string) $t['avg_start_drift_minutes']) . ' min'
+            : 'no data';
+
+        $timingEventLines = collect($t['per_event'])->map(function ($e) {
+            $avgDrift = $e['avg_drift_minutes'] !== null
+                ? ($e['avg_drift_minutes'] >= 0 ? '+' . $e['avg_drift_minutes'] : (string) $e['avg_drift_minutes']) . ' min avg drift'
+                : 'no timing data';
+            $avgDur = $e['avg_actual_duration'] !== null ? ", avg actual duration: {$e['avg_actual_duration']} min" : '';
+
+            $divLines = collect($e['divisions'])
+                ->filter(fn ($d) => $d['planned_start'] !== null || $d['actual_start'] !== null)
+                ->map(function ($d) {
+                    $driftStr = $d['drift_minutes'] !== null
+                        ? ($d['drift_minutes'] >= 0 ? '+' . $d['drift_minutes'] : (string) $d['drift_minutes']) . 'min'
+                        : '—';
+                    $durStr = $d['actual_duration_minutes'] !== null ? ", ran {$d['actual_duration_minutes']}min" : '';
+                    $planned = $d['planned_start'] ?? '—';
+                    $actual  = $d['actual_start'] ?? 'not started';
+                    return "  - {$d['code']} ({$d['status']}): planned {$planned} → actual {$actual} ({$driftStr}{$durStr})";
+                })->join("\n");
+
+            return "- {$e['event_name']}: {$avgDrift}{$avgDur}" . ($divLines ? "\n{$divLines}" : '');
+        })->join("\n");
+
         return <<<PROMPT
 Analyse this competition that is currently IN PROGRESS and provide real-time insights.
 
@@ -763,6 +856,11 @@ Locations: {$data['locations']}
 SCORING PROGRESS
 Overall: {$s['total_scored']}/{$s['total_active']} divisions scored ({$scoringTotal})
 {$scoringLines}
+
+SCHEDULE TIMING
+{$t['divisions_with_planned']} divisions with planned times | {$t['divisions_started']} started | {$t['divisions_completed_actuals']} completed with actuals
+Overall avg start drift: {$avgDriftStr} | Behind >5min: {$t['behind_5min_count']} | Ahead >5min: {$t['ahead_5min_count']}
+{$timingEventLines}
 
 CHECK-IN & EVENTS ({$eventCount} total)
 {$events}
@@ -795,6 +893,8 @@ PROMPT;
             'divisions_cancelled' => $cancelled,
         ];
 
+        $data['timing'] = $this->buildTimingData($competition);
+
         return $data;
     }
 
@@ -805,10 +905,10 @@ PROMPT;
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
 
-You provide a retrospective analysis of a completed competition to help organisers understand outcomes and improve future events. Always respond using exactly these five section headings in markdown — no other headings:
+You provide a retrospective analysis of a completed competition to help organisers understand outcomes and improve future events. Always respond using exactly these six section headings in markdown — no other headings:
 
 ## 🌟 Highlights
-Celebrate 3–5 genuine achievements from the event: strong turnout, well-run events, good payment collection, diverse participation, high check-in rates, or anything else the organiser should feel proud of. Be warm, specific, and reference actual numbers.
+Celebrate 3–5 genuine achievements from the event: strong turnout, well-run events, good payment collection, diverse participation, high check-in rates, or schedule discipline if the event ran on time. Be warm, specific, and reference actual numbers.
 
 ## 📊 Results Summary
 Overall participation vs targets. Competitor count, enrolment outcomes, demographic highlights. How did the event compare to expectations?
@@ -816,11 +916,14 @@ Overall participation vs targets. Competitor count, enrolment outcomes, demograp
 ## 🏆 Event Outcomes
 For each event: final competitor count, divisions that ran, any that were empty or cancelled. Note any events that significantly under- or over-performed.
 
+## ⏱️ Timing Analysis
+Analyse how closely the competition followed its planned schedule. For each event type: report average start drift (positive = ran late, negative = ran early) and average actual division duration where available. Identify which event types ran consistently over or under their planned time slot. Note the overall schedule discipline and flag any event types whose actual durations suggest the per-division time estimate should be adjusted for future competitions. If no timing data is available, say so.
+
 ## 💰 Financial Outcome
 Total revenue collected vs outstanding amounts. Any patterns worth noting. Recommend any follow-up needed on unpaid enrolments.
 
 ## 🔍 Recommendations for Next Competition
-Based on what happened at this event, suggest 3–5 concrete improvements for the next competition. These may relate to division structure, enrolment timing, capacity planning, or any patterns in the data.
+Based on what happened at this event, suggest 3–5 concrete improvements for the next competition. These may relate to division structure, enrolment timing, capacity planning, or time allocation — especially if any event types consistently ran over their scheduled slot.
 
 Rules:
 - This is a retrospective — focus on what happened, not what might happen
@@ -847,6 +950,7 @@ PROMPT;
         $c  = $data['competitors'];
         $d  = $data['divisions'];
         $o  = $data['outcomes'];
+        $t  = $data['timing'];
 
         $topDojos = collect($data['competitors']['top_dojos'])
             ->map(fn ($count, $name) => "{$name} ({$count})")
@@ -865,6 +969,31 @@ PROMPT;
             : '';
 
         $eventCount = count($data['events']);
+
+        $avgDriftStr = $t['avg_start_drift_minutes'] !== null
+            ? ($t['avg_start_drift_minutes'] >= 0 ? '+' . $t['avg_start_drift_minutes'] : (string) $t['avg_start_drift_minutes']) . ' min'
+            : 'no data';
+
+        $timingEventLines = collect($t['per_event'])->map(function ($ev) {
+            $avgDrift = $ev['avg_drift_minutes'] !== null
+                ? ($ev['avg_drift_minutes'] >= 0 ? '+' . $ev['avg_drift_minutes'] : (string) $ev['avg_drift_minutes']) . ' min avg drift'
+                : 'no timing data';
+            $avgDur = $ev['avg_actual_duration'] !== null ? ", avg actual duration: {$ev['avg_actual_duration']} min" : '';
+
+            $divLines = collect($ev['divisions'])
+                ->filter(fn ($div) => $div['planned_start'] !== null || $div['actual_start'] !== null)
+                ->map(function ($div) {
+                    $driftStr = $div['drift_minutes'] !== null
+                        ? ($div['drift_minutes'] >= 0 ? '+' . $div['drift_minutes'] : (string) $div['drift_minutes']) . 'min'
+                        : '—';
+                    $durStr = $div['actual_duration_minutes'] !== null ? ", ran {$div['actual_duration_minutes']}min" : '';
+                    $planned = $div['planned_start'] ?? '—';
+                    $actual  = $div['actual_start'] ?? 'not started';
+                    return "  - {$div['code']} ({$div['status']}): planned {$planned} → actual {$actual} ({$driftStr}{$durStr})";
+                })->join("\n");
+
+            return "- {$ev['event_name']}: {$avgDrift}{$avgDur}" . ($divLines ? "\n{$divLines}" : '');
+        })->join("\n");
 
         return <<<PROMPT
 Analyse this COMPLETED competition and provide a retrospective.
@@ -891,6 +1020,11 @@ Dojos represented: {$c['dojos']} | Top: {$topDojos}
 DIVISION OUTCOMES
 Scored (ran): {$o['divisions_scored']} | Unscored: {$o['divisions_unscored']} | Cancelled (unscheduled): {$o['divisions_cancelled']}
 Size breakdown: Empty: {$d['empty']} | Solo (1 competitor): {$d['solo']} | Small (2–3): {$d['small']} | Healthy (4+): {$d['healthy']}
+
+SCHEDULE TIMING
+{$t['divisions_with_planned']} divisions with planned times | {$t['divisions_started']} started | {$t['divisions_completed_actuals']} completed with actuals
+Overall avg start drift: {$avgDriftStr} | Behind >5min: {$t['behind_5min_count']} | Ahead >5min: {$t['ahead_5min_count']}
+{$timingEventLines}
 PROMPT;
     }
 }

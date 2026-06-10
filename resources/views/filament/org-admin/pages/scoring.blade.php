@@ -30,6 +30,28 @@
                 </x-filament::input.wrapper>
             @endif
 
+            @if ($this->competition_id)
+                <div class="relative flex items-center">
+                    <x-heroicon-m-magnifying-glass class="absolute left-2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    <input
+                        wire:model.live="search_code"
+                        type="text"
+                        inputmode="text"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="characters"
+                        spellcheck="false"
+                        placeholder="Code..."
+                        class="pl-7 pr-6 py-1.5 w-28 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                    />
+                    @if ($this->search_code)
+                        <button wire:click="$set('search_code', null)" class="absolute right-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                            <x-heroicon-m-x-mark class="w-3.5 h-3.5" />
+                        </button>
+                    @endif
+                </div>
+            @endif
+
             @if ($this->competition_id && $selectedComp?->status === 'running' && ! $divisionList->isEmpty() && $incompleteCount > 0)
                 <button wire:click="jumpToNextIncomplete"
                     class="inline-flex items-center gap-1 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
@@ -45,7 +67,15 @@
     @elseif ($selectedComp?->status !== 'running')
         <p class="text-center text-gray-400 py-12">Competition is not running yet. Start the competition to begin scoring.</p>
     @elseif ($divisionList->isEmpty())
-        <p class="text-center text-gray-400 py-12">No divisions assigned to {{ $this->filter_location }}.</p>
+        <p class="text-center text-gray-400 py-12">
+            @if ($this->search_code)
+                No divisions match code "{{ $this->search_code }}".
+            @elseif ($this->filter_location)
+                No divisions assigned to {{ $this->filter_location }}.
+            @else
+                No divisions found.
+            @endif
+        </p>
     @else
         <style>
             @keyframes scoring-row-pulse {

@@ -321,6 +321,26 @@ class CompetitionResource extends Resource
                         ->color('success')
                         ->visible(fn (Competition $record) => $record->status === 'planning')
                         ->modalHeading('Open registrations')
+                        ->modalDescription(function (Competition $record) {
+                            $warnings = [];
+
+                            $missingTarget = $record->competitionEvents()
+                                ->whereNull('default_max_competitors')
+                                ->count();
+                            if ($missingTarget > 0) {
+                                $warnings[] = "{$missingTarget} event(s) are missing a competitor target — schedule times cannot be calculated.";
+                            }
+
+                            $missingTiming = $record->competitionEvents()
+                                ->whereNull('seconds_per_competitor')
+                                ->whereNull('round_duration_seconds')
+                                ->count();
+                            if ($missingTiming > 0) {
+                                $warnings[] = "{$missingTiming} event(s) are missing timing values — schedule times cannot be calculated.";
+                            }
+
+                            return $warnings ? implode(' ', $warnings) : null;
+                        })
                         ->form([
                             Toggle::make('send_promo_email')
                                 ->label('Send promotional email to eligible users')

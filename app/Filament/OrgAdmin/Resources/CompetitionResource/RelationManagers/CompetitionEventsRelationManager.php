@@ -3,6 +3,7 @@
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
 use App\Models\CompetitionEvent;
+use App\Services\ScheduleCalculatorService;
 use Awcodes\TableRepeater\Components\TableRepeater;
 use Awcodes\TableRepeater\Header;
 
@@ -301,43 +302,6 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points']))
                         ->columnSpanFull(),
 
-                    TextInput::make('round_duration_seconds')
-                        ->label('Round duration')
-                        ->numeric()
-                        ->nullable()
-                        ->suffix('seconds')
-                        ->helperText('e.g. 180 = 3 minutes. Leave blank for no timer.')
-                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points', 'win_loss'])),
-
-                    TextInput::make('tiebreak_duration_seconds')
-                        ->label('Tiebreak duration')
-                        ->numeric()
-                        ->nullable()
-                        ->suffix('seconds')
-                        ->helperText('Duration of the tiebreak period when scores are tied at time expiry.')
-                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points'])),
-
-                    Radio::make('tiebreak_mode')
-                        ->label('Tiebreak mode')
-                        ->options([
-                            'sudden_death' => 'Sudden death — first to score wins (inputs locked)',
-                            'overtime'     => 'Overtime — scoring continues; head judge if still tied at end',
-                        ])
-                        ->default('sudden_death')
-                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points']))
-                        ->live()
-                        ->columnSpanFull(),
-
-                    Radio::make('overtime_rounds')
-                        ->label('Overtime rounds allowed')
-                        ->options([
-                            1 => '1 round — head judge decides if still tied',
-                            2 => '2 rounds — head judge decides if still tied after both',
-                        ])
-                        ->default(1)
-                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points']) || $get('tiebreak_mode') !== 'overtime')
-                        ->columnSpanFull(),
-
                     Section::make('Places Awarded')
                         ->columns(['default' => 1, 'sm' => 3])
                         ->columnSpanFull()
@@ -445,6 +409,69 @@ class CompetitionEventsRelationManager extends RelationManager
                             ->content(new HtmlString('<p class="text-sm text-gray-500">Note: Changes take effect on the next scored event. Already-generated brackets are unaffected.</p>'))
                             ->hidden(fn (Get $get) => in_array($get('tournament_format'), ['round_robin'])),
                     ]),
+
+                Tab::make('Timing')->schema([
+                    Placeholder::make('timing_note')
+                        ->hiddenLabel()
+                        ->content(new HtmlString('<p class="text-sm text-gray-500">Timing information is used to estimate the duration of an event on the schedule.</p>'))
+                        ->columnSpanFull(),
+
+                    TextInput::make('seconds_per_competitor')
+                        ->label('Seconds per competitor')
+                        ->helperText('Time allocated per competitor slot (performance + changeover).')
+                        ->numeric()
+                        ->integer()
+                        ->minValue(1)
+                        ->suffix('sec')
+                        ->hidden(fn (Get $get) => in_array($get('tournament_format'), [
+                            'round_robin', 'single_elimination', 'double_elimination', 'repechage', 'se_3rd_place',
+                        ])),
+
+                    TextInput::make('round_duration_seconds')
+                        ->label('Round duration timer')
+                        ->numeric()
+                        ->nullable()
+                        ->suffix('seconds')
+                        ->helperText('e.g. 180 = 3 minutes. Leave blank for no timer.')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points', 'win_loss'])),
+
+                    TextInput::make('tiebreak_duration_seconds')
+                        ->label('Tiebreak duration timer')
+                        ->numeric()
+                        ->nullable()
+                        ->suffix('seconds')
+                        ->helperText('Duration of the tiebreak period when scores are tied at time expiry.')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points'])),
+
+                    Radio::make('tiebreak_mode')
+                        ->label('Tiebreak mode')
+                        ->options([
+                            'sudden_death' => 'Sudden death — first to score wins (inputs locked)',
+                            'overtime'     => 'Overtime — scoring continues; head judge if still tied at end',
+                        ])
+                        ->default('sudden_death')
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points']))
+                        ->live()
+                        ->columnSpanFull(),
+
+                    Radio::make('overtime_rounds')
+                        ->label('Overtime rounds allowed')
+                        ->options([
+                            1 => '1 round — head judge decides if still tied',
+                            2 => '2 rounds — head judge decides if still tied after both',
+                        ])
+                        ->default(1)
+                        ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['first_to_n', 'timed_points']) || $get('tiebreak_mode') !== 'overtime')
+                        ->columnSpanFull(),
+
+                    TextInput::make('transition_padding_seconds')
+                        ->label('Transition padding')
+                        ->helperText('Extra seconds added per competitor/round slot.')
+                        ->numeric()
+                        ->integer()
+                        ->minValue(0)
+                        ->suffix('sec'),
+                ]),
 
                 Tab::make('Penalties')->schema([
                     Section::make()
@@ -567,6 +594,17 @@ class CompetitionEventsRelationManager extends RelationManager
                                 ->success()
                                 ->title("{$count} division(s) updated to match the new target.")
                                 ->send();
+                        }
+
+                        // Recalculate planned times for affected locations when timing config changes
+                        $locations = $record->divisions()
+                            ->whereNotNull('location_label')
+                            ->distinct()
+                            ->pluck('location_label');
+
+                        $calculator = app(ScheduleCalculatorService::class);
+                        foreach ($locations as $location) {
+                            $calculator->recalculateForLocation($record->competition, $location);
                         }
                     }),
 

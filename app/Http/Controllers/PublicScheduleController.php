@@ -33,6 +33,8 @@ class PublicScheduleController extends Controller
             ->get()
             ->groupBy(fn ($div) => $div->location_label ?? 'Unassigned');
 
-        return view('public.schedule', compact('competition', 'divisions'));
+        $breaks = $competition->breaks;
+
+        return view('public.schedule', compact('competition', 'divisions', 'breaks'));
     }
 }

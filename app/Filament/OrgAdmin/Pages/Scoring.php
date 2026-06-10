@@ -38,6 +38,9 @@ class Scoring extends Page
     #[Url]
     public ?int $highlight_division = null;
 
+    #[Url]
+    public ?string $search_code = null;
+
     public function mount(): void
     {
         if (! $this->competition_id) {
@@ -114,6 +117,7 @@ class Scoring extends Page
         ])
         ->withExists(['roundRobinMatches as has_bracket'])
         ->when($this->filter_location, fn ($q) => $q->where('location_label', $this->filter_location))
+        ->when($this->search_code, fn ($q) => $q->where('code', 'like', $this->search_code . '%'))
         ->whereIn('status', ['pending', 'assigned', 'running', 'complete'])
         ->orderBy('running_order')
         ->orderBy('code');
@@ -205,5 +209,6 @@ class Scoring extends Page
     public function updatedCompetitionId(): void
     {
         $this->filter_location = null;
+        $this->search_code     = null;
     }
 }

@@ -37,6 +37,9 @@ class Division extends Model
         'scoring_locked_by',
         'scoring_locked_at',
         'category_config',
+        'planned_start_at',
+        'actual_start_at',
+        'actual_end_at',
     ];
 
     protected $casts = [
@@ -45,6 +48,9 @@ class Division extends Model
         'scoring_locked_at'       => 'datetime',
         'awarded_places'          => 'integer',
         'category_config'         => 'array',
+        'planned_start_at'        => 'datetime',
+        'actual_start_at'         => 'datetime',
+        'actual_end_at'           => 'datetime',
     ];
 
     public function getActivitylogOptions(): LogOptions

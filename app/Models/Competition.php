@@ -149,6 +149,11 @@ class Competition extends Model
         return $this->hasMany(CompetitionTask::class)->orderBy('sort_order');
     }
 
+    public function breaks(): HasMany
+    {
+        return $this->hasMany(CompetitionBreak::class)->orderBy('start_time');
+    }
+
     public function isPublicScheduleAvailable(): bool
     {
         if (in_array($this->status, ['planning', 'open'])) {

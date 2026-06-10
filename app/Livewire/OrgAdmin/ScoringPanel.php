@@ -226,6 +226,9 @@ class ScoringPanel extends Component
                 default             => $event?->awarded_places_4plus ?? 3,
             };
             $statusUpdate = $event?->isTournament() ? [] : ['status' => 'running'];
+            if (! empty($statusUpdate) && ! $division?->actual_start_at) {
+                $statusUpdate['actual_start_at'] = now();
+            }
             $division?->update(array_merge(['awarded_places' => $awardedPlaces], $statusUpdate));
 
             if (! in_array($this->division_id, $this->completedRollcallDivisions)) {
@@ -1272,7 +1275,12 @@ class ScoringPanel extends Component
             'tournament_format' => $event?->effectiveTournamentFormat(),
             'scoring_method'    => $event?->effectiveScoringMethod(),
         ];
-        if ($division?->status !== 'running') $updateData['status'] = 'running';
+        if ($division?->status !== 'running') {
+            $updateData['status'] = 'running';
+            if (! $division?->actual_start_at) {
+                $updateData['actual_start_at'] = now();
+            }
+        }
         $division?->update($updateData);
         unset($this->selectedDivision);
 
@@ -1425,7 +1433,12 @@ class ScoringPanel extends Component
             'tournament_format' => $event?->effectiveTournamentFormat(),
             'scoring_method'    => $event?->effectiveScoringMethod(),
         ];
-        if ($division?->status !== 'running') $updateData['status'] = 'running';
+        if ($division?->status !== 'running') {
+            $updateData['status'] = 'running';
+            if (! $division?->actual_start_at) {
+                $updateData['actual_start_at'] = now();
+            }
+        }
         $division?->update($updateData);
         unset($this->selectedDivision);
 
@@ -1652,6 +1665,8 @@ class ScoringPanel extends Component
         Result::whereIn('enrolment_event_id', $eeIds)->where('disqualified', true)->update(['disqualified' => false, 'placement' => null]);
         Result::whereIn('enrolment_event_id', $eeIds)->where('forfeited', true)->update(['forfeited' => false]);
 
+        Division::find($this->division_id)?->update(['status' => 'assigned', 'actual_start_at' => null]);
+
         Notification::make()->success()->title('Bracket cleared.')->send();
     }
 
@@ -1807,6 +1822,7 @@ class ScoringPanel extends Component
             'status'            => 'complete',
             'completed_at'      => now(),
             'completed_by'      => auth()->id(),
+            'actual_end_at'     => now(),
             'scoring_locked_by' => null,
             'scoring_locked_at' => null,
         ]);
@@ -1857,6 +1873,8 @@ class ScoringPanel extends Component
             'scoring_locked_by'       => null,
             'scoring_locked_at'       => null,
             'category_config'         => null,
+            'actual_start_at'         => null,
+            'actual_end_at'           => null,
         ]);
 
         $this->perfOrder = [];

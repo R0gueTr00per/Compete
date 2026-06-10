@@ -3,9 +3,12 @@
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\Pages;
 
 use App\Filament\OrgAdmin\Resources\CompetitionResource;
-use App\Models\Competition;
 use App\Models\Division;
+use App\Services\ScheduleCalculatorService;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use App\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
@@ -24,6 +27,7 @@ class ManageCompetitionSchedule extends Page
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
+        app(ScheduleCalculatorService::class)->recalculateAll($this->getRecord());
     }
 
     public static function getNavigationLabel(): string
@@ -49,6 +53,67 @@ class ManageCompetitionSchedule extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('recalculate')
+                ->label('Recalculate')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->action(function () {
+                    app(ScheduleCalculatorService::class)->recalculateAll($this->getRecord());
+                    Notification::make()->success()->title('Schedule recalculated.')->send();
+                }),
+
+            Action::make('manageBreaks')
+                ->label('Breaks')
+                ->icon('heroicon-o-pause-circle')
+                ->color('warning')
+                ->modalHeading('Competition Breaks')
+                ->modalDescription('Breaks are competition-wide and apply to all mats. Events are automatically scheduled around them.')
+                ->modalWidth(MaxWidth::TwoExtraLarge)
+                ->fillForm(fn () => [
+                    'breaks' => $this->getRecord()->breaks->map(fn ($b) => [
+                        'name'             => $b->name,
+                        'start_time'       => \Carbon\Carbon::parse($b->start_time)->format('H:i'),
+                        'duration_minutes' => $b->duration_minutes,
+                    ])->toArray(),
+                ])
+                ->form([
+                    Repeater::make('breaks')
+                        ->hiddenLabel()
+                        ->schema([
+                            TextInput::make('name')
+                                ->label('Break name')
+                                ->required()
+                                ->placeholder('e.g. Lunch Break')
+                                ->columnSpan(2),
+
+                            TimePicker::make('start_time')
+                                ->label('Start time')
+                                ->required()
+                                ->seconds(false),
+
+                            TextInput::make('duration_minutes')
+                                ->label('Duration')
+                                ->required()
+                                ->numeric()
+                                ->integer()
+                                ->minValue(1)
+                                ->suffix('min'),
+                        ])
+                        ->columns(4)
+                        ->addActionLabel('Add break')
+                        ->defaultItems(0)
+                        ->reorderable(false),
+                ])
+                ->action(function (array $data) {
+                    $competition = $this->getRecord();
+                    $competition->breaks()->delete();
+                    foreach ($data['breaks'] as $break) {
+                        $competition->breaks()->create($break);
+                    }
+                    app(ScheduleCalculatorService::class)->recalculateAll($competition->fresh());
+                    Notification::make()->success()->title('Breaks saved.')->send();
+                }),
+
             Action::make('unassignEmpty')
                 ->label('Unassign empty divisions')
                 ->icon('heroicon-o-trash')
@@ -91,7 +156,6 @@ class ManageCompetitionSchedule extends Page
                 ->icon('heroicon-o-arrow-left')
                 ->color('gray')
                 ->url(fn () => CompetitionResource::getUrl('edit', ['record' => $this->getRecord()])),
-
         ];
     }
 
@@ -134,11 +198,23 @@ class ManageCompetitionSchedule extends Page
             ->sort()
             ->toArray();
 
+        // Event types missing a competitor target — schedule times cannot be calculated for these
+        $missingTarget = $competition->competitionEvents()
+            ->whereNull('default_max_competitors')
+            ->pluck('name')
+            ->sort()
+            ->values()
+            ->toArray();
+
+        $breaks = $competition->breaks;
+
         return [
             'columns'           => $columns,
             'divisionsByColumn' => $grouped,
             'eventTypes'        => $eventTypes,
             'filterEventType'   => $this->filterEventType,
+            'missingTarget'     => $missingTarget,
+            'breaks'            => $breaks,
         ];
     }
 
@@ -200,7 +276,11 @@ class ManageCompetitionSchedule extends Page
             return;
         }
 
-        $moved->each(fn ($d) => $d->update(['location_label' => $locationLabel]));
+        $moved->each(fn ($d) => $d->update(
+            $locationLabel === null
+                ? ['location_label' => null, 'planned_start_at' => null, 'actual_start_at' => null, 'actual_end_at' => null]
+                : ['location_label' => $locationLabel]
+        ));
 
         $siblings = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
             ->whereNotIn('id', $divisionIds)
@@ -214,6 +294,9 @@ class ManageCompetitionSchedule extends Page
         foreach ($siblings as $i => $sib) {
             $sib->updateQuietly(['running_order' => $i + 1]);
         }
-    }
 
+        if ($locationLabel) {
+            app(ScheduleCalculatorService::class)->recalculateForLocation($competition, $locationLabel);
+        }
+    }
 }
