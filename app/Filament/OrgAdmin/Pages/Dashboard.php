@@ -89,6 +89,7 @@ class Dashboard extends BaseDashboard
 
         return Action::make('setStatus')
             ->requiresConfirmation()
+            ->closeModalByClickingAway(false)
             ->modalHeading(fn (array $arguments) =>
                 'Set to ' . ($statusLabels[$arguments['targetStatus'] ?? ''] ?? 'Unknown'))
             ->modalDescription(function (array $arguments) use ($statusLabels) {
