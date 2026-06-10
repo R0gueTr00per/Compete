@@ -9,8 +9,9 @@
         </div>
     @endif
 
-    {{-- Breaks summary --}}
-    @if($breaks->isNotEmpty())
+    {{-- Breaks summary + planned end pill --}}
+    @php $summaryRecord = $this->getRecord(); @endphp
+    @if($breaks->isNotEmpty() || ($summaryRecord && $summaryRecord->end_time))
         <div class="mb-3 flex flex-wrap gap-2">
             @foreach($breaks as $break)
                 <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">
@@ -20,6 +21,12 @@
                     – {{ \Carbon\Carbon::parse($break->start_time)->addMinutes($break->duration_minutes)->format('g:i a') }}
                 </span>
             @endforeach
+            @if($summaryRecord && $summaryRecord->end_time)
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400">
+                    <x-heroicon-o-flag class="h-3.5 w-3.5" />
+                    Planned finish · {{ tenant_time($summaryRecord->end_time) }}
+                </span>
+            @endif
         </div>
     @endif
 
@@ -287,11 +294,8 @@
                 </div>
             </div>
 
-        </div>
-    @endif
-
-    {{-- Mobile detail panel — teleported to body to escape Filament stacking context --}}
-    <template x-teleport="body">
+            {{-- Mobile detail panel — teleported to body to escape Filament stacking context --}}
+            <template x-teleport="body">
     <div
         x-data="{ detailDivision: null, breakDetail: null, selectedLocation: null }"
         @sched-board-open.window="detailDivision = $event.detail.division; breakDetail = null"
@@ -358,7 +362,10 @@
             </div>
         </div>
     </div>
-    </template>
+        </template>
+
+        </div>
+    @endif
 
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
     <script>
@@ -536,9 +543,14 @@
                 },
 
                 onCardClick(e) {
-                    if (window.innerWidth < 640) return;
                     if (e.target.closest('button')) return;
-                    // desktop: no extra behaviour; mousedown handles ctrl+click
+                    if (window.innerWidth >= 640) return; // desktop: mousedown handles ctrl+click
+                    // Mobile fallback — only reached if onTouchEnd didn't call preventDefault()
+                    const card = e.target.closest('[data-id]');
+                    if (!card) return;
+                    const id = parseInt(card.dataset.id);
+                    this.selectOnly(id);
+                    this.showDetail(id);
                 },
 
                 onCardMousedown(e) {
