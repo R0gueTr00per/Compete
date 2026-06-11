@@ -68,6 +68,7 @@ class OrgAdminPanelProvider extends PanelProvider
             ->pages([
                 \App\Filament\OrgAdmin\Pages\Dashboard::class,
                 \App\Filament\OrgAdmin\Pages\OrganisationSettings::class,
+                \App\Filament\OrgAdmin\Pages\Help::class,
             ])
             ->discoverWidgets(in: app_path('Filament/OrgAdmin/Widgets'), for: 'App\\Filament\\OrgAdmin\\Widgets')
             ->widgets([

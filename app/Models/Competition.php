@@ -141,7 +141,7 @@ class Competition extends Model
 
     public function portalMessages(): HasMany
     {
-        return $this->hasMany(CompetitionMessage::class)->orderBy('created_at');
+        return $this->hasMany(CompetitionMessage::class)->orderBy('sort_order')->orderBy('created_at');
     }
 
     public function tasks(): HasMany

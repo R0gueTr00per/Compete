@@ -73,8 +73,6 @@
                 </span>
             </div>
 
-            <p class="mt-2 text-xs text-gray-400 italic">Organisers reserve the right to merge or cancel any event on the day.</p>
-
         </x-filament::section>
 
         {{-- Share modal --}}

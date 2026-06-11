@@ -43,6 +43,7 @@ class CompetitionMessagesRelationManager extends RelationManager
                     ->since()
                     ->sortable(),
             ])
+            ->reorderable('sort_order')
             ->paginated(false)
             ->headerActions([
                 CreateAction::make()->label('Add message'),

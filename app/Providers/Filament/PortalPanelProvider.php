@@ -59,6 +59,7 @@ class PortalPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/Portal/Pages'), for: 'App\\Filament\\Portal\\Pages')
             ->pages([
                 \App\Filament\Portal\Pages\Dashboard::class,
+                \App\Filament\Portal\Pages\HelpPage::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Portal/Widgets'), for: 'App\\Filament\\Portal\\Widgets')
             ->widgets([])

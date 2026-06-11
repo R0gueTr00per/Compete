@@ -338,9 +338,6 @@
                     @endforeach
                 </div>
 
-                @if ($allEnrolments->contains(fn ($byComp) => $byComp->has($competition->id)))
-                    <p class="px-4 py-2 text-xs text-gray-400 italic border-t border-gray-100 dark:border-slate-700">Organisers reserve the right to merge or cancel any event on the day.</p>
-                @endif
 
             </div>{{-- /competition card --}}
         @endforeach

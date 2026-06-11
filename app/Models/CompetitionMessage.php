@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompetitionMessage extends Model
 {
-    protected $fillable = ['competition_id', 'message'];
+    protected $fillable = ['competition_id', 'message', 'sort_order'];
 
     public function competition(): BelongsTo
     {
