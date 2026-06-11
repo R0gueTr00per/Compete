@@ -389,7 +389,11 @@
                         <div class="mt-3 pt-3 border-t border-gray-200/60 dark:border-gray-700/60">
                             @if ($insight)
                                 @php
-                                    preg_match('/## ✅ Action Items\s*([\s\S]*?)(?=\n## |$)/u', $insight->content, $matches);
+                                    $isComplete = $competition->status === 'complete';
+                                    $sectionPattern = $isComplete
+                                        ? '/## 🔍 Recommendations for Next Competition\s*([\s\S]*?)(?=\n## |$)/u'
+                                        : '/## ✅ Action Items\s*([\s\S]*?)(?=\n## |$)/u';
+                                    preg_match($sectionPattern, $insight->content, $matches);
                                     $actionSection = trim($matches[1] ?? '');
                                     $bulletLines = collect(explode("\n", $actionSection))
                                         ->filter(fn ($l) => preg_match('/^[-*]/', $l))
@@ -424,7 +428,7 @@
                                                 @endforeach
                                             </ul>
                                         @else
-                                            <p class="text-xs text-gray-500 dark:text-gray-400 italic">No action items noted.</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400 italic">{{ $isComplete ? 'No recommendations noted.' : 'No action items noted.' }}</p>
                                         @endif
                                     </div>
                                 </div>

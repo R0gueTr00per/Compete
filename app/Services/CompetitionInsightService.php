@@ -91,7 +91,7 @@ class CompetitionInsightService
                 ['role' => 'system', 'content' => $systemPrompt],
                 ['role' => 'user',   'content' => $userPrompt],
             ],
-            'max_tokens' => 3000,
+            'max_tokens' => $status === 'complete' ? 5000 : 4000,
         ]);
 
         $content = $response->choices[0]->message->content;
@@ -177,9 +177,13 @@ class CompetitionInsightService
 
         $eventData = $competition->competitionEvents->map(function ($event) use ($checkedInIdSet, $isPastPlanning) {
             $divisions      = $isPastPlanning
-                ? $event->divisions->filter(fn ($d) => $d->location_label !== null || $d->status === 'combined')
+                ? $event->divisions->filter(fn ($d) => !empty($d->location_label) || $d->status === 'combined')
                 : $event->divisions;
             $totalDivisions = $divisions->count();
+
+            if ($isPastPlanning && $totalDivisions === 0) {
+                return null;
+            }
             $allEventEEs    = $divisions->flatMap(fn ($d) => $d->activeEnrolmentEvents);
             $competitorIds  = $allEventEEs->unique('enrolment_id');
             $emptyDivisions = $divisions->filter(fn ($d) => $d->activeEnrolmentEvents->isEmpty())->count();
@@ -203,13 +207,13 @@ class CompetitionInsightService
                 'target_per_division'   => $eventTarget,
                 'divisions_at_target'   => $divisionsAtTarget,
             ];
-        })->values()->all();
+        })->filter()->values()->all();
 
         // --- Division summary ---
         // Past planning: unscheduled divisions are effectively cancelled — exclude them.
         $allDivisionsLoaded = $competition->competitionEvents->flatMap(fn ($e) => $e->divisions);
         $activeDivisions    = $isPastPlanning
-            ? $allDivisionsLoaded->filter(fn ($d) => $d->location_label !== null || $d->status === 'combined')
+            ? $allDivisionsLoaded->filter(fn ($d) => !empty($d->location_label) || $d->status === 'combined')
             : $allDivisionsLoaded;
         $divUnassigned      = $isPastPlanning ? 0 : $allDivisionsLoaded->whereNull('location_label')->whereNotIn('status', ['combined'])->count();
         $divTotal           = $activeDivisions->count();
@@ -319,23 +323,24 @@ Check each of the following and raise a bullet point for every issue found — d
 - Large number of late enrolments relative to total
 
 ## 🌟 What's Going Well
-Highlight 2–4 genuine positives: strong enrolment numbers, good dojo diversity, healthy divisions, strong payment collection, good enrolment velocity, or anything else that reflects well on the organiser's efforts. Be specific and reference actual numbers.
+Present as bullet points — 2–4 genuine positives: strong enrolment numbers, good dojo diversity, healthy divisions, strong payment collection, good enrolment velocity, or anything else that reflects well on the organiser's efforts. Be specific and reference actual numbers.
 
 ## 📊 Participation Patterns
-Summarise competitor demographics: age bands, rank distribution, gender balance, dojo spread. Note any imbalances or surprises.
+Present as bullet points — competitor demographics: age bands, rank distribution, gender balance, dojo spread. Note any imbalances or surprises.
 
 ## 🏆 Event & Division Readiness
-For each event, assess: competitor count, empty vs active divisions, format, any risk of not running. Include a recommendation for each at-risk event.
+One bullet per event: competitor count, empty vs active divisions, format, any risk of not running. Include a recommendation for each at-risk event.
 
 ## 💰 Financial Summary
-Fees received vs outstanding. Projected total if all outstanding are collected. Note any patterns.
+Present as bullet points: fees received vs outstanding, projected total if all outstanding are collected, any notable patterns.
 
 Rules:
+- Use bullet points in every section — never prose paragraphs
 - Be thorough — work through the Action Items checklist systematically, do not stop after 2–3 items if more apply
 - Format each Action Items bullet as: **Issue name**: explanation and recommendation
 - Reference actual numbers in every bullet point
 - Pair every issue with a concrete recommendation
-- If a section genuinely has nothing notable, say so in one sentence
+- If a section genuinely has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
 PROMPT;
@@ -485,21 +490,22 @@ You provide structured insights to help competition organisers prepare for an up
 List specific things requiring immediate attention before the competition can open for enrolments, ordered by urgency. Be direct and reference actual numbers. Pair every issue with a concrete recommendation.
 
 ## 🌟 What's Going Well
-Highlight 2–4 genuine positives about the competition setup so far: events configured, divisions generated, bands set up, venue set, or any other solid foundations already in place. Be specific and encouraging.
+Present as bullet points — 2–4 genuine positives about the competition setup so far: events configured, divisions generated, bands set up, venue set, or any other solid foundations already in place. Be specific and encouraging.
 
 ## 🏗️ Structure Overview
 Use bullet points to summarise the event types and division setup. Include a bullet for: total events and their formats, total divisions generated (by event where notable), how many are scheduled vs unscheduled, and whether the structure looks complete.
 
 ## 📋 Readiness Checklist
-Review what has been configured and what is missing: enrolment due date, start time, check-in time, venue/location, location zones, age/rank/weight bands, target competitor count. Call out anything not yet set.
+Present as bullet points — one bullet per item reviewed: enrolment due date, start time, check-in time, venue/location, location zones, age/rank/weight bands, target competitor count. Mark each as set or missing.
 
 ## 🎯 Capacity Check
-Assess whether the division structure looks appropriate for the target competitor count. If targets are set per event type, comment on whether total capacity is realistic. Flag any events with no divisions or where targets look too high or low.
+Present as bullet points — assess whether the division structure looks appropriate for the target competitor count. Flag any events with no divisions or where targets look too high or low.
 
 Rules:
+- Use bullet points in every section — never prose paragraphs
 - Be thorough and specific — reference actual numbers and include multiple bullet points per section where relevant
 - For any issue identified, always pair it with a concrete recommendation
-- If a section has nothing notable, say so in one sentence
+- If a section has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
 PROMPT;
@@ -567,25 +573,29 @@ You are an AI assistant for Kompetic, a martial arts competition management plat
 You provide structured insights to help organisers prepare for a competition that has CLOSED for enrolments and is approaching competition day. Always respond using exactly these five section headings in markdown — no other headings:
 
 ## ✅ Action Items
-List the most urgent tasks before competition day, ordered by priority. Reference actual numbers and pair every issue with a concrete recommendation.
+Check ONLY the following — raise one bullet for each that applies, skip items that are not an issue. Do not add anything outside this list:
+- Outstanding payments: how many enrolments owe, how much in total, recommend they collect on competition day
+- Any logistical gaps not yet addressed (venue access confirmation, check-in table setup)
+If none of these apply, write a single bullet: "No urgent action items — competition day prep is on track."
 
 ## 🌟 What's Going Well
-Highlight 2–4 genuine positives: strong final enrolment numbers, good payment collection rate, healthy division sizes, strong competitor turnout relative to target, or good dojo diversity. Be specific and reference actual numbers.
+Present as bullet points — 2–4 genuine positives: strong final enrolment numbers, good payment collection rate, healthy division sizes, strong competitor turnout relative to target, or good dojo diversity. Be specific and reference actual numbers.
 
 ## 👥 Competitor & Division Readiness
-Summarise who is enrolled, any empty or at-risk divisions, check-in preparation notes. Highlight divisions with very few competitors that may not be viable to run.
+Present as bullet points: overall enrolment summary, then note any empty or solo divisions with a competition-day recommendation (e.g. merge on the day or cancel). Highlight divisions with very few competitors that may not be viable to run in standard format.
 
 ## 🏆 Event Overview
-For each event: competitor count, division breakdown, any concerns. Flag events where empty divisions outnumber active ones.
+One bullet per event: competitor count, division breakdown, any concerns. Flag events where empty divisions outnumber active ones.
 
 ## 💰 Financial Summary
-Outstanding vs received payments. Any patterns worth noting. Recommend any follow-up needed before competition day.
+Present as bullet points: outstanding vs received payments, any patterns worth noting, recommended follow-up needed before competition day.
 
 Rules:
+- Use bullet points in every section — never prose paragraphs
 - Be thorough and specific — reference actual numbers and include multiple bullet points per section where relevant
 - For any issue or risk, always pair it with a concrete recommendation
-- Enrolments are closed — do not suggest opening or encouraging more enrolments
-- If a section has nothing notable, say so in one sentence
+- Enrolments are closed — the Action Items checklist is fixed; stay strictly within it
+- If a section has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
 PROMPT;
@@ -663,7 +673,7 @@ PROMPT;
         // Add per-event scoring progress (divisions with completed_at set)
         $scoringProgress = $competition->competitionEvents->map(function ($event) {
             $activeDivisions = $event->divisions->filter(
-                fn ($d) => $d->location_label !== null || $d->status === 'combined'
+                fn ($d) => !empty($d->location_label) || $d->status === 'combined'
             );
             $scored = $activeDivisions->filter(fn ($d) => $d->completed_at !== null)->count();
             $total  = $activeDivisions->count();
@@ -692,7 +702,7 @@ PROMPT;
 
         $activeDivisions = $competition->competitionEvents->flatMap(function ($event) {
             return $event->divisions
-                ->filter(fn ($d) => $d->location_label !== null || $d->status === 'combined')
+                ->filter(fn ($d) => !empty($d->location_label) || $d->status === 'combined')
                 ->map(fn ($d) => ['event_name' => $event->name, 'div' => $d]);
         });
 
@@ -776,27 +786,28 @@ Urgent items requiring immediate attention right now. Check each of the followin
 - Any mat or event running significantly behind schedule (>15 min drift) — flag which division/event and by how much
 
 ## 🌟 What's Going Well
-Highlight 2–4 genuine positives about how the competition is running: strong check-in rates, good competitor turnout, events running smoothly, scoring progressing well, or the schedule holding to time. Keep it brief and encouraging.
+Present as bullet points — 2–4 genuine positives about how the competition is running: strong check-in rates, good competitor turnout, events running smoothly, scoring progressing well, or the schedule holding to time. Keep it brief and encouraging.
 
 ## 🏃 Scoring Progress
-Report the scoring state for each event: how many divisions are scored vs remaining. State the counts factually — do not characterise low percentages as a problem, since competitions score sequentially and progress naturally increases throughout the day. Only flag an event if it has fallen notably behind all other events for no apparent reason.
+Present as bullet points — one bullet per event: how many divisions are scored vs remaining. State the counts factually — do not characterise low percentages as a problem, since competitions score sequentially and progress naturally increases throughout the day. Only flag an event if it has fallen notably behind all other events for no apparent reason.
 
 ## ⏱️ Schedule Status
-Summarise how the competition is tracking against its planned schedule. Report the overall average start drift (positive = running late, negative = running early). For each event type, note the average drift and whether any divisions stand out as significantly late or early. If no planned times are set, say so.
+Present as bullet points: overall average start drift (positive = running late, negative = running early), one bullet per event type noting average drift and any divisions that stand out as significantly late or early. If no planned times are set, say so in one bullet.
 
 ## 👥 Check-in Status
-Overall check-in rate. For each event, note the check-in count vs enrolled. Keep observations factual — check-in typically happens close to event start time, so low rates early in the day are normal.
+Present as bullet points: overall check-in rate, then one bullet per event noting the check-in count vs enrolled. Keep observations factual — check-in typically happens close to event start time, so low rates early in the day are normal.
 
 ## 💰 Outstanding Payments
-Any payments still outstanding on competition day. Recommend whether these need to be collected now or can be followed up post-event.
+Present as bullet points: any payments still outstanding on competition day, and whether these need to be collected now or can be followed up post-event.
 
 Rules:
+- Use bullet points in every section — never prose paragraphs
 - This is an active competition — prioritise immediacy and actionability over speculation
 - Report counts and rates factually; do not frame normal in-progress states as problems
 - Format each Action Items bullet as: **Issue name**: explanation and recommendation
 - Reference actual numbers in every bullet
 - Pair every genuine issue with a concrete recommendation
-- If a section has nothing notable, say so in one sentence
+- If a section has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
 PROMPT;
@@ -901,7 +912,7 @@ PROMPT;
 
         // Add division outcome breakdown
         $allDivisions = $competition->competitionEvents->flatMap(fn ($e) => $e->divisions);
-        $activeDivisions = $allDivisions->filter(fn ($d) => $d->location_label !== null || $d->status === 'combined');
+        $activeDivisions = $allDivisions->filter(fn ($d) => !empty($d->location_label) || $d->status === 'combined');
 
         $scored    = $activeDivisions->filter(fn ($d) => $d->completed_at !== null)->count();
         $unscored  = $activeDivisions->filter(fn ($d) => $d->completed_at === null && $d->activeEnrolmentEvents->isNotEmpty())->count();
@@ -925,31 +936,44 @@ PROMPT;
         return <<<PROMPT
 You are an AI assistant for Kompetic, a martial arts competition management platform.{$orgContext}
 
-You provide a retrospective analysis of a completed competition to help organisers understand outcomes and improve future events. Always respond using exactly these six section headings in markdown — no other headings:
+You provide a retrospective analysis of a completed competition to help organisers understand outcomes and improve future events. Always respond using exactly these six section headings in markdown — no other headings. Use bullet points in every section — no prose paragraphs.
 
 ## 🌟 Highlights
-Celebrate 3–5 genuine achievements from the event: strong turnout, well-run events, good payment collection, diverse participation, high check-in rates, or schedule discipline if the event ran on time. Be warm, specific, and reference actual numbers.
+Present 3–5 genuine achievements as bullet points. Reference actual numbers. Cover any of: strong or above-target turnout, high division completion rate, good payment collection, dojo diversity, high check-in rate, schedule discipline. Skip any that don't genuinely apply.
 
 ## 📊 Results Summary
-Overall participation vs targets. Competitor count, enrolment outcomes, demographic highlights. How did the event compare to expectations?
+Summarise outcomes as bullet points covering:
+- Final competitor and enrolment counts vs target (if set)
+- Withdrawal and late enrolment rates
+- Demographic highlights (age bands, rank spread, gender balance, dojo count)
+- Any surprises or notable patterns
 
 ## 🏆 Event Outcomes
-For each event: final competitor count, divisions that ran, any that were empty or cancelled. Note any events that significantly under- or over-performed.
+One bullet per event. Format: **Event name**: final competitor count, divisions that ran vs cancelled, whether it over- or under-performed. Note any events with a high cancelled division rate.
 
 ## ⏱️ Timing Analysis
-Analyse how closely the competition followed its planned schedule. For each event type: report average start drift (positive = ran late, negative = ran early) and average actual division duration where available. Identify which event types ran consistently over or under their planned time slot. Note the overall schedule discipline and flag any event types whose actual durations suggest the per-division time estimate should be adjusted for future competitions. If no timing data is available, say so.
+Present as bullet points:
+- Overall schedule discipline: average start drift across all divisions (positive = late, negative = early)
+- One bullet per event type: average start drift and average actual division duration where data exists
+- Flag any event type whose actual duration suggests the per-division time estimate needs adjusting
+- If no timing data is available, say so in a single bullet
 
 ## 💰 Financial Outcome
-Total revenue collected vs outstanding amounts. Any patterns worth noting. Recommend any follow-up needed on unpaid enrolments.
+Present as bullet points:
+- Total fees received and outstanding
+- Projected total if all outstanding are collected
+- Any notable patterns (e.g. high outstanding rate)
+- Recommended follow-up for unpaid enrolments
 
 ## 🔍 Recommendations for Next Competition
-Based on what happened at this event, suggest 3–5 concrete improvements for the next competition. These may relate to division structure, enrolment timing, capacity planning, or time allocation — especially if any event types consistently ran over their scheduled slot.
+3–5 bullet points. Format each as: **Recommendation**: one-sentence explanation referencing the data. Cover division structure, enrolment timing, capacity planning, and time allocation — especially if event types consistently ran over their scheduled slot.
 
 Rules:
 - This is a retrospective — focus on what happened, not what might happen
-- Be thorough and specific — reference actual numbers
-- For any shortfall or issue, suggest a concrete improvement for next time
-- If a section has nothing notable, say so in one sentence
+- Use bullet points in every section — never prose paragraphs
+- Format named bullets as: **Item name**: explanation
+- Reference actual numbers in every bullet
+- If a section genuinely has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
 PROMPT;
