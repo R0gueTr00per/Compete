@@ -157,8 +157,8 @@
 
                     @php
                         $allStatuses = ['planning', 'advertise', 'open', 'enrolments_closed', 'check_in', 'running', 'complete'];
-                        $stepLine1   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for', 'enrolments_closed' => 'Reg.',  'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
-                        $stepLine2   = ['planning' => '',         'advertise' => '',          'open' => 'Reg.',     'enrolments_closed' => 'Closed', 'check_in' => '',          'running' => '',        'complete' => ''];
+                        $stepLine1   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for', 'enrolments_closed' => 'Registrations', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $stepLine2   = ['planning' => '',         'advertise' => '',          'open' => 'Registrations', 'enrolments_closed' => 'Closed', 'check_in' => '',          'running' => '',        'complete' => ''];
                         $stepTitle   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for Registrations', 'enrolments_closed' => 'Registrations Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
                         $currentIdx  = (int) array_search($competition->status, $allStatuses);
                         $totalSteps  = count($allStatuses);
@@ -227,8 +227,8 @@
                                 $isPast      = $i < $currentIdx;
                                 $isCurrent   = $i === $currentIdx;
                                 $isClickable = $isOrgAdmin && ! $isCurrent;
-                                $line1       = $stepLine1[$step];
-                                $line2       = $stepLine2[$step];
+                                $line1       = $step === 'enrolments_closed' ? 'Reg.' : $stepLine1[$step];
+                                $line2       = $step === 'open' ? 'Reg.' : $stepLine2[$step];
                                 $title       = $stepTitle[$step];
                                 $bgClass     = $isCurrent ? 'bg-primary-500' : ($isPast ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-200 dark:bg-gray-700');
                                 $textClass   = $isCurrent || $isPast ? 'text-white' : 'text-gray-500 dark:text-gray-400';
