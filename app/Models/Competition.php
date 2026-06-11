@@ -156,7 +156,7 @@ class Competition extends Model
 
     public function isPublicScheduleAvailable(): bool
     {
-        if (in_array($this->status, ['planning', 'open'])) {
+        if (in_array($this->status, ['planning', 'advertise', 'open'])) {
             return false;
         }
 

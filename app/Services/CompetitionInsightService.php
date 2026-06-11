@@ -53,7 +53,7 @@ class CompetitionInsightService
         $model  = $this->resolveModel();
         $status = $competition->status;
 
-        if ($status === 'planning') {
+        if (in_array($status, ['planning', 'advertise'])) {
             $data         = $this->buildPlanningDataContext($competition);
             $systemPrompt = $this->buildPlanningSystemPrompt($competition);
             $userPrompt   = $this->buildPlanningUserPrompt($data);
@@ -173,7 +173,7 @@ class CompetitionInsightService
             ->all();
 
         // --- Event/division stats ---
-        $isPastPlanning = $competition->status !== 'planning';
+        $isPastPlanning = ! in_array($competition->status, ['planning', 'advertise']);
 
         $eventData = $competition->competitionEvents->map(function ($event) use ($checkedInIdSet, $isPastPlanning) {
             $divisions      = $isPastPlanning

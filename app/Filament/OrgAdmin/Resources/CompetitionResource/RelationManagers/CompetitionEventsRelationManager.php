@@ -577,11 +577,11 @@ class CompetitionEventsRelationManager extends RelationManager
             ->paginated(false)
             ->headerActions([
                 CreateAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning'),
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise'])),
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise']))
                     ->mutateFormDataUsing(function (array $data) use (&$shouldUpdateDivisions): array {
                         $shouldUpdateDivisions = (bool) ($data['update_divisions'] ?? false);
                         unset($data['update_divisions']);
@@ -609,7 +609,7 @@ class CompetitionEventsRelationManager extends RelationManager
                     }),
 
                 DeleteAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise']))
                     ->modalDescription(function ($record) {
                         if ($record->enrolmentEvents()->exists()) {
                             $enrolCount = $record->enrolmentEvents()->count();

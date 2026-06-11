@@ -46,13 +46,13 @@ class LocationsRelationManager extends RelationManager
             ->paginated(false)
             ->headerActions([
                 CreateAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning'),
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise'])),
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning'),
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise'])),
                 DeleteAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning'),
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise'])),
             ]);
     }
 }

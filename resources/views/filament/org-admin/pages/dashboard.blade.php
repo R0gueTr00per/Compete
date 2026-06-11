@@ -54,6 +54,7 @@
                     $isQrAvailable = $competition->isPublicScheduleAvailable();
                     $statusLabel = match ($competition->status) {
                         'planning'          => 'Planning',
+                        'advertise'         => 'Advertise',
                         'open'              => 'Open',
                         'enrolments_closed' => 'Registrations Closed',
                         'check_in'          => 'Check-in',
@@ -155,10 +156,10 @@
                     </x-slot>
 
                     @php
-                        $allStatuses = ['planning', 'open', 'enrolments_closed', 'check_in', 'running', 'complete'];
-                        $stepLine1   = ['planning' => 'Planning', 'open' => 'Open for', 'enrolments_closed' => 'Registrations', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
-                        $stepLine2   = ['planning' => '',        'open' => 'Registrations', 'enrolments_closed' => 'Closed',   'check_in' => '',          'running' => '',        'complete' => ''];
-                        $stepTitle   = ['planning' => 'Planning', 'open' => 'Open for Registrations', 'enrolments_closed' => 'Registrations Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $allStatuses = ['planning', 'advertise', 'open', 'enrolments_closed', 'check_in', 'running', 'complete'];
+                        $stepLine1   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for', 'enrolments_closed' => 'Reg.',  'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $stepLine2   = ['planning' => '',         'advertise' => '',          'open' => 'Reg.',     'enrolments_closed' => 'Closed', 'check_in' => '',          'running' => '',        'complete' => ''];
+                        $stepTitle   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for Registrations', 'enrolments_closed' => 'Registrations Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
                         $currentIdx  = (int) array_search($competition->status, $allStatuses);
                         $totalSteps  = count($allStatuses);
 
@@ -282,7 +283,7 @@
                         $progressExtra   = '';
                         $progressAbsent  = null;
 
-                        if ($competition->status === 'planning' && $competition->schedulable_divisions_count > 0) {
+                        if (in_array($competition->status, ['planning', 'advertise']) && $competition->schedulable_divisions_count > 0) {
                             $showProgressBar = true;
                             $progressPct     = (int) round(($competition->scheduled_divisions_count / $competition->schedulable_divisions_count) * 100);
                             $progressText    = $competition->scheduled_divisions_count . ' / ' . $competition->schedulable_divisions_count . ' divisions scheduled';
@@ -356,6 +357,7 @@
                     @php
                         $hideOnMobile = match ($competition->status) {
                             'planning'  => ['scheduling', 'scoring'],
+                            'advertise' => ['scheduling', 'scoring'],
                             'open'      => ['scoring'],
                             'enrolments_closed' => ['scoring'],
                             'check_in'  => ['scheduling'],
@@ -365,7 +367,7 @@
                         };
                     @endphp
                     <div class="flex flex-wrap gap-2">
-                        @if ($isOrgAdmin && $competition->status === 'planning')
+                        @if ($isOrgAdmin && in_array($competition->status, ['planning', 'advertise']))
                             <x-filament::button size="sm" color="gray" tag="a" href="{{ route('filament.org-admin.resources.competitions.edit', $competition) }}">
                                 Edit competition
                             </x-filament::button>

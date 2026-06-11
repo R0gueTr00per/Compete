@@ -80,6 +80,7 @@ class Dashboard extends BaseDashboard
     {
         $statusLabels = [
             'planning'          => 'Planning',
+            'advertise'         => 'Advertise',
             'open'              => 'Open',
             'enrolments_closed' => 'Enrolments Closed',
             'check_in'          => 'Check-in',
@@ -98,6 +99,7 @@ class Dashboard extends BaseDashboard
                 if (! $competition || ! $target) return '';
 
                 return match ([$competition->status, $target]) {
+                    ['planning', 'advertise'] => 'Advertise this competition? It will appear on the competitor portal as a coming soon event.',
                     ['planning', 'open'] => (function () use ($competition) {
                         $n = $competition->allDivisions()
                             ->whereNull('divisions.location_label')

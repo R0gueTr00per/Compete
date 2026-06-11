@@ -56,7 +56,7 @@ class WeightClassesRelationManager extends RelationManager
             ->reorderable('sort_order')
             ->headerActions([
                 CreateAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise']))
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['sort_order'] = (WeightClass::where('competition_id', $this->getOwnerRecord()->id)->max('sort_order') ?? 0) + 1;
                         return $data;
@@ -70,7 +70,7 @@ class WeightClassesRelationManager extends RelationManager
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise']))
                     ->before(function (array $data, $record, $action) {
                         if ($error = $this->duplicateError($data, $record->id)) {
                             Notification::make()->danger()->title('Duplicate weight class')->body($error)->send();
@@ -79,7 +79,7 @@ class WeightClassesRelationManager extends RelationManager
                     }),
 
                 DeleteAction::make()
-                    ->hidden(fn () => $this->getOwnerRecord()->status !== 'planning')
+                    ->hidden(fn () => ! in_array($this->getOwnerRecord()->status, ['planning', 'advertise']))
                     ->before(fn ($record) => Division::where('weight_class_id', $record->id)->delete())
                     ->modalDescription(function ($record) {
                         $count = Division::where('weight_class_id', $record->id)->count();

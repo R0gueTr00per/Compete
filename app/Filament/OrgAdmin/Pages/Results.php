@@ -155,7 +155,7 @@ class Results extends Page
     #[Computed]
     public function getCompetitions(): array
     {
-        return Competition::whereNotIn('status', ['planning'])
+        return Competition::whereNotIn('status', ['planning', 'advertise'])
             ->where('organisation_id', app('tenant')?->id)
             ->orderByDesc('competition_date')
             ->pluck('name', 'id')

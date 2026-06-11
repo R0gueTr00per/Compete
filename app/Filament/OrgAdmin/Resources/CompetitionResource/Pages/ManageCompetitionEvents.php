@@ -58,7 +58,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 ->label('Generate Divisions')
                 ->icon('heroicon-o-sparkles')
                 ->color('primary')
-                ->hidden(fn () => $this->getRecord()->status !== 'planning')
+                ->hidden(fn () => ! in_array($this->getRecord()->status, ['planning', 'advertise']))
                 ->requiresConfirmation()
                 ->modalHeading('Generate Divisions')
                 ->modalDescription(function () {
@@ -110,7 +110,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 ->label('Delete all divisions')
                 ->icon('heroicon-o-trash')
                 ->color('danger')
-                ->hidden(fn () => $this->getRecord()->status !== 'planning')
+                ->hidden(fn () => ! in_array($this->getRecord()->status, ['planning', 'advertise']))
                 ->requiresConfirmation()
                 ->modalHeading('Delete all divisions')
                 ->modalDescription(function () {
@@ -140,7 +140,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
                 ->label('Copy from previous competition')
                 ->icon('heroicon-o-document-duplicate')
                 ->color('gray')
-                ->hidden(fn () => $this->getRecord()->status !== 'planning')
+                ->hidden(fn () => ! in_array($this->getRecord()->status, ['planning', 'advertise']))
                 ->requiresConfirmation()
                 ->modalHeading('Copy from previous competition')
                 ->modalDescription('This will DELETE all existing event types and divisions for this competition, then copy them from the most recent previous competition. This cannot be undone.')
@@ -390,14 +390,14 @@ class ManageCompetitionEvents extends ManageRelatedRecords
             ->filters([])
             ->headerActions([
                 CreateAction::make()
-                    ->hidden(fn () => $this->getRecord()->status !== 'planning'),
+                    ->hidden(fn () => ! in_array($this->getRecord()->status, ['planning', 'advertise'])),
             ])
             ->actions([
                 EditAction::make()
-                    ->hidden(fn () => $this->getRecord()->status !== 'planning'),
+                    ->hidden(fn () => ! in_array($this->getRecord()->status, ['planning', 'advertise'])),
 
                 DeleteAction::make()
-                    ->hidden(fn () => $this->getRecord()->status !== 'planning'),
+                    ->hidden(fn () => ! in_array($this->getRecord()->status, ['planning', 'advertise'])),
             ])
             ->bulkActions([]);
     }

@@ -131,6 +131,7 @@ class CompetitionResource extends Resource
                                     Select::make('status')
                                         ->options([
                                             'planning'          => 'Planning',
+                                            'advertise'         => 'Advertise',
                                             'open'              => 'Open for registration',
                                             'enrolments_closed' => 'Registrations Closed',
                                             'check_in'          => 'Check-in',
@@ -258,6 +259,7 @@ class CompetitionResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         'planning'          => 'Planning',
+                        'advertise'         => 'Advertise',
                         'open'              => 'Open',
                         'enrolments_closed' => 'Registrations Closed',
                         'check_in'          => 'Check-in',
@@ -267,6 +269,7 @@ class CompetitionResource extends Resource
                     })
                     ->color(fn (string $state) => match ($state) {
                         'planning'          => 'gray',
+                        'advertise'         => 'info',
                         'open'              => 'success',
                         'enrolments_closed' => 'gray',
                         'check_in'          => 'warning',
@@ -285,6 +288,7 @@ class CompetitionResource extends Resource
                 SelectFilter::make('status')
                     ->options([
                         'planning'          => 'Planning',
+                        'advertise'         => 'Advertise',
                         'open'              => 'Open',
                         'enrolments_closed' => 'Registrations Closed',
                         'check_in'          => 'Check-in',
@@ -319,7 +323,7 @@ class CompetitionResource extends Resource
                         ->label('Open Registrations')
                         ->icon('heroicon-o-lock-open')
                         ->color('success')
-                        ->visible(fn (Competition $record) => $record->status === 'planning')
+                        ->visible(fn (Competition $record) => in_array($record->status, ['planning', 'advertise']))
                         ->modalHeading('Open registrations')
                         ->modalDescription(function (Competition $record) {
                             $warnings = [];
@@ -395,7 +399,7 @@ class CompetitionResource extends Resource
                                 default    => 'Are you sure?',
                             };
                         })
-                        ->visible(fn (Competition $record) => ! in_array($record->status, ['planning', 'complete']))
+                        ->visible(fn (Competition $record) => ! in_array($record->status, ['planning', 'advertise', 'complete']))
                         ->action(fn (Competition $record) => $record->update(['status' => match ($record->status) {
                             'open'              => 'enrolments_closed',
                             'enrolments_closed' => 'check_in',

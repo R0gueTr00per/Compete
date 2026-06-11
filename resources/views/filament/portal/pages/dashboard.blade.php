@@ -3,7 +3,7 @@
         $profiles           = $this->getProfiles();
         $activeCompetitions = $this->getActiveCompetitions();
         $cartKeys           = $this->getCartDraftKeys();
-        $allEnrolments      = $this->getAllEnrolments();
+        $allEnrolments         = $this->getAllEnrolments();
 
         $incompleteProfiles = $profiles->filter(fn ($p) => ! $p->profile_complete);
     @endphp
@@ -56,6 +56,7 @@
         @foreach ($activeCompetitions as $competition)
             @php
                 $statusLabel = match($competition->status) {
+                    'advertise'         => 'Coming Soon',
                     'open'              => 'Open',
                     'enrolments_closed' => 'Registrations Closed',
                     'check_in'          => 'Check-in',
@@ -65,6 +66,7 @@
                 };
 
                 $statusBadgeClass = match($competition->status) {
+                    'advertise'         => 'bg-indigo-100/60 text-indigo-700 border-indigo-200/60 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-700/40',
                     'open'              => 'bg-green-100/60 text-green-700 border-green-200/60 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40',
                     'enrolments_closed' => 'bg-gray-100/60 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40',
                     'check_in'          => 'bg-amber-100/60 text-amber-700 border-amber-200/60 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40',
@@ -73,6 +75,7 @@
                 };
 
                 $statusIcon = match($competition->status) {
+                    'advertise'         => 'heroicon-m-megaphone',
                     'open'              => 'heroicon-m-lock-open',
                     'enrolments_closed' => 'heroicon-m-lock-closed',
                     'check_in'         => 'heroicon-m-qr-code',
@@ -81,7 +84,7 @@
                     default             => null,
                 };
 
-                $showSchedule   = in_array($competition->status, ['check_in', 'running', 'complete']);
+                $showSchedule   = in_array($competition->status, ['check_in', 'running']);
                 $enrolmentOpen  = $competition->isEnrolmentOpen();
             @endphp
 
@@ -136,7 +139,7 @@
                 </div>
 
                 {{-- Portal messages from organiser --}}
-                @if ($competition->portalMessages->isNotEmpty())
+                @if ($competition->portalMessages->isNotEmpty() && ! in_array($competition->status, ['advertise', 'complete']))
                     <div class="px-4 py-2 space-y-1 border-b border-gray-100 dark:border-slate-700 bg-primary-50/50 dark:bg-primary-900/10">
                         @foreach ($competition->portalMessages as $msg)
                             <p class="text-sm text-primary-900 dark:text-primary-100">{{ $msg->message }}</p>
@@ -145,6 +148,7 @@
                 @endif
 
                 {{-- Profile rows --}}
+                @if ($competition->status !== 'advertise')
                 <div class="divide-y divide-gray-100 dark:divide-slate-700">
                     @foreach ($profiles as $profile)
                         @php
@@ -179,7 +183,7 @@
                                             <span class="ml-1 text-xs font-normal text-warning-600">(Inactive)</span>
                                         @endunless
                                     </span>
-                                    @if ($isEnrolled && $enrolment->status === 'checked_in')
+                                    @if ($isEnrolled && $enrolment->status === 'checked_in' && $competition->status !== 'complete')
                                         <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border bg-green-100/60 text-green-700 border-green-200/60 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40 flex-shrink-0">
                                             <x-heroicon-m-check class="w-3 h-3" />
                                             Checked in
@@ -262,29 +266,24 @@
                                 </div>
 
                                 {{-- Events list --}}
-                                <div class="ml-10 space-y-1">
+                                <div class="ml-10 space-y-1.5">
                                     @forelse ($enrolment->activeEvents as $ee)
-                                        <div class="min-w-0 sm:flex sm:items-center sm:gap-3">
-                                            <div class="flex items-center gap-2 min-w-0 sm:flex-1">
-                                                <span class="text-sm text-gray-800 dark:text-gray-200 flex-1 min-w-0 sm:truncate">{{ $ee->competitionEvent->name }}</span>
-                                                @if ($ee->competitionEvent->requires_partner)
-                                                    <span class="text-xs shrink-0 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}</span>
-                                                @endif
-                                            </div>
-                                            <div class="flex items-center gap-2 mt-1 sm:mt-0 sm:shrink-0">
+                                        <div class="flex items-start gap-2 min-w-0">
+                                            {{-- Result badge (fixed width so event names align) --}}
+                                            <div class="w-14 shrink-0 flex justify-end pt-0.5">
                                                 @if ($ee->result)
                                                     @if ($ee->result->disqualified)
-                                                        <span class="text-danger-600 font-semibold text-xs shrink-0">DQ</span>
+                                                        <span class="text-danger-600 font-semibold text-xs">DQ</span>
                                                     @elseif ($ee->result->placement)
                                                         @php
-                                                            [$placeClass, $placeGlow] = match($ee->result->placement) {
-                                                                1 => ['bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-600/50', 'box-shadow:0 0 10px 3px rgba(234,179,8,0.55)'],
-                                                                2 => ['bg-slate-50 text-slate-600 border-slate-300 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-500/50', 'box-shadow:0 0 10px 3px rgba(148,163,184,0.65)'],
-                                                                3 => ['bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-600/50', 'box-shadow:0 0 10px 3px rgba(234,88,12,0.5)'],
-                                                                default => ['text-primary-600', ''],
+                                                            $placeClass = match($ee->result->placement) {
+                                                                1 => 'bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-600/50',
+                                                                2 => 'bg-slate-50 text-slate-600 border-slate-300 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-500/50',
+                                                                3 => 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-600/50',
+                                                                default => 'text-primary-600',
                                                             };
                                                         @endphp
-                                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold border shrink-0 {{ $placeClass }}" style="{{ $placeGlow }}">
+                                                        <span class="inline-flex items-center justify-center w-14 py-0.5 rounded-full text-xs font-bold border {{ $placeClass }}">
                                                             @switch($ee->result->placement)
                                                                 @case(1) 🥇 1st @break
                                                                 @case(2) 🥈 2nd @break
@@ -293,16 +292,25 @@
                                                             @endswitch
                                                         </span>
                                                     @elseif ($ee->result->win_loss)
-                                                        <span class="text-xs shrink-0 {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
+                                                        <span class="text-xs {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
                                                     @endif
                                                 @endif
-                                                <span class="text-xs text-gray-400 dark:text-gray-500">
+                                            </div>
+                                            {{-- Event name + division --}}
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="text-sm text-gray-800 dark:text-gray-200">{{ $ee->competitionEvent->name }}</span>
+                                                    @if ($ee->competitionEvent->requires_partner)
+                                                        <span class="text-xs shrink-0 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}</span>
+                                                    @endif
+                                                </div>
+                                                <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                                                     @if ($ee->division)
                                                         {{ $ee->division->code }} &mdash; {{ $ee->division->label }}
                                                     @else
                                                         TBC
                                                     @endif
-                                                </span>
+                                                </div>
                                             </div>
                                         </div>
                                     @empty
@@ -348,6 +356,7 @@
                         </div>{{-- /profile row --}}
                     @endforeach
                 </div>
+                @endif{{-- /advertise guard --}}
 
 
             </div>{{-- /competition card --}}
