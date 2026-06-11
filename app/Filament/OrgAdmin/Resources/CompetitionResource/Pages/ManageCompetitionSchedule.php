@@ -23,6 +23,7 @@ class ManageCompetitionSchedule extends Page
     protected static string $view = 'filament.admin.pages.scheduling-board';
 
     public ?int $filterEventType = null;
+    public bool $unassignedCollapsed = false;
 
     public function mount(int|string $record): void
     {
@@ -209,12 +210,13 @@ class ManageCompetitionSchedule extends Page
         $breaks = $competition->breaks;
 
         return [
-            'columns'           => $columns,
-            'divisionsByColumn' => $grouped,
-            'eventTypes'        => $eventTypes,
-            'filterEventType'   => $this->filterEventType,
-            'missingTarget'     => $missingTarget,
-            'breaks'            => $breaks,
+            'columns'              => $columns,
+            'divisionsByColumn'    => $grouped,
+            'eventTypes'           => $eventTypes,
+            'filterEventType'      => $this->filterEventType,
+            'missingTarget'        => $missingTarget,
+            'breaks'               => $breaks,
+            'unassignedCollapsed'  => $this->unassignedCollapsed,
         ];
     }
 

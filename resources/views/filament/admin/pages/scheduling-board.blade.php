@@ -122,16 +122,30 @@
                 @click.capture="onCardClick($event)"
             >
                 {{-- Unassigned column --}}
-                <div class="flex-1 min-w-[5rem]">
+                <div class="{{ $unassignedCollapsed ? 'w-28 shrink-0' : 'flex-1 min-w-[5rem]' }}">
                     <div class="mb-2 min-h-[2.5rem]">
-                        <span class="block text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Unassigned</span>
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="block text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 truncate">Unassigned</span>
+                            <button
+                                type="button"
+                                wire:click="$toggle('unassignedCollapsed')"
+                                class="shrink-0 rounded p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                title="{{ $unassignedCollapsed ? 'Expand unassigned' : 'Collapse unassigned' }}"
+                            >
+                                @if($unassignedCollapsed)
+                                    <x-heroicon-m-chevron-right class="h-4 w-4" />
+                                @else
+                                    <x-heroicon-m-chevron-left class="h-4 w-4" />
+                                @endif
+                            </button>
+                        </div>
                         <span class="inline-block mt-0.5 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-xs text-gray-500 dark:text-gray-400">
                             {{ count($divisionsByColumn['__unassigned__'] ?? []) }}
                         </span>
                     </div>
 
                     {{-- Desktop filter --}}
-                    @if(count($eventTypes) > 1)
+                    @if(count($eventTypes) > 1 && !$unassignedCollapsed)
                         <div class="hidden sm:block mb-2">
                             <select
                                 wire:model.live="filterEventType"
@@ -158,7 +172,49 @@
                                 @if($hidden) style="display:none" @endif
                                 @dblclick="assignToSelected({{ $div->id }})"
                             >
-                                @include('filament.admin.partials.scheduling-card', ['div' => $div])
+                                @if($unassignedCollapsed)
+                                    @php
+                                        $cColor = match(true) {
+                                            $div->status === 'complete'              => 'sched-complete',
+                                            $div->active_enrolment_events_count >= 2 => 'sched-full',
+                                            $div->location_label !== null            => 'sched-assigned',
+                                            default                                  => 'sched-pending',
+                                        };
+                                        $cDotStyle = match($cColor) {
+                                            'sched-complete' => 'background-color:#16a34a',
+                                            'sched-full'     => 'background-color:#4f46e5',
+                                            'sched-assigned' => 'background-color:#d97706',
+                                            default          => 'background-color:#6b7280',
+                                        };
+                                        $cEnrolled = $div->active_enrolment_events_count ?? 0;
+                                        $cCap      = $div->max_competitors ?? null;
+                                        $cDivData  = json_encode([
+                                            'id'                   => $div->id,
+                                            'code'                 => $div->code,
+                                            'label'                => $div->label,
+                                            'event'                => $div->competitionEvent->name,
+                                            'competition_event_id' => $div->competition_event_id,
+                                            'status'               => $div->status,
+                                            'enrolled'             => $cEnrolled,
+                                            'checkedIn'            => $div->checked_in_count ?? 0,
+                                            'noneShowed'           => $cEnrolled > 0 && ($div->checked_in_count ?? 0) === 0 && $div->status !== 'complete',
+                                            'maxCompetitors'       => $cCap,
+                                        ]);
+                                    @endphp
+                                    <div
+                                        data-id="{{ $div->id }}"
+                                        data-division="{{ $cDivData }}"
+                                        class="mb-1.5 rounded-md border shadow-sm {{ $cColor }} flex items-center gap-1.5 py-1 px-2 overflow-hidden"
+                                    >
+                                        <span class="w-2 h-2 rounded-full shrink-0" style="{{ $cDotStyle }}"></span>
+                                        <span class="font-mono text-xs font-bold truncate text-gray-900 dark:text-white min-w-0">{{ $div->code ?: '—' }}</span>
+                                        @if($cEnrolled > 0 || $cCap)
+                                            <span class="text-xs tabular-nums shrink-0 ml-auto sched-text-meta">{{ $cEnrolled }}@if($cCap)<span class="opacity-60">/{{ $cCap }}</span>@endif</span>
+                                        @endif
+                                    </div>
+                                @else
+                                    @include('filament.admin.partials.scheduling-card', ['div' => $div])
+                                @endif
                             </div>
                         @endforeach
                     </div>
@@ -188,9 +244,13 @@
                             data-location="{{ $col }}"
                         >
                             @php
-                                // Build timeline: divisions in order with breaks inserted at the right position
+                                // Build timeline: divisions in order with breaks and planned-finish inserted at the right position
                                 $colTimeline = [];
                                 $bIdx = 0;
+                                $endInserted = false;
+                                $colEndTs = ($colComp->end_time && $colCompDate)
+                                    ? \Carbon\Carbon::parse($colCompDate . ' ' . $colComp->end_time)->timestamp
+                                    : null;
                                 foreach ($divisionsByColumn[$col] ?? [] as $div) {
                                     if ($div->planned_start_at) {
                                         while ($bIdx < $colSortedBreaks->count()
@@ -198,10 +258,14 @@
                                             $colTimeline[] = ['type' => 'break'] + $colSortedBreaks[$bIdx];
                                             $bIdx++;
                                         }
+                                        if (! $endInserted && $colEndTs !== null && $div->planned_start_at->timestamp >= $colEndTs) {
+                                            $colTimeline[] = ['type' => 'end', 'end_time' => $colComp->end_time];
+                                            $endInserted = true;
+                                        }
                                     }
                                     $colTimeline[] = ['type' => 'div', 'div' => $div];
                                 }
-                                if (($colComp = $this->getRecord()) && $colComp->end_time) {
+                                if (! $endInserted && $colComp->end_time) {
                                     $colTimeline[] = ['type' => 'end', 'end_time' => $colComp->end_time];
                                 }
                             @endphp
