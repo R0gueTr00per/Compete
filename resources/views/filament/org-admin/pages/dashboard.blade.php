@@ -72,6 +72,31 @@
                     $checkInColor    = $competition->status === 'check_in' ? 'primary'  : 'gray';
                     $schedulingColor = $competition->status === 'enrolments_closed' ? 'primary' : 'gray';
                     $scoringColor    = $competition->status === 'running'  ? 'warning'  : 'gray';
+
+                    // Countdown chip
+                    $daysUntil       = (int) now()->startOfDay()->diffInDays($competition->competition_date->copy()->startOfDay(), false);
+                    $countdownLabel  = match(true) {
+                        $daysUntil === 0  => 'Today',
+                        $daysUntil === 1  => 'Tomorrow',
+                        $daysUntil > 1    => $daysUntil . ' days',
+                        $daysUntil === -1 => 'Yesterday',
+                        default           => abs($daysUntil) . ' days ago',
+                    };
+                    $countdownClass  = match(true) {
+                        $daysUntil <= 0  => 'bg-gray-100/60 text-gray-400 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-500 dark:border-gray-600/40',
+                        $daysUntil <= 3  => 'bg-red-100/70 text-red-700 border-red-200/70 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/40',
+                        $daysUntil <= 7  => 'bg-amber-100/70 text-amber-700 border-amber-200/70 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40',
+                        default          => 'bg-gray-100/60 text-gray-400 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-500 dark:border-gray-600/40',
+                    };
+
+                    // Which button to spotlight as the primary next action
+                    $spotlightSection = match($competition->status) {
+                        'open'              => 'enrolments',
+                        'enrolments_closed' => 'scheduling',
+                        'check_in'          => 'checkin',
+                        'running'           => 'scoring',
+                        default             => null,
+                    };
                 @endphp
                 <div x-data="{
                     qrOpen: false,
@@ -101,6 +126,12 @@
                             <span>{{ $competition->name }}</span>
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $statusBadgeClass }}">
                                 {{ $statusLabel }}
+                            </span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border {{ $countdownClass }}">
+                                @if ($daysUntil > 0 && $daysUntil <= 7)
+                                    <svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                @endif
+                                {{ $countdownLabel }}
                             </span>
                         </div>
                     </x-slot>
@@ -303,8 +334,10 @@
                             @if ($progressPct !== null)
                                 <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden min-w-0">
                                     <div
-                                        class="h-full rounded-full transition-all duration-500"
-                                        style="width: {{ min($progressPct, 100) }}%; background-color: {{ $barColor }};"
+                                        x-data="{ pct: 0 }"
+                                        x-init="requestAnimationFrame(() => setTimeout(() => pct = {{ min($progressPct, 100) }}, 80))"
+                                        class="h-full rounded-full transition-[width] duration-700 ease-out"
+                                        :style="`width: ${pct}%; background-color: {{ $barColor }};`"
                                     ></div>
                                 </div>
                             @endif
@@ -339,7 +372,7 @@
                         @endif
 
                         @if (($isOrgAdmin || $officialRole?->can_access_enrolments) && $competition->status !== 'complete')
-                            <div class="{{ in_array('enrolments', $hideOnMobile) ? 'hidden sm:block' : '' }}">
+                            <div class="{{ in_array('enrolments', $hideOnMobile) ? 'hidden sm:block' : '' }} {{ $spotlightSection === 'enrolments' ? 'btn-spotlight' : '' }}">
                                 <x-filament::button size="sm" :color="$enrolmentsColor" tag="a" href="{{ route('filament.org-admin.resources.enrolments.index') }}?competition_id={{ $competition->id }}">
                                     Registrations
                                 </x-filament::button>
@@ -347,7 +380,7 @@
                         @endif
 
                         @if (($isOrgAdmin || $officialRole?->can_access_checkin) && in_array($competition->status, ['check_in', 'running']))
-                            <div class="{{ in_array('checkin', $hideOnMobile) ? 'hidden sm:block' : '' }}">
+                            <div class="{{ in_array('checkin', $hideOnMobile) ? 'hidden sm:block' : '' }} {{ $spotlightSection === 'checkin' ? 'btn-spotlight' : '' }}">
                                 <x-filament::button size="sm" :color="$checkInColor" tag="a" href="{{ route('filament.org-admin.pages.check-in') }}?competition_id={{ $competition->id }}">
                                     Check-in
                                 </x-filament::button>
@@ -355,7 +388,7 @@
                         @endif
 
                         @if ($isOrgAdmin && $competition->status !== 'complete')
-                            <div class="{{ in_array('scheduling', $hideOnMobile) ? 'hidden sm:block' : '' }}">
+                            <div class="{{ in_array('scheduling', $hideOnMobile) ? 'hidden sm:block' : '' }} {{ $spotlightSection === 'scheduling' ? 'btn-spotlight' : '' }}">
                                 <x-filament::button size="sm" :color="$schedulingColor" tag="a" href="{{ route('filament.org-admin.resources.competitions.schedule', $competition) }}">
                                     Scheduling
                                 </x-filament::button>
@@ -372,7 +405,7 @@
                         @endif
 
                         @if (($isOrgAdmin || $officialRole?->can_access_scoring) && $competition->status === 'running')
-                            <div class="{{ in_array('scoring', $hideOnMobile) ? 'hidden sm:block' : '' }}">
+                            <div class="{{ in_array('scoring', $hideOnMobile) ? 'hidden sm:block' : '' }} {{ $spotlightSection === 'scoring' ? 'btn-spotlight' : '' }}">
                                 <x-filament::button size="sm" :color="$scoringColor" tag="a" href="{{ route('filament.org-admin.pages.scoring') }}?competition_id={{ $competition->id }}">
                                     Scoring
                                 </x-filament::button>

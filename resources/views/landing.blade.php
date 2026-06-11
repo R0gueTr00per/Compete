@@ -278,6 +278,44 @@
             .foot-inner { flex-direction:column; text-align:center; }
             .foot-links { justify-content:center; }
         }
+
+        /* ── Scroll-triggered card reveal ── */
+        .card {
+            opacity: 0;
+            transform: translateY(28px);
+            transition: opacity 0.52s cubic-bezier(0.22,1,0.36,1),
+                        transform 0.52s cubic-bezier(0.22,1,0.36,1);
+        }
+        .card.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* section head reveal */
+        .section-head {
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+        .section-head.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* partner box reveal */
+        .partner-box {
+            opacity: 0;
+            transform: translateY(22px);
+            transition: opacity 0.55s ease-out, transform 0.55s ease-out;
+        }
+        .partner-box.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* Respect prefers-reduced-motion */
+        @media (prefers-reduced-motion: reduce) {
+            .card, .section-head, .partner-box {
+                opacity: 1; transform: none; transition: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -508,5 +546,35 @@
         </div>
     </footer>
 
+    <script>
+        (function () {
+            // Skip if user prefers reduced motion (already handled by CSS, but skip JS cost too)
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+            const STAGGER = 90; // ms between cards in the same row
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    const el = entry.target;
+                    const delay = parseInt(el.dataset.revealDelay || '0', 10);
+                    setTimeout(() => el.classList.add('is-visible'), delay);
+                    observer.unobserve(el);
+                });
+            }, { threshold: 0.12 });
+
+            // Feature cards — stagger within each grid row
+            document.querySelectorAll('.card').forEach((card, i) => {
+                // Cards are in a 3-col grid; stagger by column position
+                card.dataset.revealDelay = (i % 3) * STAGGER;
+                observer.observe(card);
+            });
+
+            // Section headings and partner box
+            document.querySelectorAll('.section-head, .partner-box').forEach(el => {
+                observer.observe(el);
+            });
+        })();
+    </script>
 </body>
 </html>
