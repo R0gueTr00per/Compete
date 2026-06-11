@@ -87,17 +87,17 @@
                 class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
                 style="display: none;"
             >
-                <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full space-y-4">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-sm w-full space-y-4">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-gray-900">Share Schedule &amp; Results</h3>
-                        <button type="button" x-on:click="shareOpen = false" class="text-gray-400 hover:text-gray-600 -mr-1 p-1">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Share Schedule &amp; Results</h3>
+                        <button type="button" x-on:click="shareOpen = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 -mr-1 p-1">
                             <x-heroicon-o-x-mark class="w-5 h-5" />
                         </button>
                     </div>
                     <div x-ref="qrcode" class="flex justify-center">
                         <x-qr-code :value="$shareUrl" :size="220" />
                     </div>
-                    <div class="rounded-lg bg-gray-100 border border-gray-200 px-3 py-2 text-center">
+                    <div class="rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 px-3 py-2 text-center">
                         <a href="{{ $shareUrl }}" target="_blank" style="color: #2563eb; font-size: 0.875rem; word-break: break-all;" class="hover:underline">
                             {{ $shareUrl }}
                         </a>
@@ -106,7 +106,7 @@
                         <button
                             type="button"
                             x-on:click="copyQr()"
-                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition"
                         >
                             <svg x-show="!copied" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-4 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -132,9 +132,9 @@
                 $allDivisions    = $divisions->flatten(1);
                 $placementLabels = ['1st', '2nd', '3rd'];
                 $placementColors = [
-                    1 => 'bg-yellow-100 text-yellow-800 border border-yellow-300',
-                    2 => 'bg-gray-100 text-gray-700 border border-gray-300',
-                    3 => 'bg-orange-100 text-orange-800 border border-orange-300',
+                    1 => 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700',
+                    2 => 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600',
+                    3 => 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border border-orange-300 dark:border-orange-700',
                 ];
                 $competitionBreaks = $competition->breaks;
                 $compDate = \Carbon\Carbon::parse($competition->competition_date)->format('Y-m-d');
@@ -184,16 +184,16 @@
                             <div class="space-y-1">
                                 @foreach ($mobileTimeline as $row)
                                     @if ($row['type'] === 'break')
-                                        <div class="w-full rounded bg-amber-50 border border-amber-200 px-1 py-1.5 text-center">
-                                            <span class="text-xs font-semibold text-amber-700 leading-none">Break</span>
+                                        <div class="w-full rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-1 py-1.5 text-center">
+                                            <span class="text-xs font-semibold text-amber-700 dark:text-amber-400 leading-none">Break</span>
                                         </div>
                                     @else
                                         @php
                                             $div = $row['div'];
                                             $isMyDiv = in_array($div->id, $myDivisionIds);
                                             $cardBg  = $div->status === 'complete'
-                                                ? 'bg-green-100 border-green-300'
-                                                : 'bg-indigo-100 border-indigo-200';
+                                                ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
+                                                : 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700';
                                             if ($isMyDiv) $cardBg .= ' ring-2 ring-gray-800 dark:ring-white';
                                         @endphp
                                         <button
@@ -260,11 +260,11 @@
                                             <span class="text-xs text-gray-400 tabular-nums">{{ tenant_time($div->planned_start_at) }}</span>
                                             @if ($driftMin !== null && abs($driftMin) < 1440)
                                                 @php
-                                                    if ($driftMin < 0)      $driftCls = 'bg-blue-100 text-blue-700';
-                                                    elseif ($driftMin === 0) $driftCls = 'bg-green-100 text-green-700';
-                                                    elseif ($driftMin <= 5)  $driftCls = 'bg-green-100 text-green-700';
-                                                    elseif ($driftMin <= 15) $driftCls = 'bg-amber-100 text-amber-700';
-                                                    else                    $driftCls = 'bg-red-100 text-red-700';
+                                                    if ($driftMin < 0)      $driftCls = 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300';
+                                                    elseif ($driftMin === 0) $driftCls = 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300';
+                                                    elseif ($driftMin <= 5)  $driftCls = 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300';
+                                                    elseif ($driftMin <= 15) $driftCls = 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300';
+                                                    else                    $driftCls = 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300';
                                                     $driftLabel = $driftMin < 0 ? abs($driftMin) . 'm early' : ($driftMin === 0 ? 'On time' : '+' . $driftMin . 'm');
                                                 @endphp
                                                 <span class="inline-block rounded px-1 py-0.5 text-xs font-medium {{ $driftCls }}">{{ $driftLabel }}</span>

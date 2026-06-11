@@ -122,14 +122,14 @@
                 @click.capture="onCardClick($event)"
             >
                 {{-- Unassigned column --}}
-                <div class="{{ $unassignedCollapsed ? 'w-28 shrink-0' : 'flex-1 min-w-[5rem]' }}">
+                <div class="flex-1 min-w-[5rem] {{ $unassignedCollapsed ? 'sm:w-28 sm:flex-none sm:min-w-0' : '' }}">
                     <div class="mb-2 min-h-[2.5rem]">
                         <div class="flex items-center justify-between gap-1">
                             <span class="block text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 truncate">Unassigned</span>
                             <button
                                 type="button"
                                 wire:click="$toggle('unassignedCollapsed')"
-                                class="shrink-0 rounded p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                class="hidden sm:block shrink-0 rounded p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                                 title="{{ $unassignedCollapsed ? 'Expand unassigned' : 'Collapse unassigned' }}"
                             >
                                 @if($unassignedCollapsed)
@@ -201,16 +201,21 @@
                                             'maxCompetitors'       => $cCap,
                                         ]);
                                     @endphp
+                                    {{-- Desktop: collapsed compact row --}}
                                     <div
                                         data-id="{{ $div->id }}"
                                         data-division="{{ $cDivData }}"
-                                        class="mb-1.5 rounded-md border shadow-sm {{ $cColor }} flex items-center gap-1.5 py-1 px-2 overflow-hidden"
+                                        class="hidden sm:flex mb-1.5 rounded-md border shadow-sm {{ $cColor }} items-center gap-1.5 py-1 px-2 overflow-hidden"
                                     >
                                         <span class="w-2 h-2 rounded-full shrink-0" style="{{ $cDotStyle }}"></span>
                                         <span class="font-mono text-xs font-bold truncate text-gray-900 dark:text-white min-w-0">{{ $div->code ?: '—' }}</span>
                                         @if($cEnrolled > 0 || $cCap)
                                             <span class="text-xs tabular-nums shrink-0 ml-auto sched-text-meta">{{ $cEnrolled }}@if($cCap)<span class="opacity-60">/{{ $cCap }}</span>@endif</span>
                                         @endif
+                                    </div>
+                                    {{-- Mobile: always full card --}}
+                                    <div class="sm:hidden">
+                                        @include('filament.admin.partials.scheduling-card', ['div' => $div])
                                     </div>
                                 @else
                                     @include('filament.admin.partials.scheduling-card', ['div' => $div])
