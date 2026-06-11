@@ -44,44 +44,7 @@
     @elseif ($activeCompetitions->isEmpty())
         <x-filament::section>
             <div class="flex flex-col items-center py-8 gap-5">
-                {{-- Martial arts competitors SVG illustration --}}
-                <div class="w-56 h-36 text-primary-400 dark:text-primary-500 opacity-80">
-                    <svg viewBox="0 0 220 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        {{-- Spotlight floor --}}
-                        <ellipse cx="110" cy="125" rx="80" ry="10" fill="currentColor" opacity="0.08"/>
-                        {{-- Left fighter (attack stance) --}}
-                        <circle cx="62" cy="24" r="10" fill="currentColor" opacity="0.75"/>
-                        <rect x="56" y="34" width="12" height="28" rx="5" fill="currentColor" opacity="0.75"/>
-                        {{-- Left arm — extended punch toward centre --}}
-                        <line x1="68" y1="42" x2="92" y2="50" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
-                        {{-- Left arm — back guard --}}
-                        <line x1="56" y1="42" x2="42" y2="52" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
-                        {{-- Left leg — forward --}}
-                        <line x1="64" y1="62" x2="72" y2="90" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
-                        {{-- Left leg — back --}}
-                        <line x1="59" y1="62" x2="45" y2="90" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
-
-                        {{-- Right fighter (defensive stance) --}}
-                        <circle cx="158" cy="24" r="10" fill="currentColor" opacity="0.75"/>
-                        <rect x="152" y="34" width="12" height="28" rx="5" fill="currentColor" opacity="0.75"/>
-                        {{-- Right arm — extended block toward centre --}}
-                        <line x1="152" y1="42" x2="128" y2="50" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
-                        {{-- Right arm — guard up --}}
-                        <line x1="164" y1="42" x2="174" y2="33" stroke="currentColor" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
-                        {{-- Right leg — forward --}}
-                        <line x1="156" y1="62" x2="148" y2="90" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
-                        {{-- Right leg — back --}}
-                        <line x1="161" y1="62" x2="175" y2="90" stroke="currentColor" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
-
-                        {{-- Centre VS badge --}}
-                        <circle cx="110" cy="54" r="18" fill="currentColor" opacity="0.10"/>
-                        <circle cx="110" cy="54" r="18" stroke="currentColor" stroke-width="1.5" opacity="0.20"/>
-                        <text x="110" y="59" text-anchor="middle" font-size="11" font-weight="700" font-family="sans-serif" fill="currentColor" opacity="0.55">VS</text>
-
-                        {{-- Ground line --}}
-                        <line x1="28" y1="92" x2="192" y2="92" stroke="currentColor" stroke-width="1.5" opacity="0.15" stroke-dasharray="4 4"/>
-                    </svg>
-                </div>
+                <img src="{{ asset('images/logo2.png') }}" alt="Kompetic" class="w-32 h-32 object-contain opacity-40 dark:opacity-25" />
                 <div class="text-center">
                     <p class="text-base font-semibold text-gray-700 dark:text-gray-200">No competitions right now</p>
                     <p class="mt-1 text-sm text-gray-400 dark:text-gray-500 max-w-xs">Your organisation hasn't opened any competitions yet. Check back soon — you'll see them here when registration opens.</p>
