@@ -16,9 +16,9 @@
     .fi-topbar-close-sidebar-btn,
     .fi-topbar-open-sidebar-btn { display: none !important; }
     .fi-sidebar-open .fi-sidebar-header .fi-icon-btn.hidden { display: flex; }
-    .fi-sidebar:not(.fi-sidebar-open) { width: 3.5rem; }
+    .fi-sidebar:not(.fi-sidebar-open) { width: 3.5rem !important; }
     .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-header { padding-left: 0; padding-right: 0; justify-content: center; }
-    .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-nav { padding-left: 0; padding-right: 0; }
+    .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-nav { padding-left: 0; padding-right: 0; scrollbar-gutter: auto !important; align-items: center !important; }
     .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-nav-groups { margin-left: 0; margin-right: 0; }
     .fi-sidebar:not(.fi-sidebar-open) .fi-sidebar-item-button { padding: 0.5rem 0 !important; }
 }
