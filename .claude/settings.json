@@ -104,7 +104,10 @@
       "Bash(xargs grep -l \"search\")",
       "Bash(php -r \"echo base_path\\('resources/views/vendor/filament-tables/components/search-field.blade.php'\\);\")",
       "Bash(Get-ChildItem -Path app -Directory)",
-      "Bash(Select-Object -ExpandProperty Name)"
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(python -c ' *)",
+      "Bash(git -C x:/Repos/Compete status --short)",
+      "Bash(git -C x:/Repos/Compete log --oneline -3)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",
