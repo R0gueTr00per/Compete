@@ -62,6 +62,18 @@ class CompetitionResultsPage extends Page
             ])
             ->get()
             ->groupBy('competition_id')
+            ->filter(function ($enrolments) {
+                $competition = $enrolments->first()->competition;
+                if ($competition->status === 'complete') return true;
+                // Running: only show if every scheduled (non-cancelled) active event has a result
+                foreach ($enrolments as $enrolment) {
+                    foreach ($enrolment->activeEvents as $event) {
+                        if ($event->division?->location_label === null) continue;
+                        if ($event->result === null) return false;
+                    }
+                }
+                return $enrolments->flatMap->activeEvents->isNotEmpty();
+            })
             ->sortByDesc(fn ($enrolments) => $enrolments->first()->competition->competition_date);
     }
 }

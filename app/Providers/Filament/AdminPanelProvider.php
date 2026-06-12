@@ -357,6 +357,10 @@ class AdminPanelProvider extends PanelProvider
                         checkEditPage();
                     })();
                     </script>')
+            )
+            ->renderHook(
+                'panels::body.end',
+                fn () => new \Illuminate\Support\HtmlString(view('partials.kompetic-watermark')->render())
             );
     }
 }

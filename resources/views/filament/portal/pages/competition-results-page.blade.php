@@ -141,7 +141,16 @@
 
                     {{-- Generate insights / spinner --}}
                     @if (config('services.google_ai.api_key'))
-                        @php $anyMissingSummary = $enrolments->whereNull('ai_summary')->isNotEmpty(); @endphp
+                        @php
+                            $anyMissingSummary   = $enrolments->whereNull('ai_summary')->isNotEmpty();
+                            $activeEvents        = $enrolments->flatMap->activeEvents->filter(fn($e) => $e->division?->location_label !== null);
+                            $allEventsCompleted  = $activeEvents->isNotEmpty() && $activeEvents->every(fn($e) => $e->result !== null);
+                            $withinWindow        = $competition->completed_at && $competition->completed_at->isAfter(now()->subDays(7));
+                            $canGenerateInsights = $anyMissingSummary && (
+                                ($competition->status === 'running'  && $allEventsCompleted) ||
+                                ($competition->status === 'complete' && $withinWindow)
+                            );
+                        @endphp
                         @if ($this->isSummaryGenerating($competition->id))
                             <div wire:poll.10s class="px-4 py-3 border-t border-gray-100 dark:border-slate-700 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
                                 <svg class="w-3.5 h-3.5 animate-spin text-primary-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -150,7 +159,7 @@
                                 </svg>
                                 <span class="italic">Generating insights…</span>
                             </div>
-                        @elseif ($anyMissingSummary)
+                        @elseif ($canGenerateInsights)
                             <div class="px-4 py-3 border-t border-gray-100 dark:border-slate-700">
                                 <button wire:click="triggerInsights({{ $competition->id }})"
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-primary-200 dark:border-primary-700 text-primary-600 dark:text-primary-400 bg-primary-50/50 dark:bg-primary-900/10 hover:bg-primary-100/60 dark:hover:bg-primary-900/20 transition-colors">

@@ -319,6 +319,10 @@ class OrgAdminPanelProvider extends PanelProvider
                         })();
                     </script>');
                 }
+            )
+            ->renderHook(
+                'panels::body.end',
+                fn () => new \Illuminate\Support\HtmlString(view('partials.kompetic-watermark')->render())
             );
     }
 }
