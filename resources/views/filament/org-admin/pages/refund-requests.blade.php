@@ -29,8 +29,8 @@
                                 <td class="py-3 pr-4 font-medium">{{ $enrolment->competitor->full_name }}</td>
                                 <td class="py-3 pr-4">{{ $enrolment->competition->name }}</td>
                                 <td class="py-3 pr-4">
-                                    @if ($enrolment->payment_amount)
-                                        {{ tenant_money($enrolment->payment_amount) }}
+                                    @if ($enrolment->cart?->payment_amount)
+                                        {{ tenant_money($enrolment->cart->payment_amount) }}
                                     @else
                                         <span class="text-gray-400">{{ tenant_money($enrolment->fee_calculated) }} <span class="text-xs">(calc.)</span></span>
                                     @endif

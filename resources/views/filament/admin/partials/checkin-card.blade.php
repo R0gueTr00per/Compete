@@ -143,8 +143,8 @@
         <div class="mb-3 flex items-center gap-1.5 text-xs text-success-600 dark:text-success-400">
             <x-heroicon-m-check-circle class="w-3.5 h-3.5 shrink-0" />
             Paid
-            @if ($enrolment->payment_amount)
-                — {{ tenant_money($enrolment->payment_amount) }}
+            @if ($enrolment->cart?->payment_amount)
+                — {{ tenant_money($enrolment->cart->payment_amount) }}
             @endif
         </div>
     @endif

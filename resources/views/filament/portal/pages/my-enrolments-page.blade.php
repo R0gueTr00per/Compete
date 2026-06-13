@@ -6,12 +6,15 @@
 
     {{-- Draft cart resume banner --}}
     @if ($draftCart)
+        @php
+            $draftComps = $draftCart->enrolments->map(fn($e) => $e->competition?->name)->filter()->unique()->implode(', ');
+        @endphp
         <x-filament::section class="mb-6 border border-primary-200 dark:border-primary-700 bg-primary-50 dark:bg-primary-950">
             <div class="flex items-center justify-between gap-4">
                 <div>
                     <p class="font-semibold text-sm text-primary-800 dark:text-primary-200">Incomplete registration</p>
                     <p class="text-sm text-primary-700 dark:text-primary-300 mt-0.5">
-                        You have an unfinished registration for <strong>{{ $draftCart->competition->name }}</strong>.
+                        You have an unfinished registration{{ $draftComps ? ' for <strong>' . e($draftComps) . '</strong>' : '' }}.
                     </p>
                 </div>
                 <x-filament::button href="{{ route('filament.portal.pages.enrol') }}" tag="a" size="sm">Resume</x-filament::button>
@@ -21,116 +24,251 @@
 
     @if ($carts->isEmpty())
         <x-filament::section>
-            <p class="text-center text-gray-500 py-8">You have no transactions yet.</p>
-            <div class="flex justify-center mt-2">
-                <x-filament::button href="{{ route('filament.portal.pages.enrol') }}" tag="a">Register now</x-filament::button>
-            </div>
+            <p class="text-center text-gray-500 py-8">No transaction history yet.</p>
         </x-filament::section>
     @else
         @foreach ($carts as $cart)
             @php
-                $comp        = $cart->competition;
-                $enrolments  = $cart->enrolments->values();
-                $active      = $enrolments->whereNotIn('status', ['withdrawn']);
-                $platformFee = (float) ($cart->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
-                $groupTotal  = (float) $cart->total_amount;
-                $allPaid     = $active->isNotEmpty() && $active->every(fn($e) => $e->payment_status === 'received');
-                $anyPaid     = $active->where('payment_status', 'received')->isNotEmpty();
-                $paymentLabel = $allPaid ? 'Paid' : ($anyPaid ? 'Partial' : 'Outstanding');
-                $paymentColor = $allPaid ? 'success' : 'warning';
+                $allEnrolments = $cart->enrolments->values();
+                $platformFee   = (float) ($cart->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+                $cartTotal     = (float) $cart->total_amount;
+                $byComp        = $allEnrolments->groupBy(fn ($e) => $e->competition_id ?? 0);
+
+                // Cart-level payment state (across all active enrolments in this cart)
+                $cartActive    = $allEnrolments->filter(fn ($e) => ! $e->trashed() && $e->status !== 'withdrawn');
+                $cartIsPaid = $cart->isPaid();
+                $cartLabel  = $cartActive->isEmpty() ? null : ($cartIsPaid ? 'Paid' : 'Outstanding');
+                $cartColor  = $cartIsPaid ? 'success' : 'warning';
             @endphp
 
             <x-filament::section class="mb-6">
-                <x-slot name="heading">{{ $comp?->name }}</x-slot>
+                {{-- Cart / transaction header --}}
+                <x-slot name="heading">
+                    <div class="flex items-center gap-3">
+                        <span>{{ $cart->submitted_at ? tenant_date($cart->submitted_at) : 'Registration' }}</span>
+                        @if ($cartLabel)
+                            <x-filament::badge :color="$cartColor" size="sm">{{ $cartLabel }}</x-filament::badge>
+                        @endif
+                    </div>
+                </x-slot>
                 <x-slot name="description">
-                    @if ($cart->submitted_at){{ tenant_date($cart->submitted_at) }} &mdash; @endif
-                    @if ($comp){{ tenant_date($comp->competition_date) }}@if ($comp->location_name) &mdash; {{ $comp->location_name }}@endif@endif
+                    {{ tenant_money($cartTotal) }}
+                    @if ($cart->payment_method) &mdash; {{ ucfirst($cart->payment_method) }}@endif
                 </x-slot>
 
-                <div class="divide-y divide-gray-100 dark:divide-gray-800">
-                    @foreach ($enrolments as $enrolment)
-                        @php
-                            $isOfficial = $enrolment->is_official_discount;
-                            $firstRate  = $isOfficial && ($cart->fee_official_first_rate ?? $comp?->fee_official_first_event) !== null
-                                ? (float) ($cart->fee_official_first_rate ?? $comp?->fee_official_first_event)
-                                : (float) ($cart->fee_first_rate ?? $comp?->fee_first_event ?? 0);
-                            $addRate    = $isOfficial && ($cart->fee_official_additional_rate ?? $comp?->fee_official_additional_event) !== null
-                                ? (float) ($cart->fee_official_additional_rate ?? $comp?->fee_official_additional_event)
-                                : (float) ($cart->fee_additional_rate ?? $comp?->fee_additional_event ?? 0);
-                        @endphp
+                {{-- Per-competition groups --}}
+                @foreach ($byComp as $compId => $compEnrolments)
+                    @php
+                        $comp        = $compEnrolments->first()?->competition;
+                        $live        = $compEnrolments->filter(fn ($e) => ! $e->trashed());
+                        $active      = $live->whereNotIn('status', ['withdrawn']);
+                        $allReplaced = $live->isEmpty() && $compEnrolments->isNotEmpty();
+                        $noActive    = $active->isEmpty();
+                    @endphp
 
-                        <div class="py-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ $enrolment->competitor?->full_name }}</p>
-                                @if ($enrolment->status === 'withdrawn')
-                                    <x-filament::badge color="danger" size="sm">Withdrawn</x-filament::badge>
-                                @else
-                                    <x-filament::badge :color="$enrolment->payment_status === 'received' ? 'success' : 'warning'" size="sm">
-                                        {{ $enrolment->payment_status === 'received' ? 'Paid' : 'Outstanding' }}
-                                    </x-filament::badge>
-                                @endif
-                            </div>
+                    {{-- Competition sub-heading --}}
+                    <div class="{{ $loop->first ? 'mb-1' : 'mt-5 pt-4 border-t border-gray-200 dark:border-gray-700 mb-1' }}">
+                        <p class="font-semibold text-sm text-gray-800 dark:text-gray-200">{{ $comp?->name ?? 'Competition' }}</p>
+                        @if ($comp)
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {{ tenant_date($comp->competition_date) }}
+                                @if ($comp->location_name) &mdash; {{ $comp->location_name }}@endif
+                            </p>
+                        @endif
+                    </div>
 
-                            @if ($enrolment->status === 'withdrawn')
-                                <p class="text-xs text-danger-600">
-                                    Withdrawn{{ $enrolment->withdrawn_at ? ' ' . tenant_date($enrolment->withdrawn_at) : '' }}
-                                    @if ($enrolment->withdrawal_reason) &mdash; {{ $enrolment->withdrawal_reason }} @endif
-                                    @if ($enrolment->refund_requested) &bull; <span class="text-warning-600">Refund requested</span> @endif
-                                </p>
-                            @else
+                    <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                        @if ($compEnrolments->isEmpty())
+                            <p class="py-3 text-xs text-gray-400 italic">Registration superseded by a new registration.</p>
+                        @endif
+
+                        @foreach ($compEnrolments as $enrolment)
+                            @if ($enrolment->trashed())
+                                <div class="py-3 opacity-50">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="text-sm text-gray-500 line-through">{{ $enrolment->competitor?->full_name }}</p>
+                                        <x-filament::badge color="gray" size="sm">Replaced</x-filament::badge>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-0.5">Original registration — replaced by new registration</p>
+                                </div>
+                                @continue
+                            @endif
+
+                            @php
+                                $isWithdrawnE   = $enrolment->status === 'withdrawn';
+                                $isPaid        = $cart->isPaid();
+                                $removedEvents = $enrolment->enrolmentEvents ?? collect();
+                                $isOfficial     = $enrolment->is_official_discount;
+                                // Use competition rates; fall back to frozen cart rates
+                                $firstRate = $isOfficial && ($comp?->fee_official_first_event ?? $cart->fee_official_first_rate) !== null
+                                    ? (float) ($comp?->fee_official_first_event ?? $cart->fee_official_first_rate)
+                                    : (float) ($comp?->fee_first_event ?? $cart->fee_first_rate ?? 0);
+                                $addRate = $isOfficial && ($comp?->fee_official_additional_event ?? $cart->fee_official_additional_rate) !== null
+                                    ? (float) ($comp?->fee_official_additional_event ?? $cart->fee_official_additional_rate)
+                                    : (float) ($comp?->fee_additional_event ?? $cart->fee_additional_rate ?? 0);
+                            @endphp
+
+                            <div class="py-4 {{ $isWithdrawnE ? 'opacity-70' : '' }}">
+                                <div class="flex items-center justify-between gap-2 mb-2">
+                                    <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ $enrolment->competitor?->full_name }}</p>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        @if ($isWithdrawnE)
+                                            <x-filament::badge color="danger" size="sm">Withdrawn</x-filament::badge>
+                                            @if ($isPaid)
+                                                <x-filament::badge color="success" size="sm">Paid</x-filament::badge>
+                                            @endif
+                                        @elseif ($isPaid)
+                                            <x-filament::badge color="success" size="sm">Paid</x-filament::badge>
+                                        @endif
+                                    </div>
+                                </div>
+
                                 <div class="space-y-1">
                                     @foreach ($enrolment->activeEvents as $ee)
-                                        <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                                            <span>
-                                                {{ $ee->competitionEvent->name }}@if ($ee->division)<span class="text-gray-400"> &middot; {{ $ee->division->code }} &mdash; {{ $ee->division->label }}</span>@endif
-                                                @if ($loop->first && $isOfficial)<span class="ml-1 text-gray-400">(official rate)</span>@endif
-                                            </span>
-                                            <span class="font-medium tabular-nums">{{ tenant_money($loop->first ? $firstRate : $addRate) }}</span>
+                                        <div class="text-xs {{ $isWithdrawnE ? 'text-gray-500 line-through' : 'text-gray-600 dark:text-gray-400' }}">
+                                            <div class="flex items-center justify-between">
+                                                <span>
+                                                    {{ $ee->competitionEvent->name }}
+                                                    @if ($ee->division)<span class="{{ $isWithdrawnE ? '' : 'text-gray-400' }}"> &middot; {{ $isWithdrawnE ? $ee->division->label : $ee->division->code . ' — ' . $ee->division->label }}</span>@endif
+                                                    @if (! $isWithdrawnE && $loop->first && $isOfficial)<span class="ml-1 text-gray-400">(official rate)</span>@endif
+                                                </span>
+                                                <span class="{{ $isWithdrawnE ? '' : 'font-medium' }} tabular-nums">{{ tenant_money($loop->first ? $firstRate : $addRate) }}</span>
+                                            </div>
+                                            @if (! $isWithdrawnE && $ee->previous_division_id && $ee->previousDivision)
+                                                <p class="text-xs text-info-600 dark:text-info-400 mt-0.5 ml-2">Changed from: {{ $ee->previousDivision->label }}</p>
+                                            @endif
                                         </div>
                                     @endforeach
 
-                                    @if ($enrolment->is_late && ($cart->late_surcharge_rate ?? $comp?->late_surcharge))
-                                        <div class="flex items-center justify-between text-xs text-warning-600">
+                                    @if (! $isWithdrawnE)
+                                        @foreach ($removedEvents as $ree)
+                                            <div class="flex items-center gap-2 text-xs text-gray-400 line-through">
+                                                <span>{{ $ree->competitionEvent?->name }}@if ($ree->division) &middot; {{ $ree->division->label }}@endif</span>
+                                                <span class="no-underline not-italic rounded px-1 py-0.5 text-xs font-medium {{ $ree->removal_type === 'user_withdrawn' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }}" style="text-decoration:none;">
+                                                    {{ $ree->removal_type === 'user_withdrawn' ? 'Withdrawn' : 'Cancelled' }}
+                                                </span>
+                                            </div>
+                                        @endforeach
+                                    @endif
+
+                                    @if ($enrolment->is_late && ($comp?->late_surcharge ?? $cart->late_surcharge_rate))
+                                        <div class="flex items-center justify-between text-xs {{ $isWithdrawnE ? 'text-gray-500 line-through' : 'text-warning-600' }}">
                                             <span>Late surcharge</span>
-                                            <span class="font-medium tabular-nums">{{ tenant_money($cart->late_surcharge_rate ?? $comp?->late_surcharge) }}</span>
+                                            <span class="tabular-nums">{{ tenant_money($comp?->late_surcharge ?? $cart->late_surcharge_rate) }}</span>
                                         </div>
                                     @endif
 
                                     @if ($platformFee > 0)
-                                        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                        <div class="flex items-center justify-between text-xs {{ $isWithdrawnE ? 'text-gray-500 line-through' : 'text-gray-500 dark:text-gray-400' }}">
                                             <span>Platform fee</span>
                                             <span class="tabular-nums">{{ tenant_money($platformFee) }}</span>
                                         </div>
                                     @endif
 
-                                    <div class="flex items-center justify-between pt-1 mt-1 border-t border-gray-100 dark:border-gray-800 text-xs">
-                                        <span class="text-gray-500">Subtotal</span>
-                                        <span class="font-semibold text-gray-900 dark:text-white tabular-nums">{{ tenant_money($enrolment->fee_calculated + $platformFee) }}</span>
-                                    </div>
-
-                                    @if ($enrolment->payment_status === 'received')
-                                        <p class="text-xs text-success-600 text-right">
-                                            Paid {{ tenant_money($enrolment->payment_amount ?? ($enrolment->fee_calculated + $platformFee)) }}
-                                            @if ($enrolment->payment_received_at) on {{ tenant_date($enrolment->payment_received_at) }}@endif
-                                        </p>
+                                    @if ($isWithdrawnE)
+                                        @if ($isPaid)
+                                            <div class="flex items-center justify-between pt-1 mt-1 border-t border-gray-100 dark:border-gray-800 text-xs">
+                                                <span class="text-gray-400">Originally paid</span>
+                                                <span class="font-semibold text-gray-500 tabular-nums">{{ tenant_money($enrolment->fee_calculated + $platformFee) }}</span>
+                                            </div>
+                                            @if ($enrolment->payment_received_at || $cart->payment_method)
+                                                <p class="text-xs text-gray-400 text-right">
+                                                    @if ($enrolment->payment_received_at){{ tenant_date($enrolment->payment_received_at) }}@endif
+                                                    @if ($cart->payment_method) via {{ ucfirst($cart->payment_method) }}@endif
+                                                </p>
+                                            @endif
+                                            @if ($enrolment->refund_requested)
+                                                <p class="text-xs text-warning-600 mt-1">&bull; Refund pending</p>
+                                            @endif
+                                        @else
+                                            <div class="flex items-center justify-between pt-1 mt-1 border-t border-gray-100 dark:border-gray-800 text-xs">
+                                                <span class="text-gray-400">
+                                                    Withdrawn{{ $enrolment->withdrawn_at ? ' ' . tenant_date($enrolment->withdrawn_at) : '' }}
+                                                    @if ($enrolment->withdrawal_reason) &mdash; {{ $enrolment->withdrawal_reason }}@endif
+                                                </span>
+                                                <span class="font-semibold text-gray-400 tabular-nums">No charge</span>
+                                            </div>
+                                        @endif
+                                    @else
+                                        <div class="flex items-center justify-between pt-1 mt-1 border-t border-gray-100 dark:border-gray-800 text-xs">
+                                            <span class="text-gray-500">Subtotal</span>
+                                            <span class="font-semibold text-gray-900 dark:text-white tabular-nums">{{ tenant_money($enrolment->fee_calculated + $platformFee) }}</span>
+                                        </div>
+                                        @if ($isPaid)
+                                            <p class="text-xs text-success-600 text-right">
+                                                Paid {{ tenant_money($enrolment->payment_amount ?? ($enrolment->fee_calculated + $platformFee)) }}
+                                                @if ($enrolment->payment_received_at) on {{ tenant_date($enrolment->payment_received_at) }}@endif
+                                            </p>
+                                        @endif
                                     @endif
                                 </div>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
+                            </div>
 
-                @if ($groupTotal > 0)
-                    <div class="mt-2 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <span class="text-sm font-semibold text-gray-700 dark:text-gray-300">Total</span>
-                            <x-filament::badge :color="$paymentColor" size="sm">{{ $paymentLabel }}</x-filament::badge>
-                        </div>
-                        <span class="text-sm font-bold tabular-nums">{{ tenant_money($groupTotal) }}</span>
+                            {{-- Withdrawal confirmation modal --}}
+                            @if ($withdrawingId === $enrolment->id)
+                                @php
+                                    $isPaidW       = $cart->isPaid();
+                                    $withinCutoffW = $enrolment->isWithinCancellationCutoff();
+                                @endphp
+                                <div class="mt-2 rounded-lg border border-danger-200 dark:border-danger-700 bg-danger-50 dark:bg-danger-950 p-4">
+                                    <p class="text-sm font-semibold text-danger-800 dark:text-danger-200 mb-1">Withdraw {{ $enrolment->competitor?->full_name }}?</p>
+                                    @if ($isPaidW && $withinCutoffW)
+                                        <p class="text-xs text-danger-700 dark:text-danger-300 mb-3">A fee return of {{ tenant_money($enrolment->fee_calculated) }} will be created and the organisation will contact you to arrange the refund.</p>
+                                    @elseif (!$isPaidW && !in_array($enrolment->competition?->status, ['open', 'planning']))
+                                        <p class="text-xs text-danger-700 dark:text-danger-300 mb-3">Registration is closed — you will not be able to re-register after withdrawing.</p>
+                                    @else
+                                        <p class="text-xs text-danger-700 dark:text-danger-300 mb-3">This action cannot be undone.</p>
+                                    @endif
+                                    <div class="flex items-center gap-3">
+                                        <x-filament::button color="danger" size="sm" wire:click="confirmWithdraw">Confirm withdrawal</x-filament::button>
+                                        <button wire:click="cancelWithdraw" class="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                @endforeach
+
+                {{-- Cart total --}}
+                @if ($cartTotal > 0 && $cartActive->isNotEmpty() && ! $cartIsPaid)
+                    <div class="mt-4 pt-3 border-t border-gray-300 dark:border-gray-600 flex items-center justify-between">
+                        <span class="text-sm font-bold text-gray-700 dark:text-gray-200">Total</span>
+                        <span class="text-sm font-bold tabular-nums">{{ tenant_money($cartTotal) }}</span>
                     </div>
                 @endif
             </x-filament::section>
         @endforeach
+
+        @if ($carts->count() > 1)
+            @php
+                $allActive      = $carts->flatMap(fn ($c) => $c->enrolments->filter(fn ($e) => ! $e->trashed() && $e->status !== 'withdrawn'));
+                $grandPaid        = $carts->filter(fn ($c) => $c->isPaid())->sum(fn ($c) => (float) ($c->payment_amount ?? $c->total_amount));
+                $grandOutstanding = $carts->filter(fn ($c) => ! $c->isPaid())->sum(fn ($c) => (float) $c->total_amount);
+            @endphp
+            <x-filament::section>
+                <div class="flex items-center justify-between gap-6 flex-wrap">
+                    @if ($grandPaid > 0)
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total paid</p>
+                            <p class="text-lg font-bold text-success-600">{{ tenant_money($grandPaid) }}</p>
+                        </div>
+                    @endif
+                    @if ($grandOutstanding > 0)
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Total outstanding</p>
+                            <p class="text-lg font-bold text-warning-600">{{ tenant_money($grandOutstanding) }}</p>
+                        </div>
+                    @endif
+                    <div class="text-center ml-auto">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Net balance</p>
+                        @php $net = $grandOutstanding - $grandPaid; @endphp
+                        <p class="text-lg font-bold {{ $net > 0 ? 'text-warning-600' : ($net < 0 ? 'text-danger-600' : 'text-success-600') }}">
+                            {{ $net == 0 ? 'Settled' : tenant_money(abs($net)) . ($net < 0 ? ' refund due' : ' owing') }}
+                        </p>
+                    </div>
+                </div>
+            </x-filament::section>
+        @endif
     @endif
 
 </x-filament-panels::page>

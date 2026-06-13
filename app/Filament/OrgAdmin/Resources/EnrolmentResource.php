@@ -4,8 +4,6 @@ namespace App\Filament\OrgAdmin\Resources;
 
 use App\Filament\OrgAdmin\Actions\HistoryTableAction;
 use App\Filament\OrgAdmin\Resources\EnrolmentResource\Pages;
-use App\Models\Competition;
-use App\Models\CompetitionEvent;
 use App\Models\Division;
 use App\Models\Enrolment;
 use App\Models\EnrolmentEvent;
@@ -14,14 +12,13 @@ use App\Services\EnrolmentService;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -72,59 +69,41 @@ class EnrolmentResource extends Resource
         return $table
             ->defaultPaginationPageOption(25)
             ->modifyQueryUsing(fn ($query) => $query
-                ->with(['competitor', 'rank', 'competition'])
+                ->with([
+                    'competitor',
+                    'rank',
+                    'competition',
+                    'activeEvents.competitionEvent',
+                    'activeEvents.division',
+                    'activeEvents.previousDivision',
+                    'enrolmentEvents' => fn ($q) => $q->where('removed', true)->with('competitionEvent', 'division'),
+                ])
                 ->withCount(['enrolmentEvents as removed_events_count' => fn ($q) => $q->where('removed', true)]))
             ->header(view('filament.admin.partials.enrolment-competition-header'))
             ->columns([
                 TextColumn::make('competitor_name')
                     ->label('Competitor')
                     ->getStateUsing(fn (Enrolment $record) => $record->competitor?->full_name ?: '—')
-                    ->description(fn (Enrolment $record) => $record->display_rank)
+                    ->description(function (Enrolment $record) {
+                        $parts = array_filter([
+                            $record->competitor?->age ? $record->competitor->age . ' yrs' : null,
+                            ($record->display_rank !== '—') ? $record->display_rank : null,
+                            $record->competitor?->gender ? ucfirst($record->competitor->gender) : null,
+                            $record->weight_kg ? number_format((float) $record->weight_kg, 1) . ' kg' : null,
+                        ]);
+                        $suffix = $record->is_late ? ' · Late' : '';
+                        return implode(' · ', $parts) . $suffix ?: null;
+                    })
                     ->searchable(query: fn ($query, $search) => $query->whereHas('competitor', fn ($q) => $q->where('first_name', 'like', "%{$search}%")->orWhere('surname', 'like', "%{$search}%"))),
 
-                TextColumn::make('age')
-                    ->label('Age')
-                    ->state(fn (Enrolment $record) => $record->competitor?->age)
-                    ->suffix(' yrs')
-                    ->alignCenter(),
-
-                TextColumn::make('display_rank')
-                    ->label('Rank'),
-
-                TextColumn::make('weight_kg')
-                    ->label('Weight')
-                    ->formatStateUsing(fn ($state) => $state ? number_format((float) $state, 1) . ' kg' : '—'),
+                ViewColumn::make('events_column')
+                    ->label('Events')
+                    ->view('filament.admin.columns.enrolment-events-column'),
 
                 TextColumn::make('enrolled_at')
                     ->label('Registered')
                     ->formatStateUsing(fn ($state) => $state ? tenant_datetime($state) : '—')
                     ->sortable(),
-
-                IconColumn::make('is_late')
-                    ->label('Late')
-                    ->boolean()
-                    ->trueColor('warning')
-                    ->falseColor('gray'),
-
-                TextColumn::make('fee_calculated')
-                    ->label('Fee')
-                    ->money(tenant_currency())
-                    ->description(fn (Enrolment $record) => $record->is_official_discount ? 'officials discount' : null)
-                    ->sortable(),
-
-                TextColumn::make('payment_status')
-                    ->label('Payment')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state) => match ($state) {
-                        'received'    => 'Paid',
-                        'outstanding' => 'Outstanding',
-                        default       => ucfirst($state),
-                    })
-                    ->color(fn (string $state) => match ($state) {
-                        'received'    => 'success',
-                        'outstanding' => 'warning',
-                        default       => 'gray',
-                    }),
 
                 TextColumn::make('status')
                     ->badge()
@@ -143,9 +122,6 @@ class EnrolmentResource extends Resource
                         default      => 'gray',
                     }),
 
-                TextColumn::make('active_events_count')
-                    ->label('Events')
-                    ->counts('activeEvents'),
             ])
             ->filters([
                 SelectFilter::make('status')
@@ -160,7 +136,17 @@ class EnrolmentResource extends Resource
                     ->options([
                         'outstanding' => 'Outstanding',
                         'received'    => 'Paid',
-                    ]),
+                    ])
+                    ->query(function ($query, array $data) {
+                        if (empty($data['value'])) {
+                            return;
+                        }
+                        if ($data['value'] === 'received') {
+                            $query->whereHas('cart', fn ($q) => $q->where('payment_status', 'received'));
+                        } else {
+                            $query->whereDoesntHave('cart', fn ($q) => $q->where('payment_status', 'received'));
+                        }
+                    }),
             ])
             ->headerActions([
                 Action::make('createEnrolment')
@@ -173,9 +159,16 @@ class EnrolmentResource extends Resource
                     Action::make('viewEvents')
                         ->label('View events')
                         ->icon('heroicon-o-eye')
+                        ->slideOver()
                         ->modalContent(fn (Enrolment $record) => view(
                             'filament.admin.enrolment-events-modal',
-                            ['enrolment' => $record->load(['activeEvents.competitionEvent', 'activeEvents.division', 'competition'])]
+                            ['enrolment' => $record->load([
+                                'activeEvents.competitionEvent',
+                                'activeEvents.division',
+                                'activeEvents.previousDivision',
+                                'enrolmentEvents' => fn ($q) => $q->where('removed', true)->with('competitionEvent', 'division'),
+                                'competition',
+                            ])]
                         ))
                         ->modalSubmitAction(false)
                         ->modalCancelActionLabel('Close'),
@@ -287,7 +280,10 @@ class EnrolmentResource extends Resource
                             $ee       = EnrolmentEvent::find($data['enrolment_event_id']);
                             $division = Division::find($data['division_id']);
                             if ($ee && $division && $ee->enrolment_id === $record->id) {
-                                $ee->update(['division_id' => $division->id]);
+                                $ee->update([
+                                    'previous_division_id' => $ee->division_id,
+                                    'division_id'          => $division->id,
+                                ]);
                                 Notification::make()->title('Division updated.')->success()->send();
                             }
                         }),
@@ -300,10 +296,11 @@ class EnrolmentResource extends Resource
                             Select::make('enrolment_event_id')
                                 ->label('Event')
                                 ->options(fn (Enrolment $record) => $record->activeEvents()
-                                    ->with('competitionEvent')
+                                    ->with('competitionEvent', 'division')
                                     ->get()
                                     ->mapWithKeys(fn ($ee) => [
-                                        $ee->id => $ee->competitionEvent->name,
+                                        $ee->id => $ee->competitionEvent->name
+                                            . ($ee->division ? ' — ' . $ee->division->label : ''),
                                     ])
                                 )
                                 ->required(),
@@ -316,9 +313,13 @@ class EnrolmentResource extends Resource
                         ->action(function (Enrolment $record, array $data) {
                             $ee = EnrolmentEvent::find($data['enrolment_event_id']);
                             if ($ee && $ee->enrolment_id === $record->id) {
-                                app(EnrolmentService::class)
-                                    ->removeParticipant($ee, auth()->user(), $data['reason']);
-
+                                app(EnrolmentService::class)->removeParticipant(
+                                    $ee,
+                                    auth()->user(),
+                                    $data['reason'],
+                                    false,
+                                    'admin_cancelled'
+                                );
                                 Notification::make()->title('Competitor removed from event.')->success()->send();
                             }
                         }),
@@ -349,64 +350,6 @@ class EnrolmentResource extends Resource
                             }
                         })
                         ->visible(fn (Enrolment $record) => $record->removed_events_count > 0),
-
-                    Action::make('toggleOfficialDiscount')
-                        ->label(fn (Enrolment $record) => $record->is_official_discount
-                            ? 'Remove official discount'
-                            : 'Apply official discount')
-                        ->icon('heroicon-o-identification')
-                        ->color(fn (Enrolment $record) => $record->is_official_discount ? 'warning' : 'success')
-                        ->requiresConfirmation()
-                        ->action(function (Enrolment $record) {
-                            $newValue = ! $record->is_official_discount;
-                            $record->forceFill([
-                                'is_official_discount' => $newValue,
-                                'fee_calculated'       => app(EnrolmentService::class)->calculateFee(
-                                    $record->competition,
-                                    $record->activeEvents()->count(),
-                                    $record->is_late,
-                                    $newValue,
-                                ),
-                            ])->save();
-                            Notification::make()
-                                ->title($newValue ? 'Official discount applied.' : 'Official discount removed.')
-                                ->success()
-                                ->send();
-                        }),
-
-                    Action::make('recordPayment')
-                        ->label('Mark paid')
-                        ->icon('heroicon-o-banknotes')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->modalHeading('Confirm payment received')
-                        ->modalDescription(fn (Enrolment $record) => 'Confirm that ' . tenant_money($record->fee_calculated + (float) ($record->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0)) . ' has been received.')
-                        ->modalSubmitActionLabel('Confirm')
-                        ->action(function (Enrolment $record) {
-                            $totalDue = $record->fee_calculated + (float) ($record->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
-                            $record->forceFill([
-                                'payment_status'      => 'received',
-                                'payment_amount'      => $totalDue,
-                                'payment_received_at' => now(),
-                            ])->save();
-                            Notification::make()->title('Payment recorded.')->success()->send();
-                        })
-                        ->visible(fn (Enrolment $record) => $record->payment_status !== 'received'),
-
-                    Action::make('markPaymentOutstanding')
-                        ->label('Mark payment outstanding')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('warning')
-                        ->requiresConfirmation()
-                        ->action(function (Enrolment $record) {
-                            $record->forceFill([
-                                'payment_status'      => 'outstanding',
-                                'payment_amount'      => null,
-                                'payment_received_at' => null,
-                            ])->save();
-                            Notification::make()->title('Payment marked outstanding.')->warning()->send();
-                        })
-                        ->visible(fn (Enrolment $record) => $record->payment_status === 'received'),
 
                     HistoryTableAction::make(),
                 ])->dropdownPlacement('bottom-start'),

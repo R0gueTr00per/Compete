@@ -7,6 +7,7 @@ use Filament\Models\Contracts\HasName;
 use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\EnrolmentCart;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -212,6 +213,11 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
             'id',                   // local key on users
             'id'                    // local key on competitor_profiles
         );
+    }
+
+    public function enrolmentCarts(): HasMany
+    {
+        return $this->hasMany(EnrolmentCart::class);
     }
 
     public function memberships(): HasMany

@@ -11,9 +11,9 @@ use Filament\Pages\Page;
 
 class MyEnrolmentsPage extends Page
 {
-    protected static ?string $title            = 'Transactions';
+    protected static ?string $title            = 'Account';
     protected static ?string $navigationIcon  = 'heroicon-o-receipt-percent';
-    protected static ?string $navigationLabel = 'Transactions';
+    protected static ?string $navigationLabel = 'Account';
     protected static string  $view            = 'filament.portal.pages.my-enrolments-page';
     protected static ?string $slug            = 'my-enrolments';
     protected static ?int    $navigationSort  = 6;
@@ -32,12 +32,22 @@ class MyEnrolmentsPage extends Page
         $tenantId = app('tenant')?->id;
 
         return EnrolmentCart::where('user_id', $userId)
-            ->whereHas('competition', fn ($q) => $q->where('organisation_id', $tenantId))
-            ->whereHas('enrolments', fn ($q) => $q->whereNotIn('status', ['draft']))
+            ->where('status', 'submitted')
+            ->whereHas('enrolments', fn ($q) => $q->withTrashed()
+                ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', $tenantId))
+            )
             ->with([
-                'competition',
-                'enrolments' => fn ($q) => $q->whereNotIn('status', ['draft'])
-                    ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division']),
+                'competition.organisation',
+                'enrolments' => fn ($q) => $q->withTrashed()->whereNotIn('status', ['draft'])
+                    ->with([
+                        'competition',
+                        'competitor',
+                        'activeEvents.competitionEvent',
+                        'activeEvents.division',
+                        'activeEvents.previousDivision',
+                        'enrolmentEvents' => fn ($q2) => $q2->where('removed', true)
+                            ->with('competitionEvent', 'division'),
+                    ]),
             ])
             ->orderByDesc('submitted_at')
             ->get();
@@ -47,8 +57,10 @@ class MyEnrolmentsPage extends Page
     {
         return EnrolmentCart::where('user_id', auth()->id())
             ->where('status', 'draft')
-            ->whereHas('competition', fn ($q) => $q->where('organisation_id', app('tenant')?->id))
-            ->with('competition')
+            ->whereHas('enrolments', fn ($q) => $q
+                ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', app('tenant')?->id))
+            )
+            ->with(['enrolments.competition'])
             ->latest()
             ->first();
     }

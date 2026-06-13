@@ -52,9 +52,10 @@ class OrganisationSettings extends Page implements HasForms
             'timezone'                 => $tenant?->timezone,
             'date_format'              => $tenant?->date_format,
             'currency'                 => $tenant?->currency,
-            'cancellation_days_before' => $tenant?->cancellation_days_before ?? 0,
-            'group_name_preset'        => $groupPreset,
-            'group_name_custom'        => $groupPreset === 'Other' ? $groupName : null,
+            'cancellation_days_before'    => $tenant?->cancellation_days_before ?? 0,
+            'supported_payment_methods'   => $tenant?->supported_payment_methods ?? ['cash'],
+            'group_name_preset'           => $groupPreset,
+            'group_name_custom'           => $groupPreset === 'Other' ? $groupName : null,
         ]);
     }
 
@@ -120,13 +121,26 @@ class OrganisationSettings extends Page implements HasForms
                     ->description('Control cancellation behaviour for competitors.')
                     ->schema([
                         TextInput::make('cancellation_days_before')
-                            ->label('Allow cancellation up to X days before competition')
-                            ->helperText('Competitors cannot withdraw within this many days of the competition date. Set to 0 to allow cancellation right up to the competition day.')
+                            ->label('Allow cancellation with refund up to X days before competition')
+                            ->helperText('Competitors can withdraw and receive a fee return up to this many days before the competition date. Set to 0 to allow cancellation with refund right up to the competition day.')
                             ->numeric()
                             ->minValue(0)
                             ->maxValue(365)
                             ->default(0)
                             ->suffix('days'),
+                    ]),
+
+                Section::make('Payments')
+                    ->description('Configure the payment methods your organisation accepts.')
+                    ->schema([
+                        CheckboxList::make('supported_payment_methods')
+                            ->label('Accepted payment methods')
+                            ->helperText('Selected methods will appear as options when recording payments against transactions.')
+                            ->options([
+                                'cash'   => 'Cash',
+                                'stripe' => 'Stripe — Online payments (coming soon)',
+                            ])
+                            ->default(['cash']),
                     ]),
 
                 Section::make('Contact')
@@ -222,8 +236,9 @@ class OrganisationSettings extends Page implements HasForms
             'timezone'                 => $data['timezone'] ?? null,
             'date_format'              => $data['date_format'] ?? null,
             'currency'                 => $data['currency'] ?? null,
-            'cancellation_days_before' => $data['cancellation_days_before'] ?? 0,
-            'contact_phone'            => $data['contact_phone'] ?? null,
+            'cancellation_days_before'  => $data['cancellation_days_before'] ?? 0,
+            'supported_payment_methods' => $data['supported_payment_methods'] ?? ['cash'],
+            'contact_phone'             => $data['contact_phone'] ?? null,
             'contact_email'            => $data['contact_email'] ?? null,
             'website'                  => $data['website'] ?? null,
             'group_name'               => $groupName,

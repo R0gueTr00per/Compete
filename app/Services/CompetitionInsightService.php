@@ -131,8 +131,9 @@ class CompetitionInsightService
         $pending          = $enrolments->whereNotIn('status', ['withdrawn'])->count();
         $withdrawn        = $enrolments->where('status', 'withdrawn')->count();
         $lateCount        = $enrolments->where('is_late', true)->count();
-        $outstandingEnrol = $enrolments->where('payment_status', 'outstanding')->where('status', '!=', 'withdrawn');
-        $receivedEnrol    = $enrolments->where('payment_status', 'received');
+        $carts            = $enrolments->map(fn ($e) => $e->cart)->filter()->unique('id');
+        $outstandingEnrol = $enrolments->whereNotIn('status', ['withdrawn'])->filter(fn ($e) => ! $e->cart?->isPaid());
+        $receivedEnrol    = $enrolments->filter(fn ($e) => $e->cart?->isPaid());
         $outstandingAmt   = $outstandingEnrol->sum('fee_calculated');
         $receivedAmt      = $receivedEnrol->sum('fee_calculated');
 

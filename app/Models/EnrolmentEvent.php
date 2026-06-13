@@ -16,9 +16,11 @@ class EnrolmentEvent extends Model
         'enrolment_id',
         'competition_event_id',
         'division_id',
+        'previous_division_id',
         'partner_enrolment_event_id',
         'yakusuko_complete',
         'weight_confirmed_kg',
+        'removal_type',
     ];
 
     protected function casts(): array
@@ -51,6 +53,11 @@ class EnrolmentEvent extends Model
         return $this->belongsTo(Division::class);
     }
 
+    public function previousDivision(): BelongsTo
+    {
+        return $this->belongsTo(Division::class, 'previous_division_id');
+    }
+
     public function partner(): BelongsTo
     {
         return $this->belongsTo(EnrolmentEvent::class, 'partner_enrolment_event_id');
@@ -69,5 +76,16 @@ class EnrolmentEvent extends Model
     public function competitor(): \Illuminate\Database\Eloquent\Relations\HasOneThrough
     {
         return $this->hasOneThrough(CompetitorProfile::class, Enrolment::class, 'id', 'id', 'enrolment_id', 'competitor_profile_id');
+    }
+
+    public function divisionWasChanged(): bool
+    {
+        return $this->previous_division_id !== null;
+    }
+
+    public function wasMerged(): bool
+    {
+        return $this->previous_division_id !== null
+            && $this->previousDivision?->combined_into_id !== null;
     }
 }

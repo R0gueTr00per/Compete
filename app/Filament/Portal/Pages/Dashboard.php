@@ -7,6 +7,9 @@ use App\Models\Competition;
 use App\Models\Enrolment;
 use App\Models\EnrolmentCart;
 use App\Filament\Portal\Pages\CartPage;
+use App\Filament\Portal\Pages\MyEnrolmentsPage;
+use App\Notifications\Notification;
+use App\Services\EnrolmentService;
 use Filament\Actions\Action;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Illuminate\Support\Facades\Cache;
@@ -14,6 +17,48 @@ use Illuminate\Support\Facades\Cache;
 class Dashboard extends BaseDashboard
 {
     protected static string $view = 'filament.portal.pages.dashboard';
+
+    public ?int    $withdrawingId    = null;
+    public ?string $withdrawalReason = '';
+
+    public function canWithdraw(Enrolment $enrolment): bool
+    {
+        return $enrolment->canWithdraw();
+    }
+
+    public function startWithdraw(int $enrolmentId): void
+    {
+        $enrolment = Enrolment::findOrFail($enrolmentId);
+        if (! auth()->user()->ownedProfiles()->pluck('id')->contains($enrolment->competitor_profile_id)) {
+            abort(403);
+        }
+        $this->withdrawingId    = $enrolmentId;
+        $this->withdrawalReason = '';
+    }
+
+    public function cancelWithdraw(): void
+    {
+        $this->withdrawingId    = null;
+        $this->withdrawalReason = '';
+    }
+
+    public function confirmWithdraw(): void
+    {
+        $enrolment = Enrolment::with(['competition.organisation'])->findOrFail($this->withdrawingId);
+        if (! auth()->user()->ownedProfiles()->pluck('id')->contains($enrolment->competitor_profile_id)) {
+            abort(403);
+        }
+
+        try {
+            app(EnrolmentService::class)->withdraw($enrolment, $this->withdrawalReason ?? '');
+            Notification::make()->title('Registration withdrawn.')->success()->send();
+        } catch (\RuntimeException $e) {
+            Notification::make()->title($e->getMessage())->danger()->send();
+        }
+
+        $this->withdrawingId    = null;
+        $this->withdrawalReason = '';
+    }
 
     public function mount(): void
     {
@@ -64,13 +109,25 @@ class Dashboard extends BaseDashboard
 
     protected function getHeaderActions(): array
     {
+        $tenantId = app('tenant')?->id;
+
         $count = EnrolmentCart::where('user_id', auth()->id())
             ->where('status', 'draft')
             ->withCount(['enrolments as draft_count' => fn ($q) => $q->where('status', 'draft')])
             ->first()
             ?->draft_count ?? 0;
 
-        return [
+        $platformFee = (float) (app('tenant')?->platform_fee ?? 0);
+        $outstanding = EnrolmentCart::where('user_id', auth()->id())
+            ->where('status', 'submitted')
+            ->where('payment_status', '!=', 'received')
+            ->whereHas('enrolments', fn ($q) => $q->withTrashed()
+                ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', $tenantId)))
+            ->with(['enrolments' => fn ($q) => $q->withoutTrashed()->where('status', '!=', 'withdrawn')])
+            ->get()
+            ->sum(fn ($cart) => $cart->outstandingAmount($platformFee));
+
+        $actions = [
             Action::make('cart')
                 ->label('Cart')
                 ->icon('heroicon-o-shopping-cart')
@@ -78,6 +135,22 @@ class Dashboard extends BaseDashboard
                 ->badge($count > 0 ? (string) $count : null)
                 ->color('gray'),
         ];
+
+        if ($outstanding > 0) {
+            $actions[] = Action::make('account_balance')
+                ->label(tenant_money($outstanding) . ' outstanding')
+                ->icon('heroicon-o-banknotes')
+                ->url(MyEnrolmentsPage::getUrl())
+                ->color('warning');
+        } else {
+            $actions[] = Action::make('account_balance')
+                ->label('Account')
+                ->icon('heroicon-o-banknotes')
+                ->url(MyEnrolmentsPage::getUrl())
+                ->color('gray');
+        }
+
+        return $actions;
     }
 
     public function getProfiles()

@@ -122,7 +122,7 @@ class CartPage extends Page
 
         app(EnrolmentService::class)->submitCart($cart);
 
-        Notification::make()->title('Registration submitted! Invoice emailed.')->success()->send();
-        $this->redirect(route('filament.portal.pages.dashboard'));
+        Notification::make()->title('Registration submitted!')->success()->send();
+        $this->redirect(route('filament.portal.pages.my-enrolments'));
     }
 }

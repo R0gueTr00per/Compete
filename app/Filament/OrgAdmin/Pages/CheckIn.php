@@ -14,7 +14,7 @@ class CheckIn extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
     protected static ?string $navigationGroup = 'Competitions';
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 4;
     protected static ?string $navigationLabel = 'Check-in';
     protected static string $view = 'filament.admin.pages.check-in';
 
@@ -181,15 +181,20 @@ class CheckIn extends Page
 
     public function recordPayment(int $enrolmentId): void
     {
-        $enrolment = Enrolment::with('cart')->find($enrolmentId);
+        $enrolment = Enrolment::with('cart.enrolments')->find($enrolmentId);
         if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
             return;
         }
 
-        $platformFee = (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
-        $totalDue    = (float) $enrolment->fee_calculated + $platformFee;
+        $cart = $enrolment->cart;
+        if (! $cart || $cart->isPaid()) {
+            return;
+        }
 
-        $enrolment->forceFill([
+        $platformFee = (float) ($cart->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+        $totalDue    = $cart->outstandingAmount($platformFee);
+
+        $cart->forceFill([
             'payment_status'      => 'received',
             'payment_amount'      => $totalDue,
             'payment_received_at' => now(),

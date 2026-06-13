@@ -30,6 +30,7 @@ class Organisation extends Model
         'platform_fee',
         'cancellation_days_before',
         'group_name',
+        'supported_payment_methods',
         'created_by_user_id',
     ];
 
@@ -40,7 +41,8 @@ class Organisation extends Model
         'competitor_summaries_enabled'    => 'boolean',
         'dashboard_closed_days'           => 'integer',
         'platform_fee'             => 'decimal:2',
-        'cancellation_days_before' => 'integer',
+        'cancellation_days_before'     => 'integer',
+        'supported_payment_methods'    => 'array',
     ];
 
     public function getRouteKeyName(): string

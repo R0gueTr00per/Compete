@@ -8,6 +8,7 @@ use App\Models\Division;
 use App\Models\Enrolment;
 use App\Models\EnrolmentCart;
 use App\Models\EnrolmentEvent;
+use App\Models\Refund;
 use App\Models\User;
 use App\Notifications\CartInvoiceNotification;
 use App\Notifications\EnrolmentConfirmedNotification;
@@ -168,28 +169,52 @@ class EnrolmentService
 
     /**
      * Remove a competitor from a specific event (soft-remove with reason).
+     *
+     * Pass $recalculateFee = false when the original transaction must stay immutable
+     * (e.g. admin cancels an event and a Refund record will be created separately).
      */
-    public function removeParticipant(EnrolmentEvent $ee, \App\Models\User $removedBy, string $reason): void
+    public function removeParticipant(EnrolmentEvent $ee, \App\Models\User $removedBy, string $reason, bool $recalculateFee = true, string $removalType = 'admin_cancelled'): void
     {
-        DB::transaction(function () use ($ee, $removedBy, $reason) {
+        DB::transaction(function () use ($ee, $removedBy, $reason, $recalculateFee, $removalType) {
             $ee->forceFill([
                 'removed'        => true,
                 'removed_at'     => now(),
                 'removed_by'     => $removedBy->id,
                 'removal_reason' => $reason,
+                'removal_type'   => $removalType,
             ])->save();
 
-            $enrolment = $ee->enrolment;
-            $totalEvents = $enrolment->activeEvents()->count();
-            $enrolment->forceFill([
-                'fee_calculated' => $this->calculateFee(
-                    $enrolment->competition,
-                    $totalEvents,
-                    $enrolment->is_late,
-                    $enrolment->is_official_discount,
-                ),
-            ])->save();
+            if ($recalculateFee) {
+                $enrolment   = $ee->enrolment;
+                $totalEvents = $enrolment->activeEvents()->count();
+                $enrolment->forceFill([
+                    'fee_calculated' => $this->calculateFee(
+                        $enrolment->competition,
+                        $totalEvents,
+                        $enrolment->is_late,
+                        $enrolment->is_official_discount,
+                    ),
+                ])->save();
+            }
         });
+    }
+
+    /**
+     * Calculate the refund amount for a profile if events were cancelled.
+     * Returns original_fee - fee_for_remaining_events. Never negative.
+     */
+    public function calculateCancellationRefund(\App\Models\Enrolment $enrolment): float
+    {
+        $originalFee     = (float) $enrolment->fee_calculated;
+        $remainingEvents = $enrolment->activeEvents()->count();
+        $recalculated    = (float) $this->calculateFee(
+            $enrolment->competition,
+            $remainingEvents,
+            $enrolment->is_late,
+            $enrolment->is_official_discount,
+        );
+
+        return max(0, $originalFee - $recalculated);
     }
 
     /**
@@ -247,11 +272,25 @@ class EnrolmentService
 
             $fillable = array_filter($entryDetails, fn ($v) => $v !== null && $v !== '');
 
-            $enrolment = Enrolment::firstOrNew([
-                'cart_id'               => $cart->id,
-                'competition_id'        => $competition->id,
-                'competitor_profile_id' => $profile->id,
-            ]);
+            // Soft-delete any existing withdrawn enrolment so it stays in its original cart
+            // for full transaction history. A fresh enrolment is then created in the new cart.
+            $existing = Enrolment::where('competition_id', $competition->id)
+                ->where('competitor_profile_id', $profile->id)
+                ->whereIn('status', ['withdrawn'])
+                ->first();
+            if ($existing) {
+                $existing->delete();
+            }
+
+            // Find or create draft enrolment within the current cart.
+            $enrolment = Enrolment::where('cart_id', $cart->id)
+                ->where('competition_id', $competition->id)
+                ->where('competitor_profile_id', $profile->id)
+                ->first() ?? new Enrolment([
+                    'cart_id'               => $cart->id,
+                    'competition_id'        => $competition->id,
+                    'competitor_profile_id' => $profile->id,
+                ]);
 
             $enrolment->fill(array_merge([
                 'enrolled_at'          => now(),
@@ -407,25 +446,49 @@ class EnrolmentService
      */
     public function withdraw(Enrolment $enrolment, string $reason = ''): void
     {
-        $competition  = $enrolment->competition;
-        $org          = $competition->organisation;
-        $cutoffDays   = (int) ($org->cancellation_days_before ?? 0);
+        $competition = $enrolment->competition;
+        $isPaid      = $enrolment->cart?->payment_status === 'received';
 
         if (now()->isAfter($competition->competition_date->endOfDay())) {
             throw new RuntimeException('Withdrawal is not available after the competition date.');
         }
 
-        if ($cutoffDays > 0 && now()->gte($competition->competition_date->subDays($cutoffDays))) {
-            throw new RuntimeException("Withdrawal closed {$cutoffDays} days before the competition.");
+        if ($isPaid) {
+            $org        = $competition->organisation;
+            $cutoffDays = (int) ($org->cancellation_days_before ?? 0);
+            if ($cutoffDays > 0 && now()->gte($competition->competition_date->subDays($cutoffDays))) {
+                throw new RuntimeException("Withdrawal closed {$cutoffDays} days before the competition.");
+            }
         }
 
-        DB::transaction(function () use ($enrolment, $reason) {
+        DB::transaction(function () use ($enrolment, $reason, $isPaid, $competition) {
             $enrolment->forceFill([
                 'status'            => 'withdrawn',
                 'withdrawn_at'      => now(),
                 'withdrawal_reason' => $reason ?: null,
-                'refund_requested'  => $enrolment->payment_status === 'received',
+                'refund_requested'  => $isPaid,
             ])->save();
+
+            if ($isPaid && $enrolment->cart_id) {
+                $enrolment->loadMissing('cart');
+                // Late surcharge and platform fee are non-refundable
+                $lateSurcharge = $enrolment->is_late
+                    ? (float) ($enrolment->cart?->late_surcharge_rate ?? 0)
+                    : 0.0;
+                $refundAmount = max(0, (float) $enrolment->fee_calculated - $lateSurcharge);
+
+                Refund::create([
+                    'organisation_id'   => $competition->organisation_id,
+                    'cart_id'           => $enrolment->cart_id,
+                    'enrolment_id'      => $enrolment->id,
+                    'type'              => 'withdrawal_return',
+                    'amount'            => $refundAmount,
+                    'reason'            => 'Competitor withdrawal' . ($reason ? ': ' . $reason : ''),
+                    'payment_method'    => $enrolment->cart?->payment_method ?? 'cash',
+                    'status'            => 'pending',
+                    'issued_by_user_id' => null,
+                ]);
+            }
         });
     }
 

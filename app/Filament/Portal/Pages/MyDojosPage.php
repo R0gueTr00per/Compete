@@ -62,10 +62,15 @@ class MyDojosPage extends Page
             return;
         }
 
-        $platformFee = (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
-        $totalDue    = (float) $enrolment->fee_calculated + $platformFee;
+        $cart = $enrolment->cart;
+        if (! $cart || $cart->isPaid()) {
+            return;
+        }
 
-        $enrolment->forceFill([
+        $platformFee = (float) ($cart->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+        $totalDue    = $cart->outstandingAmount($platformFee);
+
+        $cart->forceFill([
             'payment_status'      => 'received',
             'payment_amount'      => $totalDue,
             'payment_received_at' => now(),

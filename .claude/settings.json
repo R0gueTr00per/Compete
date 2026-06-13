@@ -107,7 +107,21 @@
       "Bash(Select-Object -ExpandProperty Name)",
       "Bash(python -c ' *)",
       "Bash(git -C x:/Repos/Compete status --short)",
-      "Bash(git -C x:/Repos/Compete log --oneline -3)"
+      "Bash(git -C x:/Repos/Compete log --oneline -3)",
+      "Bash(git -C \"x:/Repos/Compete\" status)",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Resources\\\\EnrolmentResource.php\")",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Pages\\\\TransactionsPage.php\")",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Services\\\\EnrolmentService.php\")",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Models\\\\Enrolment.php\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"x:\\\\Repos\\\\Compete\\\\resources\\\\views\\\\filament\\\\admin\\\\columns\")",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Notifications\\\\RefundIssuedNotification.php\")",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Models\\\\EnrolmentEvent.php\")",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Models\\\\EnrolmentCart.php\")",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Models\\\\Refund.php\")",
+      "Bash(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\Portal\\\\Pages\\\\MyEnrolmentsPage.php\")",
+      "PowerShell(cd x:\\\\Repos\\\\Compete; php artisan tinker --execute=\"echo json_encode\\(\\\\App\\\\Models\\\\Enrolment::with\\(['competitor','competition']\\)->where\\('payment_status','received'\\)->get\\(\\)->map\\(fn\\(\\\\$e\\)=>['id'=>\\\\$e->id,'name'=>\\\\$e->competitor?->full_name,'comp'=>\\\\$e->competition?->name,'status'=>\\\\$e->status]\\), JSON_PRETTY_PRINT\\);\" 2>&1)",
+      "PowerShell(sqlite3 x:\\\\Repos\\\\Compete\\\\database\\\\database.sqlite \"SELECT u.id, u.email, ec.id as cart_id, ec.competition_id, ec.total_amount, e.id as enr_id, e.status, e.payment_status, e.deleted_at FROM users u JOIN enrolment_carts ec ON ec.user_id=u.id LEFT JOIN enrolments e ON e.cart_id=ec.id WHERE u.email LIKE '%admin%' AND ec.status='submitted' ORDER BY ec.id;\" 2>&1)",
+      "PowerShell(Test-Path \"x:\\\\Repos\\\\Compete\\\\database\\\\database.sqlite\"; \\(Get-Item \"x:\\\\Repos\\\\Compete\\\\database\\\\database.sqlite\"\\).Length)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

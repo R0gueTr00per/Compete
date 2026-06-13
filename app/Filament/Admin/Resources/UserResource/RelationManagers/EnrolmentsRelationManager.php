@@ -38,15 +38,11 @@ class EnrolmentsRelationManager extends RelationManager
                     ->money(tenant_currency())
                     ->placeholder('—'),
 
-                TextColumn::make('payment_status')
+                TextColumn::make('cart.payment_status')
                     ->label('Payment')
                     ->badge()
-                    ->color(fn (string $state) => match ($state) {
-                        'paid'    => 'success',
-                        'partial' => 'warning',
-                        'unpaid'  => 'danger',
-                        default   => 'gray',
-                    }),
+                    ->formatStateUsing(fn ($state) => $state === 'received' ? 'Paid' : 'Outstanding')
+                    ->color(fn ($state) => $state === 'received' ? 'success' : 'warning'),
 
                 TextColumn::make('status')
                     ->badge()

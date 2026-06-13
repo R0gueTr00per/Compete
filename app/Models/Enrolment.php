@@ -5,13 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use RuntimeException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class Enrolment extends Model
 {
-    use LogsActivity;
+    use LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'cart_id',
@@ -33,7 +34,6 @@ class Enrolment extends Model
         'withdrawn_at',
         'withdrawal_reason',
         'refund_requested',
-        'payment_received_at',
         'ai_summary',
     ];
 
@@ -43,21 +43,19 @@ class Enrolment extends Model
             'enrolled_at'          => 'datetime',
             'is_late'              => 'boolean',
             'is_official_discount' => 'boolean',
-            'fee_calculated'       => 'decimal:2',
-            'payment_amount'       => 'decimal:2',
-            'checked_in'           => 'boolean',
-            'checked_in_at'        => 'datetime',
-            'weight_kg'            => 'decimal:2',
+            'fee_calculated'         => 'decimal:2',
+            'checked_in'             => 'boolean',
+            'checked_in_at'          => 'datetime',
+            'weight_kg'              => 'decimal:2',
             'custom_field_responses' => 'array',
-            'withdrawn_at'         => 'datetime',
-            'refund_requested'     => 'boolean',
-            'payment_received_at'  => 'datetime',
+            'withdrawn_at'           => 'datetime',
+            'refund_requested'       => 'boolean',
         ];
     }
 
     public function isPaymentOutstanding(): bool
     {
-        return $this->payment_status !== 'received';
+        return $this->cart?->payment_status !== 'received';
     }
 
     public function isDraft(): bool
@@ -65,23 +63,34 @@ class Enrolment extends Model
         return $this->status === 'draft';
     }
 
+    public function isWithinCancellationCutoff(): bool
+    {
+        $competition = $this->competition;
+        if (now()->isAfter($competition->competition_date->endOfDay())) {
+            return false;
+        }
+        $cutoffDays = (int) ($competition->organisation->cancellation_days_before ?? 0);
+        if ($cutoffDays > 0 && now()->gte($competition->competition_date->subDays($cutoffDays))) {
+            return false;
+        }
+        return true;
+    }
+
     public function canWithdraw(): bool
     {
         if (in_array($this->status, ['withdrawn', 'checked_in', 'draft'])) {
             return false;
         }
-
         $competition = $this->competition;
         if (now()->isAfter($competition->competition_date->endOfDay())) {
             return false;
         }
-
-        $cutoffDays = (int) ($competition->organisation->cancellation_days_before ?? 0);
-        if ($cutoffDays > 0 && now()->gte($competition->competition_date->subDays($cutoffDays))) {
-            return false;
+        // Unpaid: always withdrawable until competition day
+        if (! $this->cart?->isPaid()) {
+            return true;
         }
-
-        return true;
+        // Paid: only within cutoff
+        return $this->isWithinCancellationCutoff();
     }
 
     public function cart(): BelongsTo

@@ -23,6 +23,10 @@ class EnrolmentCart extends Model
         'late_surcharge_rate',
         'platform_fee_rate',
         'submitted_at',
+        'payment_method',
+        'payment_status',
+        'payment_amount',
+        'payment_received_at',
     ];
 
     protected function casts(): array
@@ -37,7 +41,9 @@ class EnrolmentCart extends Model
             'fee_official_additional_rate' => 'decimal:2',
             'late_surcharge_rate'          => 'decimal:2',
             'platform_fee_rate'            => 'decimal:2',
+            'payment_amount'               => 'decimal:2',
             'submitted_at'                 => 'datetime',
+            'payment_received_at'          => 'datetime',
         ];
     }
 
@@ -68,8 +74,26 @@ class EnrolmentCart extends Model
         return $this->hasMany(Enrolment::class, 'cart_id')->where('status', 'draft');
     }
 
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(Refund::class, 'cart_id');
+    }
+
     public function isSubmitted(): bool
     {
         return $this->status === 'submitted';
+    }
+
+    public function isPaid(): bool
+    {
+        return $this->payment_status === 'received';
+    }
+
+    /** Sum of fees for active (non-withdrawn, non-soft-deleted) enrolments. */
+    public function outstandingAmount(float $platformFee = 0): float
+    {
+        return $this->enrolments
+            ->filter(fn ($e) => ! $e->trashed() && $e->status !== 'withdrawn')
+            ->sum(fn ($e) => (float) $e->fee_calculated + $platformFee);
     }
 }

@@ -57,7 +57,7 @@
                         <span class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{{ $dojoName }}</span>
                         <div class="flex items-center gap-3 shrink-0">
                             @php
-                                $paidCount = $enrolments->where('payment_status', 'received')->count();
+                                $paidCount = $enrolments->filter(fn ($e) => $e->cart?->isPaid())->count();
                                 $total     = $enrolments->count();
                             @endphp
                             <span class="text-xs text-gray-400 dark:text-gray-500">
@@ -73,7 +73,7 @@
                                 @php
                                     $name                  = $enrolment->competitor?->full_name ?? '—';
                                     $eventCount            = $enrolment->activeEvents->count();
-                                    $isPaid                = $enrolment->payment_status === 'received';
+                                    $isPaid                = $enrolment->cart?->isPaid();
                                     $isOfficial            = $enrolment->is_official_discount;
                                     $enrolmentCart         = $enrolment->cart;
                                     $firstRate             = $isOfficial && ($enrolmentCart?->fee_official_first_rate ?? $competition->fee_official_first_event) !== null
@@ -163,9 +163,9 @@
                                             {{-- Payment status --}}
                                             @if ($isPaid)
                                                 <p class="text-xs text-success-600 pt-1">
-                                                    ✓ Paid {{ tenant_money($enrolment->payment_amount ?? $totalAmountDue) }}
-                                                    @if ($enrolment->payment_received_at)
-                                                        on {{ tenant_date($enrolment->payment_received_at) }}
+                                                    ✓ Paid {{ tenant_money($enrolment->cart?->payment_amount ?? $totalAmountDue) }}
+                                                    @if ($enrolment->cart?->payment_received_at)
+                                                        on {{ tenant_date($enrolment->cart->payment_received_at) }}
                                                     @endif
                                                 </p>
                                             @endif

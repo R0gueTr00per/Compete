@@ -3,7 +3,7 @@
         $profiles           = $this->getProfiles();
         $activeCompetitions = $this->getActiveCompetitions();
         $cartKeys           = $this->getCartDraftKeys();
-        $allEnrolments         = $this->getAllEnrolments();
+        $allEnrolments      = $this->getAllEnrolments();
 
         $incompleteProfiles = $profiles->filter(fn ($p) => ! $p->profile_complete);
     @endphp
@@ -78,32 +78,54 @@
                     'advertise'         => 'heroicon-m-megaphone',
                     'open'              => 'heroicon-m-lock-open',
                     'enrolments_closed' => 'heroicon-m-lock-closed',
-                    'check_in'         => 'heroicon-m-qr-code',
+                    'check_in'          => 'heroicon-m-qr-code',
                     'running'           => 'heroicon-m-play',
                     'complete'          => 'heroicon-m-check',
                     default             => null,
                 };
 
-                $showSchedule   = in_array($competition->status, ['check_in', 'running']);
-                $enrolmentOpen  = $competition->isEnrolmentOpen();
+                $accentColorClass = match($competition->status) {
+                    'advertise'         => 'border-l-indigo-400 dark:border-l-indigo-500',
+                    'open'              => 'border-l-green-400 dark:border-l-green-500',
+                    'enrolments_closed' => 'border-l-gray-300 dark:border-l-slate-600',
+                    'check_in'          => 'border-l-amber-400 dark:border-l-amber-500',
+                    'running'           => 'border-l-blue-400 dark:border-l-blue-500',
+                    'complete'          => 'border-l-gray-300 dark:border-l-slate-600',
+                    default             => 'border-l-gray-200 dark:border-l-slate-700',
+                };
+
+                $glowClass = match($competition->status) {
+                    'advertise' => 'shadow-[0_0_20px_-5px_rgba(129,140,248,0.35)]',
+                    'open'      => 'shadow-[0_0_20px_-5px_rgba(74,222,128,0.35)]',
+                    'check_in'  => 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.35)]',
+                    'running'   => 'shadow-[0_0_20px_-5px_rgba(96,165,250,0.35)]',
+                    default     => '',
+                };
+
+                $showSchedule  = in_array($competition->status, ['check_in', 'running']);
+                $enrolmentOpen = $competition->isEnrolmentOpen();
+
+                $compEnrolments = $profiles->map(fn($p) => $allEnrolments->get($p->id)?->get($competition->id))
+                    ->filter(fn($e) => $e && $e->status !== 'withdrawn');
+                $enrolledCount = $compEnrolments->count();
+                $totalFee = $compEnrolments->sum(fn($e) => $e->fee_calculated + (float)($e->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0));
             @endphp
 
-            <div class="rounded-lg overflow-hidden border bg-white dark:bg-slate-800 comp-card-enter
-                {{ $competition->status === 'running'   ? 'border-blue-300 dark:border-blue-600 status-pulse-running'   : '' }}
-                {{ $competition->status === 'check_in'  ? 'border-amber-300 dark:border-amber-600 status-pulse-checkin' : '' }}
-                {{ ! in_array($competition->status, ['running', 'check_in']) ? 'border-gray-200 dark:border-slate-700' : '' }}"
+            <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 border-l-4 {{ $accentColorClass }} {{ $glowClass }} bg-white dark:bg-gray-900 comp-card-enter
+                {{ $competition->status === 'running'   ? 'status-pulse-running'   : '' }}
+                {{ $competition->status === 'check_in'  ? 'status-pulse-checkin' : '' }}"
                 style="animation-delay: {{ $loop->index * 80 }}ms"
             >
 
                 {{-- Competition header --}}
-                <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 flex items-center gap-3">
+                <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 flex items-center gap-3">
 
                     {{-- Date calendar widget --}}
-                    <div class="flex-shrink-0 flex flex-col items-center justify-center w-11 h-11 rounded-lg bg-primary-500 dark:bg-primary-600 text-white text-center leading-none select-none">
-                        <span class="text-[0.6rem] font-bold uppercase tracking-wide opacity-90">
+                    <div class="flex-shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-primary-500 dark:bg-primary-600 text-white text-center leading-none select-none shadow-sm">
+                        <span class="text-[0.65rem] font-bold uppercase tracking-wide opacity-90">
                             {{ $competition->competition_date->format('M') }}
                         </span>
-                        <span class="text-lg font-bold leading-none mt-0.5">
+                        <span class="text-xl font-bold leading-none mt-0.5">
                             {{ $competition->competition_date->format('j') }}
                         </span>
                     </div>
@@ -120,7 +142,7 @@
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                             @if ($competition->location_name)
-                                {{ $competition->location_name }}
+                                <x-heroicon-o-map-pin class="w-3 h-3 inline-block mr-0.5 -mt-px opacity-60" />{{ $competition->location_name }}
                             @endif
                             @if ($competition->checkin_time)
                                 @if ($competition->location_name) &mdash; @endif
@@ -134,12 +156,23 @@
                                 &mdash; Ends {{ tenant_time($competition->end_time) }}
                             @endif
                         </p>
+                        @if ($enrolledCount > 0 && $competition->status !== 'advertise')
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                {{ $enrolledCount }} {{ Str::plural('athlete', $enrolledCount) }} registered &middot; {{ tenant_money($totalFee) }} total
+                            </p>
+                        @endif
                     </div>
 
                 </div>
 
                 {{-- Portal messages from organiser --}}
-                @if ($competition->portalMessages->isNotEmpty() && ! in_array($competition->status, ['advertise', 'complete']))
+                @php
+                    $anyActiveEnrolment = $allEnrolments
+                        ->map(fn($byComp) => $byComp->get($competition->id))
+                        ->filter(fn($e) => $e && $e->status !== 'withdrawn')
+                        ->isNotEmpty();
+                @endphp
+                @if ($competition->portalMessages->isNotEmpty() && ! in_array($competition->status, ['advertise', 'complete']) && $anyActiveEnrolment)
                     <div class="px-4 py-2 space-y-1 border-b border-gray-100 dark:border-slate-700 bg-primary-50/50 dark:bg-primary-900/10">
                         @foreach ($competition->portalMessages as $msg)
                             <p class="text-sm text-primary-900 dark:text-primary-100">{{ $msg->message }}</p>
@@ -149,20 +182,23 @@
 
                 {{-- Profile rows --}}
                 @if ($competition->status !== 'advertise')
-                <div class="divide-y divide-gray-100 dark:divide-slate-700">
+                <div class="p-3 space-y-2">
                     @foreach ($profiles as $profile)
                         @php
                             $enrolment     = $allEnrolments->get($profile->id)?->get($competition->id);
                             $isEnrolled    = $enrolment !== null;
+                            $isWithdrawn   = $isEnrolled && $enrolment->status === 'withdrawn';
                             $inCart        = in_array("{$profile->id}:{$competition->id}", $cartKeys);
-                            $canRegister   = ! $isEnrolled && ! $inCart && $enrolmentOpen && $profile->is_active && $profile->profile_complete;
+                            $canRegister   = (! $isEnrolled || $isWithdrawn) && ! $inCart && $enrolmentOpen && $profile->is_active && $profile->profile_complete;
                         @endphp
 
                         @if (! $isEnrolled && ! $inCart && ! $canRegister) @continue @endif
-                        <div x-data="{ qrOpen: false }" class="px-4 py-3">
+
+                        <div x-data="{ qrOpen: false }"
+                             class="rounded-lg border border-gray-100 dark:border-gray-700/60 bg-gray-50 dark:bg-gray-800 p-3 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors">
 
                             {{-- Profile row header --}}
-                            <div class="flex items-center gap-3 mb-2">
+                            <div class="flex items-center gap-3">
                                 {{-- Avatar --}}
                                 <div class="flex-shrink-0">
                                     @if ($profile->profile_photo)
@@ -170,7 +206,7 @@
                                              alt="{{ $profile->full_name }}"
                                              class="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600" />
                                     @else
-                                        <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center">
+                                        <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center">
                                             <x-heroicon-o-user class="w-4 h-4 text-gray-400 dark:text-gray-500" />
                                         </div>
                                     @endif
@@ -179,11 +215,11 @@
                                 <div class="flex-1 flex items-center gap-1.5 min-w-0 flex-wrap">
                                     <span class="text-sm font-medium text-gray-900 dark:text-white">
                                         {{ $profile->full_name }}
-                                            @unless ($profile->is_active)
+                                        @unless ($profile->is_active)
                                             <span class="ml-1 text-xs font-normal text-warning-600">(Inactive)</span>
                                         @endunless
                                     </span>
-                                    @if ($isEnrolled && $enrolment->status === 'checked_in' && $competition->status !== 'complete')
+                                    @if ($isEnrolled && ! $isWithdrawn && $enrolment->status === 'checked_in' && $competition->status !== 'complete')
                                         <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium border bg-green-100/60 text-green-700 border-green-200/60 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40 flex-shrink-0">
                                             <x-heroicon-m-check class="w-3 h-3" />
                                             Checked in
@@ -191,8 +227,8 @@
                                     @endif
                                 </div>
 
-                                {{-- Schedule button (enrolled + schedule-visible phase) --}}
-                                @if ($isEnrolled && $showSchedule)
+                                {{-- Schedule button --}}
+                                @if ($isEnrolled && ! $isWithdrawn && $showSchedule)
                                     <x-filament::button
                                         href="{{ route('filament.portal.pages.schedule-page') }}?competition_id={{ $competition->id }}&profile_id={{ $profile->id }}"
                                         tag="a" color="gray" size="sm" icon="heroicon-o-calendar-days"
@@ -201,8 +237,8 @@
                                     </x-filament::button>
                                 @endif
 
-                                {{-- QR button (check-in / running phases) --}}
-                                @if ($isEnrolled && in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
+                                {{-- QR button (desktop) --}}
+                                @if ($isEnrolled && ! $isWithdrawn && in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
                                     <button x-on:click="qrOpen = true"
                                         class="flex-shrink-0 hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors overflow-hidden p-0.5">
                                         <x-qr-code :value="url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code" :size="24" />
@@ -225,10 +261,17 @@
                                         Register
                                     </x-filament::button>
                                 @endif
+
+                                @if ($isEnrolled && ! $isWithdrawn && $this->canWithdraw($enrolment))
+                                    <button
+                                        wire:click="startWithdraw({{ $enrolment->id }})"
+                                        class="text-xs text-danger-600 hover:text-danger-700 dark:text-danger-400 underline flex-shrink-0"
+                                    >Withdraw</button>
+                                @endif
                             </div>
 
-                            @if ($isEnrolled)
-                                {{-- Mobile QR: front and centre, tap to enlarge --}}
+                            @if ($isEnrolled && ! $isWithdrawn)
+                                {{-- Mobile QR --}}
                                 @if (in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
                                     <div x-on:click="qrOpen = true"
                                          class="qr-reveal sm:hidden flex flex-col items-center gap-1 py-3 border-b border-gray-100 dark:border-slate-700 cursor-pointer active:opacity-70 transition-opacity">
@@ -238,79 +281,82 @@
                                     </div>
                                 @endif
 
-                                {{-- Enrolment summary (fee, rank, weight, dojo) --}}
                                 @php
                                     $displayFee = $enrolment->fee_calculated + (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
                                 @endphp
-                                <div class="ml-10 text-xs text-gray-500 dark:text-gray-400 mb-2">
-                                    Fee: <strong class="text-gray-700 dark:text-gray-300">{{ tenant_money($displayFee) }}</strong>
-                                    @if ($enrolment->is_late)
-                                        <span class="text-warning-600">(late)</span>
-                                    @endif
-                                    @if ($enrolment->payment_status === 'received')
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Paid</span>
-                                    @else
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">Unpaid</span>
-                                    @endif
-                                    @if ($enrolment->display_rank !== '—')
-                                        &bull; {{ $enrolment->display_rank }}
-                                    @endif
-                                    @if ($enrolment->weight_kg)
-                                        &bull; {{ $enrolment->weight_kg }} kg
-                                    @endif
-                                    @if ($enrolment->dojo_name)
-                                        &bull; {{ $enrolment->dojo_name }}
-                                    @elseif ($enrolment->guest_style)
-                                        &bull; {{ $enrolment->guest_style }} (guest)
-                                    @endif
+
+                                {{-- Fee row --}}
+                                <div class="mt-2 ml-11 flex items-center gap-2 flex-wrap">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                                        Fee: <strong class="text-gray-700 dark:text-gray-300">{{ tenant_money($displayFee) }}</strong>
+                                        @if ($enrolment->is_late)
+                                            <span class="text-warning-600">(late)</span>
+                                        @endif
+                                    </span>
                                 </div>
 
-                                {{-- Events list --}}
-                                <div class="ml-10 space-y-1.5">
+                                {{-- Profile attributes row --}}
+                                @if ($enrolment->display_rank !== '—' || $enrolment->weight_kg || $enrolment->dojo_name || $enrolment->guest_style)
+                                <div class="mt-0.5 ml-11 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
+                                    @if ($enrolment->display_rank !== '—')
+                                        <span>{{ $enrolment->display_rank }}</span>
+                                    @endif
+                                    @if ($enrolment->weight_kg)
+                                        @if ($enrolment->display_rank !== '—') <span class="opacity-40">&bull;</span> @endif
+                                        <span>{{ $enrolment->weight_kg }} kg</span>
+                                    @endif
+                                    @if ($enrolment->dojo_name)
+                                        <span class="opacity-40">&bull;</span>
+                                        <span>{{ $enrolment->dojo_name }}</span>
+                                    @elseif ($enrolment->guest_style)
+                                        <span class="opacity-40">&bull;</span>
+                                        <span>{{ $enrolment->guest_style }} (guest)</span>
+                                    @endif
+                                </div>
+                                @endif
+
+                                {{-- Events as chips --}}
+                                <div class="mt-2 ml-11 flex flex-wrap gap-1.5">
                                     @forelse ($enrolment->activeEvents as $ee)
-                                        <div class="flex items-start gap-2 min-w-0">
-                                            {{-- Result badge (fixed width so event names align) --}}
-                                            <div class="w-14 shrink-0 flex justify-end pt-0.5">
-                                                @if ($ee->result)
-                                                    @if ($ee->result->disqualified)
-                                                        <span class="text-danger-600 font-semibold text-xs">DQ</span>
-                                                    @elseif ($ee->result->placement)
-                                                        @php
-                                                            $placeClass = match($ee->result->placement) {
-                                                                1 => 'bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-600/50',
-                                                                2 => 'bg-slate-50 text-slate-600 border-slate-300 dark:bg-slate-800/40 dark:text-slate-300 dark:border-slate-500/50',
-                                                                3 => 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-600/50',
-                                                                default => 'text-primary-600',
-                                                            };
-                                                        @endphp
-                                                        <span class="inline-flex items-center justify-center w-14 py-0.5 rounded-full text-xs font-bold border {{ $placeClass }}">
-                                                            @switch($ee->result->placement)
-                                                                @case(1) 🥇 1st @break
-                                                                @case(2) 🥈 2nd @break
-                                                                @case(3) 🥉 3rd @break
-                                                                @default {{ $ee->result->placement }}th
-                                                            @endswitch
-                                                        </span>
-                                                    @elseif ($ee->result->win_loss)
-                                                        <span class="text-xs {{ $ee->result->win_loss === 'win' ? 'text-success-600' : ($ee->result->win_loss === 'loss' ? 'text-danger-600' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
-                                                    @endif
+                                        <div class="inline-flex items-stretch rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs shadow-sm overflow-hidden">
+                                            {{-- Result badge --}}
+                                            @if ($ee->result)
+                                                @if ($ee->result->disqualified)
+                                                    <div class="flex items-center px-2 bg-danger-50 dark:bg-danger-900/20 border-r border-gray-200 dark:border-slate-600 shrink-0">
+                                                        <span class="font-semibold text-danger-600 dark:text-danger-400">DQ</span>
+                                                    </div>
+                                                @elseif ($ee->result->placement)
+                                                    @php
+                                                        $placeEmoji = match($ee->result->placement) {
+                                                            1 => '🥇', 2 => '🥈', 3 => '🥉',
+                                                            default => $ee->result->placement . 'th',
+                                                        };
+                                                    @endphp
+                                                    <div class="flex items-center px-2 bg-gray-50 dark:bg-slate-700/50 border-r border-gray-200 dark:border-slate-600 shrink-0">
+                                                        <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $placeEmoji }}</span>
+                                                    </div>
+                                                @elseif ($ee->result->win_loss)
+                                                    <div class="flex items-center px-2 bg-gray-50 dark:bg-slate-700/50 border-r border-gray-200 dark:border-slate-600 shrink-0">
+                                                        <span class="font-semibold {{ $ee->result->win_loss === 'win' ? 'text-success-600 dark:text-success-400' : ($ee->result->win_loss === 'loss' ? 'text-danger-600 dark:text-danger-400' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
+                                                    </div>
                                                 @endif
-                                            </div>
-                                            {{-- Event name + division --}}
-                                            <div class="flex-1 min-w-0">
-                                                <div class="flex items-center gap-2 flex-wrap">
-                                                    <span class="text-sm text-gray-800 dark:text-gray-200">{{ $ee->competitionEvent->name }}</span>
-                                                    @if ($ee->competitionEvent->requires_partner)
-                                                        <span class="text-xs shrink-0 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}</span>
-                                                    @endif
+                                            @endif
+                                            {{-- Division code box --}}
+                                            @if ($ee->division)
+                                                <div class="flex items-center justify-center px-2.5 bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 shrink-0">
+                                                    <span class="font-mono font-bold text-gray-600 dark:text-gray-300">{{ $ee->division->code }}</span>
                                                 </div>
-                                                <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                                                    @if ($ee->division)
-                                                        {{ $ee->division->code }} &mdash; {{ $ee->division->label }}
-                                                    @else
-                                                        TBC
-                                                    @endif
-                                                </div>
+                                            @endif
+                                            {{-- Event name + division label --}}
+                                            <div class="flex flex-col px-2.5 py-1.5">
+                                                <span class="font-medium text-gray-700 dark:text-gray-300 leading-snug">
+                                                    {{ $ee->competitionEvent->name }}@if ($ee->competitionEvent->requires_partner) <span class="ml-1 {{ $ee->yakusuko_complete ? 'text-success-500' : 'text-warning-500' }}">{{ $ee->yakusuko_complete ? '✓' : '?' }} Partner</span>@endif
+                                                </span>
+                                                @if ($ee->division)
+                                                    <span class="text-[0.65rem] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{{ $ee->division->label }}</span>
+                                                @else
+                                                    <span class="text-[0.65rem] italic text-gray-400 dark:text-gray-500 mt-0.5">TBC</span>
+                                                @endif
                                             </div>
                                         </div>
                                     @empty
@@ -320,12 +366,12 @@
 
                                 {{-- AI summary --}}
                                 @if ($enrolment->ai_summary)
-                                    <div class="ml-10 mt-2 flex items-start gap-1.5 rounded-lg border border-primary-200/70 dark:border-primary-600/30 bg-primary-50/30 dark:bg-primary-900/10 px-2.5 py-2" style="box-shadow:0 0 12px 4px rgba(99,102,241,0.25)">
+                                    <div class="ml-11 mt-2 flex items-start gap-1.5 rounded-lg border border-primary-200/70 dark:border-primary-600/30 bg-primary-50/30 dark:bg-primary-900/10 px-2.5 py-2" style="box-shadow:0 0 12px 4px rgba(99,102,241,0.25)">
                                         <x-heroicon-m-sparkles class="w-3.5 h-3.5 text-primary-400 dark:text-primary-500 shrink-0 mt-0.5" />
                                         <p class="text-xs italic text-gray-500 dark:text-gray-400 whitespace-pre-line">{!! nl2br(e($enrolment->ai_summary)) !!}</p>
                                     </div>
                                 @elseif ($this->isSummaryGenerating($competition->id))
-                                    <div wire:poll.10s class="ml-10 mt-2 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+                                    <div wire:poll.10s class="ml-11 mt-2 flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
                                         <svg class="w-3.5 h-3.5 animate-spin text-primary-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
                                         <span class="italic">Generating your summary…</span>
                                     </div>
@@ -353,11 +399,34 @@
                                 @endif
                             @endif
 
-                        </div>{{-- /profile row --}}
+                            {{-- Withdrawal confirmation modal --}}
+                            @if ($enrolment && $this->withdrawingId === $enrolment->id)
+                                @php
+                                    $isPaidW      = $enrolment->cart?->isPaid();
+                                    $withinCutoff = $enrolment->isWithinCancellationCutoff();
+                                @endphp
+                                <div class="mt-3 rounded-lg border border-danger-200 dark:border-danger-700 bg-danger-50 dark:bg-danger-950 p-4">
+                                    <p class="text-sm font-semibold text-danger-800 dark:text-danger-200 mb-1">
+                                        Withdraw {{ $profile->full_name }} from {{ $competition->name }}?
+                                    </p>
+                                    @if ($isPaidW && $withinCutoff)
+                                        <p class="text-xs text-danger-700 dark:text-danger-300 mb-3">
+                                            A refund of {{ tenant_money($enrolment->fee_calculated) }} will be created and the organisation will contact you to arrange the return.
+                                        </p>
+                                    @elseif (! $isPaidW)
+                                        <p class="text-xs text-danger-700 dark:text-danger-300 mb-3">This action cannot be undone.</p>
+                                    @endif
+                                    <div class="flex items-center gap-3">
+                                        <x-filament::button color="danger" size="sm" wire:click="confirmWithdraw">Confirm withdrawal</x-filament::button>
+                                        <button wire:click="cancelWithdraw" class="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Cancel</button>
+                                    </div>
+                                </div>
+                            @endif
+
+                        </div>{{-- /profile sub-card --}}
                     @endforeach
                 </div>
                 @endif{{-- /advertise guard --}}
-
 
             </div>{{-- /competition card --}}
         @endforeach
