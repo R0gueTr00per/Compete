@@ -27,7 +27,7 @@
          x-on:pairing-cancelled.window="$wire.leavePage()">
 
         {{-- Back to list button --}}
-        <div class="flex items-center gap-3 mb-3">
+        <div class="flex items-center gap-3 mb-4">
             <x-filament::button
                 size="sm"
                 color="gray"
@@ -36,21 +36,6 @@
                 Back to scoring list
             </x-filament::button>
         </div>
-
-        @php
-            $ctxDiv = $this->division_id
-                ? \App\Models\Division::with('competitionEvent')->find($this->division_id)
-                : null;
-        @endphp
-        @if ($ctxDiv)
-            <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 py-2.5">
-                <span class="font-mono text-sm font-bold text-primary-600 dark:text-primary-400">{{ $ctxDiv->code }}</span>
-                <span class="text-sm font-medium text-gray-800 dark:text-gray-200">{{ $ctxDiv->competitionEvent?->name }}</span>
-                @if ($ctxDiv->label)
-                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ $ctxDiv->label }}</span>
-                @endif
-            </div>
-        @endif
 
         {{-- Timer running warning --}}
         <template x-if="confirmOpen">

@@ -85,7 +85,11 @@ class ScoringBracketEntry extends Page
     {
         $div = Division::with('competitionEvent')->find($this->division_id);
         if (! $div) return 'Scoring';
-        return trim($div->code . ' — ' . $div->competitionEvent?->name);
+        $main = e(trim($div->code . ' — ' . $div->competitionEvent?->name));
+        $label = $div->label ? e($div->label) : null;
+        return new \Illuminate\Support\HtmlString(
+            $main . ($label ? ' <span style="opacity:0.45;font-weight:400"> — ' . $label . '</span>' : '')
+        );
     }
 
     public function leavePage(): void

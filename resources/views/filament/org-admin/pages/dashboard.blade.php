@@ -142,22 +142,28 @@
                 <x-filament::section>
                     <x-slot name="heading">
                         <div class="flex items-center gap-3">
-                            <div class="flex-shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-primary-500 dark:bg-primary-600 text-white text-center leading-none select-none shadow-sm">
+                            <div class="flex-shrink-0 self-start flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-primary-500 dark:bg-primary-600 text-white text-center leading-none select-none shadow-sm">
                                 <span class="text-[0.65rem] font-bold uppercase tracking-wide opacity-90">{{ $competition->competition_date->format('M') }}</span>
                                 <span class="text-xl font-bold leading-none mt-0.5">{{ $competition->competition_date->format('j') }}</span>
                             </div>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span>{{ $competition->name }}</span>
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $statusBadgeClass }}">
-                                {{ $statusLabel }}
-                            </span>
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border {{ $countdownClass }}">
-                                @if ($daysUntil > 0 && $daysUntil <= 7)
-                                    <svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                @endif
-                                {{ $countdownLabel }}
-                            </span>
-                        </div>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span>{{ $competition->name }}</span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $statusBadgeClass }}">
+                                        {{ $statusLabel }}
+                                    </span>
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border {{ $countdownClass }}">
+                                        @if ($daysUntil > 0 && $daysUntil <= 7)
+                                            <svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        @endif
+                                        {{ $countdownLabel }}
+                                    </span>
+                                </div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400 mt-0.5 font-normal">
+                                    {{ tenant_date($competition->competition_date) }}
+                                    @if ($competition->location_name) &mdash; {{ $competition->location_name }} @endif
+                                </div>
+                            </div>
                         </div>
                     </x-slot>
                     @if ($isQrAvailable)
@@ -172,12 +178,6 @@
                             </button>
                         </x-slot>
                     @endif
-                    <x-slot name="description">
-                        {{ tenant_date($competition->competition_date) }}
-                        @if ($competition->location_name)
-                            &mdash; {{ $competition->location_name }}
-                        @endif
-                    </x-slot>
 
                     @php
                         $allStatuses = ['planning', 'advertise', 'open', 'enrolments_closed', 'check_in', 'running', 'complete'];
