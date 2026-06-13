@@ -50,6 +50,15 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            if (empty(trim((string) $user->email))) {
+                throw new \InvalidArgumentException('User email cannot be empty.');
+            }
+        });
+    }
+
     public function hasTwoFactorEnabled(): bool
     {
         return $this->two_factor_confirmed_at !== null;

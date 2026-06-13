@@ -203,6 +203,16 @@ class Dashboard extends BaseDashboard
         ];
     }
 
+    public function showCartConflict(int $cartCompetitionId): void
+    {
+        $compName = Competition::find($cartCompetitionId)?->name ?? 'another competition';
+        Notification::make()
+            ->title('Complete your current cart first')
+            ->body("Your cart has entries for {$compName}. Checkout or clear your cart before registering for a different competition.")
+            ->warning()
+            ->send();
+    }
+
     public function getCartDraftKeys(): array
     {
         $cart = EnrolmentCart::where('user_id', auth()->id())

@@ -124,6 +124,7 @@ class AccountsPage extends Page implements HasTable
             ->query(
                 User::query()
                     ->whereNotNull('email')
+                    ->where('email', '!=', '')
                     ->whereHas('enrolmentCarts', fn (Builder $q) =>
                         $q->whereNotIn('status', ['draft'])
                           ->whereHas('competition', fn (Builder $q2) => $q2->where('organisation_id', $tenantId))
@@ -149,8 +150,8 @@ class AccountsPage extends Page implements HasTable
             ->columns([
                 TextColumn::make('name')
                     ->label('Account')
-                    ->getStateUsing(fn (User $r) => $r->selfProfile?->full_name ?? $r->email)
-                    ->description(fn (User $r) => $r->email)
+                    ->getStateUsing(fn (User $r) => $r->selfProfile?->full_name ?: ($r->email ?: '(Unknown)'))
+                    ->description(fn (User $r) => $r->email ?: null)
                     ->searchable(query: fn (Builder $q, string $s) =>
                         $q->where('email', 'like', "%{$s}%")
                           ->orWhereHas('selfProfile', fn ($q2) =>
@@ -161,11 +162,6 @@ class AccountsPage extends Page implements HasTable
                     ->sortable(query: fn (Builder $q, string $direction) =>
                         $q->orderByRaw("COALESCE((SELECT first_name || ' ' || last_name FROM competitor_profiles WHERE owner_user_id=users.id AND profile_type='self' LIMIT 1), email) {$direction}")
                     ),
-
-                TextColumn::make('competitions')
-                    ->label('Competitions')
-                    ->getStateUsing(fn (User $r) => $r->enrolmentCarts->pluck('competition_id')->unique()->count())
-                    ->alignCenter(),
 
                 TextColumn::make('outstanding')
                     ->label('Outstanding')
@@ -234,7 +230,7 @@ class AccountsPage extends Page implements HasTable
                         ->label('View account')
                         ->icon('heroicon-o-document-text')
                         ->slideOver()
-                        ->modalHeading(fn (User $r) => $r->selfProfile?->full_name ?? $r->email)
+                        ->modalHeading(fn (User $r) => $r->selfProfile?->full_name ?: ($r->email ?: 'Unknown'))
                         ->modalContent(fn (User $r) => view('filament.org-admin.pages.account-detail', [
                             'user'  => $r,
                             'carts' => $this->userCarts($r),

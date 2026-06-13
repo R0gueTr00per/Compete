@@ -19,6 +19,14 @@
 
             $totalCompetitors = $enrolmentsByDojo->flatten()->count();
 
+            // Unique unpaid carts for this competition (sum per cart, not per enrolment)
+            $competitionOutstanding = $enrolmentsByDojo->flatten()
+                ->unique('cart_id')
+                ->filter(fn ($e) => $e->cart && ! $e->cart->isPaid())
+                ->sum(fn ($e) => $e->cart->outstandingAmount(
+                    (float) ($e->cart->platform_fee_rate ?? $platformFee)
+                ));
+
             $statusClass = match($competition->status) {
                 'open'              => 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400',
                 'enrolments_closed' => 'bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400',
@@ -43,7 +51,14 @@
                         } }}
                     </span>
                 </div>
-                <span class="text-xs text-gray-400 dark:text-gray-500 shrink-0">{{ $totalCompetitors }} {{ Str::plural('competitor', $totalCompetitors) }}</span>
+                <div class="flex items-center gap-3 shrink-0">
+                    @if ($competitionOutstanding > 0)
+                        <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold bg-warning-100 dark:bg-warning-900/30 text-warning-700 dark:text-warning-400">
+                            {{ tenant_money($competitionOutstanding) }} outstanding
+                        </span>
+                    @endif
+                    <span class="text-xs text-gray-400 dark:text-gray-500">{{ $totalCompetitors }} {{ Str::plural('competitor', $totalCompetitors) }}</span>
+                </div>
             </div>
 
             @foreach ($enrolmentsByDojo as $dojoName => $enrolments)
@@ -76,6 +91,9 @@
                                     $isPaid                = $enrolment->cart?->isPaid();
                                     $isOfficial            = $enrolment->is_official_discount;
                                     $enrolmentCart         = $enrolment->cart;
+                                    $enrolmentPlatformFee  = (float) ($enrolmentCart?->platform_fee_rate ?? $platformFee);
+                                    $cartOutstanding       = $enrolmentCart ? $enrolmentCart->outstandingAmount($enrolmentPlatformFee) : 0.0;
+                                    $cartEnrolmentCount    = $enrolmentCart ? $enrolmentCart->enrolments->whereNotIn('status', ['withdrawn', 'draft'])->count() : 1;
                                     $firstRate             = $isOfficial && ($enrolmentCart?->fee_official_first_rate ?? $competition->fee_official_first_event) !== null
                                         ? (float) ($enrolmentCart?->fee_official_first_rate ?? $competition->fee_official_first_event)
                                         : (float) ($enrolmentCart?->fee_first_rate ?? $competition->fee_first_event);
@@ -83,8 +101,6 @@
                                         ? (float) ($enrolmentCart?->fee_official_additional_rate ?? $competition->fee_official_additional_event)
                                         : (float) ($enrolmentCart?->fee_additional_rate ?? $competition->fee_additional_event);
                                     $lateSurchargeRate     = (float) ($enrolmentCart?->late_surcharge_rate ?? $competition->late_surcharge ?? 0);
-                                    $enrolmentPlatformFee  = (float) ($enrolmentCart?->platform_fee_rate ?? $platformFee);
-                                    $totalAmountDue        = (float) $enrolment->fee_calculated + $enrolmentPlatformFee;
                                 @endphp
 
                                 <div x-data="{ open: false }" class="px-4 py-3">
@@ -105,19 +121,12 @@
                                             </div>
                                         </button>
                                         @if (! $isPaid)
-                                            <div x-data="{ confirming: false }" class="shrink-0">
-                                                <button type="button" x-show="!confirming" x-on:click.stop="confirming = true"
-                                                    class="rounded-md bg-success-600 px-3 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">
-                                                    Mark paid
-                                                </button>
-                                                <div x-show="confirming" class="flex items-center gap-1.5">
-                                                    <span class="text-xs text-gray-600 dark:text-gray-300">{{ tenant_money($totalAmountDue) }}?</span>
-                                                    <button type="button" wire:click="recordPayment({{ $enrolment->id }})" x-on:click.stop="confirming = false"
-                                                        class="rounded-md bg-success-600 px-2 py-1 text-xs font-medium text-white hover:bg-success-700 transition-colors">Yes</button>
-                                                    <button type="button" x-on:click.stop="confirming = false"
-                                                        class="rounded-md bg-gray-200 dark:bg-gray-700 px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">No</button>
-                                                </div>
-                                            </div>
+                                            <button
+                                                type="button"
+                                                wire:click="viewAccount({{ $enrolment->id }})"
+                                                class="shrink-0 rounded-md bg-warning-600 px-3 py-1 text-xs font-medium text-white hover:bg-warning-700 transition-colors">
+                                                View account
+                                            </button>
                                         @endif
                                     </div>
 
@@ -156,14 +165,14 @@
 
                                             {{-- Total line --}}
                                             <div class="flex justify-between text-xs pt-2 mt-1 border-t border-gray-100 dark:border-gray-800 font-semibold text-gray-900 dark:text-white">
-                                                <span>Total due</span>
-                                                <span class="tabular-nums ml-4">{{ tenant_money($totalAmountDue) }}</span>
+                                                <span>This competitor</span>
+                                                <span class="tabular-nums ml-4">{{ tenant_money((float) $enrolment->fee_calculated + $enrolmentPlatformFee) }}</span>
                                             </div>
 
                                             {{-- Payment status --}}
                                             @if ($isPaid)
                                                 <p class="text-xs text-success-600 pt-1">
-                                                    ✓ Paid {{ tenant_money($enrolment->cart?->payment_amount ?? $totalAmountDue) }}
+                                                    ✓ Paid {{ tenant_money($enrolment->cart?->payment_amount ?? $cartOutstanding) }}
                                                     @if ($enrolment->cart?->payment_received_at)
                                                         on {{ tenant_date($enrolment->cart->payment_received_at) }}
                                                     @endif
@@ -185,4 +194,79 @@
             <p class="text-sm text-center text-gray-500 py-4">No active competitions with registrations from your {{ strtolower($dojos->count() > 1 ? tenant_group_name_plural() : tenant_group_name()) }}.</p>
         </x-filament::section>
     @endforelse
+
+    {{-- Account slide-over --}}
+    @if ($this->viewingCartId)
+        @php $viewCart = $this->getViewingCart(); @endphp
+        @if ($viewCart)
+            <div
+                class="fixed inset-0 z-50 flex"
+                wire:click.self="closeAccount">
+
+                {{-- Backdrop --}}
+                <div class="absolute inset-0 bg-black/40 dark:bg-black/60" wire:click="closeAccount"></div>
+
+                {{-- Panel --}}
+                <div class="relative ml-auto h-full w-full max-w-md bg-white dark:bg-gray-900 shadow-xl flex flex-col overflow-hidden">
+
+                    {{-- Header --}}
+                    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <div>
+                            <p class="font-semibold text-gray-900 dark:text-white text-base">Account</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Balance due</p>
+                        </div>
+                        <button
+                            type="button"
+                            wire:click="closeAccount"
+                            class="rounded-md p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                            <x-heroicon-m-x-mark class="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    {{-- Enrolment breakdown --}}
+                    <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                        @php
+                            $vcPlatformFee = (float) ($viewCart->platform_fee_rate ?? $platformFee);
+                            $vcTotal       = $viewCart->outstandingAmount($vcPlatformFee);
+                        @endphp
+
+                        <div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden text-sm">
+                            @foreach ($viewCart->enrolments as $ve)
+                                <div class="flex justify-between px-4 py-2.5">
+                                    <div>
+                                        <p class="text-sm text-gray-800 dark:text-gray-200 font-medium">{{ $ve->competitor?->full_name ?? '—' }}</p>
+                                        <p class="text-xs text-gray-400 mt-0.5">{{ $ve->activeEvents->pluck('competitionEvent.name')->join(', ') ?: '—' }}</p>
+                                    </div>
+                                    <span class="tabular-nums text-sm font-medium ml-4 shrink-0">
+                                        {{ tenant_money((float) $ve->fee_calculated + $vcPlatformFee) }}
+                                    </span>
+                                </div>
+                            @endforeach
+                            <div class="flex justify-between px-4 py-2.5 font-semibold bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
+                                <span>Total due</span>
+                                <span class="tabular-nums">{{ tenant_money($vcTotal) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Footer — record payment --}}
+                    @if (! $viewCart->isPaid())
+                        <div class="border-t border-gray-200 dark:border-gray-700 px-5 py-4">
+                            <x-filament::button
+                                wire:click="recordPayment({{ $viewCart->enrolments->first()?->id }})"
+                                color="success"
+                                class="w-full justify-center">
+                                Mark payment received — {{ tenant_money($vcTotal) }}
+                            </x-filament::button>
+                        </div>
+                    @else
+                        <div class="border-t border-gray-200 dark:border-gray-700 px-5 py-4">
+                            <p class="text-sm text-success-600 dark:text-success-400 text-center font-medium">✓ Payment received</p>
+                        </div>
+                    @endif
+
+                </div>
+            </div>
+        @endif
+    @endif
 </x-filament-panels::page>

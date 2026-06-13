@@ -9,7 +9,7 @@
         <div class="flex flex-wrap gap-3 items-center">
             <x-filament::input.wrapper class="flex-1 min-w-48">
                 <select wire:model.live="competition_id"
-                    class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
+                    class="w-full block border-0 bg-white dark:bg-gray-800 py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
                     <option value="">— Select competition —</option>
                     @foreach ($this->getCompetitions() as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
@@ -21,7 +21,7 @@
             @if (! empty($locations))
                 <x-filament::input.wrapper class="min-w-40">
                     <select wire:model.live="filter_location"
-                        class="w-full block border-0 bg-transparent py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
+                        class="w-full block border-0 bg-white dark:bg-gray-800 py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
                         <option value="">— All locations —</option>
                         @foreach ($locations as $loc)
                             <option value="{{ $loc }}">{{ $loc }}</option>

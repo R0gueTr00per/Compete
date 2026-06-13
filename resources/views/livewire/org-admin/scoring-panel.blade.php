@@ -46,6 +46,20 @@
                         $dqViaPenalties     = in_array('dq', $enabledPenalties);
                         $isBracket          = $this->isTournament();
                         $highLowDrop        = $div->competitionEvent->high_low_drop ?? false;
+                        // Progress chip counts (items 3 + 7)
+                        $progressTotal      = 0;
+                        $progressDone       = 0;
+                        if (! $this->rollcallMode) {
+                            if ($isBracket) {
+                                $_bd           = $this->getBracketData();
+                                $_am           = collect($_bd)->flatten(2)->filter(fn($m) => ! $m->is_bye);
+                                $progressTotal = $_am->count();
+                                $progressDone  = $_am->filter(fn($m) => ! $m->is_pending)->count();
+                            } else {
+                                $progressTotal = $rows->count();
+                                $progressDone  = count($this->savedResultIds);
+                            }
+                        }
                     @endphp
                     <div x-show="!cancelling" class="mb-2 rounded-lg border border-primary-200 dark:border-primary-700 bg-white dark:bg-gray-800 p-4 scoring-panel-glow">
 
@@ -97,6 +111,15 @@
                                     {{ $pill }}
                                 </span>
                             @endforeach
+                            @if (! $this->rollcallMode && $progressTotal > 0)
+                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs
+                                    {{ $progressDone === $progressTotal
+                                        ? 'bg-success-50 dark:bg-success-900/30 text-success-600 dark:text-success-400'
+                                        : 'bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' }}">
+                                    <x-heroicon-m-check-circle class="w-3 h-3 shrink-0" />
+                                    {{ $progressDone }} / {{ $progressTotal }} {{ $isBracket ? 'matches' : 'scored' }}
+                                </span>
+                            @endif
                         </div>
                         @endif
 
@@ -375,13 +398,18 @@
 
                                                         @php
                                                             $pending    = $match->is_pending;
+                                                            $isWaiting  = $pending && ($match->home_id === null || $match->away_id === null);
                                                             $homeWon    = $match->home_result === 'win';
                                                             $awayWon    = $match->home_result === 'loss';
                                                             $homeResult = ($rowsByEeId[$match->home_id] ?? null)?->result;
                                                             $awayResult = ($rowsByEeId[$match->away_id] ?? null)?->result;
                                                         @endphp
-                                                        <div class="rounded-lg border px-3 py-2 text-sm
-                                                            {{ ! $pending ? 'border-success-200 dark:border-success-800 bg-success-50 dark:bg-success-900/20' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900' }}">
+                                                        <div class="rounded-lg border border-l-4 px-3 py-2 text-sm
+                                                            {{ ! $pending
+                                                                ? 'border-success-200 dark:border-success-800 bg-success-50 dark:bg-success-900/20 border-l-success-500 dark:border-l-success-500'
+                                                                : ($isWaiting
+                                                                    ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 border-l-amber-400 dark:border-l-amber-500 opacity-50'
+                                                                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 border-l-blue-400 dark:border-l-blue-500') }}">
 
                                                             {{-- Names row --}}
                                                             <div class="flex items-start gap-2">
@@ -1213,7 +1241,7 @@
                                 {{-- Desktop: original table --}}
                                 <div class="hidden sm:block overflow-x-auto">
                                     <table class="w-full text-base">
-                                        <thead>
+                                        <thead class="bg-gray-50 dark:bg-gray-800/60">
                                             <tr class="border-b border-gray-200 dark:border-gray-700 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                                                 <th class="pb-2 pr-4">Competitor</th>
                                                 @if (in_array($method, ['judges_total', 'judges_average']))
@@ -1239,9 +1267,9 @@
                                                 @endphp
                                                 <tbody wire:key="dtrow-{{ $result->id }}"
                                                     data-scoring-key="row-{{ $result->id }}"
-                                                    class="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                                                    class="border-b border-gray-100 dark:border-gray-800 last:border-b-0 border-l-4 {{ $isSaved ? 'border-l-success-400 dark:border-l-success-500' : 'border-l-blue-400 dark:border-l-blue-500' }}">
                                                 <tr class="{{ $result->disqualified ? 'opacity-50' : '' }}">
-                                                    <td class="py-2 pr-4">
+                                                    <td class="py-2 pr-4 pl-3">
                                                         <div class="flex items-center gap-1 font-medium text-gray-900 dark:text-white">
                                                             <span class="truncate min-w-0">{{ $row->name }}</span>
                                                             @if ($result->disqualified || $result->forfeited)
@@ -1510,6 +1538,7 @@
                                                                 @endif
                                                                 @if (in_array($method, ['judges_total', 'judges_average']))
                                                                     @if ($isSaved)
+                                                                        <span class="text-xs font-medium text-success-600 dark:text-success-400">Saved</span>
                                                                         <x-filament::button size="xs" color="gray"
                                                                             wire:click="undoJudgeScores({{ $result->id }})"
                                                                             :disabled="$inTiebreakerFlow">

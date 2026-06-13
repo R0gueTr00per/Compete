@@ -5,6 +5,13 @@
         $cartKeys           = $this->getCartDraftKeys();
         $allEnrolments      = $this->getAllEnrolments();
 
+        // Competition currently in the draft cart (if any), for cross-competition conflict detection
+        $cartCompetitionId  = null;
+        if (! empty($cartKeys)) {
+            $parts             = explode(':', $cartKeys[0]);
+            $cartCompetitionId = (int) ($parts[1] ?? 0) ?: null;
+        }
+
         $incompleteProfiles = $profiles->filter(fn ($p) => ! $p->profile_complete);
     @endphp
 
@@ -181,12 +188,17 @@
                 {{-- Profile rows --}}
                 @if ($competition->status !== 'advertise')
                 @php
-                    $sortedProfiles = $profiles->sortBy([
-                        fn ($p) => (($allEnrolments->get($p->id)?->get($competition->id) === null ||
-                                     $allEnrolments->get($p->id)?->get($competition->id)?->status === 'withdrawn') &&
-                                    ! in_array("{$p->id}:{$competition->id}", $cartKeys)) ? 1 : 0,
-                        fn ($p) => $p->first_name . ' ' . $p->surname,
-                    ]);
+                    $sortedProfiles = $profiles
+                        ->sortBy(fn ($p) => $p->first_name . ' ' . $p->surname)
+                        ->sortBy(function ($p) use ($allEnrolments, $cartKeys, $competition) {
+                            $isRegistered = ($allEnrolments->get($p->id)?->get($competition->id) !== null &&
+                                $allEnrolments->get($p->id)->get($competition->id)->status !== 'withdrawn')
+                                || in_array("{$p->id}:{$competition->id}", $cartKeys);
+                            $isSelf = $p->profile_type === 'self';
+                            if ($isRegistered && $isSelf) return 0;
+                            if ($isRegistered)              return 1;
+                            return 2;
+                        });
                 @endphp
                 <div class="p-3 space-y-2">
                     @foreach ($sortedProfiles as $profile)
@@ -260,12 +272,21 @@
                                         Check out
                                     </x-filament::button>
                                 @elseif ($canRegister)
-                                    <x-filament::button
-                                        href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}&competition_id={{ $competition->id }}&redirect_to=dashboard"
-                                        tag="a" color="primary" size="sm" icon="heroicon-o-plus"
-                                        class="flex-shrink-0">
-                                        Register
-                                    </x-filament::button>
+                                    @if ($cartCompetitionId && $cartCompetitionId !== $competition->id)
+                                        <x-filament::button
+                                            wire:click="showCartConflict({{ $cartCompetitionId }})"
+                                            color="gray" size="sm" icon="heroicon-o-plus"
+                                            class="flex-shrink-0 opacity-50 cursor-not-allowed">
+                                            Register
+                                        </x-filament::button>
+                                    @else
+                                        <x-filament::button
+                                            href="{{ route('filament.portal.pages.enrol') }}?profile_id={{ $profile->id }}&competition_id={{ $competition->id }}&redirect_to=dashboard"
+                                            tag="a" color="primary" size="sm" icon="heroicon-o-plus"
+                                            class="flex-shrink-0">
+                                            Register
+                                        </x-filament::button>
+                                    @endif
                                 @endif
 
                                 @if ($isEnrolled && ! $isWithdrawn && $this->canWithdraw($enrolment))

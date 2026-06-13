@@ -300,6 +300,10 @@ class EnrolmentService
             ], $fillable));
             $enrolment->forceFill(['fee_calculated' => $fee])->save();
 
+            if (! $cart->competition_id) {
+                $cart->forceFill(['competition_id' => $competition->id])->save();
+            }
+
             // Replace event records
             $enrolment->enrolmentEvents()->delete();
             foreach ($divisionsByEvent as $eventId => $divisionIds) {
@@ -336,6 +340,13 @@ class EnrolmentService
                 $notifiable = $enrolment->competitor->notifiableUser();
                 if ($notifiable) {
                     $notifiable->notify(new EnrolmentConfirmedNotification($enrolment));
+                }
+            }
+
+            if (! $cart->competition_id) {
+                $compId = $cart->enrolments()->value('competition_id');
+                if ($compId) {
+                    $cart->forceFill(['competition_id' => $compId])->save();
                 }
             }
 

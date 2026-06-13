@@ -61,14 +61,33 @@ class EnrolPage extends Page implements HasForms
 
     public function mount(): void
     {
-        // Find the user's single global draft cart
+        // Resolve competition first so cart check can be scoped to it
+        if ($this->competition_id === null) {
+            $open = Competition::where('status', 'open')
+                ->where('organisation_id', app('tenant')?->id)
+                ->orderBy('competition_date')
+                ->first();
+            if ($open) {
+                $this->competition_id = $open->id;
+            }
+        }
+
+        // Carts are restricted to one competition at a time while payments are manual
+        // (cash at check-in). Remove this restriction once online payments are supported —
+        // multi-competition checkout will be desirable then.
         $draft = EnrolmentCart::where('user_id', auth()->id())
             ->where('status', 'draft')
             ->latest()
             ->first();
 
         if ($draft) {
-            $this->cartId = $draft->id;
+            $crossComp = $this->competition_id && $draft->draftEnrolments()
+                ->where('competition_id', '!=', $this->competition_id)
+                ->exists();
+
+            if (! $crossComp) {
+                $this->cartId = $draft->id;
+            }
         }
 
         // Pre-fill from the last enrolment for this profile (or any owned profile)
@@ -89,17 +108,6 @@ class EnrolPage extends Page implements HasForms
         $this->guest_style = $last?->guest_style;
         $this->rank_id     = $last?->rank_id;
         $this->weight_kg   = $last?->weight_kg ? (float) $last->weight_kg : null;
-
-        // competition_id from URL takes priority; otherwise auto-select
-        if ($this->competition_id === null) {
-            $open = Competition::where('status', 'open')
-                ->where('organisation_id', app('tenant')?->id)
-                ->orderBy('competition_date')
-                ->first();
-            if ($open) {
-                $this->competition_id = $open->id;
-            }
-        }
     }
 
     // ── Page header — cart shortcut ──────────────────────────────────────────
@@ -251,6 +259,21 @@ class EnrolPage extends Page implements HasForms
         }
 
         if (! $this->cartId) {
+            $existingDraft = EnrolmentCart::where('user_id', auth()->id())
+                ->where('status', 'draft')
+                ->first();
+
+            if ($existingDraft && $existingDraft->draftEnrolments()
+                ->where('competition_id', '!=', $this->competition_id)
+                ->exists()) {
+                Notification::make()
+                    ->title('Cart has entries for another competition.')
+                    ->body('Checkout or clear your cart before registering for a different competition.')
+                    ->warning()
+                    ->send();
+                return;
+            }
+
             $cart         = app(EnrolmentService::class)->createOrResumeCart(auth()->user());
             $this->cartId = $cart->id;
         } else {

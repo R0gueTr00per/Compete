@@ -12,7 +12,7 @@
                 </x-filament::button>
                 <x-filament::button
                     tag="a"
-                    href="{{ \App\Filament\Admin\Resources\EnrolmentResource::getUrl() }}"
+                    href="{{ \App\Filament\OrgAdmin\Resources\EnrolmentResource::getUrl() }}"
                     color="gray"
                     size="lg"
                 >
@@ -24,7 +24,7 @@
                 </x-filament::button>
                 <x-filament::button
                     tag="a"
-                    href="{{ \App\Filament\Admin\Resources\EnrolmentResource::getUrl() }}"
+                    href="{{ \App\Filament\OrgAdmin\Resources\EnrolmentResource::getUrl() }}"
                     color="gray"
                     size="lg"
                 >
@@ -36,7 +36,7 @@
                 </x-filament::button>
                 <x-filament::button
                     tag="a"
-                    href="{{ \App\Filament\Admin\Resources\EnrolmentResource::getUrl() }}"
+                    href="{{ \App\Filament\OrgAdmin\Resources\EnrolmentResource::getUrl() }}"
                     color="gray"
                     size="lg"
                 >

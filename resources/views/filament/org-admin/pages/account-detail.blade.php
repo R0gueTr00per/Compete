@@ -1,3 +1,15 @@
+{{-- User identity --}}
+<div class="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100 dark:border-gray-800">
+    <div class="min-w-0">
+        @if ($user->selfProfile?->full_name)
+            <p class="text-base font-semibold text-gray-900 dark:text-white">{{ $user->selfProfile->full_name }}</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ $user->email }}</p>
+        @else
+            <p class="text-base font-semibold text-gray-900 dark:text-white">{{ $user->email }}</p>
+        @endif
+    </div>
+</div>
+
 @php
     $orgFee      = (float) (app('tenant')?->platform_fee ?? 0);
     $outstanding = 0.0;
@@ -36,6 +48,7 @@
             <p class="text-lg font-bold text-danger-700 dark:text-danger-300 tabular-nums">{{ tenant_money($refundDue) }}</p>
         </div>
     @endif
+    @if ($totalPaid > 0 || $refundDue > 0 || abs($net) < 0.01)
     <div class="flex-1 min-w-[120px] rounded-lg px-4 py-3 text-center
         {{ abs($net) < 0.01
             ? 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
@@ -51,7 +64,12 @@
             {{ abs($net) < 0.01 ? '—' : tenant_money(abs($net)) }}
         </p>
     </div>
+    @endif
 </div>
+
+@if ($carts->isEmpty())
+    <p class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No transactions found.</p>
+@endif
 
 {{-- Per-competition carts --}}
 @foreach ($carts as $cart)

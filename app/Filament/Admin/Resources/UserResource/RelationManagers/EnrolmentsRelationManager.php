@@ -2,7 +2,7 @@
 
 namespace App\Filament\Admin\Resources\UserResource\RelationManagers;
 
-use App\Filament\Admin\Resources\EnrolmentResource;
+use App\Filament\OrgAdmin\Resources\EnrolmentResource;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;

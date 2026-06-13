@@ -134,11 +134,11 @@
         <div class="mb-3 p-3 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
             <div class="flex items-start justify-between gap-2 mb-2">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-warning-600 dark:text-warning-400 mb-0.5">Account balance</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-warning-600 dark:text-warning-400 mb-0.5">Balance due</p>
                     <p class="text-lg font-bold text-warning-800 dark:text-warning-200 leading-none">{{ tenant_money($accountBalance) }}</p>
                     @if ($hasOtherCarts)
                         <p class="text-xs text-warning-600 dark:text-warning-400 mt-1">
-                            Includes other outstanding registrations. This registration: {{ tenant_money($cartOutstanding) }}
+                            Includes other outstanding fees. This competition: {{ tenant_money($cartOutstanding) }}
                         </p>
                     @endif
                 </div>
@@ -147,11 +147,11 @@
             <div x-data="{ confirming: false }">
                 <div x-show="!confirming">
                     <x-filament::button size="sm" color="warning" x-on:click="confirming = true">
-                        Mark this registration paid
+                        Mark payment received
                     </x-filament::button>
                 </div>
                 <div x-show="confirming" class="flex flex-wrap items-center gap-2">
-                    <span class="text-xs text-warning-700 dark:text-warning-300">Confirm {{ tenant_money($cartOutstanding) }} received for this registration?</span>
+                    <span class="text-xs text-warning-700 dark:text-warning-300">Confirm {{ tenant_money($cartOutstanding) }} received?</span>
                     <x-filament::button size="sm" color="success"
                         wire:click="recordPayment({{ $enrolment->id }})"
                         x-on:click="confirming = false">

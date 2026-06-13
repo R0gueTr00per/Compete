@@ -136,9 +136,9 @@ class CreateAdminEnrolment extends Page implements HasForms
                                 ->where('is_active', true)
                                 ->where('organisation_id', app('tenant')?->id)
                                 ->get()
-                                ->sortBy('surname')
+                                ->sortBy('first_name')
                                 ->mapWithKeys(fn ($p) => [
-                                    $p->id => $p->surname . ', ' . $p->first_name
+                                    $p->id => $p->first_name . ' ' . $p->surname
                                         . ' (age ' . ($p->age ?? '?') . ')',
                                 ])
                         )
