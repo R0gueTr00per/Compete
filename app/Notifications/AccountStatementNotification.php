@@ -81,6 +81,6 @@ class AccountStatementNotification extends Notification
 
         $message->line('If you have any questions please contact the organisation directly.');
 
-        return $message->action('View my account', route('filament.portal.pages.my-enrolments'));
+        return $message->action('View my account', route('filament.portal.pages.account'));
     }
 }

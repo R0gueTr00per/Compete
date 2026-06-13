@@ -68,7 +68,14 @@
         </div>
 
         @forelse ($profiles as $profile)
-            <x-filament::section class="mb-4">
+            @php
+                $profileAccent = ! $profile->is_active
+                    ? 'border-l-gray-300 dark:border-l-gray-600'
+                    : (! $profile->profile_complete
+                        ? 'border-l-amber-400 dark:border-l-amber-500'
+                        : 'border-l-primary-400 dark:border-l-primary-500');
+            @endphp
+            <x-filament::section class="mb-4 border-l-4 {{ $profileAccent }}">
                 <x-slot name="heading">
                     {{ $profile->full_name }}
                     @if ($profile->profile_type === 'family_member')

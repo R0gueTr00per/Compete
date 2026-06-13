@@ -111,9 +111,7 @@
                 $totalFee = $compEnrolments->sum(fn($e) => $e->fee_calculated + (float)($e->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0));
             @endphp
 
-            <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 border-l-4 {{ $accentColorClass }} {{ $glowClass }} bg-white dark:bg-gray-900 comp-card-enter
-                {{ $competition->status === 'running'   ? 'status-pulse-running'   : '' }}
-                {{ $competition->status === 'check_in'  ? 'status-pulse-checkin' : '' }}"
+            <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 border-l-4 {{ $accentColorClass }} {{ $glowClass }} bg-white dark:bg-gray-900 comp-card-enter"
                 style="animation-delay: {{ $loop->index * 80 }}ms"
             >
 
@@ -182,8 +180,16 @@
 
                 {{-- Profile rows --}}
                 @if ($competition->status !== 'advertise')
+                @php
+                    $sortedProfiles = $profiles->sortBy([
+                        fn ($p) => (($allEnrolments->get($p->id)?->get($competition->id) === null ||
+                                     $allEnrolments->get($p->id)?->get($competition->id)?->status === 'withdrawn') &&
+                                    ! in_array("{$p->id}:{$competition->id}", $cartKeys)) ? 1 : 0,
+                        fn ($p) => $p->first_name . ' ' . $p->surname,
+                    ]);
+                @endphp
                 <div class="p-3 space-y-2">
-                    @foreach ($profiles as $profile)
+                    @foreach ($sortedProfiles as $profile)
                         @php
                             $enrolment     = $allEnrolments->get($profile->id)?->get($competition->id);
                             $isEnrolled    = $enrolment !== null;

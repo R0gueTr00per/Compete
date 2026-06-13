@@ -52,6 +52,6 @@ class PaymentReceivedNotification extends Notification
             ->line('Method: ' . ucfirst($this->method))
             ->line('If you have any questions please contact the organisation directly.');
 
-        return $message->action('View my account', route('filament.portal.pages.my-enrolments'));
+        return $message->action('View my account', route('filament.portal.pages.account'));
     }
 }

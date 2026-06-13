@@ -7,7 +7,7 @@ use App\Models\Competition;
 use App\Models\Enrolment;
 use App\Models\EnrolmentCart;
 use App\Filament\Portal\Pages\CartPage;
-use App\Filament\Portal\Pages\MyEnrolmentsPage;
+use App\Filament\Portal\Pages\MyEnrolmentsPage as AccountPage;
 use App\Notifications\Notification;
 use App\Services\EnrolmentService;
 use Filament\Actions\Action;
@@ -140,13 +140,13 @@ class Dashboard extends BaseDashboard
             $actions[] = Action::make('account_balance')
                 ->label(tenant_money($outstanding) . ' outstanding')
                 ->icon('heroicon-o-banknotes')
-                ->url(MyEnrolmentsPage::getUrl())
+                ->url(AccountPage::getUrl())
                 ->color('warning');
         } else {
             $actions[] = Action::make('account_balance')
                 ->label('Account')
                 ->icon('heroicon-o-banknotes')
-                ->url(MyEnrolmentsPage::getUrl())
+                ->url(AccountPage::getUrl())
                 ->color('gray');
         }
 

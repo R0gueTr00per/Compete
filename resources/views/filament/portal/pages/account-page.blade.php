@@ -77,14 +77,14 @@
                         @endif
                     </div>
 
-                    <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                    <div class="space-y-2 mt-3">
                         @if ($compEnrolments->isEmpty())
                             <p class="py-3 text-xs text-gray-400 italic">Registration superseded by a new registration.</p>
                         @endif
 
                         @foreach ($compEnrolments as $enrolment)
                             @if ($enrolment->trashed())
-                                <div class="py-3 opacity-50">
+                                <div class="rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 opacity-50">
                                     <div class="flex items-center justify-between gap-2">
                                         <p class="text-sm text-gray-500 line-through">{{ $enrolment->competitor?->full_name }}</p>
                                         <x-filament::badge color="gray" size="sm">Replaced</x-filament::badge>
@@ -108,7 +108,12 @@
                                     : (float) ($comp?->fee_additional_event ?? $cart->fee_additional_rate ?? 0);
                             @endphp
 
-                            <div class="py-4 {{ $isWithdrawnE ? 'opacity-70' : '' }}">
+                            @php
+                                $enrolmentAccent = $isWithdrawnE
+                                    ? 'border-l-gray-300 dark:border-l-gray-600'
+                                    : ($isPaid ? 'border-l-green-400 dark:border-l-green-500' : 'border-l-amber-400 dark:border-l-amber-500');
+                            @endphp
+                            <div class="rounded-lg border border-gray-100 dark:border-gray-700 border-l-4 {{ $enrolmentAccent }} bg-gray-50 dark:bg-gray-800 p-3 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors {{ $isWithdrawnE ? 'opacity-70' : '' }}">
                                 <div class="flex items-center justify-between gap-2 mb-2">
                                     <p class="font-semibold text-sm text-gray-900 dark:text-white">{{ $enrolment->competitor?->full_name }}</p>
                                     <div class="flex items-center gap-2 flex-shrink-0">
@@ -126,13 +131,14 @@
                                 <div class="space-y-1">
                                     @foreach ($enrolment->activeEvents as $ee)
                                         <div class="text-xs {{ $isWithdrawnE ? 'text-gray-500 line-through' : 'text-gray-600 dark:text-gray-400' }}">
-                                            <div class="flex items-center justify-between">
-                                                <span>
-                                                    {{ $ee->competitionEvent->name }}
-                                                    @if ($ee->division)<span class="{{ $isWithdrawnE ? '' : 'text-gray-400' }}"> &middot; {{ $isWithdrawnE ? $ee->division->label : $ee->division->code . ' — ' . $ee->division->label }}</span>@endif
-                                                    @if (! $isWithdrawnE && $loop->first && $isOfficial)<span class="ml-1 text-gray-400">(official rate)</span>@endif
+                                            <div class="flex items-center justify-between gap-2">
+                                                <span class="flex items-center gap-1.5 min-w-0">
+                                                    @if ($ee->division && ! $isWithdrawnE)
+                                                        <span class="shrink-0 font-mono text-[0.65rem] font-semibold px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">{{ $ee->division->code }}</span>
+                                                    @endif
+                                                    <span>{{ $ee->competitionEvent->name }}@if ($ee->division)<span class="{{ $isWithdrawnE ? '' : 'text-gray-400 dark:text-gray-500' }}"> &mdash; {{ $ee->division->label }}</span>@endif@if (! $isWithdrawnE && $loop->first && $isOfficial)<span class="ml-1 text-gray-400">(official rate)</span>@endif</span>
                                                 </span>
-                                                <span class="{{ $isWithdrawnE ? '' : 'font-medium' }} tabular-nums">{{ tenant_money($loop->first ? $firstRate : $addRate) }}</span>
+                                                <span class="{{ $isWithdrawnE ? '' : 'font-medium' }} tabular-nums shrink-0">{{ tenant_money($loop->first ? $firstRate : $addRate) }}</span>
                                             </div>
                                             @if (! $isWithdrawnE && $ee->previous_division_id && $ee->previousDivision)
                                                 <p class="text-xs text-info-600 dark:text-info-400 mt-0.5 ml-2">Changed from: {{ $ee->previousDivision->label }}</p>

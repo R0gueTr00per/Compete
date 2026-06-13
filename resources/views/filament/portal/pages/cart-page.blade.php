@@ -22,7 +22,7 @@
                 $comp = $items->first()['competition'];
                 $enrolmentsClosed = ! $comp->isEnrolmentOpen();
             @endphp
-            <x-filament::section class="mb-6">
+            <x-filament::section class="mb-6 border-l-4 {{ $enrolmentsClosed ? 'border-l-danger-400 dark:border-l-danger-500' : 'border-l-primary-400 dark:border-l-primary-500' }}">
                 <x-slot name="heading">
                     <span class="flex items-center gap-2 flex-wrap">
                         {{ $comp->name }}
@@ -35,7 +35,7 @@
 
                 <div class="space-y-4">
                     @foreach ($items as $item)
-                        <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4 relative">
+                        <div class="rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 border-l-primary-400 dark:border-l-primary-500 p-4 relative">
                             {{-- Remove button --}}
                             <button
                                 wire:click="startRemove({{ $item['enrolment']->id }})"
@@ -66,9 +66,14 @@
                                 @endif
 
                                 @foreach ($events as $ee)
-                                    <div class="flex justify-between text-gray-600 dark:text-gray-400">
-                                        <span>{{ $ee->competitionEvent->name }}@if ($ee->division) <span class="text-gray-400 dark:text-gray-500">&middot; {{ $ee->division->code }} &mdash; {{ $ee->division->label }}</span>@endif</span>
-                                        <span>{{ tenant_money($loop->first ? $firstFee : $addFee) }}</span>
+                                    <div class="flex items-center justify-between gap-2 text-gray-600 dark:text-gray-400">
+                                        <span class="flex items-center gap-1.5 min-w-0">
+                                            @if ($ee->division)
+                                                <span class="shrink-0 font-mono text-[0.65rem] font-semibold px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">{{ $ee->division->code }}</span>
+                                            @endif
+                                            <span>{{ $ee->competitionEvent->name }}@if ($ee->division) <span class="text-gray-400 dark:text-gray-500">&mdash; {{ $ee->division->label }}</span>@endif</span>
+                                        </span>
+                                        <span class="shrink-0 tabular-nums">{{ tenant_money($loop->first ? $firstFee : $addFee) }}</span>
                                     </div>
                                 @endforeach
                             </div>

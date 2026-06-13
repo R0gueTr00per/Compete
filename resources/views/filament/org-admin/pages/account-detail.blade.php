@@ -65,8 +65,13 @@
         $addRate     = (float) ($cart->fee_additional_rate ?? 0);
     @endphp
 
-    <div class="mb-6">
-        <div class="flex items-center justify-between mb-2">
+    @php
+        $cartAccent = $cart->isPaid()
+            ? 'border-l-green-400 dark:border-l-green-500'
+            : 'border-l-danger-400 dark:border-l-danger-500';
+    @endphp
+    <div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 {{ $cartAccent }} bg-white dark:bg-gray-900 overflow-hidden">
+        <div class="flex items-center justify-between px-4 pt-3 pb-2">
             <div>
                 <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $comp?->name ?? '—' }}</p>
                 <p class="text-xs text-gray-500">
@@ -77,8 +82,7 @@
             </div>
             <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{{ tenant_money($cart->total_amount) }}</span>
         </div>
-
-        <div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div class="divide-y divide-gray-100 dark:divide-gray-800 border-t border-gray-100 dark:border-gray-800">
             @foreach ($enrolments as $enrolment)
                 @php
                     $isEOfficial = $enrolment->is_official_discount;
@@ -122,10 +126,13 @@
                                 $fee       = $activeIdx === 0 ? $eFirstRate : $eAddRate;
                                 if (! $isRemoved) $activeIdx++;
                             @endphp
-                            <div class="flex justify-between {{ $isRemoved ? 'line-through text-gray-400' : '' }}">
-                                <span>
+                            <div class="flex justify-between gap-2 {{ $isRemoved ? 'line-through text-gray-400' : '' }}">
+                                <span class="flex items-center gap-1.5 min-w-0">
+                                    @if ($ee->division && ! $isRemoved)
+                                        <span class="shrink-0 font-mono text-[0.65rem] font-semibold px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">{{ $ee->division->code }}</span>
+                                    @endif
                                     {{ $ee->competitionEvent?->name }}
-                                    @if ($ee->division) &middot; {{ $ee->division->label }} @endif
+                                    @if ($ee->division) <span class="text-gray-400">&mdash; {{ $ee->division->label }}</span> @endif
                                     @if ($isRemoved)
                                         <span class="ml-1 rounded px-1 py-0.5 text-xs font-medium no-underline
                                             {{ ($ee->removal_type ?? '') === 'user_withdrawn' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700' }}"
@@ -167,9 +174,9 @@
 
         {{-- Refunds for this cart --}}
         @if ($refunds->isNotEmpty())
-            <div class="mt-2 divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div class="divide-y divide-gray-100 dark:divide-gray-800 border-t border-gray-100 dark:border-gray-800">
                 @foreach ($refunds as $refund)
-                    <div class="flex items-start justify-between gap-3 px-4 py-3">
+                    <div class="flex items-start justify-between gap-3 px-4 py-3 bg-danger-50/40 dark:bg-danger-950/20">
                         <div class="min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
@@ -195,5 +202,5 @@
                 @endforeach
             </div>
         @endif
-    </div>
+    </div>{{-- /cart card --}}
 @endforeach

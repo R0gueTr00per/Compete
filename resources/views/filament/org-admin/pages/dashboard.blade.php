@@ -47,7 +47,7 @@
             <p class="text-center text-gray-500 py-8">No active competitions.@if($isOrgAdmin) <a href="{{ route('filament.org-admin.resources.competitions.create') }}" class="text-primary-600 underline">Create one</a>.@endif</p>
         </x-filament::section>
     @else
-        <div class="grid gap-4 overflow-x-hidden">
+        <div class="grid gap-4">
             @foreach ($competitions as $competition)
                 @php
                     $qrUrl        = config('app.scheme') . '://' . app('tenant')->slug . '.' . config('app.domain') . '/schedule/' . $competition->id;
@@ -121,8 +121,31 @@
                         }, 'image/png');
                     }
                 }">
+                @php
+                    $cardAccent = match ($competition->status) {
+                        'open'              => 'accent-green',
+                        'enrolments_closed' => 'accent-amber',
+                        'check_in'          => 'accent-amber',
+                        'running'           => 'accent-blue',
+                        'complete'          => 'accent-gray',
+                        default             => 'accent-violet',
+                    };
+                    $cardGlow = match ($competition->status) {
+                        'open'              => 'shadow-[0_0_20px_-5px_rgba(74,222,128,0.45)]',
+                        'enrolments_closed' => 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.45)]',
+                        'check_in'          => 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.45)]',
+                        'running'           => 'shadow-[0_0_20px_-5px_rgba(96,165,250,0.45)]',
+                        default             => '',
+                    };
+                @endphp
+                <div class="rounded-xl {{ $cardAccent }} {{ $cardGlow }}">
                 <x-filament::section>
                     <x-slot name="heading">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-primary-500 dark:bg-primary-600 text-white text-center leading-none select-none shadow-sm">
+                                <span class="text-[0.65rem] font-bold uppercase tracking-wide opacity-90">{{ $competition->competition_date->format('M') }}</span>
+                                <span class="text-xl font-bold leading-none mt-0.5">{{ $competition->competition_date->format('j') }}</span>
+                            </div>
                         <div class="flex items-center gap-2 flex-wrap">
                             <span>{{ $competition->name }}</span>
                             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ $statusBadgeClass }}">
@@ -134,6 +157,7 @@
                                 @endif
                                 {{ $countdownLabel }}
                             </span>
+                        </div>
                         </div>
                     </x-slot>
                     @if ($isQrAvailable)
@@ -522,6 +546,7 @@
                     @endif
 
                 </x-filament::section>
+                </div>{{-- /card accent wrapper --}}
 
                 {{-- QR modal --}}
                 @if ($isQrAvailable)

@@ -15,7 +15,7 @@
     @endif
 </div>
 
-<div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+<div class="space-y-2">
     @foreach ($enrolments as $enrolment)
         @php
             $isOfficial  = $enrolment->is_official_discount;
@@ -27,7 +27,12 @@
                 : $cart->fee_additional_rate;
         @endphp
 
-        <div class="px-4 py-3">
+        @php
+            $tdAccent = $enrolment->status === 'withdrawn'
+                ? 'border-l-gray-300 dark:border-l-gray-600'
+                : ($cart->isPaid() ? 'border-l-green-400 dark:border-l-green-500' : 'border-l-amber-400 dark:border-l-amber-500');
+        @endphp
+        <div class="rounded-lg border border-gray-100 dark:border-gray-700 border-l-4 {{ $tdAccent }} bg-gray-50 dark:bg-gray-800 px-3 py-3">
             <div class="flex items-center justify-between mb-2">
                 <span class="font-semibold text-gray-900 dark:text-white text-sm">
                     {{ $enrolment->competitor?->full_name }}
@@ -63,9 +68,12 @@
                         $fee       = $activeIdx === 0 ? $firstRate : $addRate;
                         if (! $isRemoved) $activeIdx++;
                     @endphp
-                    <div class="flex items-center justify-between text-xs {{ $isRemoved ? 'text-gray-400' : 'text-gray-600 dark:text-gray-400' }}">
-                        <span class="{{ $isRemoved ? 'line-through' : '' }}">
-                            {{ $ee->competitionEvent->name }}@if ($ee->division) <span class="text-gray-400">&middot; {{ $ee->division->label }}</span>@endif
+                    <div class="flex items-center justify-between gap-2 text-xs {{ $isRemoved ? 'text-gray-400' : 'text-gray-600 dark:text-gray-400' }}">
+                        <span class="flex items-center gap-1.5 min-w-0 {{ $isRemoved ? 'line-through' : '' }}">
+                            @if ($ee->division && ! $isRemoved)
+                                <span class="shrink-0 font-mono text-[0.65rem] font-semibold px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">{{ $ee->division->code }}</span>
+                            @endif
+                            {{ $ee->competitionEvent->name }}@if ($ee->division) <span class="text-gray-400">&mdash; {{ $ee->division->label }}</span>@endif
                             @if ($isRemoved)
                                 <span class="ml-1 rounded px-1 py-0.5 text-xs font-medium {{ ($ee->removal_type ?? '') === 'user_withdrawn' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700' }}" style="text-decoration:none;">
                                     {{ ($ee->removal_type ?? '') === 'user_withdrawn' ? 'Withdrawn' : 'Cancelled' }}
@@ -116,9 +124,9 @@
 @if ($refunds->isNotEmpty())
     <div class="mt-4">
         <p class="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Refunds</p>
-        <div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+        <div class="space-y-2">
             @foreach ($refunds as $refund)
-                <div class="px-4 py-3">
+                <div class="rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-3">
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2 flex-wrap">

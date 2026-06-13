@@ -70,17 +70,6 @@
 }
 .comp-card-enter { animation: comp-card-enter 0.42s cubic-bezier(0.22,1,0.36,1) both; }
 
-/* ── Status-aware border pulse ── */
-@keyframes border-pulse-running {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0), 0 1px 3px rgba(0,0,0,0.08); }
-    50%       { box-shadow: 0 0 0 3px rgba(59,130,246,0.28), 0 1px 3px rgba(0,0,0,0.08); }
-}
-@keyframes border-pulse-checkin {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0), 0 1px 3px rgba(0,0,0,0.08); }
-    50%       { box-shadow: 0 0 0 3px rgba(245,158,11,0.3), 0 1px 3px rgba(0,0,0,0.08); }
-}
-.status-pulse-running { animation: border-pulse-running 2.8s ease-in-out infinite; }
-.status-pulse-checkin { animation: border-pulse-checkin 2.8s ease-in-out infinite; }
 
 /* ── Primary action spotlight (next step hint) ── */
 @keyframes btn-spotlight {
@@ -88,6 +77,30 @@
     50%       { box-shadow: 0 0 0 4px rgba(99,102,241,0.4); }
 }
 .btn-spotlight { border-radius: 8px; animation: btn-spotlight 2.2s ease-in-out infinite; }
+
+/* ── Left accent border colors ── */
+/* !important: filament-app.css loads after panel CSS; force these to win */
+.accent-green,
+.accent-amber,
+.accent-blue,
+.accent-red,
+.accent-gray,
+.accent-violet { border-left-width: 4px !important; border-left-style: solid !important; }
+
+.accent-green  { border-left-color: #4ade80 !important; } /* green-400  */
+.accent-amber  { border-left-color: #fbbf24 !important; } /* amber-400  */
+.accent-blue   { border-left-color: #60a5fa !important; } /* blue-400   */
+.accent-red    { border-left-color: #f87171 !important; } /* red-400    */
+.accent-gray   { border-left-color: #d1d5db !important; } /* gray-300   */
+.accent-violet { border-left-color: #a78bfa !important; } /* violet-400 */
+
+.dark .accent-green  { border-left-color: #22c55e !important; } /* green-500  */
+.dark .accent-amber  { border-left-color: #f59e0b !important; } /* amber-500  */
+.dark .accent-blue   { border-left-color: #3b82f6 !important; } /* blue-500   */
+.dark .accent-red    { border-left-color: #ef4444 !important; } /* red-500    */
+.dark .accent-gray   { border-left-color: #9ca3af !important; } /* gray-400   */
+.dark .accent-violet { border-left-color: #8b5cf6 !important; } /* violet-500 */
+
 
 /* ── Progress bar count-up ── */
 @keyframes progress-enter {

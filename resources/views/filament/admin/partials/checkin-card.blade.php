@@ -13,8 +13,23 @@
         default => null,
     };
     $paymentOutstanding = $enrolment->isPaymentOutstanding();
-    $platformFee        = (float) ($enrolment->cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
-    $totalAmountDue     = (float) $enrolment->fee_calculated + $platformFee;
+    $cart               = $enrolment->cart;
+    $platformFee        = (float) ($cart?->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+    $cartOutstanding    = $cart ? $cart->outstandingAmount($platformFee) : 0.0;
+
+    // Total account balance — all unpaid carts for this user in this org
+    $tenantId           = app('tenant')?->id;
+    $userId             = $cart?->user_id;
+    $accountBalance     = \App\Models\EnrolmentCart::where('user_id', $userId)
+        ->where('status', 'submitted')
+        ->where('payment_status', '!=', 'received')
+        ->whereHas('enrolments', fn ($q) => $q->withTrashed()
+            ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', $tenantId)))
+        ->with(['enrolments' => fn ($q) => $q->withoutTrashed()->where('status', '!=', 'withdrawn')])
+        ->get()
+        ->sum(fn ($c) => $c->outstandingAmount($platformFee));
+
+    $hasOtherCarts = $accountBalance > $cartOutstanding + 0.005;
 @endphp
 
 <div data-enrolment-id="{{ $enrolment->id }}" class="rounded-xl border {{ $checkedIn ? 'border-success-200 dark:border-success-800' : 'border-gray-200 dark:border-slate-700' }} bg-white dark:bg-slate-900 shadow-sm p-4">
@@ -117,17 +132,26 @@
     {{-- Payment --}}
     @if ($paymentOutstanding)
         <div class="mb-3 p-3 rounded-lg bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800">
-            <p class="text-sm font-semibold text-warning-800 dark:text-warning-200 mb-2">
-                💰 Payment outstanding — {{ tenant_money($totalAmountDue) }}
-            </p>
+            <div class="flex items-start justify-between gap-2 mb-2">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-warning-600 dark:text-warning-400 mb-0.5">Account balance</p>
+                    <p class="text-lg font-bold text-warning-800 dark:text-warning-200 leading-none">{{ tenant_money($accountBalance) }}</p>
+                    @if ($hasOtherCarts)
+                        <p class="text-xs text-warning-600 dark:text-warning-400 mt-1">
+                            Includes other outstanding registrations. This registration: {{ tenant_money($cartOutstanding) }}
+                        </p>
+                    @endif
+                </div>
+                <x-heroicon-o-banknotes class="w-5 h-5 text-warning-500 shrink-0 mt-0.5" />
+            </div>
             <div x-data="{ confirming: false }">
                 <div x-show="!confirming">
                     <x-filament::button size="sm" color="warning" x-on:click="confirming = true">
-                        Mark paid
+                        Mark this registration paid
                     </x-filament::button>
                 </div>
                 <div x-show="confirming" class="flex flex-wrap items-center gap-2">
-                    <span class="text-xs text-warning-700 dark:text-warning-300">Confirm {{ tenant_money($totalAmountDue) }} received?</span>
+                    <span class="text-xs text-warning-700 dark:text-warning-300">Confirm {{ tenant_money($cartOutstanding) }} received for this registration?</span>
                     <x-filament::button size="sm" color="success"
                         wire:click="recordPayment({{ $enrolment->id }})"
                         x-on:click="confirming = false">
@@ -143,8 +167,8 @@
         <div class="mb-3 flex items-center gap-1.5 text-xs text-success-600 dark:text-success-400">
             <x-heroicon-m-check-circle class="w-3.5 h-3.5 shrink-0" />
             Paid
-            @if ($enrolment->cart?->payment_amount)
-                — {{ tenant_money($enrolment->cart->payment_amount) }}
+            @if ($cart?->payment_amount)
+                — {{ tenant_money($cart->payment_amount) }}
             @endif
         </div>
     @endif

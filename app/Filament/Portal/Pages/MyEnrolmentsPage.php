@@ -14,8 +14,8 @@ class MyEnrolmentsPage extends Page
     protected static ?string $title            = 'Account';
     protected static ?string $navigationIcon  = 'heroicon-o-receipt-percent';
     protected static ?string $navigationLabel = 'Account';
-    protected static string  $view            = 'filament.portal.pages.my-enrolments-page';
-    protected static ?string $slug            = 'my-enrolments';
+    protected static string  $view            = 'filament.portal.pages.account-page';
+    protected static ?string $slug            = 'account';
     protected static ?int    $navigationSort  = 6;
 
     // Withdrawal modal state

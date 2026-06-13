@@ -11,30 +11,30 @@
     {{-- Active events --}}
     <div>
         <p class="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">Active Events</p>
-        <div class="divide-y divide-gray-100 dark:divide-gray-800">
+        <div class="flex flex-wrap gap-1.5">
             @forelse ($enrolment->activeEvents as $ee)
-                <div class="py-3">
-                    <p class="font-medium text-sm text-gray-900 dark:text-gray-100">
-                        {{ $ee->competitionEvent->name }}
-                        @if ($ee->competitionEvent->location_label)
-                            <span class="text-gray-400 font-normal">({{ $ee->competitionEvent->location_label }})</span>
-                        @endif
-                    </p>
+                <div class="inline-flex items-stretch rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs shadow-sm overflow-hidden">
                     @if ($ee->division)
-                        <p class="text-xs text-gray-500 mt-0.5">{{ $ee->division->full_label }}</p>
-                    @else
-                        <p class="text-xs text-gray-400 mt-0.5">Division not yet assigned</p>
+                        <div class="flex items-center justify-center px-2.5 bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 shrink-0">
+                            <span class="font-mono font-bold text-gray-600 dark:text-gray-300">{{ $ee->division->code }}</span>
+                        </div>
                     @endif
-                    @if ($ee->previous_division_id && $ee->previousDivision)
-                        <p class="text-xs text-info-600 dark:text-info-400 mt-0.5">
-                            Changed from: {{ $ee->previousDivision->label }}
-                        </p>
-                    @endif
-                    @if ($ee->competitionEvent->requires_partner)
-                        <p class="text-xs mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">
-                            Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}
-                        </p>
-                    @endif
+                    <div class="flex flex-col px-2.5 py-1.5">
+                        <span class="font-medium text-gray-700 dark:text-gray-300 leading-snug">
+                            {{ $ee->competitionEvent->name }}@if ($ee->competitionEvent->location_label) <span class="font-normal text-gray-400">({{ $ee->competitionEvent->location_label }})</span>@endif
+                        </span>
+                        @if ($ee->division)
+                            <span class="text-[0.65rem] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{{ $ee->division->full_label }}</span>
+                        @else
+                            <span class="text-[0.65rem] italic text-gray-400 dark:text-gray-500 mt-0.5">Division not yet assigned</span>
+                        @endif
+                        @if ($ee->previous_division_id && $ee->previousDivision)
+                            <span class="text-[0.65rem] text-info-600 dark:text-info-400 mt-0.5">Changed from: {{ $ee->previousDivision->label }}</span>
+                        @endif
+                        @if ($ee->competitionEvent->requires_partner)
+                            <span class="text-[0.65rem] mt-0.5 {{ $ee->yakusuko_complete ? 'text-success-600' : 'text-warning-600' }}">Partner: {{ $ee->yakusuko_complete ? 'Confirmed' : 'Pending' }}</span>
+                        @endif
+                    </div>
                 </div>
             @empty
                 <p class="py-4 text-sm text-gray-500">No active events.</p>
