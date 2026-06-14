@@ -359,7 +359,7 @@ class CompetitionResource extends Resource
                             Toggle::make('send_promo_email')
                                 ->label('Send promotional email to eligible users')
                                 ->helperText('Sends an email to all active users with profiles in this organisation who have not opted out.')
-                                ->default(true),
+                                ->default(false),
                         ])
                         ->modalSubmitActionLabel('Open registrations')
                         ->action(function (Competition $record, array $data) {
