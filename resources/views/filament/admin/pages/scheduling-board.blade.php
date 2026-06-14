@@ -36,7 +36,7 @@
             <p class="text-gray-500 dark:text-gray-400 font-medium">No locations defined</p>
             <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">
                 Add locations to this competition in the
-                <a href="{{ \App\Filament\Admin\Resources\CompetitionResource::getUrl('edit', ['record' => $this->getRecord()]) }}"
+                <a href="{{ \App\Filament\OrgAdmin\Resources\CompetitionResource::getUrl('edit', ['record' => $this->getRecord()]) }}"
                    class="text-primary-600 underline">competition settings</a>
                 to start scheduling.
             </p>

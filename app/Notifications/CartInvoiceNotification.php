@@ -3,11 +3,14 @@
 namespace App\Notifications;
 
 use App\Models\EnrolmentCart;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class CartInvoiceNotification extends Notification
+class CartInvoiceNotification extends Notification implements ShouldQueue
 {
+    use Queueable;
     /**
      * @param  array{competition: string, competition_date: string, location_name: ?string, items: array, grand_total: float}  $invoice
      */

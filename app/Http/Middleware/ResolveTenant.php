@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Organisation;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class ResolveTenant
@@ -33,7 +34,9 @@ class ResolveTenant
             abort(404);
         }
 
-        $org = Organisation::where('slug', $slug)->where('status', 'active')->first();
+        $org = Cache::remember("org:slug:{$slug}", 3600, fn () =>
+            Organisation::where('slug', $slug)->where('status', 'active')->first()
+        );
 
         if (! $org) {
             abort(404);

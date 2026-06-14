@@ -3,12 +3,15 @@
 namespace App\Notifications;
 
 use App\Models\EnrolmentCart;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 
-class AccountStatementNotification extends Notification
+class AccountStatementNotification extends Notification implements ShouldQueue
 {
+    use Queueable;
     /**
      * @param Collection<EnrolmentCart> $carts       All submitted carts for this org (with enrolments + refunds loaded)
      * @param float                     $outstanding  Total outstanding fees

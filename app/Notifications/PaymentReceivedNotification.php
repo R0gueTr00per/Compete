@@ -3,12 +3,15 @@
 namespace App\Notifications;
 
 use App\Models\EnrolmentCart;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 
-class PaymentReceivedNotification extends Notification
+class PaymentReceivedNotification extends Notification implements ShouldQueue
 {
+    use Queueable;
     /**
      * @param Collection<EnrolmentCart> $carts  Carts that were just marked as paid
      * @param string                    $method Payment method used

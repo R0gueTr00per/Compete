@@ -9,7 +9,7 @@
             <div class="mb-4 rounded-md bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-700 px-4 py-3 text-sm text-warning-700 dark:text-warning-300">
                 No locations have been defined for this competition.
                 Officials can still be added but cannot be assigned to a location until
-                <a href="{{ \App\Filament\Admin\Resources\CompetitionResource::getUrl('edit', ['record' => $this->getRecord()]) }}"
+                <a href="{{ \App\Filament\OrgAdmin\Resources\CompetitionResource::getUrl('edit', ['record' => $this->getRecord()]) }}"
                    class="underline font-medium">locations are configured</a>.
             </div>
         @endif

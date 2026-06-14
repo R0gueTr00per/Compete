@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Cache;
 
 class Organisation extends Model
 {
@@ -44,6 +45,18 @@ class Organisation extends Model
         'cancellation_days_before'     => 'integer',
         'supported_payment_methods'    => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        $clearCache = function (self $org) {
+            Cache::forget("org:slug:{$org->slug}");
+            if ($org->getOriginal('slug')) {
+                Cache::forget('org:slug:' . $org->getOriginal('slug'));
+            }
+        };
+        static::saved($clearCache);
+        static::deleted($clearCache);
+    }
 
     public function getRouteKeyName(): string
     {
