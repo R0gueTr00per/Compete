@@ -147,7 +147,20 @@
                         </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                             @if ($competition->location_name)
-                                <x-heroicon-o-map-pin class="w-3 h-3 inline-block mr-0.5 -mt-px opacity-60" />{{ $competition->location_name }}
+                                @if ($competition->location_url)
+                                    <a href="{{ $competition->location_url }}" target="_blank" rel="noopener noreferrer"
+                                       class="hover:underline"
+                                       @if ($competition->location_address) title="{{ $competition->location_address }}" @endif>
+                                        <x-heroicon-o-map-pin class="w-3 h-3 inline-block mr-0.5 -mt-px opacity-60" />{{ $competition->location_name }}
+                                    </a>
+                                @else
+                                    <span @if ($competition->location_address) title="{{ $competition->location_address }}" @endif>
+                                        <x-heroicon-o-map-pin class="w-3 h-3 inline-block mr-0.5 -mt-px opacity-60" />{{ $competition->location_name }}
+                                    </span>
+                                    @if ($competition->location_address)
+                                        <span class="sm:hidden"> &mdash; {{ $competition->location_address }}</span>
+                                    @endif
+                                @endif
                             @endif
                             @if ($competition->checkin_time)
                                 @if ($competition->location_name) &mdash; @endif

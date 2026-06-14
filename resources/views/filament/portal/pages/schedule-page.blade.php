@@ -46,7 +46,11 @@
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
                 <span>{{ tenant_date($competition->competition_date) }}</span>
                 @if ($competition->location_name)
-                    <span>&middot; {{ $competition->location_name }}</span>
+                    @if ($competition->location_url)
+                        <span>&middot; <a href="{{ $competition->location_url }}" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ $competition->location_name }}</a></span>
+                    @else
+                        <span>&middot; {{ $competition->location_name }}</span>
+                    @endif
                 @endif
                 @if ($competition->start_time)
                     <span>&middot; Starts {{ tenant_time($competition->start_time) }}</span>

@@ -117,10 +117,20 @@ class CompetitionResource extends Resource
                                         ->nullable(),
 
                                     TextInput::make('location_name')
-                                        ->maxLength(255),
+                                        ->maxLength(255)
+                                        ->helperText('The venue or facility name (e.g. City Sports Centre). Shown on the competitor portal.'),
 
                                     TextInput::make('location_address')
-                                        ->maxLength(500),
+                                        ->maxLength(500)
+                                        ->helperText('Full street address of the venue (e.g. 123 Main St, Brisbane QLD 4000).'),
+
+                                    TextInput::make('location_url')
+                                        ->label('Map URL')
+                                        ->url()
+                                        ->nullable()
+                                        ->columnSpanFull()
+                                        ->maxLength(2048)
+                                        ->helperText('Paste a Google Maps or Apple Maps link. Competitors can tap this to open the map on their device.'),
 
                                     TextInput::make('target_competitors')
                                         ->label('Target competitors')
@@ -468,6 +478,7 @@ class CompetitionResource extends Resource
                                 'checkin_time'         => $record->checkin_time,
                                 'location_name'        => $record->location_name,
                                 'location_address'     => $record->location_address,
+                                'location_url'         => $record->location_url,
                                 'enrolment_due_date'   => null,
                                 'target_competitors'              => $record->target_competitors,
                                 'fee_first_event'                 => $record->fee_first_event,
@@ -512,6 +523,7 @@ class CompetitionResource extends Resource
                                 'checkin_time'                    => $record->checkin_time,
                                 'location_name'                   => $record->location_name,
                                 'location_address'                => $record->location_address,
+                                'location_url'                    => $record->location_url,
                                 'target_competitors'              => $record->target_competitors,
                                 'fee_first_event'                 => $record->fee_first_event,
                                 'fee_additional_event'            => $record->fee_additional_event,

@@ -26,6 +26,7 @@ class Competition extends Model
         'checkin_time',
         'location_name',
         'location_address',
+        'location_url',
         'enrolment_due_date',
         'target_competitors',
         'fee_first_event',

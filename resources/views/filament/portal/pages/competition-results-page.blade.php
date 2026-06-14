@@ -51,7 +51,11 @@
                             </div>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                 @if ($competition->location_name)
-                                    {{ $competition->location_name }}
+                                    @if ($competition->location_url)
+                                        <a href="{{ $competition->location_url }}" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ $competition->location_name }}</a>
+                                    @else
+                                        {{ $competition->location_name }}
+                                    @endif
                                 @endif
                                 @if ($competition->checkin_time)
                                     @if ($competition->location_name) &mdash; @endif
