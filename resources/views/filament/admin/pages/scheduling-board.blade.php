@@ -270,6 +270,10 @@
                                     }
                                     $colTimeline[] = ['type' => 'div', 'div' => $div];
                                 }
+                                while ($bIdx < $colSortedBreaks->count()) {
+                                    $colTimeline[] = ['type' => 'break'] + $colSortedBreaks[$bIdx];
+                                    $bIdx++;
+                                }
                                 if (! $endInserted && $colComp->end_time) {
                                     $colTimeline[] = ['type' => 'end', 'end_time' => $colComp->end_time];
                                 }

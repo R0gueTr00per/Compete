@@ -132,6 +132,8 @@
                     };
                     $cardGlow = match ($competition->status) {
                         'open'              => 'shadow-[0_0_20px_-5px_rgba(74,222,128,0.45)]',
+                        'planning'          => 'shadow-[0_0_20px_-5px_rgba(167,139,250,0.45)]',
+                        'advertise'         => 'shadow-[0_0_20px_-5px_rgba(167,139,250,0.45)]',
                         'enrolments_closed' => 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.45)]',
                         'check_in'          => 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.45)]',
                         'running'           => 'shadow-[0_0_20px_-5px_rgba(96,165,250,0.45)]',
