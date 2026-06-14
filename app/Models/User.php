@@ -23,6 +23,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
     protected $fillable = [
         'organisation_id',
         'email',
+        'pending_email',
         'status',
         'timezone',
         'receive_competition_emails',

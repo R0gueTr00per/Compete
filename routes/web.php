@@ -49,6 +49,11 @@ Route::get('/portal/verify-email/{id}/{hash}', \App\Http\Controllers\Auth\Portal
     ->middleware(['signed', 'throttle:6,1'])
     ->name('portal.verify-email');
 
+// Email change verification — confirms a pending_email update
+Route::get('/portal/verify-email-change/{id}/{hash}', \App\Http\Controllers\Auth\EmailChangeVerificationController::class)
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('portal.verify-email-change');
+
 Route::get('/portal/email-verified', fn () => view('portal.email-verified'))->name('portal.email-verified');
 
 require __DIR__.'/auth.php';
