@@ -3,15 +3,12 @@
 namespace App\Notifications;
 
 use App\Models\EnrolmentCart;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 
-class PaymentReceivedNotification extends Notification implements ShouldQueue
+class PaymentReceivedNotification extends Notification
 {
-    use Queueable;
     /**
      * @param Collection<EnrolmentCart> $carts  Carts that were just marked as paid
      * @param string                    $method Payment method used
@@ -32,7 +29,7 @@ class PaymentReceivedNotification extends Notification implements ShouldQueue
         $total    = $this->carts->sum(fn ($c) => (float) ($c->payment_amount ?? $c->total_amount));
 
         $message = (new MailMessage)
-            ->subject('Payment received — ' . tenant_name())
+            ->subject('Payment received — ' . app('tenant')?->name)
             ->greeting('Hi ' . $notifiable->getFilamentName() . ',')
             ->line('Your payment has been recorded. Thank you!');
 

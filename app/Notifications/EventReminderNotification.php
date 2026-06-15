@@ -39,7 +39,7 @@ class EventReminderNotification extends Notification implements ShouldQueue
             ->line("Your events: {$events}")
             ->line("Check-in from: " . \Carbon\Carbon::parse($this->competition->checkin_time)->format('H:i'))
             ->line("Location: {$this->competition->location_name}")
-            ->action('View my enrolments', url('/portal/account'))
+            ->action('View my registrations', url('/portal/account'))
             ->line('See you on the mat!');
     }
 }

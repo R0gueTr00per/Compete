@@ -27,9 +27,9 @@ class CartInvoiceNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $message = (new MailMessage)
-            ->subject('Enrolment Invoice')
+            ->subject('Registration Invoice')
             ->greeting("Hi {$notifiable->getFilamentName()},")
-            ->line('Your enrolment has been submitted. See the summary below.');
+            ->line('Your registration has been submitted. See the summary below.');
 
         foreach ($this->invoice['items'] as $item) {
             $message->line('---')

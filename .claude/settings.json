@@ -133,7 +133,12 @@
       "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Pages\\\\Results.php\")",
       "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\2026_06_15_000001_add_access_flags_to_official_roles_table.php\")",
       "Bash(grep -r \"sm:table-cell\\\\|sm\\\\\\\\\\\\\\\\:table-cell\" vendor/filament/)",
-      "Bash(grep -o \"sm\\\\\\\\\\\\\\\\:table-cell\\\\|\\\\.sm\\\\\\\\\\\\\\\\:table-cell\\\\|hidden sm:table-cell\\\\|sm:hidden\" vendor/filament/filament/dist/theme.css)"
+      "Bash(grep -o \"sm\\\\\\\\\\\\\\\\:table-cell\\\\|\\\\.sm\\\\\\\\\\\\\\\\:table-cell\\\\|hidden sm:table-cell\\\\|sm:hidden\" vendor/filament/filament/dist/theme.css)",
+      "Bash(php -r \"echo PHP_VERSION;\")",
+      "Bash(grep -n 'function applyToBaseQuery\\\\|function apply\\\\b\\\\|getQuery\\\\b\\\\|$data\\\\b' x:/Repos/Compete/vendor/filament/tables/src/Filters/BaseFilter.php)",
+      "Bash(grep -n 'function apply\\\\b\\\\|modifyQuery\\\\|getQueryUsing\\\\|queryUsing\\\\|$query\\\\b\\\\|$data\\\\b' x:/Repos/Compete/vendor/filament/tables/src/Filters/Filter.php)",
+      "Bash(grep -n 'function apply\\\\|queryUsing\\\\|modifyQuery\\\\|isActive\\\\|$data\\\\|$state' x:/Repos/Compete/vendor/filament/tables/src/Filters/BaseFilter.php)",
+      "Bash(xargs grep -l \"function tenant_date\\\\|function tenant_money\\\\|function tenant_currency\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

@@ -3,7 +3,7 @@
 
 **Date:** {{ tenant_date($competition->competition_date) }}
 **Status:** {{ match($competition->status) {
-    'enrolments_closed' => 'Enrolments Closed',
+    'enrolments_closed' => 'Registrations Closed',
     'check_in'          => 'Check-in',
     default             => ucfirst($competition->status),
 } }}

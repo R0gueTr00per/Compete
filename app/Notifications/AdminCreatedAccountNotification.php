@@ -52,8 +52,8 @@ class AdminCreatedAccountNotification extends Notification implements ShouldQueu
             ->subject($subject)
             ->greeting("Hi {$name},")
             ->line($orgName
-                ? "An account has been created for you on **{$orgName}** and you have been enrolled in the following competition:"
-                : "An account has been created for you on Compete and you have been enrolled in the following competition:"
+                ? "An account has been created for you on **{$orgName}** and you have been registered for the following competition:"
+                : "An account has been created for you on Compete and you have been registered for the following competition:"
             )
             ->line("**{$competition->name}**")
             ->line("**Date:** {$competition->competition_date->format('l, d F Y')}");

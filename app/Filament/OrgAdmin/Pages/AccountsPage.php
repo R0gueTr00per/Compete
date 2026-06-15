@@ -2,7 +2,6 @@
 
 namespace App\Filament\OrgAdmin\Pages;
 
-use App\Models\Competition;
 use App\Models\EnrolmentCart;
 use App\Models\Refund;
 use App\Models\User;
@@ -18,7 +17,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
@@ -46,36 +44,41 @@ class AccountsPage extends Page implements HasTable
 
     public function getTotals(): array
     {
-        $tenantId    = app('tenant')?->id;
-        $orgFee      = (float) (app('tenant')?->platform_fee ?? 0);
+        $tenantId = app('tenant')?->id;
+        $orgFee   = (float) (app('tenant')?->platform_fee ?? 0);
 
-        $carts = EnrolmentCart::query()
-            ->whereNotIn('status', ['draft'])
-            ->whereHas('competition', fn ($q) => $q->where('organisation_id', $tenantId))
-            ->with(['enrolments', 'refunds'])
-            ->get();
+        $stats = \DB::table('enrolment_carts as ec')
+            ->join('competitions as c', 'c.id', '=', 'ec.competition_id')
+            ->where('c.organisation_id', $tenantId)
+            ->whereNotIn('ec.status', ['draft'])
+            ->selectRaw("
+                SUM(CASE WHEN ec.payment_status = 'received'
+                    THEN COALESCE(ec.payment_amount, ec.total_amount) ELSE 0 END) AS total_paid,
+                SUM(CASE WHEN ec.payment_status != 'received'
+                    THEN COALESCE(ec.total_amount, 0) ELSE 0 END) AS outstanding
+            ")
+            ->first();
 
-        $outstanding    = 0.0;
-        $totalPaid      = 0.0;
-        $pendingRefunds = 0.0;
+        $pendingRefunds = \DB::table('refunds as r')
+            ->join('enrolment_carts as ec', 'ec.id', '=', 'r.cart_id')
+            ->join('competitions as c', 'c.id', '=', 'ec.competition_id')
+            ->where('c.organisation_id', $tenantId)
+            ->where('r.status', 'pending')
+            ->sum('r.amount');
 
-        foreach ($carts as $cart) {
-            $platformFee = (float) ($cart->platform_fee_rate ?? $orgFee);
-            if ($cart->isPaid()) {
-                $totalPaid += (float) ($cart->payment_amount ?? $cart->outstandingAmount($platformFee));
-            } else {
-                $outstanding += $cart->outstandingAmount($platformFee);
-            }
-            $pendingRefunds += $cart->refunds->where('status', 'pending')->sum('amount');
-        }
-
-        return compact('outstanding', 'totalPaid', 'pendingRefunds');
+        return [
+            'totalPaid'      => (float) ($stats->total_paid ?? 0),
+            'outstanding'    => (float) ($stats->outstanding ?? 0),
+            'pendingRefunds' => (float) $pendingRefunds,
+        ];
     }
 
     // ── Per-user helpers ─────────────────────────────────────────────────────
 
     private array $userCartsCache = [];
+    private array $detailedCartsCache = [];
 
+    // Lightweight — only what the table financial columns need (no events/competitors/divisions).
     private function userCarts(?User $user): \Illuminate\Support\Collection
     {
         if (! $user) return collect();
@@ -91,20 +94,45 @@ class AccountsPage extends Page implements HasTable
                     $q->whereNotIn('status', ['draft'])
                       ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', $tenantId))
                       ->with([
-                          'competition',
                           'enrolments' => fn ($q2) => $q2
                               ->withTrashed()
-                              ->whereNotIn('status', ['draft'])
-                              ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division',
-                                      'enrolmentEvents.competitionEvent', 'enrolmentEvents.division']),
-                          'refunds.enrolment' => fn ($q2) => $q2->withTrashed()->with('competitor'),
-                          'refunds.issuedBy',
+                              ->whereNotIn('status', ['draft']),
+                          'refunds',
                       ]),
             ]);
         }
 
         return $this->userCartsCache[$user->id] = $user->enrolmentCarts
             ->sortByDesc(fn ($c) => $c->competition?->competition_date);
+    }
+
+    // Full load — used when the slide-over opens for one user.
+    private function userCartsDetailed(User $user): \Illuminate\Support\Collection
+    {
+        if (array_key_exists($user->id, $this->detailedCartsCache)) {
+            return $this->detailedCartsCache[$user->id];
+        }
+
+        $tenantId = app('tenant')?->id;
+        $user->load([
+            'enrolmentCarts' => fn ($q) =>
+                $q->whereNotIn('status', ['draft'])
+                  ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', $tenantId))
+                  ->with([
+                      'competition',
+                      'enrolments' => fn ($q2) => $q2
+                          ->withTrashed()
+                          ->whereNotIn('status', ['draft'])
+                          ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division',
+                                  'enrolmentEvents.competitionEvent', 'enrolmentEvents.division']),
+                      'refunds.enrolment' => fn ($q2) => $q2->withTrashed()->with('competitor'),
+                      'refunds.issuedBy',
+                  ]),
+        ]);
+
+        $sorted = $user->enrolmentCarts->sortByDesc(fn ($c) => $c->competition?->competition_date);
+        $this->userCartsCache[$user->id] = $sorted;
+        return $this->detailedCartsCache[$user->id] = $sorted;
     }
 
     private function outstandingForUser(User $user): float
@@ -144,14 +172,10 @@ class AccountsPage extends Page implements HasTable
                             $q->whereNotIn('status', ['draft'])
                               ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', $tenantId))
                               ->with([
-                                  'competition',
                                   'enrolments' => fn ($q2) => $q2
                                       ->withTrashed()
-                                      ->whereNotIn('status', ['draft'])
-                                      ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division',
-                                              'enrolmentEvents.competitionEvent', 'enrolmentEvents.division']),
-                                  'refunds.enrolment' => fn ($q2) => $q2->withTrashed()->with('competitor'),
-                                  'refunds.issuedBy',
+                                      ->whereNotIn('status', ['draft']),
+                                  'refunds',
                               ]),
                     ])
             )
@@ -209,22 +233,10 @@ class AccountsPage extends Page implements HasTable
                     ->alignEnd(),
             ])
             ->filters([
-                SelectFilter::make('competition')
-                    ->label('Competition')
-                    ->options(fn () => Competition::where('organisation_id', $tenantId)
-                        ->orderByDesc('competition_date')
-                        ->pluck('name', 'id'))
-                    ->query(fn (Builder $q, array $data) =>
-                        $data['value']
-                            ? $q->whereHas('enrolmentCarts', fn ($q2) =>
-                                $q2->where('competition_id', $data['value']))
-                            : $q
-                    ),
-
                 Filter::make('has_balance')
                     ->label('Non-zero balance only')
-                    ->query(fn (Builder $q) =>
-                        $q->where(fn (Builder $inner) =>
+                    ->query(fn (Builder $query) =>
+                        $query->where(fn (Builder $inner) =>
                             $inner
                                 ->whereHas('enrolmentCarts', fn (Builder $q2) =>
                                     $q2->whereNotIn('status', ['draft'])
@@ -247,11 +259,12 @@ class AccountsPage extends Page implements HasTable
                     ->modalHeading(fn (User $r) => $r->selfProfile?->full_name ?: ($r->email ?: 'Unknown'))
                     ->modalContent(fn (User $r) => view('filament.org-admin.pages.account-detail', [
                         'user'  => $r,
-                        'carts' => $this->userCarts($r),
+                        'carts' => $this->userCartsDetailed($r),
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Close')
                     ->extraModalFooterActions(function (User $record): array {
+                        $this->userCartsDetailed($record);
                         $outstanding    = $this->outstandingForUser($record);
                         $pendingRefunds = $this->pendingRefundsForUser($record);
                         $allRefunds     = $this->userCarts($record)->flatMap(fn ($c) => $c->refunds);
@@ -438,7 +451,7 @@ class AccountsPage extends Page implements HasTable
                                 ->modalHeading('Send account statement')
                                 ->modalDescription('Email a full account summary to ' . ($record->selfProfile?->full_name ?? $record->email) . '.')
                                 ->action(function () use ($record) {
-                                    $carts       = $this->userCarts($record);
+                                    $carts       = $this->userCartsDetailed($record);
                                     $outstanding = $this->outstandingForUser($record);
                                     $refundDue   = $this->pendingRefundsForUser($record);
                                     $record->notify(new AccountStatementNotification($carts, $outstanding, $refundDue));

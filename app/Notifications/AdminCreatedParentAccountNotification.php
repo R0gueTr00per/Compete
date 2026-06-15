@@ -46,15 +46,15 @@ class AdminCreatedParentAccountNotification extends Notification implements Shou
 
         $orgName = $competition->organisation?->name;
         $subject = $orgName
-            ? "Welcome to {$orgName} — {$childName} has been enrolled"
-            : "Welcome to Compete — {$childName} has been enrolled";
+            ? "Welcome to {$orgName} — {$childName} has been registered"
+            : "Welcome to Compete — {$childName} has been registered";
 
         $message = (new MailMessage)
             ->subject($subject)
             ->greeting("Hi {$parentName},")
             ->line($orgName
-                ? "An account has been created for you on **{$orgName}** as the parent / guardian of **{$childName}**, who has been enrolled in the following competition:"
-                : "An account has been created for you on Compete as the parent / guardian of **{$childName}**, who has been enrolled in the following competition:"
+                ? "An account has been created for you on **{$orgName}** as the parent / guardian of **{$childName}**, who has been registered for the following competition:"
+                : "An account has been created for you on Compete as the parent / guardian of **{$childName}**, who has been registered for the following competition:"
             )
             ->line("**{$competition->name}**")
             ->line("**Date:** {$competition->competition_date->format('l, d F Y')}");
@@ -73,7 +73,7 @@ class AdminCreatedParentAccountNotification extends Notification implements Shou
             $message->line("- {$event}");
         }
 
-        $message->line('To set your password and manage your child\'s enrolments, click the button below.');
+        $message->line('To set your password and manage your child\'s registrations, click the button below.');
 
         return $message->action('Set your password', $resetUrl);
     }

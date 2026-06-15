@@ -4,15 +4,12 @@ namespace App\Notifications;
 
 use App\Models\EnrolmentCart;
 use App\Models\Refund;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 
-class RefundIssuedNotification extends Notification implements ShouldQueue
+class RefundIssuedNotification extends Notification
 {
-    use Queueable;
     public function __construct(
         public readonly EnrolmentCart $cart,
         public readonly Collection $refunds

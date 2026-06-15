@@ -31,9 +31,9 @@ class EnrolmentConfirmedNotification extends Notification implements ShouldQueue
         $profileName = $this->enrolment->competitor?->full_name ?? $notifiable->getFilamentName();
 
         $message = (new MailMessage)
-            ->subject("Enrolment confirmed – {$competition->name}")
+            ->subject("Registration confirmed – {$competition->name}")
             ->greeting("Hi {$notifiable->getFilamentName()},")
-            ->line("Enrolment for **{$profileName}** in **{$competition->name}** has been received.")
+            ->line("Registration for **{$profileName}** in **{$competition->name}** has been received.")
             ->line("**Events:** {$events}")
             ->line("**Fee:** \${$this->enrolment->fee_calculated}");
 
@@ -42,7 +42,7 @@ class EnrolmentConfirmedNotification extends Notification implements ShouldQueue
         }
 
         if ($competition->enrolment_due_date) {
-            $message->line("**Enrolment closes:** {$competition->enrolment_due_date->format('d M Y')}");
+            $message->line("**Registration closes:** {$competition->enrolment_due_date->format('d M Y')}");
         }
 
         $message->line("**Competition date:** {$competition->competition_date->format('d M Y')}");
@@ -57,6 +57,6 @@ class EnrolmentConfirmedNotification extends Notification implements ShouldQueue
                 ->line('Your QR code is available on the competitor portal — show it at the check-in desk for a fast scan.');
         }
 
-        return $message->action('View my enrolments & QR code', url('/portal'));
+        return $message->action('View my registrations & QR code', url('/portal'));
     }
 }

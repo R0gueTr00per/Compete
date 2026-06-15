@@ -30,12 +30,12 @@ class YakusukoPartnerEnrolledNotification extends Notification implements Should
         return (new MailMessage)
             ->subject("Yakusuko partner confirmed — {$this->competition->name}")
             ->greeting("Hi {$notifiable->getFilamentName()},")
-            ->line("Your Yakusuko partner **{$this->partner->getFilamentName()}** has enrolled for the same event.")
+            ->line("Your Yakusuko partner **{$this->partner->getFilamentName()}** has registered for the same event.")
             ->line("**Competition:** {$this->competition->name}")
             ->line("**Date:** " . $this->competition->competition_date->format('l, d F Y'))
             ->line("**Event:** {$this->event->event_code} — {$this->event->name}")
             ->line("Both of you are now confirmed as Yakusuko partners for this event.")
-            ->action('View my enrolments', url('/portal'))
+            ->action('View my registrations', url('/portal'))
             ->line("See you at the competition!");
     }
 }
