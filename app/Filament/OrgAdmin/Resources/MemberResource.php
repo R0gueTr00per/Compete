@@ -92,7 +92,7 @@ class MemberResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->defaultPaginationPageOption(25)
+            ->defaultPaginationPageOption(15)
             ->columns([
                 TextColumn::make('user.email')
                     ->label('Email')

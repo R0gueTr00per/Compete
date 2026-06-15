@@ -177,14 +177,19 @@ class TransactionsPage extends Page implements HasTable
                                     ->mapWithKeys(fn ($m) => [$m => ucfirst($m)]))
                                 ->default($record->payment_method ?? 'cash')
                                 ->required(),
+                            TextInput::make('transaction_reference')
+                                ->label('Transaction reference')
+                                ->placeholder('Bank ref, receipt number…')
+                                ->default($record->transaction_reference),
                         ])
                         ->action(function (EnrolmentCart $record, array $data) {
                             $platformFee = (float) ($record->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
                             $record->forceFill([
-                                'payment_status'      => 'received',
-                                'payment_amount'      => $record->outstandingAmount($platformFee),
-                                'payment_received_at' => now(),
-                                'payment_method'      => $data['payment_method'],
+                                'payment_status'        => 'received',
+                                'payment_amount'        => $record->outstandingAmount($platformFee),
+                                'payment_received_at'   => now(),
+                                'payment_method'        => $data['payment_method'],
+                                'transaction_reference' => $data['transaction_reference'] ?? null,
                             ])->save();
                             Notification::make()->title('Payment recorded.')->success()->send();
                         })

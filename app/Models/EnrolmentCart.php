@@ -27,6 +27,7 @@ class EnrolmentCart extends Model
         'payment_status',
         'payment_amount',
         'payment_received_at',
+        'transaction_reference',
     ];
 
     protected function casts(): array
