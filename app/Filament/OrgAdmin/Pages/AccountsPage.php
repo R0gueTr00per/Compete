@@ -36,7 +36,10 @@ class AccountsPage extends Page implements HasTable
     public static function canAccess(): bool
     {
         $tenant = app('tenant');
-        return $tenant && (auth()->user()?->isOrgAdmin($tenant) ?? false);
+        if (! $tenant) return false;
+        $user = auth()->user();
+        if ($user?->isOrgAdmin($tenant)) return true;
+        return $user?->getActiveOfficialRoleFor($tenant)?->can_access_accounts ?? false;
     }
 
     // ── Org-wide summary totals ──────────────────────────────────────────────
@@ -71,29 +74,36 @@ class AccountsPage extends Page implements HasTable
 
     // ── Per-user helpers ─────────────────────────────────────────────────────
 
+    private array $userCartsCache = [];
+
     private function userCarts(?User $user): \Illuminate\Support\Collection
     {
         if (! $user) return collect();
 
-        $tenantId = app('tenant')?->id;
+        if (array_key_exists($user->id, $this->userCartsCache)) {
+            return $this->userCartsCache[$user->id];
+        }
 
-        $user->load([
-            'enrolmentCarts' => fn ($q) =>
-                $q->whereNotIn('status', ['draft'])
-                  ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', $tenantId))
-                  ->with([
-                      'competition',
-                      'enrolments' => fn ($q2) => $q2
-                          ->withTrashed()
-                          ->whereNotIn('status', ['draft'])
-                          ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division',
-                                  'enrolmentEvents.competitionEvent', 'enrolmentEvents.division']),
-                      'refunds.enrolment' => fn ($q2) => $q2->withTrashed()->with('competitor'),
-                      'refunds.issuedBy',
-                  ]),
-        ]);
+        if (! $user->relationLoaded('enrolmentCarts')) {
+            $tenantId = app('tenant')?->id;
+            $user->load([
+                'enrolmentCarts' => fn ($q) =>
+                    $q->whereNotIn('status', ['draft'])
+                      ->whereHas('competition', fn ($q2) => $q2->where('organisation_id', $tenantId))
+                      ->with([
+                          'competition',
+                          'enrolments' => fn ($q2) => $q2
+                              ->withTrashed()
+                              ->whereNotIn('status', ['draft'])
+                              ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division',
+                                      'enrolmentEvents.competitionEvent', 'enrolmentEvents.division']),
+                          'refunds.enrolment' => fn ($q2) => $q2->withTrashed()->with('competitor'),
+                          'refunds.issuedBy',
+                      ]),
+            ]);
+        }
 
-        return $user->enrolmentCarts
+        return $this->userCartsCache[$user->id] = $user->enrolmentCarts
             ->sortByDesc(fn ($c) => $c->competition?->competition_date);
     }
 
@@ -128,7 +138,6 @@ class AccountsPage extends Page implements HasTable
                         $q->whereNotIn('status', ['draft'])
                           ->whereHas('competition', fn (Builder $q2) => $q2->where('organisation_id', $tenantId))
                     )
-                    ->orderByRaw("COALESCE((SELECT first_name || ' ' || surname FROM competitor_profiles WHERE owner_user_id=users.id AND profile_type='self' LIMIT 1), email) ASC")
                     ->with([
                         'selfProfile',
                         'enrolmentCarts' => fn ($q) =>
@@ -151,15 +160,17 @@ class AccountsPage extends Page implements HasTable
                     ->label('Account')
                     ->getStateUsing(fn (User $r) => $r->selfProfile?->full_name ?: ($r->email ?: '(Unknown)'))
                     ->description(fn (User $r) => $r->email ?: null)
-                    ->searchable(query: fn (Builder $q, string $s) =>
-                        $q->where('email', 'like', "%{$s}%")
-                          ->orWhereHas('selfProfile', fn ($q2) =>
-                              $q2->where('first_name', 'like', "%{$s}%")
-                                 ->orWhere('surname', 'like', "%{$s}%")
-                          )
+                    ->searchable(query: fn (Builder $query, string $search) =>
+                        $query->where('email', 'like', "%{$search}%")
+                              ->orWhereHas('selfProfile', fn ($q2) =>
+                                  $q2->where(fn ($q3) =>
+                                      $q3->where('first_name', 'like', "%{$search}%")
+                                         ->orWhere('surname', 'like', "%{$search}%")
+                                  )
+                              )
                     )
-                    ->sortable(query: fn (Builder $q, string $direction) =>
-                        $q->orderByRaw("COALESCE((SELECT first_name || ' ' || surname FROM competitor_profiles WHERE owner_user_id=users.id AND profile_type='self' LIMIT 1), email) {$direction}")
+                    ->sortable(query: fn (Builder $query, string $direction) =>
+                        $query->reorder()->orderByRaw("COALESCE(NULLIF((SELECT CONCAT(first_name, ' ', surname) FROM competitor_profiles WHERE owner_user_id=users.id AND profile_type='self' LIMIT 1), ' '), email) {$direction}")
                     ),
 
                 TextColumn::make('outstanding')
@@ -176,7 +187,8 @@ class AccountsPage extends Page implements HasTable
                     ->formatStateUsing(fn ($state) => $state > 0 ? tenant_money($state) : '—')
                     ->color(fn (User $r) => $this->pendingRefundsForUser($r) > 0 ? 'danger' : 'gray')
                     ->badge()
-                    ->alignEnd(),
+                    ->alignEnd()
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('balance')
                     ->label('Balance')
@@ -193,7 +205,8 @@ class AccountsPage extends Page implements HasTable
                         return $net > 0 ? 'warning' : 'danger';
                     })
                     ->badge()
-                    ->alignEnd(),
+                    ->alignEnd()
+                    ->visibleFrom('sm'),
             ])
             ->filters([
                 SelectFilter::make('competition')
@@ -431,6 +444,7 @@ class AccountsPage extends Page implements HasTable
                         ];
                     }),
             ])
+            ->defaultSort('name', 'asc')
             ->emptyStateHeading('No accounts found')
             ->emptyStateDescription('Accounts appear here once competitors have registered.')
             ->defaultPaginationPageOption(25);

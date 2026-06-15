@@ -88,7 +88,7 @@
                     @endunless
                 </x-slot>
                 <x-slot name="headerEnd">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <x-filament::button size="xs" color="gray" wire:click="startEdit({{ $profile->id }})">
                             Edit
                         </x-filament::button>
@@ -123,7 +123,7 @@
                 @endif
 
                 <div class="flex gap-4 items-start">
-                    <div class="shrink-0">
+                    <div class="shrink-0 hidden sm:block">
                         @if ($profile->profile_photo)
                             <img src="{{ asset('storage/' . $profile->profile_photo) }}"
                                  alt="Profile photo"

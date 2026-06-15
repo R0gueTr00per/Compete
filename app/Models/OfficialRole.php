@@ -17,6 +17,8 @@ class OfficialRole extends Model
         'can_access_checkin',
         'can_access_create_enrolment',
         'can_access_scoring',
+        'can_access_accounts',
+        'can_access_results',
     ];
 
     protected function casts(): array
@@ -26,6 +28,8 @@ class OfficialRole extends Model
             'can_access_checkin'         => 'boolean',
             'can_access_create_enrolment' => 'boolean',
             'can_access_scoring'         => 'boolean',
+            'can_access_accounts'        => 'boolean',
+            'can_access_results'         => 'boolean',
         ];
     }
 

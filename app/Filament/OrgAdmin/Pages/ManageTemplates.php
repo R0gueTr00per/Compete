@@ -59,7 +59,8 @@ class ManageTemplates extends Page implements HasTable
                 TextColumn::make('created_at')
                     ->label('Created')
                     ->date(tenant_date_format())
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
             ])
             ->actions([
                 Action::make('toggleActive')

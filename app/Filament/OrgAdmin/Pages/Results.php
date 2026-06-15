@@ -23,7 +23,9 @@ class Results extends Page
     {
         $tenant = app('tenant');
         if (! $tenant) return true;
-        return auth()->user()?->isOrgAdmin($tenant) ?? false;
+        $user = auth()->user();
+        if ($user?->isOrgAdmin($tenant)) return true;
+        return $user?->getActiveOfficialRoleFor($tenant)?->can_access_results ?? false;
     }
 
     #[Url]

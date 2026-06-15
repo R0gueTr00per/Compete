@@ -103,7 +103,8 @@ class EnrolmentResource extends Resource
                 TextColumn::make('enrolled_at')
                     ->label('Registered')
                     ->formatStateUsing(fn ($state) => $state ? tenant_datetime($state) : '—')
-                    ->sortable(),
+                    ->sortable()
+                    ->visibleFrom('sm'),
 
                 TextColumn::make('status')
                     ->badge()
