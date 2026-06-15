@@ -14,7 +14,6 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
 use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ActionGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -129,6 +128,7 @@ class AccountsPage extends Page implements HasTable
                         $q->whereNotIn('status', ['draft'])
                           ->whereHas('competition', fn (Builder $q2) => $q2->where('organisation_id', $tenantId))
                     )
+                    ->orderByRaw("COALESCE((SELECT first_name || ' ' || surname FROM competitor_profiles WHERE owner_user_id=users.id AND profile_type='self' LIMIT 1), email) ASC")
                     ->with([
                         'selfProfile',
                         'enrolmentCarts' => fn ($q) =>
@@ -146,7 +146,6 @@ class AccountsPage extends Page implements HasTable
                               ]),
                     ])
             )
-            ->defaultSort('name')
             ->columns([
                 TextColumn::make('name')
                     ->label('Account')
@@ -225,171 +224,212 @@ class AccountsPage extends Page implements HasTable
                     ),
             ])
             ->actions([
-                ActionGroup::make([
-                    Action::make('viewAccount')
-                        ->label('View account')
-                        ->icon('heroicon-o-document-text')
-                        ->slideOver()
-                        ->modalHeading(fn (User $r) => $r->selfProfile?->full_name ?: ($r->email ?: 'Unknown'))
-                        ->modalContent(fn (User $r) => view('filament.org-admin.pages.account-detail', [
-                            'user'  => $r,
-                            'carts' => $this->userCarts($r),
-                        ]))
-                        ->modalSubmitAction(false)
-                        ->modalCancelActionLabel('Close'),
+                Action::make('viewAccount')
+                    ->label('View account')
+                    ->icon('heroicon-o-document-text')
+                    ->slideOver()
+                    ->modalHeading(fn (User $r) => $r->selfProfile?->full_name ?: ($r->email ?: 'Unknown'))
+                    ->modalContent(fn (User $r) => view('filament.org-admin.pages.account-detail', [
+                        'user'  => $r,
+                        'carts' => $this->userCarts($r),
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close')
+                    ->extraModalFooterActions(function (User $record): array {
+                        $outstanding    = $this->outstandingForUser($record);
+                        $pendingRefunds = $this->pendingRefundsForUser($record);
+                        $allRefunds     = $this->userCarts($record)->flatMap(fn ($c) => $c->refunds);
 
-                    Action::make('acceptPayment')
-                        ->label('Accept payment')
-                        ->icon('heroicon-o-banknotes')
-                        ->color('success')
-                        ->form(function (User $record) {
-                            $outstanding = $this->outstandingForUser($record);
-                            $refundDue   = $this->pendingRefundsForUser($record);
-                            $net         = $outstanding - $refundDue;
-                            $orgFee      = (float) (app('tenant')?->platform_fee ?? 0);
+                        return [
+                            Action::make('acceptPayment')
+                                ->label('Accept payment')
+                                ->icon('heroicon-o-banknotes')
+                                ->color('success')
+                                ->form(function () use ($record, $outstanding, $pendingRefunds) {
+                                    $net    = $outstanding - $pendingRefunds;
+                                    $orgFee = (float) (app('tenant')?->platform_fee ?? 0);
 
-                            $lines = '<div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden text-sm mb-3">';
-                            foreach ($this->userCarts($record) as $cart) {
-                                if ($cart->isPaid()) continue;
-                                $fee    = (float) ($cart->platform_fee_rate ?? $orgFee);
-                                $active = $cart->enrolments->filter(fn ($e) => ! $e->trashed())->whereNotIn('status', ['draft', 'withdrawn']);
-                                foreach ($active as $e) {
-                                    $lines .= '<div class="flex justify-between px-4 py-2">'
-                                        . '<span class="text-gray-700 dark:text-gray-300">'
-                                        . e($e->competitor?->full_name ?? '?') . ' &mdash; ' . e($e->competition?->name ?? '?')
-                                        . '</span>'
-                                        . '<span class="tabular-nums font-medium">' . tenant_money($e->fee_calculated + $fee) . '</span>'
+                                    $lines = '<div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden text-sm mb-3">';
+                                    foreach ($this->userCarts($record) as $cart) {
+                                        if ($cart->isPaid()) continue;
+                                        $fee    = (float) ($cart->platform_fee_rate ?? $orgFee);
+                                        $active = $cart->enrolments->filter(fn ($e) => ! $e->trashed())->whereNotIn('status', ['draft', 'withdrawn']);
+                                        foreach ($active as $e) {
+                                            $lines .= '<div class="flex justify-between px-4 py-2">'
+                                                . '<span class="text-gray-700 dark:text-gray-300">'
+                                                . e($e->competitor?->full_name ?? '?') . ' &mdash; ' . e($e->competition?->name ?? '?')
+                                                . '</span>'
+                                                . '<span class="tabular-nums font-medium">' . tenant_money($e->fee_calculated + $fee) . '</span>'
+                                                . '</div>';
+                                        }
+                                    }
+                                    if ($pendingRefunds > 0.01) {
+                                        $lines .= '<div class="flex justify-between px-4 py-2 text-danger-600 dark:text-danger-400">'
+                                            . '<span>Pending refund (offset)</span>'
+                                            . '<span class="tabular-nums">&minus;' . tenant_money($pendingRefunds) . '</span>'
+                                            . '</div>';
+                                    }
+                                    $lines .= '<div class="flex justify-between px-4 py-2 font-semibold bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">'
+                                        . '<span>Net to collect</span>'
+                                        . '<span class="tabular-nums">' . tenant_money(max(0, $net)) . '</span>'
                                         . '</div>';
-                                }
-                            }
-                            if ($refundDue > 0.01) {
-                                $lines .= '<div class="flex justify-between px-4 py-2 text-danger-600 dark:text-danger-400">'
-                                    . '<span>Pending refund (offset)</span>'
-                                    . '<span class="tabular-nums">&minus;' . tenant_money($refundDue) . '</span>'
-                                    . '</div>';
-                            }
-                            $lines .= '<div class="flex justify-between px-4 py-2 font-semibold bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">'
-                                . '<span>Net to collect</span>'
-                                . '<span class="tabular-nums">' . tenant_money(max(0, $net)) . '</span>'
-                                . '</div>';
-                            $lines .= '</div>';
+                                    $lines .= '</div>';
 
-                            return [
-                                Placeholder::make('summary')
-                                    ->label('Outstanding')
-                                    ->content(new HtmlString($lines)),
+                                    return [
+                                        Placeholder::make('summary')
+                                            ->label('Outstanding')
+                                            ->content(new HtmlString($lines)),
 
-                                Select::make('payment_method')
-                                    ->label('Payment method')
-                                    ->options(collect(app('tenant')?->supported_payment_methods ?? ['cash'])
-                                        ->mapWithKeys(fn ($m) => [$m => ucfirst($m)]))
-                                    ->default('cash')
-                                    ->required(),
-                            ];
-                        })
-                        ->action(function (User $record, array $data) {
-                            $orgFee = (float) (app('tenant')?->platform_fee ?? 0);
-                            $carts  = $this->userCarts($record);
-                            $paid   = collect();
+                                        Select::make('payment_method')
+                                            ->label('Payment method')
+                                            ->options(collect(app('tenant')?->supported_payment_methods ?? ['cash'])
+                                                ->mapWithKeys(fn ($m) => [$m => ucfirst($m)]))
+                                            ->default('cash')
+                                            ->required(),
+                                    ];
+                                })
+                                ->action(function (array $data) use ($record) {
+                                    $orgFee = (float) (app('tenant')?->platform_fee ?? 0);
+                                    $carts  = $this->userCarts($record);
+                                    $paid   = collect();
 
-                            foreach ($carts as $cart) {
-                                if ($cart->isPaid()) continue;
-                                $fee    = (float) ($cart->platform_fee_rate ?? $orgFee);
-                                $amount = $cart->outstandingAmount($fee);
-                                $cart->forceFill([
-                                    'payment_status'      => 'received',
-                                    'payment_amount'      => $amount,
-                                    'payment_received_at' => now(),
-                                    'payment_method'      => $data['payment_method'],
-                                ])->save();
-                                $paid->push($cart);
-                            }
+                                    foreach ($carts as $cart) {
+                                        if ($cart->isPaid()) continue;
+                                        $fee    = (float) ($cart->platform_fee_rate ?? $orgFee);
+                                        $amount = $cart->outstandingAmount($fee);
+                                        $cart->forceFill([
+                                            'payment_status'      => 'received',
+                                            'payment_amount'      => $amount,
+                                            'payment_received_at' => now(),
+                                            'payment_method'      => $data['payment_method'],
+                                        ])->save();
+                                        $paid->push($cart);
+                                    }
 
-                            if ($paid->isNotEmpty() && $record->email) {
-                                $record->notify(new PaymentReceivedNotification($paid, $data['payment_method']));
-                            }
+                                    if ($paid->isNotEmpty() && $record->email) {
+                                        $record->notify(new PaymentReceivedNotification($paid, $data['payment_method']));
+                                    }
 
-                            Notification::make()->title('Payment recorded.')->success()->send();
-                        })
-                        ->visible(fn (User $r) => $this->outstandingForUser($r) > 0.01),
+                                    Notification::make()->title('Payment recorded.')->success()->send();
+                                })
+                                ->visible($outstanding > 0.01),
 
-                    Action::make('resolveRefund')
-                        ->label('Resolve refund')
-                        ->icon('heroicon-o-arrow-uturn-left')
-                        ->color('danger')
-                        ->modalHeading('Resolve pending refunds')
-                        ->modalSubmitActionLabel('Mark as issued & notify')
-                        ->form(function (User $record) {
-                            $pending = $this->userCarts($record)
-                                ->flatMap(fn ($c) => $c->refunds)
-                                ->where('status', 'pending');
+                            Action::make('resolveRefund')
+                                ->label($pendingRefunds > 0.01 ? 'Resolve refund' : 'Refund history')
+                                ->icon('heroicon-o-arrow-uturn-left')
+                                ->color($pendingRefunds > 0.01 ? 'danger' : 'gray')
+                                ->modalHeading('Refunds')
+                                ->modalSubmitActionLabel('Mark as issued & notify')
+                                ->modalSubmitAction(fn (\Filament\Actions\StaticAction $action) =>
+                                    $pendingRefunds > 0.01 ? $action : $action->hidden()
+                                )
+                                ->form(function () use ($record) {
+                                    $allRefunds = $this->userCarts($record)->flatMap(fn ($c) => $c->refunds);
+                                    $pending    = $allRefunds->where('status', 'pending');
+                                    $issued     = $allRefunds->where('status', 'issued');
 
-                            $html = '<div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">';
-                            foreach ($pending as $refund) {
-                                $name   = e($refund->enrolment?->competitor?->full_name ?? 'Unknown');
-                                $method = ucfirst($refund->payment_method ?? 'cash');
-                                $comp   = e($refund->cart?->competition?->name ?? '?');
-                                $html .= '<div class="flex items-start justify-between gap-4 px-4 py-3">'
-                                    . '<div class="min-w-0">'
-                                    . '<p class="text-sm font-semibold text-gray-900 dark:text-white">' . $name . '</p>'
-                                    . '<p class="text-xs text-gray-400 mt-0.5">' . $comp . ' &mdash; ' . e($refund->reason) . '</p>'
-                                    . '<p class="text-xs text-gray-400 mt-0.5">via ' . e($method) . '</p>'
-                                    . '</div>'
-                                    . '<span class="text-sm font-semibold text-danger-600 dark:text-danger-400 tabular-nums flex-shrink-0">'
-                                    . '&minus;' . tenant_money($refund->amount) . '</span>'
-                                    . '</div>';
-                            }
-                            $total = $pending->sum('amount');
-                            $html .= '</div>';
-                            $html .= '<div class="flex justify-between text-sm font-semibold pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">'
-                                . '<span class="text-gray-700 dark:text-gray-300">Total to refund</span>'
-                                . '<span class="tabular-nums text-danger-600 dark:text-danger-400">&minus;' . tenant_money($total) . '</span>'
-                                . '</div>';
+                                    $html = '<div class="space-y-4">';
 
-                            return [
-                                Placeholder::make('refund_summary')
-                                    ->label('Pending refunds')
-                                    ->content(new HtmlString($html)),
-                            ];
-                        })
-                        ->action(function (User $record) {
-                            $carts = $this->userCarts($record);
-                            foreach ($carts as $cart) {
-                                $pending = $cart->refunds->where('status', 'pending');
-                                if ($pending->isEmpty()) continue;
+                                    if ($pending->isNotEmpty()) {
+                                        $html .= '<div>'
+                                            . '<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pending</p>'
+                                            . '<div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">';
+                                        foreach ($pending as $refund) {
+                                            $name   = e($refund->enrolment?->competitor?->full_name ?? 'Unknown');
+                                            $method = ucfirst($refund->payment_method ?? 'cash');
+                                            $comp   = e($refund->cart?->competition?->name ?? '?');
+                                            $html .= '<div class="flex items-start justify-between gap-4 px-4 py-3">'
+                                                . '<div class="min-w-0">'
+                                                . '<p class="text-sm font-semibold text-gray-900 dark:text-white">' . $name . '</p>'
+                                                . '<p class="text-xs text-gray-400 mt-0.5">' . $comp . ' &mdash; ' . e($refund->reason) . '</p>'
+                                                . '<p class="text-xs text-gray-400 mt-0.5">via ' . e($method) . '</p>'
+                                                . '</div>'
+                                                . '<span class="text-sm font-semibold text-danger-600 dark:text-danger-400 tabular-nums flex-shrink-0">'
+                                                . '&minus;' . tenant_money($refund->amount) . '</span>'
+                                                . '</div>';
+                                        }
+                                        $total = $pending->sum('amount');
+                                        $html .= '</div>'
+                                            . '<div class="flex justify-between text-sm font-semibold pt-2 mt-2 border-t border-gray-200 dark:border-gray-700">'
+                                            . '<span class="text-gray-700 dark:text-gray-300">Total pending</span>'
+                                            . '<span class="tabular-nums text-danger-600 dark:text-danger-400">&minus;' . tenant_money($total) . '</span>'
+                                            . '</div>'
+                                            . '</div>';
+                                    }
 
-                                $ids = $pending->pluck('id');
-                                Refund::whereIn('id', $ids)->update([
-                                    'status'            => 'issued',
-                                    'issued_at'         => now(),
-                                    'issued_by_user_id' => auth()->id(),
-                                ]);
+                                    if ($issued->isNotEmpty()) {
+                                        $html .= '<div>'
+                                            . '<p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Completed</p>'
+                                            . '<div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">';
+                                        foreach ($issued as $refund) {
+                                            $name     = e($refund->enrolment?->competitor?->full_name ?? 'Unknown');
+                                            $comp     = e($refund->cart?->competition?->name ?? '?');
+                                            $issuedAt = $refund->issued_at ? tenant_date($refund->issued_at) : '—';
+                                            $issuedBy = $refund->issuedBy?->name ? ' by ' . e($refund->issuedBy->name) : '';
+                                            $html .= '<div class="flex items-start justify-between gap-4 px-4 py-3 opacity-70">'
+                                                . '<div class="min-w-0">'
+                                                . '<p class="text-sm font-medium text-gray-700 dark:text-gray-300">' . $name . '</p>'
+                                                . '<p class="text-xs text-gray-400 mt-0.5">' . $comp . ' &mdash; ' . e($refund->reason) . '</p>'
+                                                . '<p class="text-xs text-gray-400 mt-0.5">Issued ' . $issuedAt . $issuedBy . '</p>'
+                                                . '</div>'
+                                                . '<span class="text-sm font-medium text-success-600 dark:text-success-400 tabular-nums flex-shrink-0">'
+                                                . '&minus;' . tenant_money($refund->amount) . '</span>'
+                                                . '</div>';
+                                        }
+                                        $html .= '</div></div>';
+                                    }
 
-                                if ($cart->user) {
-                                    $cart->user->notify(
-                                        new RefundIssuedNotification($cart, $pending->fresh()->load('enrolment.competitor'))
-                                    );
-                                }
-                            }
-                            Notification::make()->title('Refunds issued.')->success()->send();
-                        })
-                        ->visible(fn (User $r) => $this->pendingRefundsForUser($r) > 0.01),
+                                    if ($allRefunds->isEmpty()) {
+                                        $html .= '<p class="text-sm text-gray-400 text-center py-4">No refunds on record.</p>';
+                                    }
 
-                    Action::make('sendStatement')
-                        ->label('Send account statement')
-                        ->icon('heroicon-o-envelope')
-                        ->color('gray')
-                        ->requiresConfirmation()
-                        ->modalHeading('Send account statement')
-                        ->modalDescription(fn (User $r) => 'Email a full account summary to ' . ($r->selfProfile?->full_name ?? $r->email) . '.')
-                        ->action(function (User $record) {
-                            $carts       = $this->userCarts($record);
-                            $outstanding = $this->outstandingForUser($record);
-                            $refundDue   = $this->pendingRefundsForUser($record);
-                            $record->notify(new AccountStatementNotification($carts, $outstanding, $refundDue));
-                            Notification::make()->title('Statement sent.')->success()->send();
-                        }),
-                ])->dropdownPlacement('bottom-start'),
+                                    $html .= '</div>';
+
+                                    return [
+                                        Placeholder::make('refund_summary')
+                                            ->label('')
+                                            ->content(new HtmlString($html)),
+                                    ];
+                                })
+                                ->action(function () use ($record) {
+                                    $carts = $this->userCarts($record);
+                                    foreach ($carts as $cart) {
+                                        $pending = $cart->refunds->where('status', 'pending');
+                                        if ($pending->isEmpty()) continue;
+
+                                        $ids = $pending->pluck('id');
+                                        Refund::whereIn('id', $ids)->update([
+                                            'status'            => 'issued',
+                                            'issued_at'         => now(),
+                                            'issued_by_user_id' => auth()->id(),
+                                        ]);
+
+                                        if ($cart->user) {
+                                            $cart->user->notify(
+                                                new RefundIssuedNotification($cart, $pending->fresh()->load('enrolment.competitor'))
+                                            );
+                                        }
+                                    }
+                                    Notification::make()->title('Refunds issued.')->success()->send();
+                                })
+                                ->visible($allRefunds->isNotEmpty()),
+
+                            Action::make('sendStatement')
+                                ->label('Send account statement')
+                                ->icon('heroicon-o-envelope')
+                                ->color('gray')
+                                ->requiresConfirmation()
+                                ->modalHeading('Send account statement')
+                                ->modalDescription('Email a full account summary to ' . ($record->selfProfile?->full_name ?? $record->email) . '.')
+                                ->action(function () use ($record) {
+                                    $carts       = $this->userCarts($record);
+                                    $outstanding = $this->outstandingForUser($record);
+                                    $refundDue   = $this->pendingRefundsForUser($record);
+                                    $record->notify(new AccountStatementNotification($carts, $outstanding, $refundDue));
+                                    Notification::make()->title('Statement sent.')->success()->send();
+                                }),
+                        ];
+                    }),
             ])
             ->emptyStateHeading('No accounts found')
             ->emptyStateDescription('Accounts appear here once competitors have registered.')

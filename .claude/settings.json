@@ -126,7 +126,8 @@
       "Bash(xargs grep -l \"fi-section\")",
       "PowerShell(php artisan tinker --no-interaction --execute=\"echo 'Cart 26 comp: ' . \\(\\\\App\\\\Models\\\\EnrolmentCart::with\\('competition'\\)->find\\(26\\)->competition?->name ?? 'NULL'\\);\")",
       "PowerShell(cd \"x:\\\\Repos\\\\Compete\"; php artisan tinker --execute=\"echo implode\\(', ', collect\\(Schema::getIndexes\\('enrolment_events'\\)\\)->pluck\\('name'\\)->filter\\(fn\\(\\\\$n\\) => str_contains\\(\\\\$n,'division'\\) || str_contains\\(\\\\$n,'removed'\\)\\)->values\\(\\)->toArray\\(\\)\\);\" 2>&1)",
-      "PowerShell(cd \"x:\\\\Repos\\\\Compete\"; php artisan tinker --execute=\"echo implode\\(', ', collect\\(Schema::getIndexes\\('results'\\)\\)->pluck\\('name'\\)->filter\\(fn\\(\\\\$n\\) => str_contains\\(\\\\$n,'placement'\\)\\)->values\\(\\)->toArray\\(\\)\\);\" 2>&1)"
+      "PowerShell(cd \"x:\\\\Repos\\\\Compete\"; php artisan tinker --execute=\"echo implode\\(', ', collect\\(Schema::getIndexes\\('results'\\)\\)->pluck\\('name'\\)->filter\\(fn\\(\\\\$n\\) => str_contains\\(\\\\$n,'placement'\\)\\)->values\\(\\)->toArray\\(\\)\\);\" 2>&1)",
+      "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Pages\\\\AccountsPage.php\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",
