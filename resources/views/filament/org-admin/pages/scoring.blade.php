@@ -124,7 +124,7 @@
         </div>
 
         {{-- Division list --}}
-        <div class="space-y-1 mb-4">
+        <div class="space-y-1 mb-4" wire:key="division-list-{{ $this->filter_location ?? 'all' }}-{{ $this->search_code ?? '' }}">
             @foreach ($divisionList as $item)
                 @if ($item->type === 'break')
                     @php $b = $item->break; @endphp
