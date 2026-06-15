@@ -1,10 +1,14 @@
 <x-filament-panels::page>
     @php $divisionList = $this->divisionList; @endphp
     @php $selectedComp = $this->competition_id ? \App\Models\Competition::find($this->competition_id) : null; @endphp
-    @php $incompleteCount = $divisionList->filter(fn ($item) => $item->division->status !== 'complete')->count(); @endphp
+    @php $incompleteCount = $divisionList->where('type', 'division')->filter(fn ($item) => $item->division->status !== 'complete')->count(); @endphp
 
     {{-- Top bar: competition + location --}}
-    <div class="mb-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30">
+    <div
+        class="mb-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30"
+        x-data="{}"
+        x-on:livewire:navigated.window="$wire.$refresh()"
+    >
         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>
         <div class="flex flex-wrap gap-3 items-center">
             <x-filament::input.wrapper class="flex-1 min-w-48">
@@ -107,8 +111,9 @@
 
         {{-- Overall progress --}}
         @php
-            $totalDivisions = $divisionList->count();
-            $doneDivisions  = $divisionList->filter(fn ($item) => $item->division->status === 'complete')->count();
+            $divisionItems  = $divisionList->where('type', 'division');
+            $totalDivisions = $divisionItems->count();
+            $doneDivisions  = $divisionItems->filter(fn ($item) => $item->division->status === 'complete')->count();
             $progressPct    = $totalDivisions > 0 ? round($doneDivisions / $totalDivisions * 100) : 0;
         @endphp
         <div class="flex items-center gap-3 mb-2 px-1">
@@ -121,6 +126,20 @@
         {{-- Division list --}}
         <div class="space-y-1 mb-4">
             @foreach ($divisionList as $item)
+                @if ($item->type === 'break')
+                    @php $b = $item->break; @endphp
+                    <div wire:key="break-{{ $b->id }}" class="flex items-center gap-3 py-1 px-1">
+                        <div class="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600"></div>
+                        <span class="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                            <x-heroicon-m-pause-circle class="w-3.5 h-3.5 shrink-0" />
+                            <span class="font-medium">{{ $b->name }}</span>
+                            <span>{{ \Carbon\Carbon::parse('1970-01-01 ' . $b->start_time)->format('g:ia') }}–{{ \Carbon\Carbon::parse('1970-01-01 ' . $b->start_time)->addMinutes($b->duration_minutes)->format('g:ia') }}</span>
+                            <span class="text-gray-300 dark:text-gray-600">({{ $b->duration_minutes }}min)</span>
+                        </span>
+                        <div class="flex-1 border-t border-dashed border-gray-300 dark:border-gray-600"></div>
+                    </div>
+                    @continue
+                @endif
                 @php
                     $div        = $item->division;
                     $inProgress = $item->scoring_started && $div->status !== 'complete';
@@ -160,6 +179,47 @@
                                 @endif
                             </p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ $div->label }}</p>
+                            @php
+                                $fmtDuration = function (?int $secs): ?string {
+                                    if ($secs === null) return null;
+                                    $m = (int) floor(abs($secs) / 60);
+                                    $s = abs($secs) % 60;
+                                    if ($m === 0) return "{$s}s";
+                                    return $s > 0 ? "{$m}m {$s}s" : "{$m}m";
+                                };
+                            @endphp
+                            @if ($div->actual_start_at && $div->actual_end_at && $item->actual_seconds <= 86400)
+                                @php
+                                    $startDiff    = $div->planned_start_at ? (int) round($div->planned_start_at->diffInSeconds($div->actual_start_at, false) / 60) : null;
+                                    $durationDiff = ($item->planned_seconds && $item->actual_seconds !== null) ? (int) round(($item->actual_seconds - $item->planned_seconds) / 60) : null;
+                                    $showStartDiff    = $startDiff !== null && $startDiff !== 0 && abs($startDiff) <= 1440;
+                                    $showDurationDiff = $durationDiff !== null && $durationDiff !== 0 && abs($durationDiff) <= 1440;
+                                    $actualDurStr     = $fmtDuration($item->actual_seconds);
+                                @endphp
+                                <p class="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                                    <span>{{ $div->actual_start_at->format('g:ia') }}</span>
+                                    @if ($showStartDiff)
+                                        <span class="{{ $startDiff > 0 ? 'text-amber-500 dark:text-amber-400' : 'text-green-600 dark:text-green-400' }}">
+                                            ({{ $startDiff > 0 ? '+' : '' }}{{ $startDiff }})
+                                        </span>
+                                    @endif
+                                    @if ($actualDurStr)
+                                        <span class="ml-1">{{ $actualDurStr }}</span>
+                                        @if ($showDurationDiff)
+                                            <span class="{{ $durationDiff > 0 ? 'text-amber-500 dark:text-amber-400' : 'text-green-600 dark:text-green-400' }}">
+                                                ({{ $durationDiff > 0 ? '+' : '' }}{{ $durationDiff }})
+                                            </span>
+                                        @endif
+                                    @endif
+                                </p>
+                            @elseif ($div->planned_start_at)
+                                <p class="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
+                                    <span>{{ $div->planned_start_at->format('g:ia') }}</span>
+                                    @if ($item->planned_seconds)
+                                        <span class="ml-1">{{ $fmtDuration($item->planned_seconds) }}</span>
+                                    @endif
+                                </p>
+                            @endif
                         </div>
                     </div>
 

@@ -24,6 +24,9 @@ class ScoringEntry extends Page
     #[Url]
     public ?int $competition_id = null;
 
+    #[Url]
+    public ?string $filter_location = null;
+
     public static function canAccess(): bool
     {
         $tenant = app('tenant');
@@ -55,7 +58,7 @@ class ScoringEntry extends Page
                 ->warning()
                 ->send();
             $this->redirect(
-                Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id])),
+                Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
                 navigate: true
             );
             return;
@@ -96,7 +99,7 @@ class ScoringEntry extends Page
     {
         $this->releaseLock($this->division_id);
         $this->redirect(
-            Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id])),
+            Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
             navigate: true
         );
     }
@@ -106,7 +109,7 @@ class ScoringEntry extends Page
     {
         $this->releaseLock($this->division_id);
         $this->redirect(
-            Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id])),
+            Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
             navigate: true
         );
     }

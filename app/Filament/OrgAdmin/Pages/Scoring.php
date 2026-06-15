@@ -4,8 +4,10 @@ namespace App\Filament\OrgAdmin\Pages;
 
 use App\Filament\OrgAdmin\Concerns\HasScoringLock;
 use App\Models\Competition;
+use App\Models\CompetitionBreak;
 use App\Models\Division;
 use App\Notifications\Notification;
+use App\Services\ScheduleCalculatorService;
 use Filament\Pages\Page;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -57,6 +59,10 @@ class Scoring extends Page
                 $this->competition_id = $comp->id;
             }
         }
+
+        if (! $this->filter_location && $this->competition_id) {
+            $this->filter_location = session("scoring_location_{$this->competition_id}");
+        }
     }
 
     public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
@@ -107,11 +113,12 @@ class Scoring extends Page
                 'enrolment', fn ($q2) => $q2->where('status', 'checked_in')
             )->where('removed', false),
             'enrolmentEvents as absent_count' => fn ($q) => $q->where('removed', true),
-            'enrolmentEvents as scoring_count' => fn ($q) => $q->whereHas('result', fn ($q2) =>
+            'enrolmentEvents as scoring_count' => fn ($q) => $q->where('removed', false)->whereHas('result', fn ($q2) =>
                 $q2->where(fn ($q3) => $q3
                     ->whereNotNull('total_score')
                     ->orWhereNotNull('win_loss')
-                    ->orWhereNotNull('placement')
+                    ->orWhere('disqualified', true)
+                    ->orWhere('forfeited', true)
                 )
             ),
         ])
@@ -153,15 +160,61 @@ class Scoring extends Page
                 ])->values())
             : collect();
 
-        return $divisions->map(fn (Division $div) => (object) [
-            'division'          => $div,
-            'checked_in_count'  => $div->checked_in_count,
-            'competitors_count' => $div->competitors_count,
-            'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0 || $div->status === 'running' || $div->has_bracket,
-            'locked_by_other'   => $this->lockedByOtherName($div),
-            'top_results'       => $topResultsByDivision->get($div->id) ?? collect(),
-            'is_bracket'        => $div->competitionEvent?->isTournament() ?? false,
-        ]);
+        $scheduler     = app(ScheduleCalculatorService::class);
+        $divisionItems = $divisions->map(function (Division $div) use ($topResultsByDivision, $scheduler) {
+            $div->active_enrolment_events_count = $div->competitors_count;
+            try {
+                $plannedSeconds = $div->planned_start_at ? $scheduler->divisionSlotMinutes($div) * 60 : null;
+            } catch (\Throwable) {
+                $plannedSeconds = null;
+            }
+            $actualSeconds  = ($div->actual_start_at && $div->actual_end_at)
+                ? (int) $div->actual_start_at->diffInSeconds($div->actual_end_at)
+                : null;
+
+            return (object) [
+                'type'              => 'division',
+                'division'          => $div,
+                'checked_in_count'  => $div->checked_in_count,
+                'competitors_count' => $div->competitors_count,
+                'scoring_started'   => $div->absent_count > 0 || $div->scoring_count > 0 || $div->status === 'running' || $div->has_bracket,
+                'locked_by_other'   => $this->lockedByOtherName($div),
+                'top_results'       => $topResultsByDivision->get($div->id) ?? collect(),
+                'is_bracket'        => $div->competitionEvent?->isTournament() ?? false,
+                'planned_seconds'   => $plannedSeconds,
+                'actual_seconds'    => $actualSeconds,
+            ];
+        });
+
+        if (! $this->filter_location) {
+            return $divisionItems;
+        }
+
+        $breaks = CompetitionBreak::where('competition_id', $this->competition_id)
+            ->orderBy('start_time')
+            ->get();
+
+        if ($breaks->isEmpty()) {
+            return $divisionItems;
+        }
+
+        $merged   = collect();
+        $breakIdx = 0;
+        $total    = $breaks->count();
+
+        foreach ($divisionItems as $item) {
+            $divTime = $item->division->planned_start_at?->format('H:i:s');
+            while ($breakIdx < $total && $divTime !== null && $breaks[$breakIdx]->start_time <= $divTime) {
+                $merged->push((object) ['type' => 'break', 'break' => $breaks[$breakIdx]]);
+                $breakIdx++;
+            }
+            $merged->push($item);
+        }
+        while ($breakIdx < $total) {
+            $merged->push((object) ['type' => 'break', 'break' => $breaks[$breakIdx++]]);
+        }
+
+        return $merged;
     }
 
     // ─── Navigation ───────────────────────────────────────────────────────────
@@ -186,8 +239,9 @@ class Scoring extends Page
 
         $this->redirect(
             $entryClass::getUrl(array_filter([
-                'division_id'    => $divisionId,
-                'competition_id' => $this->competition_id,
+                'division_id'     => $divisionId,
+                'competition_id'  => $this->competition_id,
+                'filter_location' => $this->filter_location,
             ])),
             navigate: true
         );
@@ -196,7 +250,7 @@ class Scoring extends Page
     public function jumpToNextIncomplete(): void
     {
         $incomplete = $this->divisionList
-            ->filter(fn ($item) => $item->division->status !== 'complete');
+            ->filter(fn ($item) => $item->type === 'division' && $item->division->status !== 'complete');
 
         if ($incomplete->isEmpty()) return;
 
@@ -205,6 +259,13 @@ class Scoring extends Page
     }
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+    public function updatedFilterLocation(): void
+    {
+        if ($this->competition_id) {
+            session(["scoring_location_{$this->competition_id}" => $this->filter_location]);
+        }
+    }
 
     public function updatedCompetitionId(): void
     {
