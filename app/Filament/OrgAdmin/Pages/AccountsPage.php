@@ -156,11 +156,11 @@ class AccountsPage extends Page implements HasTable
                         $q->where('email', 'like', "%{$s}%")
                           ->orWhereHas('selfProfile', fn ($q2) =>
                               $q2->where('first_name', 'like', "%{$s}%")
-                                 ->orWhere('last_name', 'like', "%{$s}%")
+                                 ->orWhere('surname', 'like', "%{$s}%")
                           )
                     )
                     ->sortable(query: fn (Builder $q, string $direction) =>
-                        $q->orderByRaw("COALESCE((SELECT first_name || ' ' || last_name FROM competitor_profiles WHERE owner_user_id=users.id AND profile_type='self' LIMIT 1), email) {$direction}")
+                        $q->orderByRaw("COALESCE((SELECT first_name || ' ' || surname FROM competitor_profiles WHERE owner_user_id=users.id AND profile_type='self' LIMIT 1), email) {$direction}")
                     ),
 
                 TextColumn::make('outstanding')
