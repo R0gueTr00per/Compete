@@ -27,7 +27,7 @@ class AccountsPage extends Page implements HasTable
 
     protected static ?string $navigationIcon  = 'heroicon-o-users';
     protected static ?string $navigationLabel = 'Accounts';
-    protected static ?string $navigationGroup = 'Registrations';
+    protected static ?string $navigationGroup = 'Finance';
     protected static ?int    $navigationSort  = 5;
     protected static string  $view            = 'filament.org-admin.pages.accounts';
 

@@ -16,7 +16,7 @@ class TransactionStatementPage extends Page
 {
     protected static ?string $navigationIcon  = 'heroicon-o-document-chart-bar';
     protected static ?string $navigationLabel = 'Statement';
-    protected static ?string $navigationGroup = 'Registrations';
+    protected static ?string $navigationGroup = 'Finance';
     protected static ?int    $navigationSort  = 6;
     protected static string  $view            = 'filament.org-admin.pages.transaction-statement';
 
