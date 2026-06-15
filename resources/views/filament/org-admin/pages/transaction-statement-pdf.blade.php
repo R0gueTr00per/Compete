@@ -107,16 +107,10 @@
         <div class="footer-cell">
             <div class="footer-label">Net Balance</div>
             @php
-                $netCls = $totals['net'] > 0.009 ? 'text-warning' : ($totals['net'] < -0.009 ? 'text-danger' : 'text-success');
+                $netCls = $totals['net'] < -0.009 ? 'text-danger' : ($totals['net'] > 0.009 ? 'text-success' : 'text-gray');
             @endphp
             <div class="footer-value {{ $netCls }}">
                 {{ $totals['net'] < 0 ? '−' : '' }}{{ tenant_money(abs($totals['net'])) }}
-                <span style="font-size:9px;font-weight:400;color:#6b7280;">
-                    @if ($totals['net'] > 0.009) outstanding
-                    @elseif ($totals['net'] < -0.009) credit
-                    @else settled
-                    @endif
-                </span>
             </div>
         </div>
     </div>

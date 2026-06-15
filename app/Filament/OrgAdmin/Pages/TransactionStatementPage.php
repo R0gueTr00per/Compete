@@ -24,6 +24,7 @@ class TransactionStatementPage extends Page
     public ?string $dateFrom      = null;
     public ?string $dateTo        = null;
     public array   $types         = ['invoice', 'payment', 'refund'];
+    public ?string $search        = null;
 
     private ?Collection $cachedEntries = null;
 
@@ -41,6 +42,7 @@ class TransactionStatementPage extends Page
     public function getCompetitions(): array
     {
         return Competition::where('organisation_id', app('tenant')?->id)
+            ->where('is_template', false)
             ->orderByDesc('competition_date')
             ->pluck('name', 'id')
             ->toArray();
@@ -57,7 +59,7 @@ class TransactionStatementPage extends Page
         $cartQuery = EnrolmentCart::query()
             ->whereHas('enrolments', fn (Builder $q) => $q->whereNotIn('status', ['draft']))
             ->whereHas('competition', fn (Builder $q) => $q->where('organisation_id', $tenantId))
-            ->with(['competition', 'user', 'enrolments.competitor']);
+            ->with(['competition', 'user.selfProfile', 'enrolments.competitor']);
 
         if ($this->competitionId) {
             $cartQuery->where('competition_id', $this->competitionId);
@@ -67,39 +69,48 @@ class TransactionStatementPage extends Page
         $entries = collect();
 
         foreach ($carts as $cart) {
-            $competitors = $cart->enrolments
+            $competitorNames = $cart->enrolments
                 ->whereNotIn('status', ['draft'])
                 ->map(fn ($e) => $e->competitor?->full_name)
                 ->filter()
-                ->join(', ');
+                ->values();
+            $competitors = $competitorNames->join(', ');
 
-            // Invoice event
+            $userRef      = $cart->user?->selfProfile?->full_name ?? $cart->user?->email ?? '—';
+            $cartRef      = ($cart->competition?->name ?? '?') . ' #' . $cart->id . ' · User #' . $cart->user_id;
+            $userInList   = $competitorNames->contains($userRef);
+
+            // Invoice event (negative — creates obligation)
             if ($cart->submitted_at && in_array('invoice', $this->types)) {
                 if ($this->inDateRange($cart->submitted_at)) {
+                    $desc = $userInList
+                        ? ($competitors ?: '—')
+                        : $userRef . ($competitors ? ' · ' . $competitors : '');
                     $entries->push([
                         'date'        => $cart->submitted_at,
                         'type'        => 'invoice',
-                        'reference'   => ($cart->competition?->name ?? '?') . ' #' . $cart->id,
-                        'description' => $competitors ?: '—',
-                        'amount'      => (float) $cart->total_amount,
+                        'reference'   => $cartRef,
+                        'description' => $desc,
+                        'amount'      => -(float) $cart->total_amount,
                         'sort_key'    => $cart->submitted_at->timestamp . '_a_' . $cart->id,
                     ]);
                 }
             }
 
-            // Payment event
+            // Payment event (positive — cash received)
             if ($cart->isPaid() && $cart->payment_received_at && in_array('payment', $this->types)) {
                 if ($this->inDateRange($cart->payment_received_at)) {
-                    $desc = ucfirst($cart->payment_method ?? 'cash');
+                    $prefix = $userInList ? '' : $userRef . ' · ';
+                    $desc   = $prefix . ucfirst($cart->payment_method ?? 'cash');
                     if ($cart->transaction_reference) {
                         $desc .= ' · ref: ' . $cart->transaction_reference;
                     }
                     $entries->push([
                         'date'        => $cart->payment_received_at,
                         'type'        => 'payment',
-                        'reference'   => ($cart->competition?->name ?? '?') . ' #' . $cart->id,
+                        'reference'   => $cartRef,
                         'description' => $desc,
-                        'amount'      => -(float) ($cart->payment_amount ?? $cart->total_amount),
+                        'amount'      => (float) ($cart->payment_amount ?? $cart->total_amount),
                         'sort_key'    => $cart->payment_received_at->timestamp . '_b_' . $cart->id,
                     ]);
                 }
@@ -112,7 +123,7 @@ class TransactionStatementPage extends Page
                 ->where('organisation_id', $tenantId)
                 ->where('status', 'issued')
                 ->whereNotNull('issued_at')
-                ->with(['cart.competition', 'enrolment.competitor']);
+                ->with(['cart.competition', 'cart.user.selfProfile', 'enrolment.competitor']);
 
             if ($this->competitionId) {
                 $refundQuery->whereHas('cart', fn (Builder $q) => $q->where('competition_id', $this->competitionId));
@@ -120,12 +131,17 @@ class TransactionStatementPage extends Page
 
             foreach ($refundQuery->get() as $refund) {
                 if ($this->inDateRange($refund->issued_at)) {
-                    $name = $refund->enrolment?->competitor?->full_name ?? 'Unknown';
+                    $refundUserRef  = $refund->cart?->user?->selfProfile?->full_name ?? $refund->cart?->user?->email ?? '—';
+                    $refundCartRef  = ($refund->cart?->competition?->name ?? '?') . ' #' . $refund->cart_id . ' · User #' . $refund->cart?->user_id;
+                    $competitorName = $refund->enrolment?->competitor?->full_name;
+                    $desc           = $refundUserRef
+                        . ($competitorName ? ' · ' . $competitorName : '')
+                        . ' · ' . ($refund->reason ?? '—');
                     $entries->push([
                         'date'        => $refund->issued_at,
                         'type'        => 'refund',
-                        'reference'   => ($refund->cart?->competition?->name ?? '?') . ' #' . $refund->cart_id,
-                        'description' => $name . ' · ' . ($refund->reason ?? '—'),
+                        'reference'   => $refundCartRef,
+                        'description' => $desc,
                         'amount'      => -(float) $refund->amount,
                         'sort_key'    => $refund->issued_at->timestamp . '_c_' . $refund->id,
                     ]);
@@ -142,16 +158,26 @@ class TransactionStatementPage extends Page
             return $entry;
         });
 
-        return $this->cachedEntries = $result->sortByDesc('sort_key')->values();
+        $sorted = $result->sortByDesc('sort_key')->values();
+
+        if ($this->search) {
+            $term   = mb_strtolower($this->search);
+            $sorted = $sorted->filter(fn (array $e) =>
+                str_contains(mb_strtolower($e['description']), $term) ||
+                str_contains(mb_strtolower($e['reference']), $term)
+            )->values();
+        }
+
+        return $this->cachedEntries = $sorted;
     }
 
     public function computeTotals(Collection $entries): array
     {
-        $invoiced = $entries->where('type', 'invoice')->sum('amount');
-        $payments = abs($entries->where('type', 'payment')->sum('amount'));
+        $invoiced = abs($entries->where('type', 'invoice')->sum('amount'));
+        $payments = $entries->where('type', 'payment')->sum('amount');
         $refunds  = abs($entries->where('type', 'refund')->sum('amount'));
-        // Net: positive = still outstanding, negative = over-refunded
-        $net      = $invoiced - $payments - $refunds;
+        // Net: positive = cash surplus (over-collected), negative = still outstanding
+        $net      = $payments - $refunds - $invoiced;
 
         return compact('invoiced', 'payments', 'refunds', 'net');
     }

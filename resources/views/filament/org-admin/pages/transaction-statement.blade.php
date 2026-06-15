@@ -60,8 +60,16 @@
             </div>
         </div>
 
-        {{-- Spacer --}}
-        <div class="flex-1"></div>
+        {{-- Search --}}
+        <div class="flex flex-col gap-1 min-w-48 flex-1">
+            <label class="text-xs font-medium text-gray-600 dark:text-gray-400">Search</label>
+            <input
+                type="search"
+                wire:model.live.debounce.300ms="search"
+                placeholder="Name, email, competition…"
+                class="text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            >
+        </div>
 
         {{-- Export buttons --}}
         <div class="flex gap-2">
@@ -107,11 +115,12 @@
                             default   => ['label' => ucfirst($entry['type']), 'bg' => 'bg-gray-100 dark:bg-gray-700', 'text' => 'text-gray-600 dark:text-gray-300'],
                         };
                         $amountPositive = $entry['amount'] >= 0;
-                        $balanceColor   = $entry['balance'] > 0.009
+                        // Positive balance = net cash received (good); negative = still outstanding (warning)
+                        $balanceColor   = $entry['balance'] < -0.009
                             ? 'text-warning-600 dark:text-warning-400'
-                            : ($entry['balance'] < -0.009 ? 'text-danger-600 dark:text-danger-400' : 'text-success-600 dark:text-success-400');
+                            : ($entry['balance'] > 0.009 ? 'text-success-600 dark:text-success-400' : 'text-gray-400 dark:text-gray-500');
                     @endphp
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <tr class="even:bg-gray-50/60 dark:even:bg-gray-800/40 hover:bg-primary-50/40 dark:hover:bg-primary-900/10 transition-colors">
                         <td class="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
                             {{ tenant_date($entry['date']) }}
                         </td>
@@ -163,15 +172,10 @@
             <div class="flex items-center gap-2">
                 <span class="text-gray-500 dark:text-gray-400">Net balance</span>
                 <span class="font-semibold tabular-nums
-                    {{ $totals['net'] > 0.009
-                        ? 'text-warning-600 dark:text-warning-400'
-                        : ($totals['net'] < -0.009 ? 'text-danger-600 dark:text-danger-400' : 'text-success-600 dark:text-success-400') }}">
+                    {{ $totals['net'] < -0.009
+                        ? 'text-danger-600 dark:text-danger-400'
+                        : ($totals['net'] > 0.009 ? 'text-success-600 dark:text-success-400' : 'text-gray-400 dark:text-gray-500') }}">
                     {{ $totals['net'] < 0 ? '−' : '' }}{{ tenant_money(abs($totals['net'])) }}
-                    @if ($totals['net'] > 0.009)
-                        <span class="text-xs font-normal text-gray-400 ml-1">outstanding</span>
-                    @elseif ($totals['net'] < -0.009)
-                        <span class="text-xs font-normal text-gray-400 ml-1">credit</span>
-                    @endif
                 </span>
             </div>
         </div>

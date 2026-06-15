@@ -1,4 +1,10 @@
 <x-filament-panels::page>
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm mb-4">
+        <span class="text-gray-500 dark:text-gray-400">Account reference</span>
+        <span class="font-mono font-semibold text-gray-900 dark:text-white">#{{ auth()->id() }}</span>
+        <span class="text-xs text-gray-400 dark:text-gray-500">Quote this when contacting your organisation about payments or refunds.</span>
+    </div>
+
     @php
         $carts     = $this->getTransactions();
         $draftCart = $this->getDraftCart();
