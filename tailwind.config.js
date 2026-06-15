@@ -19,5 +19,13 @@ export default {
         },
     },
 
+    safelist: [
+        'hidden',
+        'sm:table-cell',
+        'sm:hidden',
+        'md:table-cell',
+        'lg:table-cell',
+    ],
+
     plugins: [forms],
 };

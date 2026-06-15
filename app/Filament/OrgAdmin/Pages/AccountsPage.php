@@ -179,7 +179,8 @@ class AccountsPage extends Page implements HasTable
                     ->formatStateUsing(fn ($state) => $state > 0 ? tenant_money($state) : '—')
                     ->color(fn (User $r) => $this->outstandingForUser($r) > 0 ? 'warning' : 'gray')
                     ->badge()
-                    ->alignEnd(),
+                    ->alignEnd()
+                    ->visibleFrom('md'),
 
                 TextColumn::make('refund_due')
                     ->label('Refund due')
@@ -188,7 +189,7 @@ class AccountsPage extends Page implements HasTable
                     ->color(fn (User $r) => $this->pendingRefundsForUser($r) > 0 ? 'danger' : 'gray')
                     ->badge()
                     ->alignEnd()
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
 
                 TextColumn::make('balance')
                     ->label('Balance')
@@ -205,8 +206,7 @@ class AccountsPage extends Page implements HasTable
                         return $net > 0 ? 'warning' : 'danger';
                     })
                     ->badge()
-                    ->alignEnd()
-                    ->visibleFrom('sm'),
+                    ->alignEnd(),
             ])
             ->filters([
                 SelectFilter::make('competition')
@@ -224,21 +224,24 @@ class AccountsPage extends Page implements HasTable
                 Filter::make('has_balance')
                     ->label('Non-zero balance only')
                     ->query(fn (Builder $q) =>
-                        $q->whereHas('enrolmentCarts', fn ($q2) =>
-                            $q2->whereNotIn('status', ['draft'])
-                               ->whereHas('enrolments', fn ($q3) => $q3
-                                   ->whereHas('competition', fn ($q4) => $q4->where('organisation_id', $tenantId))
-                               )
-                               ->where(fn ($q3) =>
-                                   $q3->where('payment_status', '!=', 'received')
-                                   ->orWhereHas('refunds', fn ($q4) => $q4->where('status', 'pending'))
-                               )
+                        $q->where(fn (Builder $inner) =>
+                            $inner
+                                ->whereHas('enrolmentCarts', fn (Builder $q2) =>
+                                    $q2->whereNotIn('status', ['draft'])
+                                       ->whereHas('competition', fn (Builder $q3) => $q3->where('organisation_id', $tenantId))
+                                       ->where('payment_status', '!=', 'received')
+                                )
+                                ->orWhereHas('enrolmentCarts', fn (Builder $q2) =>
+                                    $q2->whereNotIn('status', ['draft'])
+                                       ->whereHas('competition', fn (Builder $q3) => $q3->where('organisation_id', $tenantId))
+                                       ->whereHas('refunds', fn (Builder $q3) => $q3->where('status', 'pending'))
+                                )
                         )
                     ),
             ])
             ->actions([
                 Action::make('viewAccount')
-                    ->label('View account')
+                    ->label('View')
                     ->icon('heroicon-o-document-text')
                     ->slideOver()
                     ->modalHeading(fn (User $r) => $r->selfProfile?->full_name ?: ($r->email ?: 'Unknown'))

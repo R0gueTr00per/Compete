@@ -81,53 +81,42 @@ class OfficialRoleResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')->label('Role')->sortable()->searchable(),
-                TextColumn::make('permissions_summary')
-                    ->label('Permissions')
-                    ->getStateUsing(fn (OfficialRole $record) => array_sum([
-                        (int) $record->can_access_enrolments,
-                        (int) $record->can_access_checkin,
-                        (int) $record->can_access_create_enrolment,
-                        (int) $record->can_access_scoring,
-                        (int) $record->can_access_accounts,
-                        (int) $record->can_access_results,
-                    ]) . '/6')
-                    ->hiddenFrom('sm'),
                 TextColumn::make('can_access_enrolments')
                     ->label('Registrations')
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
                     ->alignment(\Filament\Support\Enums\Alignment::Center)
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
                 TextColumn::make('can_access_checkin')
                     ->label('Check-in')
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
                     ->alignment(\Filament\Support\Enums\Alignment::Center)
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
                 TextColumn::make('can_access_create_enrolment')
                     ->label('Create Enrolment')
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
                     ->alignment(\Filament\Support\Enums\Alignment::Center)
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
                 TextColumn::make('can_access_scoring')
                     ->label('Scoring')
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
                     ->alignment(\Filament\Support\Enums\Alignment::Center)
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
                 TextColumn::make('can_access_accounts')
                     ->label('Accounts')
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
                     ->alignment(\Filament\Support\Enums\Alignment::Center)
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
                 TextColumn::make('can_access_results')
                     ->label('Results')
                     ->html()
                     ->formatStateUsing(fn ($state) => $state ? '<span class="text-success-500 text-base font-bold">✓</span>' : '')
                     ->alignment(\Filament\Support\Enums\Alignment::Center)
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
             ])
             ->defaultSort('name')
             ->actions([

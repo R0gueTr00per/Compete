@@ -98,13 +98,14 @@ class EnrolmentResource extends Resource
 
                 ViewColumn::make('events_column')
                     ->label('Events')
-                    ->view('filament.admin.columns.enrolment-events-column'),
+                    ->view('filament.admin.columns.enrolment-events-column')
+                    ->visibleFrom('md'),
 
                 TextColumn::make('enrolled_at')
                     ->label('Registered')
                     ->formatStateUsing(fn ($state) => $state ? tenant_datetime($state) : '—')
                     ->sortable()
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
 
                 TextColumn::make('status')
                     ->badge()

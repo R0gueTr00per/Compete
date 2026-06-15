@@ -60,7 +60,7 @@ class ManageTemplates extends Page implements HasTable
                     ->label('Created')
                     ->date(tenant_date_format())
                     ->sortable()
-                    ->visibleFrom('sm'),
+                    ->visibleFrom('md'),
             ])
             ->actions([
                 Action::make('toggleActive')

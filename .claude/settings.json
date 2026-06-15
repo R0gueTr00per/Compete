@@ -131,7 +131,9 @@
       "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Models\\\\OfficialRole.php\")",
       "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Resources\\\\OfficialRoleResource.php\")",
       "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\app\\\\Filament\\\\OrgAdmin\\\\Pages\\\\Results.php\")",
-      "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\2026_06_15_000001_add_access_flags_to_official_roles_table.php\")"
+      "PowerShell(php -l \"x:\\\\Repos\\\\Compete\\\\database\\\\migrations\\\\2026_06_15_000001_add_access_flags_to_official_roles_table.php\")",
+      "Bash(grep -r \"sm:table-cell\\\\|sm\\\\\\\\\\\\\\\\:table-cell\" vendor/filament/)",
+      "Bash(grep -o \"sm\\\\\\\\\\\\\\\\:table-cell\\\\|\\\\.sm\\\\\\\\\\\\\\\\:table-cell\\\\|hidden sm:table-cell\\\\|sm:hidden\" vendor/filament/filament/dist/theme.css)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

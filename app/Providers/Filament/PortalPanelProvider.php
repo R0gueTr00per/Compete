@@ -43,7 +43,7 @@ class PortalPanelProvider extends PanelProvider
                     ->url(fn () => \App\Filament\Portal\Pages\TwoFactorSetup::getUrl()),
 
                 MenuItem::make()
-                    ->label('Manage Panel')
+                    ->label('Admin Portal')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->url('/manage')
                     ->visible(fn () => ($tenant = app('tenant')) && auth()->user()?->isOrgAdmin($tenant)),
@@ -83,7 +83,7 @@ class PortalPanelProvider extends PanelProvider
             ->authGuard('web')
             ->navigationGroups(['Admin', 'Account'])
             ->navigationItems([
-                NavigationItem::make('Manage Panel')
+                NavigationItem::make('Admin Portal')
                     ->url('/manage')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->group('Admin')
