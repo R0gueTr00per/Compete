@@ -3,9 +3,6 @@
 namespace App\Filament\Portal\Pages;
 
 use App\Models\Competition;
-use App\Models\Enrolment;
-use App\Models\EnrolmentCart;
-use App\Notifications\Notification;
 use Filament\Pages\Page;
 
 class MyDojosPage extends Page
@@ -24,8 +21,6 @@ class MyDojosPage extends Page
     protected static string  $view            = 'filament.portal.pages.my-dojos-page';
     protected static ?string $slug            = 'my-dojos';
     protected static ?int    $navigationSort  = 10;
-
-    public ?int $viewingCartId = null;
 
     public static function canAccess(): bool
     {
@@ -53,60 +48,5 @@ class MyDojosPage extends Page
             ])
             ->orderBy('competition_date', 'desc')
             ->get();
-    }
-
-    public function viewAccount(int $enrolmentId): void
-    {
-        $enrolment = Enrolment::with('cart')->find($enrolmentId);
-        $dojoNames = auth()->user()->instructorOf()->pluck('name');
-        if (! $enrolment || ! $dojoNames->contains($enrolment->dojo_name)) {
-            return;
-        }
-        $this->viewingCartId = $enrolment->cart_id;
-    }
-
-    public function closeAccount(): void
-    {
-        $this->viewingCartId = null;
-    }
-
-    public function getViewingCart(): ?EnrolmentCart
-    {
-        if (! $this->viewingCartId) {
-            return null;
-        }
-        return EnrolmentCart::with([
-            'enrolments' => fn ($q) => $q->withTrashed()
-                ->whereNotIn('status', ['draft', 'withdrawn'])
-                ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division']),
-        ])->find($this->viewingCartId);
-    }
-
-    public function recordPayment(int $enrolmentId): void
-    {
-        $enrolment = Enrolment::with('cart')->find($enrolmentId);
-
-        $dojoNames = auth()->user()->instructorOf()->pluck('name');
-        if (! $enrolment || ! $dojoNames->contains($enrolment->dojo_name)) {
-            return;
-        }
-
-        $cart = $enrolment->cart;
-        if (! $cart || $cart->isPaid()) {
-            return;
-        }
-
-        $platformFee = (float) ($cart->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
-        $totalDue    = $cart->outstandingAmount($platformFee);
-
-        $cart->forceFill([
-            'payment_status'      => 'received',
-            'payment_amount'      => $totalDue,
-            'payment_received_at' => now(),
-        ])->save();
-
-        $this->viewingCartId = null;
-
-        Notification::make()->title('Payment recorded.')->success()->send();
     }
 }

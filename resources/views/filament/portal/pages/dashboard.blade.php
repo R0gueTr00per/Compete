@@ -221,6 +221,10 @@
                             $isWithdrawn   = $isEnrolled && $enrolment->status === 'withdrawn';
                             $inCart        = in_array("{$profile->id}:{$competition->id}", $cartKeys);
                             $canRegister   = (! $isEnrolled || $isWithdrawn) && ! $inCart && $enrolmentOpen && $profile->is_active && $profile->profile_complete;
+                            $isUnpaid      = $isEnrolled && ! $isWithdrawn && $enrolment->cart && ! $enrolment->cart->isPaid();
+                            $canShowPayQr  = $isUnpaid && (app('tenant')?->instructorsCanAcceptPayments() ?? false);
+                            $canShowQr     = $isEnrolled && ! $isWithdrawn && $enrolment->checkin_code
+                                && ($canShowPayQr || in_array($competition->status, ['check_in', 'running']));
                         @endphp
 
                         @if (! $isEnrolled && ! $inCart && ! $canRegister) @continue @endif
@@ -269,10 +273,10 @@
                                 @endif
 
                                 {{-- QR button (desktop) --}}
-                                @if ($isEnrolled && ! $isWithdrawn && in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
+                                @if ($canShowQr)
                                     <button x-on:click="qrOpen = true"
                                         class="flex-shrink-0 hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 hover:border-primary-400 dark:hover:border-primary-500 transition-colors overflow-hidden p-0.5">
-                                        <x-qr-code :value="url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code" :size="24" />
+                                        <x-qr-code :value="$canShowPayQr ? \App\Filament\Portal\Pages\AcceptPaymentPage::getUrl(['code' => $enrolment->checkin_code]) : (url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code)" :size="24" />
                                     </button>
                                 @endif
 
@@ -312,11 +316,11 @@
 
                             @if ($isEnrolled && ! $isWithdrawn)
                                 {{-- Mobile QR --}}
-                                @if (in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
+                                @if ($canShowQr)
                                     <div x-on:click="qrOpen = true"
                                          class="qr-reveal sm:hidden flex flex-col items-center gap-1 py-3 border-b border-gray-100 dark:border-slate-700 cursor-pointer active:opacity-70 transition-opacity">
-                                        <p class="text-xs text-gray-400 dark:text-gray-500">Check-in QR <span class="text-gray-300 dark:text-gray-600">&middot; tap to enlarge</span></p>
-                                        <x-qr-code :value="url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code" :size="128" />
+                                        <p class="text-xs text-gray-400 dark:text-gray-500">{{ $canShowPayQr ? 'Payment QR' : 'Check-in QR' }} <span class="text-gray-300 dark:text-gray-600">&middot; tap to enlarge</span></p>
+                                        <x-qr-code :value="$canShowPayQr ? \App\Filament\Portal\Pages\AcceptPaymentPage::getUrl(['code' => $enrolment->checkin_code]) : (url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code)" :size="128" />
                                         <span class="text-xs font-mono font-semibold tracking-widest text-gray-600 dark:text-gray-400">{{ $enrolment->checkin_code }}</span>
                                     </div>
                                 @endif
@@ -418,7 +422,7 @@
                                 @endif
 
                                 {{-- QR modal --}}
-                                @if (in_array($competition->status, ['check_in', 'running']) && $enrolment->checkin_code)
+                                @if ($canShowQr)
                                     <div x-show="qrOpen" x-cloak x-transition.opacity
                                          x-on:click="qrOpen = false"
                                          class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 sm:p-4">
@@ -428,10 +432,10 @@
                                             <p class="font-semibold text-gray-900 dark:text-white">{{ $profile->full_name }}</p>
                                             <p class="text-xs text-gray-500 -mt-2">{{ $competition->name }}</p>
                                             <div class="flex flex-col items-center gap-1 text-center">
-                                                <span class="text-xs font-semibold uppercase tracking-widest text-primary-600 dark:text-primary-400">Check-in QR code</span>
-                                                <span class="text-xs text-gray-400 dark:text-gray-500">Show this to the official at the door</span>
+                                                <span class="text-xs font-semibold uppercase tracking-widest text-primary-600 dark:text-primary-400">{{ $canShowPayQr ? 'Payment QR code' : 'Check-in QR code' }}</span>
+                                                <span class="text-xs text-gray-400 dark:text-gray-500">{{ $canShowPayQr ? 'Show this to your instructor to pay' : 'Show this to the official at the door' }}</span>
                                             </div>
-                                            <x-qr-code :value="url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code" :size="240" />
+                                            <x-qr-code :value="$canShowPayQr ? \App\Filament\Portal\Pages\AcceptPaymentPage::getUrl(['code' => $enrolment->checkin_code]) : (url('/manage/check-in') . '?competition_id=' . $competition->id . '&code=' . $enrolment->checkin_code)" :size="240" />
                                             <span class="text-2xl font-mono font-bold tracking-widest text-gray-700 dark:text-gray-300">{{ $enrolment->checkin_code }}</span>
                                             <p class="text-xs text-gray-400 dark:text-gray-500">Tap anywhere to close</p>
                                         </div>

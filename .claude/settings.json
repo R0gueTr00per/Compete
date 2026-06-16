@@ -138,7 +138,17 @@
       "Bash(grep -n 'function applyToBaseQuery\\\\|function apply\\\\b\\\\|getQuery\\\\b\\\\|$data\\\\b' x:/Repos/Compete/vendor/filament/tables/src/Filters/BaseFilter.php)",
       "Bash(grep -n 'function apply\\\\b\\\\|modifyQuery\\\\|getQueryUsing\\\\|queryUsing\\\\|$query\\\\b\\\\|$data\\\\b' x:/Repos/Compete/vendor/filament/tables/src/Filters/Filter.php)",
       "Bash(grep -n 'function apply\\\\|queryUsing\\\\|modifyQuery\\\\|isActive\\\\|$data\\\\|$state' x:/Repos/Compete/vendor/filament/tables/src/Filters/BaseFilter.php)",
-      "Bash(xargs grep -l \"function tenant_date\\\\|function tenant_money\\\\|function tenant_currency\")"
+      "Bash(xargs grep -l \"function tenant_date\\\\|function tenant_money\\\\|function tenant_currency\")",
+      "Bash(xargs grep -l \"temporarySignedRoute\\\\|URL::temporarySignedRoute\")",
+      "Bash(xargs grep -l \"temporarySignedRoute\")",
+      "Bash(php -l resources/views/filament/portal/pages/my-dojos-page.blade.php)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(php -l app/Filament/Portal/Pages/AcceptPaymentPage.php)",
+      "Bash(php -l resources/views/filament/portal/pages/accept-payment-page.blade.php)",
+      "Bash(ls -la public/css/filament/filament/ public/css/filament/support/)",
+      "Bash(grep -c \"primary-600\\\\|success-600\\\\|danger-600\" public/css/filament/filament/app.css public/css/filament/support/support.css)",
+      "Bash(cd x:/Repos/Compete && find vendor/filament/filament/resources/views/../../.. -iname \"badge.blade.php\" 2>/dev/null | grep -i filament | head -5)",
+      "Read(//x/Repos/Compete/vendor/filament/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

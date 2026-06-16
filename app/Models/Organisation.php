@@ -32,6 +32,7 @@ class Organisation extends Model
         'cancellation_days_before',
         'group_name',
         'supported_payment_methods',
+        'instructors_can_collect_payments',
         'created_by_user_id',
     ];
 
@@ -44,6 +45,7 @@ class Organisation extends Model
         'platform_fee'             => 'decimal:2',
         'cancellation_days_before'     => 'integer',
         'supported_payment_methods'    => 'array',
+        'instructors_can_collect_payments' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -108,5 +110,11 @@ class Organisation extends Model
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function instructorsCanAcceptPayments(): bool
+    {
+        return $this->instructors_can_collect_payments
+            && in_array('cash', $this->supported_payment_methods ?? [], true);
     }
 }

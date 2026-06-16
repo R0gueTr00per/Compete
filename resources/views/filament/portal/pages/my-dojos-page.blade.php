@@ -114,19 +114,18 @@
                                             <span class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{{ $name }}</span>
                                             <div class="flex items-center gap-2 shrink-0">
                                                 <span class="text-xs text-gray-400 dark:text-gray-500">{{ $eventCount }} {{ Str::plural('event', $eventCount) }}</span>
-                                                @if ($isPaid)
-                                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400">Paid</span>
-                                                @endif
                                                 <x-heroicon-m-chevron-down x-bind:class="open ? 'rotate-180' : ''" class="h-4 w-4 text-gray-400 transition-transform" />
                                             </div>
                                         </button>
-                                        @if (! $isPaid)
-                                            <button
-                                                type="button"
-                                                wire:click="viewAccount({{ $enrolment->id }})"
-                                                class="shrink-0 rounded-md bg-warning-600 px-3 py-1 text-xs font-medium text-white hover:bg-warning-700 transition-colors">
-                                                View account
-                                            </button>
+                                        @if ($isPaid)
+                                            <x-filament::badge color="success" class="shrink-0">Paid</x-filament::badge>
+                                        @elseif (app('tenant')?->instructorsCanAcceptPayments())
+                                            <x-filament::button
+                                                href="{{ \App\Filament\Portal\Pages\AcceptPaymentPage::getUrl(['code' => $enrolment->checkin_code]) }}"
+                                                tag="a" color="warning" size="xs"
+                                                class="shrink-0">
+                                                Accept payment
+                                            </x-filament::button>
                                         @endif
                                     </div>
 
@@ -194,79 +193,4 @@
             <p class="text-sm text-center text-gray-500 py-4">No active competitions with registrations from your {{ strtolower($dojos->count() > 1 ? tenant_group_name_plural() : tenant_group_name()) }}.</p>
         </x-filament::section>
     @endforelse
-
-    {{-- Account slide-over --}}
-    @if ($this->viewingCartId)
-        @php $viewCart = $this->getViewingCart(); @endphp
-        @if ($viewCart)
-            <div
-                class="fixed inset-0 z-50 flex"
-                wire:click.self="closeAccount">
-
-                {{-- Backdrop --}}
-                <div class="absolute inset-0 bg-black/40 dark:bg-black/60" wire:click="closeAccount"></div>
-
-                {{-- Panel --}}
-                <div class="relative ml-auto h-full w-full max-w-md bg-white dark:bg-gray-900 shadow-xl flex flex-col overflow-hidden">
-
-                    {{-- Header --}}
-                    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-                        <div>
-                            <p class="font-semibold text-gray-900 dark:text-white text-base">Account</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Balance due</p>
-                        </div>
-                        <button
-                            type="button"
-                            wire:click="closeAccount"
-                            class="rounded-md p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                            <x-heroicon-m-x-mark class="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    {{-- Enrolment breakdown --}}
-                    <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-                        @php
-                            $vcPlatformFee = (float) ($viewCart->platform_fee_rate ?? $platformFee);
-                            $vcTotal       = $viewCart->outstandingAmount($vcPlatformFee);
-                        @endphp
-
-                        <div class="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden text-sm">
-                            @foreach ($viewCart->enrolments as $ve)
-                                <div class="flex justify-between px-4 py-2.5">
-                                    <div>
-                                        <p class="text-sm text-gray-800 dark:text-gray-200 font-medium">{{ $ve->competitor?->full_name ?? '—' }}</p>
-                                        <p class="text-xs text-gray-400 mt-0.5">{{ $ve->activeEvents->pluck('competitionEvent.name')->join(', ') ?: '—' }}</p>
-                                    </div>
-                                    <span class="tabular-nums text-sm font-medium ml-4 shrink-0">
-                                        {{ tenant_money((float) $ve->fee_calculated + $vcPlatformFee) }}
-                                    </span>
-                                </div>
-                            @endforeach
-                            <div class="flex justify-between px-4 py-2.5 font-semibold bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
-                                <span>Total due</span>
-                                <span class="tabular-nums">{{ tenant_money($vcTotal) }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Footer — record payment --}}
-                    @if (! $viewCart->isPaid())
-                        <div class="border-t border-gray-200 dark:border-gray-700 px-5 py-4">
-                            <x-filament::button
-                                wire:click="recordPayment({{ $viewCart->enrolments->first()?->id }})"
-                                color="success"
-                                class="w-full justify-center">
-                                Mark payment received — {{ tenant_money($vcTotal) }}
-                            </x-filament::button>
-                        </div>
-                    @else
-                        <div class="border-t border-gray-200 dark:border-gray-700 px-5 py-4">
-                            <p class="text-sm text-success-600 dark:text-success-400 text-center font-medium">✓ Payment received</p>
-                        </div>
-                    @endif
-
-                </div>
-            </div>
-        @endif
-    @endif
 </x-filament-panels::page>

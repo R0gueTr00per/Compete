@@ -54,6 +54,7 @@ class OrganisationSettings extends Page implements HasForms
             'currency'                 => $tenant?->currency,
             'cancellation_days_before'    => $tenant?->cancellation_days_before ?? 0,
             'supported_payment_methods'   => $tenant?->supported_payment_methods ?? ['cash'],
+            'instructors_can_collect_payments' => $tenant?->instructors_can_collect_payments ?? false,
             'group_name_preset'           => $groupPreset,
             'group_name_custom'           => $groupPreset === 'Other' ? $groupName : null,
         ]);
@@ -140,7 +141,15 @@ class OrganisationSettings extends Page implements HasForms
                                 'cash'   => 'Cash',
                                 'stripe' => 'Stripe — Online payments (coming soon)',
                             ])
-                            ->default(['cash']),
+                            ->default(['cash'])
+                            ->live(),
+                        Toggle::make('instructors_can_collect_payments')
+                            ->label('Allow instructors to collect payments in person')
+                            ->helperText(fn (Get $get) => in_array('cash', $get('supported_payment_methods') ?? [])
+                                ? 'When enabled, instructors get an "Accept Payment" screen where they can scan a competitor\'s QR code (or search by name) and record their payment on the spot.'
+                                : 'Requires Cash to be an accepted payment method above.')
+                            ->disabled(fn (Get $get) => ! in_array('cash', $get('supported_payment_methods') ?? []))
+                            ->default(false),
                     ]),
 
                 Section::make('Contact')
@@ -238,6 +247,7 @@ class OrganisationSettings extends Page implements HasForms
             'currency'                 => $data['currency'] ?? null,
             'cancellation_days_before'  => $data['cancellation_days_before'] ?? 0,
             'supported_payment_methods' => $data['supported_payment_methods'] ?? ['cash'],
+            'instructors_can_collect_payments' => $data['instructors_can_collect_payments'] ?? false,
             'contact_phone'             => $data['contact_phone'] ?? null,
             'contact_email'            => $data['contact_email'] ?? null,
             'website'                  => $data['website'] ?? null,
