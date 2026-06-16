@@ -47,7 +47,13 @@
                 $cartColor  = $cartIsPaid ? 'success' : 'warning';
             @endphp
 
-            <x-filament::section class="mb-6">
+            <x-filament::section
+                class="mb-6"
+                :collapsible="$cartIsPaid"
+                :collapsed="$cartIsPaid"
+                persist-collapsed
+                id="cart-{{ $cart->id }}"
+            >
                 {{-- Cart / transaction header --}}
                 <x-slot name="heading">
                     <div class="flex items-center gap-3">

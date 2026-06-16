@@ -183,9 +183,10 @@ class AccountsPage extends Page implements HasTable
                 TextColumn::make('name')
                     ->label('Account')
                     ->getStateUsing(fn (User $r) => $r->selfProfile?->full_name ?: ($r->email ?: '(Unknown)'))
-                    ->description(fn (User $r) => $r->email ?: null)
+                    ->description(fn (User $r) => trim(($r->email ?: '') . '  ·  ID: ' . $r->id))
                     ->searchable(query: fn (Builder $query, string $search) =>
                         $query->where('email', 'like', "%{$search}%")
+                              ->orWhere('id', 'like', "%{$search}%")
                               ->orWhereHas('selfProfile', fn ($q2) =>
                                   $q2->where(fn ($q3) =>
                                       $q3->where('first_name', 'like', "%{$search}%")
