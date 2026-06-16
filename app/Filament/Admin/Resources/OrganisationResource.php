@@ -11,6 +11,7 @@ use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Forms\Set;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -87,7 +88,39 @@ class OrganisationResource extends Resource
                     ->step(0.01)
                     ->suffix(fn (?Organisation $record) => $record?->currency ?: 'AUD')
                     ->default(0),
+
+                \Filament\Forms\Components\Toggle::make('competitor_logins_locked')
+                    ->label('Lock competitor portal logins')
+                    ->helperText('Blocks competitor logins only — Org Admins can still log in. Use when payments are overdue but you don\'t want to disable the whole Org.'),
             ]),
+
+            Section::make('Billing')
+                ->schema([
+                    \Filament\Forms\Components\TextInput::make('annual_fee')
+                        ->label('Annual platform subscription fee')
+                        ->numeric()
+                        ->minValue(0)
+                        ->step(0.01)
+                        ->suffix(fn (?Organisation $record) => $record?->currency ?: 'AUD'),
+
+                    \Filament\Forms\Components\DatePicker::make('annual_fee_anniversary_date')
+                        ->label('Annual fee anniversary date')
+                        ->helperText('The annual fee is billed in this month on the monthly invoice run.'),
+
+                    \Filament\Forms\Components\Toggle::make('gst_registered')
+                        ->label('GST registered')
+                        ->helperText('Applies GST to this Org\'s invoices from Kompetic and to competitor registration totals.')
+                        ->live(),
+
+                    \Filament\Forms\Components\TextInput::make('gst_rate')
+                        ->label('GST rate')
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(100)
+                        ->step(0.01)
+                        ->suffix('%')
+                        ->visible(fn (Get $get) => (bool) $get('gst_registered')),
+                ]),
 
             Section::make('Initial Administrator')
                 ->description('An invitation email with a magic link will be sent to this address.')
@@ -132,7 +165,7 @@ class OrganisationResource extends Resource
 
                 TextColumn::make('competitions_count')
                     ->label('Competitions')
-                    ->counts('competitions')
+                    ->counts(['competitions' => fn ($q) => $q->where('is_template', false)])
                     ->sortable()
                     ->visibleFrom('sm'),
 

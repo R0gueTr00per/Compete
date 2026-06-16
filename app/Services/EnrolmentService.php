@@ -405,6 +405,7 @@ class EnrolmentService
                     'is_official'      => $isOfficial,
                     'late_surcharge'   => $item['late_surcharge'],
                     'platform_fee'     => $item['platform_fee'],
+                    'gst_amount'       => $item['gst_amount'],
                     'subtotal'         => $item['subtotal'],
                 ];
             }, $cartTotal['items']),
@@ -422,6 +423,7 @@ class EnrolmentService
         // Platform fee is org-level; competitions belong to the current tenant org.
         $org         = app('tenant');
         $platformFee = (float) ($org->platform_fee ?? 0);
+        $gstRate     = $org->gst_registered ? (float) ($org->gst_rate ?? 0) : 0.0;
 
         $items      = [];
         $grandTotal = 0.0;
@@ -431,7 +433,8 @@ class EnrolmentService
             $entryFee      = (float) $enrolment->fee_calculated;
             $lateSurcharge = $enrolment->is_late ? (float) $competition->late_surcharge : null;
             $baseFee       = $entryFee - ($lateSurcharge ?? 0.0);
-            $subtotal      = $entryFee + $platformFee;
+            $gstAmount     = round(($entryFee + $platformFee) * $gstRate / 100, 2);
+            $subtotal      = $entryFee + $platformFee + $gstAmount;
             $grandTotal   += $subtotal;
 
             $items[] = [
@@ -442,6 +445,7 @@ class EnrolmentService
                 'is_official'    => (bool) $enrolment->is_official_discount,
                 'late_surcharge' => $lateSurcharge,
                 'platform_fee'   => $platformFee,
+                'gst_amount'     => $gstAmount,
                 'subtotal'       => $subtotal,
             ];
         }

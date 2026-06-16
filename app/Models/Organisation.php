@@ -29,6 +29,11 @@ class Organisation extends Model
         'date_format',
         'currency',
         'platform_fee',
+        'annual_fee',
+        'annual_fee_anniversary_date',
+        'gst_registered',
+        'gst_rate',
+        'competitor_logins_locked',
         'cancellation_days_before',
         'group_name',
         'supported_payment_methods',
@@ -43,6 +48,11 @@ class Organisation extends Model
         'competitor_summaries_enabled'    => 'boolean',
         'dashboard_closed_days'           => 'integer',
         'platform_fee'             => 'decimal:2',
+        'annual_fee'               => 'decimal:2',
+        'annual_fee_anniversary_date' => 'date',
+        'gst_registered'            => 'boolean',
+        'gst_rate'                  => 'decimal:2',
+        'competitor_logins_locked'  => 'boolean',
         'cancellation_days_before'     => 'integer',
         'supported_payment_methods'    => 'array',
         'instructors_can_collect_payments' => 'boolean',
@@ -107,9 +117,40 @@ class Organisation extends Model
         return $this->hasMany(Dojo::class);
     }
 
+    public function annualFeeReminders(): HasMany
+    {
+        return $this->hasMany(OrganisationAnnualFeeReminder::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    /**
+     * The next occurrence of the annual fee anniversary on or after today.
+     * Clamps the day for short months (e.g. a 31st anniversary in February).
+     */
+    public function nextAnnualFeeDueDate(): ?\Illuminate\Support\Carbon
+    {
+        if (! $this->annual_fee_anniversary_date) {
+            return null;
+        }
+
+        $today = now()->startOfDay();
+        $month = $this->annual_fee_anniversary_date->month;
+        $day   = $this->annual_fee_anniversary_date->day;
+
+        $dueThisYear = \Illuminate\Support\Carbon::create($today->year, $month, 1)->startOfDay();
+        $dueThisYear->day(min($day, $dueThisYear->daysInMonth));
+
+        if ($dueThisYear->isBefore($today)) {
+            $dueNextYear = \Illuminate\Support\Carbon::create($today->year + 1, $month, 1)->startOfDay();
+            $dueNextYear->day(min($day, $dueNextYear->daysInMonth));
+            return $dueNextYear;
+        }
+
+        return $dueThisYear;
     }
 
     public function instructorsCanAcceptPayments(): bool

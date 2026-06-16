@@ -148,7 +148,16 @@
       "Bash(ls -la public/css/filament/filament/ public/css/filament/support/)",
       "Bash(grep -c \"primary-600\\\\|success-600\\\\|danger-600\" public/css/filament/filament/app.css public/css/filament/support/support.css)",
       "Bash(cd x:/Repos/Compete && find vendor/filament/filament/resources/views/../../.. -iname \"badge.blade.php\" 2>/dev/null | grep -i filament | head -5)",
-      "Read(//x/Repos/Compete/vendor/filament/**)"
+      "Read(//x/Repos/Compete/vendor/filament/**)",
+      "Bash(xargs grep -l \"disabled\\\\|inactive.*org\\\\|organisation.*inactive\")",
+      "PowerShell(cd x:\\\\Repos\\\\Compete; $files = @\\('app\\\\Models\\\\OrganisationInvoice.php','app\\\\Models\\\\OrganisationInvoiceItem.php','app\\\\Models\\\\Organisation.php','app\\\\Models\\\\EnrolmentCart.php','app\\\\Console\\\\Commands\\\\GenerateMonthlyOrgInvoices.php','app\\\\Services\\\\EnrolmentService.php','app\\\\Filament\\\\Admin\\\\Resources\\\\OrganisationResource.php','app\\\\Filament\\\\Admin\\\\Resources\\\\OrganisationInvoiceResource.php','app\\\\Filament\\\\Admin\\\\Resources\\\\OrganisationInvoiceResource\\\\Pages\\\\ListOrganisationInvoices.php','app\\\\Filament\\\\Admin\\\\Resources\\\\OrganisationInvoiceResource\\\\Pages\\\\ViewOrganisationInvoice.php','app\\\\Http\\\\Middleware\\\\EnsureOrganisationActive.php','app\\\\Http\\\\Middleware\\\\ResolveTenant.php','app\\\\Providers\\\\Filament\\\\PortalPanelProvider.php','app\\\\Providers\\\\Filament\\\\OrgAdminPanelProvider.php','routes\\\\web.php','routes\\\\console.php'\\); foreach \\($f in $files\\) { php -l $f })",
+      "Bash(rm -f 2026_06_16_000003_create_organisation_invoices_table.php 2026_06_16_000004_create_organisation_invoice_items_table.php 2026_06_16_000005_add_invoiced_at_to_enrolment_carts_table.php 2026_06_16_000006_create_platform_settings_table.php)",
+      "Read(//x/x/Repos/Compete/database/**)",
+      "PowerShell(cd x:\\\\Repos\\\\Compete; $files = @\\('app\\\\Models\\\\Organisation.php','app\\\\Models\\\\EnrolmentCart.php','app\\\\Models\\\\Competition.php','app\\\\Filament\\\\Admin\\\\Pages\\\\Dashboard.php','app\\\\Filament\\\\Admin\\\\Pages\\\\OrgBillingReport.php','app\\\\Filament\\\\Admin\\\\Widgets\\\\BillingOverview.php','app\\\\Providers\\\\Filament\\\\AdminPanelProvider.php','routes\\\\console.php'\\); foreach \\($f in $files\\) { php -l $f })",
+      "PowerShell(cd x:\\\\Repos\\\\Compete; $files = @\\('app\\\\Models\\\\Organisation.php','app\\\\Models\\\\OrganisationAnnualFeeReminder.php','app\\\\Console\\\\Commands\\\\GenerateAnnualFeeReminders.php','app\\\\Filament\\\\Admin\\\\Pages\\\\OrgBillingReport.php','app\\\\Filament\\\\Admin\\\\Pages\\\\Dashboard.php','app\\\\Filament\\\\Admin\\\\Widgets\\\\BillingOverview.php','bootstrap\\\\app.php'\\); foreach \\($f in $files\\) { php -l $f })",
+      "Bash(php -l app/Console/Commands/GenerateAnnualFeeReminders.php)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit:$?\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

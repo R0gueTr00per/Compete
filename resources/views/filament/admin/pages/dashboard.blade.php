@@ -28,6 +28,18 @@
                                     &mdash; {{ $org->nextCompetition->enrolments_count }} registration{{ $org->nextCompetition->enrolments_count === 1 ? '' : 's' }}
                                 </div>
                             @endif
+                            @if ($org->unpaid_platform_fee_total || $org->annual_fee_due)
+                                <div class="text-xs text-gray-500 mt-0.5">
+                                    @if ($org->unpaid_platform_fee_total)
+                                        Unpaid platform fees: <span class="font-medium text-amber-600 dark:text-amber-400">{{ $org->currency ?: 'AUD' }} {{ number_format((float) $org->unpaid_platform_fee_total, 2) }}</span>
+                                    @endif
+                                    @if ($org->annual_fee_due)
+                                        @if ($org->unpaid_platform_fee_total) &mdash; @endif
+                                        <span class="font-medium text-amber-600 dark:text-amber-400">Annual fee due{{ $org->annual_fee_due_date ? ' ' . $org->annual_fee_due_date->format('d M Y') : '' }}</span>
+                                    @endif
+                                    &mdash; <a href="{{ \App\Filament\Admin\Pages\OrgBillingReport::getUrl($org->unpaid_platform_fee_total ? ['tableFilters[organisation][value]' => $org->id] : []) }}" class="underline">View billing</a>
+                                </div>
+                            @endif
                         </div>
                         <div class="flex items-center gap-3 shrink-0">
                             <span class="text-xs text-gray-500">{{ $org->memberships_count }} admin{{ $org->memberships_count === 1 ? '' : 's' }}</span>

@@ -76,6 +76,7 @@ class OrgAdminPanelProvider extends PanelProvider
             ])
             ->middleware([
                 ResolveTenant::class,
+                \App\Http\Middleware\EnsureOrganisationActive::class . ':manage',
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

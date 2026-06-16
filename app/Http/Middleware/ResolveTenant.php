@@ -35,7 +35,7 @@ class ResolveTenant
         }
 
         $org = Cache::remember("org:slug:{$slug}", 3600, fn () =>
-            Organisation::where('slug', $slug)->where('status', 'active')->first()
+            Organisation::where('slug', $slug)->first()
         );
 
         if (! $org) {

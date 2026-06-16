@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Widgets;
 
+use App\Models\Enrolment;
 use App\Models\Organisation;
 use App\Models\OrganisationMembership;
 use Filament\Widgets\ChartWidget;
@@ -9,18 +10,30 @@ use Illuminate\Support\Facades\DB;
 
 class ActiveUsersChart extends ChartWidget
 {
-    protected static ?string $heading = 'Registered users over time (last 12 weeks)';
+    protected static ?string $heading = 'Growth over time (last 12 weeks)';
     protected static ?string $maxHeight = '150px';
     protected int|string|array $columnSpan = 'full';
 
+    public ?string $filter = 'registrations';
+
+    protected function getFilters(): ?array
+    {
+        return [
+            'registrations' => 'Registrations',
+            'users'         => 'Users',
+        ];
+    }
+
     protected function getData(): array
     {
-        $weeks = collect();
-        for ($i = 11; $i >= 0; $i--) {
-            $weeks->push(now()->subWeeks($i)->startOfWeek()->startOfDay());
-        }
+        return $this->filter === 'users'
+            ? $this->getUsersData()
+            : $this->getRegistrationsData();
+    }
 
-        $labels = $weeks->map(fn ($w) => $w->format('d M'))->toArray();
+    protected function getUsersData(): array
+    {
+        $weeks = $this->getWeeks();
 
         // Single query: count memberships per org per day for the period
         $rows = OrganisationMembership::select(
@@ -44,6 +57,55 @@ class ActiveUsersChart extends ChartWidget
 
         $orgIds = $rows->keys()->merge($priorCounts->keys())->unique();
         $orgs   = Organisation::whereIn('id', $orgIds)->get()->keyBy('id');
+
+        return $this->buildCumulativeDatasets($weeks, $rows, $priorCounts, $orgs);
+    }
+
+    protected function getRegistrationsData(): array
+    {
+        $weeks = $this->getWeeks();
+
+        // Single query: count enrolments per org per day for the period
+        $rows = Enrolment::join('competitions', 'competitions.id', '=', 'enrolments.competition_id')
+            ->select(
+                'competitions.organisation_id',
+                DB::raw('DATE(enrolments.created_at) as day'),
+                DB::raw('COUNT(*) as cnt')
+            )
+            ->where('enrolments.created_at', '>=', $weeks->first())
+            ->groupBy('competitions.organisation_id', DB::raw('DATE(enrolments.created_at)'))
+            ->get()
+            ->groupBy('organisation_id');
+
+        // Pre-count total enrolments before the window to start cumulative sums correctly
+        $priorCounts = Enrolment::join('competitions', 'competitions.id', '=', 'enrolments.competition_id')
+            ->select(
+                'competitions.organisation_id',
+                DB::raw('COUNT(*) as cnt')
+            )
+            ->where('enrolments.created_at', '<', $weeks->first())
+            ->groupBy('competitions.organisation_id')
+            ->pluck('cnt', 'organisation_id');
+
+        $orgIds = $rows->keys()->merge($priorCounts->keys())->unique();
+        $orgs   = Organisation::whereIn('id', $orgIds)->get()->keyBy('id');
+
+        return $this->buildCumulativeDatasets($weeks, $rows, $priorCounts, $orgs);
+    }
+
+    protected function getWeeks()
+    {
+        $weeks = collect();
+        for ($i = 11; $i >= 0; $i--) {
+            $weeks->push(now()->subWeeks($i)->startOfWeek()->startOfDay());
+        }
+
+        return $weeks;
+    }
+
+    protected function buildCumulativeDatasets($weeks, $rows, $priorCounts, $orgs): array
+    {
+        $labels = $weeks->map(fn ($w) => $w->format('d M'))->toArray();
 
         $colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
 

@@ -65,6 +65,7 @@ class PortalPanelProvider extends PanelProvider
             ->widgets([])
             ->middleware([
                 ResolveTenant::class,
+                \App\Http\Middleware\EnsureOrganisationActive::class . ':portal',
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

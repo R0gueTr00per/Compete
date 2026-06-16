@@ -52,12 +52,23 @@ class CartInvoiceNotification extends Notification implements ShouldQueue
                 $message->line('Service fee: $' . number_format($item['platform_fee'], 2));
             }
 
+            if (($item['gst_amount'] ?? 0) > 0) {
+                $message->line('GST: $' . number_format($item['gst_amount'], 2));
+            }
+
             $message->line('**Subtotal: $' . number_format($item['subtotal'], 2) . '**');
         }
 
+        $totalGst = array_sum(array_column($this->invoice['items'], 'gst_amount'));
+
         $message->line('---')
-            ->line('**Total payable: $' . number_format($this->invoice['grand_total'], 2) . '**')
-            ->line('Payment is collected at the competition check-in desk.');
+            ->line('**Total payable: $' . number_format($this->invoice['grand_total'], 2) . '**');
+
+        if ($totalGst > 0) {
+            $message->line('Includes GST of $' . number_format($totalGst, 2));
+        }
+
+        $message->line('Payment is collected at the competition check-in desk.');
 
         return $message->action('View portal', url('/portal'));
     }

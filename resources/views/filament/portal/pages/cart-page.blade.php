@@ -100,6 +100,13 @@
                                     </div>
                                 @endif
 
+                                @if (($item['gst_amount'] ?? 0) > 0)
+                                    <div class="flex justify-between items-center text-gray-500 dark:text-gray-400">
+                                        <span>GST</span>
+                                        <span>{{ tenant_money($item['gst_amount']) }}</span>
+                                    </div>
+                                @endif
+
                                 <div class="flex justify-between font-semibold text-sm pt-1 border-t border-gray-100 dark:border-gray-800">
                                     <span>Subtotal</span>
                                     <span>{{ tenant_money($item['subtotal']) }}</span>
@@ -111,11 +118,15 @@
             </x-filament::section>
         @endforeach
 
+        @php $totalGst = collect($cartTotal['items'])->sum('gst_amount'); @endphp
         <x-filament::section>
             <div class="flex items-center justify-between">
                 <p class="font-bold text-lg">Total</p>
                 <p class="font-bold text-xl">{{ tenant_money($cartTotal['grand_total']) }}</p>
             </div>
+            @if ($totalGst > 0)
+                <p class="text-xs text-gray-400 mt-1">Includes GST of {{ tenant_money($totalGst) }}</p>
+            @endif
             <p class="text-xs text-gray-400 mt-1">Payment is collected at the competition. An invoice will be emailed on submission.</p>
         </x-filament::section>
 

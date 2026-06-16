@@ -39,6 +39,8 @@ class Competition extends Model
         'registration_fields',
         'is_template',
         'template_active',
+        'platform_fee_settled_at',
+        'platform_fee_billing_override',
     ];
 
     protected function casts(): array
@@ -55,7 +57,41 @@ class Competition extends Model
             'is_template'                   => 'boolean',
             'template_active'               => 'boolean',
             'completed_at'                  => 'datetime',
+            'platform_fee_settled_at'       => 'datetime',
         ];
+    }
+
+    /**
+     * Competitions due for platform-fee billing: forced in manually, or past their
+     * date and not excluded (e.g. date changed after it was already picked up).
+     */
+    public function scopeBillable(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query->where(function ($q) {
+            $q->where('platform_fee_billing_override', 'forced')
+                ->orWhere(function ($q2) {
+                    $q2->whereNull('platform_fee_billing_override')
+                        ->where('competition_date', '<', now()->toDateString());
+                });
+        });
+    }
+
+    /**
+     * Total platform fee owed to Kompetic for this competition's paid registrations
+     * (cash already collected by the Org from competitors).
+     */
+    public function unpaidPlatformFeeTotal(): float
+    {
+        if ($this->platform_fee_settled_at) {
+            return 0.0;
+        }
+
+        return (float) $this->carts()
+            ->where('status', 'submitted')
+            ->where('payment_status', 'received')
+            ->get()
+            ->sum(fn (EnrolmentCart $cart) => (float) ($cart->platform_fee_rate ?? 0)
+                * $cart->enrolments()->whereNotIn('status', ['draft'])->count());
     }
 
     public function scopeTemplates(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
@@ -123,6 +159,11 @@ class Competition extends Model
     public function enrolments(): HasMany
     {
         return $this->hasMany(Enrolment::class);
+    }
+
+    public function carts(): HasMany
+    {
+        return $this->hasMany(EnrolmentCart::class);
     }
 
     public function organisation(): BelongsTo

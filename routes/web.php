@@ -20,6 +20,11 @@ Route::get('/', function () {
 
 Route::get('/schedule/{competition}', [PublicScheduleController::class, 'show'])->name('public.schedule');
 
+Route::middleware(\App\Http\Middleware\ResolveTenant::class)->group(function () {
+    Route::get('/organisation-disabled', fn () => view('organisation-disabled'))->name('organisation.disabled');
+    Route::get('/competitor-access-disabled', fn () => view('competitor-access-disabled'))->name('competitor.access.disabled');
+});
+
 // Org admin invitation magic links
 Route::get('/invite/org-admin/{membership}', [InvitationController::class, 'accept'])
     ->name('invite.org-admin.accept')
