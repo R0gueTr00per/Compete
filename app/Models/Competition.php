@@ -82,10 +82,15 @@ class Competition extends Model
      */
     public function unpaidPlatformFeeTotal(): float
     {
-        if ($this->platform_fee_settled_at) {
-            return 0.0;
-        }
+        return $this->platform_fee_settled_at ? 0.0 : $this->platformFeeTotal();
+    }
 
+    /**
+     * Total platform fee for this competition's paid registrations, regardless
+     * of whether it has been settled with Kompetic yet.
+     */
+    public function platformFeeTotal(): float
+    {
         return (float) $this->carts()
             ->where('status', 'submitted')
             ->where('payment_status', 'received')

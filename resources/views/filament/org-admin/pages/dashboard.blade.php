@@ -441,6 +441,19 @@
                         @endif
                     </div>
 
+                    {{-- Outstanding platform fee warning (org admin only) --}}
+                    @if ($isOrgAdmin && $competition->competition_date->isPast() && ($outstandingFee = $competition->unpaidPlatformFeeTotal()) > 0)
+                        <div class="mt-3 rounded-lg bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 px-3 py-2 flex items-center justify-between gap-3">
+                            <p class="text-xs text-danger-700 dark:text-danger-400 flex items-center gap-1.5">
+                                <x-heroicon-o-exclamation-triangle class="w-4 h-4 flex-shrink-0" />
+                                Platform fees {{ app('tenant')?->currency ?: 'AUD' }} {{ number_format($outstandingFee, 2) }} outstanding
+                            </p>
+                            <a href="{{ route('filament.org-admin.pages.platform-fees-page') }}" class="text-xs font-medium text-danger-700 dark:text-danger-400 hover:underline whitespace-nowrap">
+                                View →
+                            </a>
+                        </div>
+                    @endif
+
                     {{-- AI Insights summary (org admin only) --}}
                     @if ($isOrgAdmin)
                         @php
