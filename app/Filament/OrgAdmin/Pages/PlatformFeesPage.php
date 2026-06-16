@@ -18,7 +18,7 @@ class PlatformFeesPage extends Page implements HasTable
     protected static ?string $navigationIcon  = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Platform Fees';
     protected static ?string $navigationGroup = 'Finance';
-    protected static ?int    $navigationSort  = 6;
+    protected static ?int    $navigationSort  = 7;
     protected static string  $view            = 'filament.org-admin.pages.platform-fees';
 
     public static function canAccess(): bool
@@ -39,7 +39,7 @@ class PlatformFeesPage extends Page implements HasTable
                 Competition::query()
                     ->where('organisation_id', app('tenant')?->id)
                     ->where('is_template', false)
-                    ->whereHas('carts', fn (Builder $q) => $q->where('status', 'submitted')->where('payment_status', 'received'))
+                    ->whereHas('carts', fn (Builder $q) => $q->where('status', 'submitted'))
                     ->withCount(['enrolments as registrations_count' => fn (Builder $q) => $q->whereNotIn('status', ['draft'])])
             )
             ->defaultSort('competition_date', 'desc')

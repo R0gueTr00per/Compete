@@ -22,7 +22,7 @@ class OrgBillingReport extends Page implements HasTable
     use InteractsWithTable;
 
     protected static ?string $navigationIcon  = 'heroicon-o-banknotes';
-    protected static ?string $navigationLabel = 'Org Billing';
+    protected static ?string $navigationLabel = 'Billing';
     protected static ?string $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 3;
     protected static string  $view            = 'filament.admin.pages.org-billing-report';
@@ -34,7 +34,7 @@ class OrgBillingReport extends Page implements HasTable
 
     public function getTitle(): string
     {
-        return 'Org Billing';
+        return 'Billing';
     }
 
     protected function getHeaderWidgets(): array
@@ -92,11 +92,12 @@ class OrgBillingReport extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
+            ->heading('Platform Fees')
             ->query(
                 Competition::query()
                     ->where('is_template', false)
                     ->billable()
-                    ->whereHas('carts', fn (Builder $q) => $q->where('status', 'submitted')->where('payment_status', 'received'))
+                    ->whereHas('carts', fn (Builder $q) => $q->where('status', 'submitted'))
                     ->with('organisation')
                     ->withCount(['enrolments as registrations_count' => fn (Builder $q) => $q->whereNotIn('status', ['draft'])])
             )

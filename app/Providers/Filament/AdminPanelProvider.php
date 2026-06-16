@@ -34,6 +34,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationGroups([
                 'System',
+                'Accounts',
             ])
             ->userMenuItems([
                 MenuItem::make()

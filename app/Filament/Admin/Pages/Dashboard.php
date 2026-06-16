@@ -39,7 +39,7 @@ class Dashboard extends BaseDashboard
                     ->where('is_template', false)
                     ->billable()
                     ->whereNull('platform_fee_settled_at')
-                    ->whereHas('carts', fn (Builder $q) => $q->where('status', 'submitted')->where('payment_status', 'received'))
+                    ->whereHas('carts', fn (Builder $q) => $q->where('status', 'submitted'))
                     ->get()
                     ->sum(fn (Competition $c) => $c->unpaidPlatformFeeTotal());
                 $reminder = OrganisationAnnualFeeReminder::active()

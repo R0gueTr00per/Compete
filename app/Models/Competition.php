@@ -86,14 +86,14 @@ class Competition extends Model
     }
 
     /**
-     * Total platform fee for this competition's paid registrations, regardless
-     * of whether it has been settled with Kompetic yet.
+     * Total platform fee owed to Kompetic for this competition's registrations,
+     * regardless of whether the competitor has paid the Org yet or it has been
+     * settled with Kompetic — the Org owes this on every registration.
      */
     public function platformFeeTotal(): float
     {
         return (float) $this->carts()
             ->where('status', 'submitted')
-            ->where('payment_status', 'received')
             ->get()
             ->sum(fn (EnrolmentCart $cart) => (float) ($cart->platform_fee_rate ?? 0)
                 * $cart->enrolments()->whereNotIn('status', ['draft'])->count());
