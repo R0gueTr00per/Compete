@@ -79,7 +79,15 @@ class EnrolmentResource extends Resource
                     'enrolmentEvents' => fn ($q) => $q->where('removed', true)->with('competitionEvent', 'division'),
                 ])
                 ->withCount(['enrolmentEvents as removed_events_count' => fn ($q) => $q->where('removed', true)]))
-            ->header(view('filament.admin.partials.enrolment-competition-header'))
+            ->header(function ($livewire) {
+                $competition = $livewire->competition_id
+                    ? \App\Models\Competition::withCount([
+                        'enrolments as enrolled_count' => fn ($q) => $q->whereNotIn('status', ['draft']),
+                    ])->find($livewire->competition_id)
+                    : null;
+
+                return view('filament.admin.partials.enrolment-competition-header', compact('competition'));
+            })
             ->columns([
                 TextColumn::make('competitor_name')
                     ->label('Competitor')

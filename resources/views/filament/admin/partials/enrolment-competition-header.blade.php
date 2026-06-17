@@ -4,6 +4,10 @@
         ->where('is_template', false)
         ->orderByDesc('competition_date')
         ->pluck('name', 'id');
+
+    $enrolledCount = $competition?->enrolled_count ?? 0;
+    $target = $competition?->target_competitors;
+    $pct = ($target && $target > 0) ? min(100, round($enrolledCount / $target * 100)) : null;
 @endphp
 <div class="rounded-t-xl border-b border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30">
     <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>
@@ -14,4 +18,25 @@
             <option value="{{ $id }}">{{ $name }}</option>
         @endforeach
     </select>
+
+    @if ($competition)
+        <div class="mt-3">
+            @if ($target)
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-primary-700 dark:text-primary-400">Competitors</span>
+                    <span class="text-xs font-semibold text-primary-800 dark:text-primary-300">{{ $enrolledCount }} / {{ $target }}
+                        <span class="font-normal text-primary-600 dark:text-primary-500">({{ $pct }}%)</span>
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                    <div class="h-1.5 rounded-full {{ $pct >= 100 ? 'bg-success-500' : 'bg-primary-500' }}"
+                         style="width: {{ $pct }}%"></div>
+                </div>
+            @else
+                <p class="text-xs text-primary-700 dark:text-primary-400">
+                    {{ $enrolledCount }} competitor{{ $enrolledCount !== 1 ? 's' : '' }} registered
+                </p>
+            @endif
+        </div>
+    @endif
 </div>
