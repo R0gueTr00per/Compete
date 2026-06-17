@@ -1251,7 +1251,7 @@ class ScoringPanel extends Component
             $filter  = $event?->division_filter ?? '';
             $this->pairingCompetitorList = $ordered
                 ->map(function ($ee) use ($filter) {
-                    return ['ee_id' => $ee->id, 'name' => $this->resolveEeName($ee), 'info' => $this->buildRollcallInfo($ee, $filter)];
+                    return ['ee_id' => $ee->id, 'name' => $this->resolveEeName($ee), 'info' => $this->buildPairingInfo($ee, $filter)];
                 })
                 ->values()
                 ->toArray();
@@ -1980,6 +1980,30 @@ class ScoringPanel extends Component
     {
         if (! $ee) return '—';
         return $ee->enrolment->competitor?->full_name ?? '—';
+    }
+
+    private function buildPairingInfo(EnrolmentEvent $ee, string $filter): string
+    {
+        $parts = [];
+
+        if (str_contains($filter, 'age')) {
+            $age = $ee->enrolment->competitor?->age;
+            if ($age !== null) $parts[] = $age . 'yo';
+        }
+        $rank = $ee->enrolment->rank?->name;
+        if ($rank) $parts[] = $rank;
+        $kg = $ee->weight_confirmed_kg ?? $ee->enrolment->weight_kg;
+        if ($kg) $parts[] = rtrim(rtrim(number_format((float) $kg, 1), '0'), '.') . 'kg';
+        if (str_contains($filter, 'sex')) {
+            $gender = $ee->enrolment->competitor?->gender;
+            if ($gender) $parts[] = match ($gender) {
+                'M' => 'Male',
+                'F' => 'Female',
+                default => $gender,
+            };
+        }
+
+        return implode(', ', $parts);
     }
 
     private function buildRollcallInfo(EnrolmentEvent $ee, string $filter): string

@@ -213,7 +213,8 @@
                                     @if ($this->manualPairingMode)
                                         {{-- Manual pairing wizard --}}
                                         @php
-                                            $isOddPairing = (count($this->pairingCompetitorList) % 2 !== 0);
+                                            $isOddPairing   = (count($this->pairingCompetitorList) % 2 !== 0);
+                                            $byeAlreadyUsed = collect($this->manualPairings)->contains(fn ($p) => ($p['away'] ?? '') === 'bye');
                                             $usedPairingIds = collect($this->manualPairings)
                                                 ->flatMap(fn ($p) => [
                                                     isset($p['home']) && $p['home'] !== '' ? (int) $p['home'] : null,
@@ -222,7 +223,25 @@
                                                 ->filter()
                                                 ->all();
                                         @endphp
-                                        <div class="space-y-2">
+                                        <div class="space-y-2"
+                                             x-data="{
+                                                 refreshDisabled() {
+                                                     const selects = $el.querySelectorAll('.pairing-select');
+                                                     const usedIds = new Set([...selects].map(s => s.value).filter(v => v && v !== ''));
+                                                     selects.forEach(sel => {
+                                                         const own = sel.value;
+                                                         sel.querySelectorAll('option').forEach(opt => {
+                                                             if (!opt.value) return;
+                                                             opt.disabled = usedIds.has(opt.value) && opt.value !== own;
+                                                         });
+                                                     });
+                                                 }
+                                             }"
+                                             x-init="
+                                                 $nextTick(() => refreshDisabled());
+                                                 $wire.$watch('manualPairings', () => setTimeout(() => refreshDisabled(), 0));
+                                             "
+                                             x-on:change.capture="$nextTick(() => refreshDisabled())">
                                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
                                                 Assign each competitor to a Round 1 matchup.
                                                 @if ($isOddPairing)
@@ -237,45 +256,26 @@
                                                 @endphp
                                                 <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 px-3 py-2.5">
                                                     <p class="text-xs font-medium text-gray-400 mb-2">Match {{ $slotIdx + 1 }}</p>
-                                                    <div class="flex items-center gap-2 flex-wrap"
-                                                         x-data="{
-                                                             shorten(sel) {
-                                                                 const s = sel.options[sel.selectedIndex];
-                                                                 if (s && s.value && s.dataset.name) s.textContent = s.dataset.name;
-                                                             },
-                                                             restore(sel) {
-                                                                 Array.from(sel.options).forEach(o => {
-                                                                     if (o.dataset.name) o.textContent = o.dataset.info ? o.dataset.name + ' (' + o.dataset.info + ')' : o.dataset.name;
-                                                                 });
-                                                             }
-                                                         }"
-                                                         x-init="
-                                                             shorten($refs.home); shorten($refs.away);
-                                                             $wire.$watch('manualPairings', () => $nextTick(() => { shorten($refs.home); shorten($refs.away); }));
-                                                         ">
+                                                    <div class="flex items-center gap-2 flex-wrap">
                                                         <select wire:model.live="manualPairings.{{ $slotIdx }}.home"
-                                                            x-ref="home"
-                                                            x-on:mousedown="restore($el)"
-                                                            class="flex-1 min-w-32 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white py-1.5 px-2">
+                                                            class="pairing-select flex-1 min-w-32 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white py-1.5 px-2">
                                                             <option value="">— Select competitor —</option>
                                                             @foreach ($this->pairingCompetitorList as $comp)
                                                                 @if (! in_array($comp['ee_id'], $usedPairingIds) || $comp['ee_id'] === $slotHomeId)
-                                                                    <option value="{{ $comp['ee_id'] }}" data-name="{{ $comp['name'] }}" data-info="{{ $comp['info'] }}">{{ $comp['name'] }}{{ $comp['info'] ? ' (' . $comp['info'] . ')' : '' }}</option>
+                                                                    <option value="{{ $comp['ee_id'] }}">{{ $comp['name'] }}{{ $comp['info'] ? ' (' . $comp['info'] . ')' : '' }}</option>
                                                                 @endif
                                                             @endforeach
                                                         </select>
                                                         <span class="text-xs text-gray-400 shrink-0">vs</span>
                                                         <select wire:model.live="manualPairings.{{ $slotIdx }}.away"
-                                                            x-ref="away"
-                                                            x-on:mousedown="restore($el)"
-                                                            class="flex-1 min-w-32 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white py-1.5 px-2">
+                                                            class="pairing-select flex-1 min-w-32 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white py-1.5 px-2">
                                                             <option value="">— Select competitor —</option>
-                                                            @if ($isOddPairing)
+                                                            @if ($isOddPairing && (! $byeAlreadyUsed || ($pair['away'] ?? '') === 'bye'))
                                                                 <option value="bye">Bye (advances automatically)</option>
                                                             @endif
                                                             @foreach ($this->pairingCompetitorList as $comp)
                                                                 @if (! in_array($comp['ee_id'], $usedPairingIds) || $comp['ee_id'] === $slotAwayId)
-                                                                    <option value="{{ $comp['ee_id'] }}" data-name="{{ $comp['name'] }}" data-info="{{ $comp['info'] }}">{{ $comp['name'] }}{{ $comp['info'] ? ' (' . $comp['info'] . ')' : '' }}</option>
+                                                                    <option value="{{ $comp['ee_id'] }}">{{ $comp['name'] }}{{ $comp['info'] ? ' (' . $comp['info'] . ')' : '' }}</option>
                                                                 @endif
                                                             @endforeach
                                                         </select>
@@ -289,8 +289,7 @@
                                                         Cancel
                                                     </x-filament::button>
                                                 @else
-                                                    <x-filament::button size="sm" color="gray"
-                                                        x-on:click="window.dispatchEvent(new Event('pairing-cancelled'))">
+                                                    <x-filament::button size="sm" color="gray" wire:click="cancelScoring">
                                                         Cancel
                                                     </x-filament::button>
                                                 @endif
