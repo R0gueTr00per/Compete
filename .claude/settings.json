@@ -157,7 +157,8 @@
       "PowerShell(cd x:\\\\Repos\\\\Compete; $files = @\\('app\\\\Models\\\\Organisation.php','app\\\\Models\\\\OrganisationAnnualFeeReminder.php','app\\\\Console\\\\Commands\\\\GenerateAnnualFeeReminders.php','app\\\\Filament\\\\Admin\\\\Pages\\\\OrgBillingReport.php','app\\\\Filament\\\\Admin\\\\Pages\\\\Dashboard.php','app\\\\Filament\\\\Admin\\\\Widgets\\\\BillingOverview.php','bootstrap\\\\app.php'\\); foreach \\($f in $files\\) { php -l $f })",
       "Bash(php -l app/Console/Commands/GenerateAnnualFeeReminders.php)",
       "Bash(git check-ignore *)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "PowerShell(Get-ChildItem -Path \"x:\\\\Repos\\\\Compete\\\\\" -Force | Where-Object { -not $_.PSIsContainer } | Select-Object Name, Length, LastWriteTime | Sort-Object Name)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",
