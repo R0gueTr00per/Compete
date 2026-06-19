@@ -32,12 +32,12 @@
 
     {{-- Day tabs (multi-day competitions only) --}}
     @if($competitionDays->count() > 1)
-        <div x-data="{ activeDay: {{ $selectedDay?->id ?? 'null' }} }" class="mb-3 flex gap-1 flex-wrap">
+        <div x-data="{}" class="mb-3 flex gap-1 flex-wrap">
             @foreach($competitionDays as $day)
                 <button
                     type="button"
-                    x-on:click="activeDay = {{ $day->id }}; $wire.setDay({{ $day->id }})"
-                    :class="activeDay === {{ $day->id }}
+                    x-on:click="$wire.set('selectedDayId', {{ $day->id }})"
+                    :class="$wire.selectedDayId == {{ $day->id }}
                         ? 'bg-primary-600 text-white border-primary-600'
                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-primary-400'"
                     class="rounded-lg border px-4 py-1.5 text-sm font-medium transition-all duration-150 active:scale-95"
@@ -137,7 +137,7 @@
             <div
                 class="flex gap-3 pb-6 px-1 py-1 overflow-x-auto transition-opacity duration-150"
                 wire:loading.class="opacity-40 pointer-events-none"
-                wire:target="setDay"
+                wire:target="$set"
                 @mousedown.capture="onCardMousedown($event)"
                 @touchstart.passive.capture="onTouchStart($event)"
                 @touchend.capture="onTouchEnd($event)"

@@ -69,12 +69,12 @@
     {{-- Day tabs (multi-day competitions only) --}}
     @php $scoringDays = $this->getDays(); @endphp
     @if (count($scoringDays) > 1)
-        <div x-data="{ activeDay: {{ $this->competition_day_id ?? 'null' }} }" class="mb-2 flex gap-1 flex-wrap">
+        <div x-data="{}" class="mb-2 flex gap-1 flex-wrap">
             @foreach ($scoringDays as $dayId => $dayLabel)
                 <button
                     type="button"
-                    x-on:click="activeDay = {{ $dayId }}; $wire.set('competition_day_id', {{ $dayId }})"
-                    :class="activeDay === {{ $dayId }}
+                    x-on:click="$wire.set('competition_day_id', {{ $dayId }})"
+                    :class="$wire.competition_day_id == {{ $dayId }}
                         ? 'bg-primary-600 text-white border-primary-600'
                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-primary-400'"
                     class="rounded-lg border px-4 py-1.5 text-sm font-medium transition-all duration-150 active:scale-95"
