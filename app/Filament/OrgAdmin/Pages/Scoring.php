@@ -299,6 +299,7 @@ class Scoring extends Page
     public function selectDay(int $dayId): void
     {
         $this->competition_day_id = $dayId;
+        unset($this->divisionList);
     }
 
     public function updatedCompetitionId(): void
