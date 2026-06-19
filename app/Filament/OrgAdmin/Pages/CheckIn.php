@@ -60,7 +60,7 @@ class CheckIn extends Page
 
         $competition = Competition::whereIn('status', ['check_in', 'running'])
             ->where('organisation_id', $orgId)
-            ->where('competition_date', $today)
+            ->whereHas('competitionDays', fn ($q) => $q->where('date', $today))
             ->first()
             ?? Competition::whereIn('status', ['check_in', 'running'])
                 ->where('organisation_id', $orgId)

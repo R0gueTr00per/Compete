@@ -35,6 +35,9 @@ class Scoring extends Page
     public ?int $competition_id = null;
 
     #[Url]
+    public ?int $competition_day_id = null;
+
+    #[Url]
     public ?string $filter_location = null;
 
     #[Url]
@@ -50,14 +53,26 @@ class Scoring extends Page
             $orgId = app('tenant')?->id;
             $comp  = Competition::whereIn('status', ['running', 'open'])
                 ->where('organisation_id', $orgId)
-                ->where('competition_date', $today)->first()
+                ->whereHas('competitionDays', fn ($q) => $q->where('date', $today))
+                ->first()
                 ?? Competition::whereIn('status', ['running', 'open'])
                     ->where('organisation_id', $orgId)
-                    ->orderBy('competition_date')->first();
+                    ->orderBy('competition_date')
+                    ->first();
 
             if ($comp) {
                 $this->competition_id = $comp->id;
             }
+        }
+
+        if ($this->competition_id && ! $this->competition_day_id) {
+            $today = now()->toDateString();
+            $this->competition_day_id = \App\Models\CompetitionDay::where('competition_id', $this->competition_id)
+                ->where('date', $today)
+                ->value('id')
+                ?? \App\Models\CompetitionDay::where('competition_id', $this->competition_id)
+                    ->orderBy('date')
+                    ->value('id');
         }
 
         if (! $this->filter_location && $this->competition_id) {
@@ -71,6 +86,18 @@ class Scoring extends Page
     }
 
     // ─── Division list ────────────────────────────────────────────────────────
+
+    public function getDays(): array
+    {
+        if (! $this->competition_id) {
+            return [];
+        }
+        return \App\Models\CompetitionDay::where('competition_id', $this->competition_id)
+            ->orderBy('date')
+            ->get()
+            ->mapWithKeys(fn ($d) => [$d->id => $d->date->format('D j M')])
+            ->toArray();
+    }
 
     public function getCompetitions(): array
     {
@@ -103,6 +130,7 @@ class Scoring extends Page
             $q->where('competition_id', $this->competition_id)
               ->whereIn('status', ['scheduled', 'running', 'complete'])
         )
+        ->when($this->competition_day_id, fn ($q) => $q->where('competition_day_id', $this->competition_day_id))
         ->whereNotNull('location_label')
         ->with(['competitionEvent', 'completedBy.selfProfile', 'scoringLockedBy'])
         ->withCount([
@@ -191,6 +219,7 @@ class Scoring extends Page
         }
 
         $breaks = CompetitionBreak::where('competition_id', $this->competition_id)
+            ->when($this->competition_day_id, fn ($q) => $q->where('competition_day_id', $this->competition_day_id))
             ->orderBy('start_time')
             ->get();
 
@@ -269,7 +298,16 @@ class Scoring extends Page
 
     public function updatedCompetitionId(): void
     {
-        $this->filter_location = null;
-        $this->search_code     = null;
+        $this->filter_location    = null;
+        $this->search_code        = null;
+        $this->competition_day_id = null;
+
+        $today = now()->toDateString();
+        $this->competition_day_id = \App\Models\CompetitionDay::where('competition_id', $this->competition_id)
+            ->where('date', $today)
+            ->value('id')
+            ?? \App\Models\CompetitionDay::where('competition_id', $this->competition_id)
+                ->orderBy('date')
+                ->value('id');
     }
 }

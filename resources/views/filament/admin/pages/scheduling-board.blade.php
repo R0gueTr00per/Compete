@@ -10,8 +10,8 @@
     @endif
 
     {{-- Breaks summary + planned end pill --}}
-    @php $summaryRecord = $this->getRecord(); @endphp
-    @if($breaks->isNotEmpty() || ($summaryRecord && $summaryRecord->end_time))
+    @php $dayEndTime = $selectedDay?->end_time ?? $this->getRecord()?->end_time; @endphp
+    @if($breaks->isNotEmpty() || $dayEndTime)
         <div class="mb-3 flex flex-wrap gap-2">
             @foreach($breaks as $break)
                 <span class="inline-flex items-center gap-1.5 rounded-full border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 text-xs font-medium text-amber-800 dark:text-amber-300">
@@ -21,12 +21,30 @@
                     – {{ \Carbon\Carbon::parse($break->start_time)->addMinutes($break->duration_minutes)->format('g:i a') }}
                 </span>
             @endforeach
-            @if($summaryRecord && $summaryRecord->end_time)
+            @if($dayEndTime)
                 <span class="inline-flex items-center gap-1.5 rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/60 px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400">
                     <x-heroicon-o-flag class="h-3.5 w-3.5" />
-                    Planned finish · {{ tenant_time($summaryRecord->end_time) }}
+                    Planned finish · {{ tenant_time($dayEndTime) }}
                 </span>
             @endif
+        </div>
+    @endif
+
+    {{-- Day tabs (multi-day competitions only) --}}
+    @if($competitionDays->count() > 1)
+        <div x-data="{ activeDay: {{ $selectedDay?->id ?? 'null' }} }" class="mb-3 flex gap-1 flex-wrap">
+            @foreach($competitionDays as $day)
+                <button
+                    type="button"
+                    x-on:click="activeDay = {{ $day->id }}; $wire.setDay({{ $day->id }})"
+                    :class="activeDay === {{ $day->id }}
+                        ? 'bg-primary-600 text-white border-primary-600'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-primary-400'"
+                    class="rounded-lg border px-4 py-1.5 text-sm font-medium transition-all duration-150 active:scale-95"
+                >
+                    {{ $day->date->format('D j M') }}
+                </button>
+            @endforeach
         </div>
     @endif
 
@@ -102,9 +120,11 @@
             @endif
 
             @php
-                $colCompDate = ($colComp = $this->getRecord()) && $colComp->competition_date
-                    ? \Carbon\Carbon::parse($colComp->competition_date)->format('Y-m-d')
-                    : null;
+                $colCompDate = $selectedDay
+                    ? $selectedDay->date->format('Y-m-d')
+                    : (($colComp = $this->getRecord()) && $colComp->competition_date
+                        ? \Carbon\Carbon::parse($colComp->competition_date)->format('Y-m-d')
+                        : null);
                 $colSortedBreaks = $colCompDate
                     ? $breaks->map(fn ($b) => [
                         'name'      => $b->name,
@@ -115,7 +135,9 @@
                     : collect();
             @endphp
             <div
-                class="flex gap-3 pb-6 px-1 py-1 overflow-x-auto"
+                class="flex gap-3 pb-6 px-1 py-1 overflow-x-auto transition-opacity duration-150"
+                wire:loading.class="opacity-40 pointer-events-none"
+                wire:target="setDay"
                 @mousedown.capture="onCardMousedown($event)"
                 @touchstart.passive.capture="onTouchStart($event)"
                 @touchend.capture="onTouchEnd($event)"
@@ -253,8 +275,8 @@
                                 $colTimeline = [];
                                 $bIdx = 0;
                                 $endInserted = false;
-                                $colEndTs = ($colComp->end_time && $colCompDate)
-                                    ? \Carbon\Carbon::parse($colCompDate . ' ' . $colComp->end_time)->timestamp
+                                $colEndTs = ($dayEndTime && $colCompDate)
+                                    ? \Carbon\Carbon::parse($colCompDate . ' ' . $dayEndTime)->timestamp
                                     : null;
                                 foreach ($divisionsByColumn[$col] ?? [] as $div) {
                                     if ($div->planned_start_at) {
@@ -264,7 +286,7 @@
                                             $bIdx++;
                                         }
                                         if (! $endInserted && $colEndTs !== null && $div->planned_start_at->timestamp >= $colEndTs) {
-                                            $colTimeline[] = ['type' => 'end', 'end_time' => $colComp->end_time];
+                                            $colTimeline[] = ['type' => 'end', 'end_time' => $dayEndTime];
                                             $endInserted = true;
                                         }
                                     }
@@ -274,8 +296,8 @@
                                     $colTimeline[] = ['type' => 'break'] + $colSortedBreaks[$bIdx];
                                     $bIdx++;
                                 }
-                                if (! $endInserted && $colComp->end_time) {
-                                    $colTimeline[] = ['type' => 'end', 'end_time' => $colComp->end_time];
+                                if (! $endInserted && $dayEndTime) {
+                                    $colTimeline[] = ['type' => 'end', 'end_time' => $dayEndTime];
                                 }
                             @endphp
                             @foreach($colTimeline as $row)

@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Models\Competition;
+use App\Models\CompetitionDay;
 use App\Models\CompetitionEvent;
 use App\Models\Division;
+use Illuminate\Support\Facades\DB;
 
 class DivisionGenerationService
 {
@@ -44,6 +46,11 @@ class DivisionGenerationService
 
         $rows = $this->buildRows($event->effectiveDivisionFilter(), $ageBands, $rankBands, $weightClasses);
 
+        $firstDayId = DB::table('competition_days')
+            ->where('competition_id', $event->competition_id)
+            ->orderBy('date')
+            ->value('id');
+
         // Find the highest existing running_order (from preserved divisions)
         $order   = $event->divisions()->max('running_order') ?? 0;
         $created = 0;
@@ -57,6 +64,7 @@ class DivisionGenerationService
             $order++;
             Division::create(array_merge($row, [
                 'competition_event_id' => $event->id,
+                'competition_day_id'   => $firstDayId,
                 'code'                 => $event->event_code . str_pad($order, 2, '0', STR_PAD_LEFT),
                 'running_order'        => $order,
                 'status'               => 'pending',

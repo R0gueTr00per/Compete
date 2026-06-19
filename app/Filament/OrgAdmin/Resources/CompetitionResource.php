@@ -98,18 +98,27 @@ class CompetitionResource extends Resource
                                         ->maxLength(255)
                                         ->columnSpanFull(),
 
-                                    DatePicker::make('competition_date')
-                                        ->required(),
+                                    Repeater::make('competitionDays')
+                                        ->relationship()
+                                        ->label('Competition Days')
+                                        ->schema([
+                                            DatePicker::make('date')
+                                                ->required(),
+                                            TimePicker::make('start_time')
+                                                ->required()
+                                                ->seconds(false),
+                                            TimePicker::make('end_time')
+                                                ->seconds(false)
+                                                ->nullable(),
+                                        ])
+                                        ->columns(3)
+                                        ->defaultItems(1)
+                                        ->minItems(1)
+                                        ->addActionLabel('Add day')
+                                        ->reorderable(false)
+                                        ->columnSpanFull(),
 
                                     DatePicker::make('enrolment_due_date')
-                                        ->nullable(),
-
-                                    TimePicker::make('start_time')
-                                        ->required()
-                                        ->seconds(false),
-
-                                    TimePicker::make('end_time')
-                                        ->seconds(false)
                                         ->nullable(),
 
                                     TimePicker::make('checkin_time')
@@ -457,8 +466,8 @@ class CompetitionResource extends Resource
                                 ->label('Name for new competition')
                                 ->required()
                                 ->maxLength(255),
-                            DatePicker::make('competition_date')
-                                ->label('Competition date')
+                            DatePicker::make('first_date')
+                                ->label('First day date')
                                 ->required(),
                             Toggle::make('copy_structure')
                                 ->label('Copy event types, bands & divisions')
@@ -466,20 +475,26 @@ class CompetitionResource extends Resource
                                 ->helperText('Copies the full event structure. Registrations are not copied.'),
                         ])
                         ->fillForm(fn (Competition $record): array => [
-                            'name'             => $record->name . ' (Copy)',
-                            'competition_date' => $record->competition_date?->addYear(),
+                            'name'       => $record->name . ' (Copy)',
+                            'first_date' => $record->competition_date?->addYear(),
                         ])
                         ->action(function (Competition $record, array $data, DivisionAssignmentService $svc) {
+                            $sourceDays  = $record->competitionDays()->orderBy('date')->get();
+                            $originalFirst = $sourceDays->first()?->date ?? $record->competition_date;
+                            $newFirst      = \Carbon\Carbon::parse($data['first_date']);
+                            $offsetDays    = $originalFirst ? (int) \Carbon\Carbon::parse($originalFirst)->diffInDays($newFirst, false) : 0;
+
                             $new = Competition::create([
-                                'name'                 => $data['name'],
-                                'organisation_id'      => $record->organisation_id,
-                                'competition_date'     => $data['competition_date'],
-                                'start_time'           => $record->start_time,
-                                'checkin_time'         => $record->checkin_time,
-                                'location_name'        => $record->location_name,
-                                'location_address'     => $record->location_address,
-                                'location_url'         => $record->location_url,
-                                'enrolment_due_date'   => null,
+                                'name'                            => $data['name'],
+                                'organisation_id'                 => $record->organisation_id,
+                                'competition_date'                => $data['first_date'],
+                                'start_time'                      => $record->start_time,
+                                'end_time'                        => $record->end_time,
+                                'checkin_time'                    => $record->checkin_time,
+                                'location_name'                   => $record->location_name,
+                                'location_address'                => $record->location_address,
+                                'location_url'                    => $record->location_url,
+                                'enrolment_due_date'              => null,
                                 'target_competitors'              => $record->target_competitors,
                                 'fee_first_event'                 => $record->fee_first_event,
                                 'fee_additional_event'            => $record->fee_additional_event,
@@ -487,9 +502,18 @@ class CompetitionResource extends Resource
                                 'fee_official_first_event'        => $record->fee_official_first_event,
                                 'fee_official_additional_event'   => $record->fee_official_additional_event,
                                 'status'                          => 'planning',
-                                'registration_fields'  => $record->registration_fields,
-                                'copied_from_id'       => $record->id,
+                                'registration_fields'             => $record->registration_fields,
+                                'copied_from_id'                  => $record->id,
                             ]);
+
+                            foreach ($sourceDays as $day) {
+                                $new->competitionDays()->create([
+                                    'date'       => \Carbon\Carbon::parse($day->date)->addDays($offsetDays)->toDateString(),
+                                    'start_time' => $day->start_time,
+                                    'end_time'   => $day->end_time,
+                                ]);
+                            }
+                            $new->syncDerivedDates();
 
                             if ($data['copy_structure']) {
                                 $svc->copyDivisionsFromCompetition($record, $new);

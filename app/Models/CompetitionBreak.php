@@ -9,6 +9,7 @@ class CompetitionBreak extends Model
 {
     protected $fillable = [
         'competition_id',
+        'competition_day_id',
         'name',
         'start_time',
         'duration_minutes',
@@ -24,6 +25,11 @@ class CompetitionBreak extends Model
     public function competition(): BelongsTo
     {
         return $this->belongsTo(Competition::class);
+    }
+
+    public function competitionDay(): BelongsTo
+    {
+        return $this->belongsTo(CompetitionDay::class);
     }
 
     public function endTime(): string

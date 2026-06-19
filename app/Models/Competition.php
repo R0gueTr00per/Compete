@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -199,6 +200,48 @@ class Competition extends Model
     public function breaks(): HasMany
     {
         return $this->hasMany(CompetitionBreak::class)->orderBy('start_time');
+    }
+
+    public function competitionDays(): HasMany
+    {
+        return $this->hasMany(CompetitionDay::class)->orderBy('date');
+    }
+
+    public function isMultiDay(): bool
+    {
+        return $this->competitionDays()->count() > 1;
+    }
+
+    public function dateRangeLabel(): string
+    {
+        $days = $this->competitionDays()->orderBy('date')->pluck('date');
+        if ($days->isEmpty()) {
+            return $this->competition_date?->format('d M Y') ?? '';
+        }
+        if ($days->count() === 1) {
+            return $days->first()->format('d M Y');
+        }
+        $first = $days->first();
+        $last  = $days->last();
+        // Consecutive: show "14–16 Aug 2026"; non-consecutive: comma-separate
+        $isConsecutive = $days->count() === ($first->diffInDays($last) + 1);
+        if ($isConsecutive) {
+            return $first->format('d') . '–' . $last->format('d M Y');
+        }
+        return $days->map(fn ($d) => $d->format('d M Y'))->join(', ');
+    }
+
+    public function syncDerivedDates(): void
+    {
+        $days = $this->competitionDays()->orderBy('date')->get();
+        if ($days->isEmpty()) {
+            return;
+        }
+        $this->updateQuietly([
+            'competition_date' => $days->first()->date,
+            'start_time'       => $days->first()->start_time,
+            'end_time'         => $days->last()->end_time,
+        ]);
     }
 
     public function isPublicScheduleAvailable(): bool

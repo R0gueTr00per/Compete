@@ -3,6 +3,7 @@
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\Pages;
 
 use App\Filament\OrgAdmin\Resources\CompetitionResource;
+use App\Models\CompetitionDay;
 use App\Models\Division;
 use App\Services\ScheduleCalculatorService;
 use Filament\Actions\Action;
@@ -24,11 +25,16 @@ class ManageCompetitionSchedule extends Page
 
     public ?int $filterEventType = null;
     public bool $unassignedCollapsed = false;
+    public ?int $selectedDayId = null;
 
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
-        app(ScheduleCalculatorService::class)->recalculateAll($this->getRecord());
+        $competition  = $this->getRecord();
+
+        $this->selectedDayId = $competition->competitionDays()->orderBy('date')->value('id');
+
+        app(ScheduleCalculatorService::class)->recalculateAll($competition);
     }
 
     public static function getNavigationLabel(): string
@@ -51,6 +57,14 @@ class ManageCompetitionSchedule extends Page
         return 'Scheduling';
     }
 
+    public function setDay(int $dayId): void
+    {
+        $competition = $this->getRecord();
+        if ($competition->competitionDays()->where('id', $dayId)->exists()) {
+            $this->selectedDayId = $dayId;
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -68,15 +82,26 @@ class ManageCompetitionSchedule extends Page
                 ->icon('heroicon-o-pause-circle')
                 ->color('warning')
                 ->modalHeading('Competition Breaks')
-                ->modalDescription('Breaks are competition-wide and apply to all mats. Events are automatically scheduled around them.')
+                ->modalDescription(function () {
+                    $day = $this->selectedDayId
+                        ? CompetitionDay::find($this->selectedDayId)
+                        : null;
+                    $label = $day ? ' (' . $day->date->format('D j M') . ')' : '';
+                    return 'Breaks for this day apply to all mats. Events are automatically scheduled around them.' . $label;
+                })
                 ->modalWidth(MaxWidth::TwoExtraLarge)
-                ->fillForm(fn () => [
-                    'breaks' => $this->getRecord()->breaks->map(fn ($b) => [
-                        'name'             => $b->name,
-                        'start_time'       => \Carbon\Carbon::parse($b->start_time)->format('H:i'),
-                        'duration_minutes' => $b->duration_minutes,
-                    ])->toArray(),
-                ])
+                ->fillForm(function () {
+                    $breaks = $this->selectedDayId
+                        ? CompetitionDay::find($this->selectedDayId)?->breaks ?? collect()
+                        : collect();
+                    return [
+                        'breaks' => $breaks->map(fn ($b) => [
+                            'name'             => $b->name,
+                            'start_time'       => \Carbon\Carbon::parse($b->start_time)->format('H:i'),
+                            'duration_minutes' => $b->duration_minutes,
+                        ])->toArray(),
+                    ];
+                })
                 ->form([
                     Repeater::make('breaks')
                         ->hiddenLabel()
@@ -107,10 +132,19 @@ class ManageCompetitionSchedule extends Page
                 ])
                 ->action(function (array $data) {
                     $competition = $this->getRecord();
-                    $competition->breaks()->delete();
-                    foreach ($data['breaks'] as $break) {
-                        $competition->breaks()->create($break);
+
+                    if ($this->selectedDayId) {
+                        $day = CompetitionDay::find($this->selectedDayId);
+                        if ($day) {
+                            $day->breaks()->delete();
+                            foreach ($data['breaks'] as $break) {
+                                $day->breaks()->create(array_merge($break, [
+                                    'competition_id' => $competition->id,
+                                ]));
+                            }
+                        }
                     }
+
                     app(ScheduleCalculatorService::class)->recalculateAll($competition->fresh());
                     Notification::make()->success()->title('Breaks saved.')->send();
                 }),
@@ -126,22 +160,23 @@ class ManageCompetitionSchedule extends Page
                 ->action(function () {
                     $competition = $this->getRecord();
 
-                    $count = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
+                    $query = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
                         ->whereDoesntHave('activeEnrolmentEvents')
                         ->whereNotIn('status', ['combined'])
-                        ->where(fn ($q) => $q->whereNotNull('location_label')->orWhere('status', 'assigned'))
-                        ->count();
+                        ->where(fn ($q) => $q->whereNotNull('location_label')->orWhere('status', 'assigned'));
+
+                    if ($this->selectedDayId) {
+                        $query->where('competition_day_id', $this->selectedDayId);
+                    }
+
+                    $count = $query->count();
 
                     if ($count === 0) {
                         Notification::make()->title('No empty assigned divisions found.')->warning()->send();
                         return;
                     }
 
-                    Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
-                        ->whereDoesntHave('activeEnrolmentEvents')
-                        ->whereNotIn('status', ['combined'])
-                        ->where(fn ($q) => $q->whereNotNull('location_label')->orWhere('status', 'assigned'))
-                        ->update(['location_label' => null, 'status' => 'pending']);
+                    $query->update(['location_label' => null, 'status' => 'pending']);
 
                     Notification::make()->success()->title("{$count} empty division(s) unassigned.")->send();
                 }),
@@ -169,15 +204,28 @@ class ManageCompetitionSchedule extends Page
             ->values()
             ->toArray();
 
-        $divisions = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
+        $selectedDay = $this->selectedDayId
+            ? $competition->competitionDays()->find($this->selectedDayId)
+            : $competition->competitionDays()->orderBy('date')->first();
+
+        $divisionsQuery = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
             ->with('competitionEvent')
             ->withCount([
                 'activeEnrolmentEvents',
                 'activeEnrolmentEvents as checked_in_count' => fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('checked_in', true)),
             ])
             ->orderBy('running_order')
-            ->orderBy('code')
-            ->get();
+            ->orderBy('code');
+
+        if ($selectedDay) {
+            // No location = unassigned pool (global, any day); with location = selected day only
+            $divisionsQuery->where(function ($q) use ($selectedDay) {
+                $q->whereNull('location_label')
+                  ->orWhere('competition_day_id', $selectedDay->id);
+            });
+        }
+
+        $divisions = $divisionsQuery->get();
 
         $grouped = ['__unassigned__' => []];
         foreach ($columns as $col) {
@@ -191,15 +239,12 @@ class ManageCompetitionSchedule extends Page
             $grouped[$key][] = $div;
         }
 
-        // Unassigned always sorted by code
-        usort($grouped['__unassigned__'], fn ($a, $b) => strcmp($a->code, $b->code));
 
         $eventTypes = $competition->competitionEvents()
             ->pluck('name', 'id')
             ->sort()
             ->toArray();
 
-        // Event types missing a competitor target — schedule times cannot be calculated for these
         $missingTarget = $competition->competitionEvents()
             ->whereNull('default_max_competitors')
             ->pluck('name')
@@ -207,7 +252,9 @@ class ManageCompetitionSchedule extends Page
             ->values()
             ->toArray();
 
-        $breaks = $competition->breaks;
+        $breaks = $selectedDay ? $selectedDay->breaks : collect();
+
+        $competitionDays = $competition->competitionDays()->orderBy('date')->get();
 
         return [
             'columns'              => $columns,
@@ -217,6 +264,8 @@ class ManageCompetitionSchedule extends Page
             'missingTarget'        => $missingTarget,
             'breaks'               => $breaks,
             'unassignedCollapsed'  => $this->unassignedCollapsed,
+            'selectedDay'          => $selectedDay,
+            'competitionDays'      => $competitionDays,
         ];
     }
 
@@ -280,17 +329,23 @@ class ManageCompetitionSchedule extends Page
 
         $moved->each(fn ($d) => $d->update(
             $locationLabel === null
-                ? ['location_label' => null, 'planned_start_at' => null, 'actual_start_at' => null, 'actual_end_at' => null]
-                : ['location_label' => $locationLabel]
+                ? ['location_label' => null, 'competition_day_id' => null, 'planned_start_at' => null, 'actual_start_at' => null, 'actual_end_at' => null]
+                : ['location_label' => $locationLabel, 'competition_day_id' => $this->selectedDayId]
         ));
 
-        $siblings = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
+        $siblingsQuery = Division::whereHas('competitionEvent', fn ($q) => $q->where('competition_id', $competition->id))
             ->whereNotIn('id', $divisionIds)
             ->when($locationLabel, fn ($q) => $q->where('location_label', $locationLabel))
             ->when(! $locationLabel, fn ($q) => $q->whereNull('location_label'))
             ->orderBy('running_order')
-            ->orderBy('code')
-            ->get();
+            ->orderBy('code');
+
+        // Location columns are day-scoped; unassigned is global across all days
+        if ($this->selectedDayId && $locationLabel) {
+            $siblingsQuery->where('competition_day_id', $this->selectedDayId);
+        }
+
+        $siblings = $siblingsQuery->get();
 
         $siblings->splice($newIndex, 0, $moved->values()->all());
         foreach ($siblings as $i => $sib) {

@@ -92,6 +92,11 @@ class DivisionAssignmentService
             default          => [],
         };
 
+        $firstDayId = DB::table('competition_days')
+            ->where('competition_id', $event->competition_id)
+            ->orderBy('date')
+            ->value('id');
+
         $nextOrder = (Division::where('competition_event_id', $event->id)->max('running_order') ?? 0) + 1;
         $created   = 0;
 
@@ -106,6 +111,7 @@ class DivisionAssignmentService
             if (! $exists) {
                 Division::create([
                     'competition_event_id' => $event->id,
+                    'competition_day_id'   => $firstDayId,
                     'age_band_id'          => $combo['age_band_id'],
                     'rank_band_id'         => $combo['rank_band_id'],
                     'weight_class_id'      => $combo['weight_class_id'],
@@ -324,6 +330,11 @@ class DivisionAssignmentService
 
             // Collect all division rows and bulk-insert to avoid per-row model overhead
             $now = now();
+            $targetFirstDayId = DB::table('competition_days')
+                ->where('competition_id', $target->id)
+                ->orderBy('date')
+                ->value('id');
+
             $rows = [];
             foreach ($source->competitionEvents as $sourceEvent) {
                 $newEventId = $eventMap[$sourceEvent->id] ?? null;
@@ -334,6 +345,7 @@ class DivisionAssignmentService
                 foreach ($sourceEvent->divisions as $division) {
                     $rows[] = [
                         'competition_event_id' => $newEventId,
+                        'competition_day_id'   => $targetFirstDayId,
                         'code'                 => $division->code,
                         'age_band_id'          => $division->age_band_id ? ($ageBandMap[$division->age_band_id] ?? null) : null,
                         'rank_band_id'         => $division->rank_band_id ? ($rankBandMap[$division->rank_band_id] ?? null) : null,

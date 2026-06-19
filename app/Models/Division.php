@@ -16,6 +16,7 @@ class Division extends Model
 
     protected $fillable = [
         'competition_event_id',
+        'competition_day_id',
         'code',
         'age_band_id',
         'rank_band_id',
@@ -110,6 +111,11 @@ class Division extends Model
     public function competitionEvent(): BelongsTo
     {
         return $this->belongsTo(CompetitionEvent::class);
+    }
+
+    public function competitionDay(): BelongsTo
+    {
+        return $this->belongsTo(CompetitionDay::class);
     }
 
     public function ageBand(): BelongsTo

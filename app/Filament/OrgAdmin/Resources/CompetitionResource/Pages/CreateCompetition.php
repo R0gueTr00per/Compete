@@ -28,6 +28,7 @@ class CreateCompetition extends CreateRecord
     protected static string $resource = CompetitionResource::class;
 
     private ?int $templateId = null;
+    private array $pendingDays = [];
 
     protected function getSteps(): array
     {
@@ -93,15 +94,27 @@ class CreateCompetition extends CreateRecord
                                 ->maxLength(255)
                                 ->columnSpanFull(),
 
-                            DatePicker::make('competition_date')
-                                ->required(),
+                            Repeater::make('days')
+                                ->label('Competition Days')
+                                ->schema([
+                                    DatePicker::make('date')
+                                        ->required(),
+                                    TimePicker::make('start_time')
+                                        ->required()
+                                        ->seconds(false),
+                                    TimePicker::make('end_time')
+                                        ->seconds(false)
+                                        ->nullable(),
+                                ])
+                                ->columns(3)
+                                ->defaultItems(1)
+                                ->minItems(1)
+                                ->addActionLabel('Add day')
+                                ->reorderable(false)
+                                ->columnSpanFull(),
 
                             DatePicker::make('enrolment_due_date')
                                 ->nullable(),
-
-                            TimePicker::make('start_time')
-                                ->required()
-                                ->seconds(false),
 
                             TimePicker::make('checkin_time')
                                 ->seconds(false)
@@ -218,6 +231,18 @@ class CreateCompetition extends CreateRecord
         $data['organisation_id'] = app('tenant')?->id;
         $this->templateId = isset($data['template_id']) ? (int) $data['template_id'] : null;
         unset($data['template_id'], $data['start_mode']);
+
+        $days = $data['days'] ?? [];
+        usort($days, fn ($a, $b) => strcmp($a['date'] ?? '', $b['date'] ?? ''));
+        $this->pendingDays = $days;
+        unset($data['days']);
+
+        $firstDay = $days[0] ?? null;
+        $lastDay  = count($days) > 0 ? $days[count($days) - 1] : null;
+        $data['competition_date'] = $firstDay['date'] ?? null;
+        $data['start_time']       = $firstDay['start_time'] ?? null;
+        $data['end_time']         = $lastDay['end_time'] ?? null;
+
         return $data;
     }
 
@@ -239,6 +264,14 @@ class CreateCompetition extends CreateRecord
 
     protected function afterCreate(): void
     {
+        foreach ($this->pendingDays as $day) {
+            $this->record->competitionDays()->create([
+                'date'       => $day['date'],
+                'start_time' => $day['start_time'] ?? null,
+                'end_time'   => $day['end_time'] ?? null,
+            ]);
+        }
+
         if (! $this->templateId) {
             return;
         }

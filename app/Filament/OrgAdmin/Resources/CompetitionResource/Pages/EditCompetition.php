@@ -153,6 +153,8 @@ class EditCompetition extends EditRecord
 
     protected function afterSave(): void
     {
+        $this->record->syncDerivedDates();
+
         if ($this->record->status === 'complete' && ! $this->record->completed_at) {
             $this->record->update(['completed_at' => now()]);
         }
