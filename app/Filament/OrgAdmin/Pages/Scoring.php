@@ -296,6 +296,11 @@ class Scoring extends Page
         }
     }
 
+    public function selectDay(int $dayId): void
+    {
+        $this->competition_day_id = $dayId;
+    }
+
     public function updatedCompetitionId(): void
     {
         $this->filter_location    = null;
