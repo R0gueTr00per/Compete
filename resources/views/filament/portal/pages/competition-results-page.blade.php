@@ -27,7 +27,7 @@
                     };
                 @endphp
 
-                <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800" x-data="{ day: 'all' }">
+                <div class="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800">
 
                     {{-- Competition header --}}
                     <div class="px-4 py-3 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 flex items-center gap-3">
@@ -72,26 +72,6 @@
                         </div>
                     </div>
 
-                    {{-- Day filter (multi-day only) --}}
-                    @if ($competition->competitionDays->isNotEmpty())
-                        <div class="px-4 py-2 border-b border-gray-100 dark:border-slate-700 flex items-center gap-2 flex-wrap">
-                            <button type="button"
-                                x-on:click="day = 'all'"
-                                :class="day === 'all' ? 'bg-primary-500 text-white border-primary-500' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-600 hover:border-primary-400 dark:hover:border-primary-500'"
-                                class="px-3 py-1 rounded-full text-xs font-medium border transition-colors">
-                                All days
-                            </button>
-                            @foreach ($competition->competitionDays->sortBy('date') as $cday)
-                                <button type="button"
-                                    x-on:click="day = '{{ $cday->id }}'"
-                                    :class="day === '{{ $cday->id }}' ? 'bg-primary-500 text-white border-primary-500' : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-600 hover:border-primary-400 dark:hover:border-primary-500'"
-                                    class="px-3 py-1 rounded-full text-xs font-medium border transition-colors">
-                                    {{ tenant_date($cday->date) }}@if($cday->label) &mdash; {{ $cday->label }}@endif
-                                </button>
-                            @endforeach
-                        </div>
-                    @endif
-
                     {{-- Profile rows --}}
                     <div class="divide-y divide-gray-100 dark:divide-slate-700">
                         @foreach ($enrolments as $enrolment)
@@ -100,16 +80,13 @@
                                 $events = $enrolment->activeEvents->sortBy(fn ($ee) =>
                                     ($ee->competitionEvent?->running_order ?? 999)
                                 );
-                                $enrolmentDayIds = $events->map(fn ($ee) => (string) ($ee->division?->competition_day_id ?? ''))->unique()->values()->all();
                             @endphp
 
                             @if ($events->isEmpty())
                                 @continue
                             @endif
 
-                            <div class="px-4 py-3"
-                                 x-show="day === 'all' || {{ json_encode($enrolmentDayIds) }}.includes(day)"
-                                 x-cloak>
+                            <div class="px-4 py-3">
                                 <p class="text-sm font-medium text-gray-900 dark:text-white mb-2">{{ $profileName }}</p>
 
                                 <div class="space-y-1.5">
@@ -119,8 +96,7 @@
                                             $eventName = $ee->competitionEvent?->name ?? '—';
                                             $divLabel  = $ee->division ? $ee->division->code . ' — ' . $ee->division->label : null;
                                         @endphp
-                                        <div class="flex items-start gap-2 min-w-0"
-                                             x-show="day === 'all' || day === '{{ $ee->division?->competition_day_id ?? '' }}'">
+                                        <div class="flex items-start gap-2 min-w-0">
                                             <div class="w-14 shrink-0 flex justify-end pt-0.5">
                                                 @if ($result)
                                                     @if ($result->disqualified)
