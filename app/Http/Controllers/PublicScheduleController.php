@@ -35,6 +35,13 @@ class PublicScheduleController extends Controller
 
         $breaks = $competition->breaks;
 
-        return view('public.schedule', compact('competition', 'divisions', 'breaks'));
+        $competition->load('competitionDays');
+        $compDays   = $competition->competitionDays->sortBy('date');
+        $todayDayId = $compDays->firstWhere('date', now()->toDateString())?->id;
+        $initialDay = $compDays->isNotEmpty()
+            ? (string) ($todayDayId ?? $compDays->first()?->id ?? 'all')
+            : 'all';
+
+        return view('public.schedule', compact('competition', 'divisions', 'breaks', 'compDays', 'initialDay'));
     }
 }

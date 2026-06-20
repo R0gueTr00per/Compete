@@ -27,6 +27,31 @@
                 @endforeach
             </div>
 
+            {{-- Day filter --}}
+            @php $competitionDays = $this->getCompetitionDays(); @endphp
+            @if ($competitionDays->isNotEmpty())
+                <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                    <button
+                        wire:click="$set('selectedDay', null)"
+                        class="px-3 py-1 rounded-full text-xs font-medium border transition-colors
+                            {{ $this->selectedDay === null
+                                ? 'bg-primary-600 text-white border-primary-600'
+                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700' }}">
+                        All days
+                    </button>
+                    @foreach ($competitionDays as $cday)
+                        <button
+                            wire:click="$set('selectedDay', '{{ $cday->id }}')"
+                            class="px-3 py-1 rounded-full text-xs font-medium border transition-colors
+                                {{ (string) $this->selectedDay === (string) $cday->id
+                                    ? 'bg-primary-600 text-white border-primary-600'
+                                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700' }}">
+                            {{ tenant_date($cday->date) }}@if($cday->label) &mdash; {{ $cday->label }}@endif
+                        </button>
+                    @endforeach
+                </div>
+            @endif
+
             @if ($this->activeView === 'events')
                 {{-- Search row --}}
                 <div class="mt-3 max-w-xs">

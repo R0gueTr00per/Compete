@@ -7,6 +7,22 @@
         $shareUrl       = $competition?->isPublicScheduleAvailable()
             ? config('app.scheme') . '://' . app('tenant')->slug . '.' . config('app.domain') . '/schedule/' . $competition->id
             : null;
+        $compDays       = $competition?->competitionDays->sortBy('date') ?? collect();
+        $todayDayId     = $compDays->firstWhere('date', now()->toDateString())?->id;
+        $initialDay     = $compDays->isNotEmpty()
+            ? (string) ($todayDayId ?? $compDays->first()?->id ?? 'all')
+            : 'all';
+        $compDateStr    = $competition ? tenant_date($competition->competition_date) : '';
+        $compStartStr   = $competition?->start_time ? tenant_time($competition->start_time) : null;
+        $compEndStr     = $competition?->end_time   ? tenant_time($competition->end_time)   : null;
+        $isMultiDay     = $compDays->isNotEmpty();
+        $dayInfoJs      = $compDays->mapWithKeys(fn ($d) => [
+            (string) $d->id => [
+                'date'  => tenant_date($d->date),
+                'start' => $d->start_time ? tenant_time($d->start_time) : null,
+                'end'   => $d->end_time   ? tenant_time($d->end_time)   : null,
+            ]
+        ])->all();
     @endphp
 
     @if (! $competition)
@@ -19,6 +35,8 @@
                 shareOpen: false,
                 copied: false,
                 selected: null,
+                day: '{{ $initialDay }}',
+                dayInfo: {{ json_encode($dayInfoJs) }},
                 async copyQr() {
                     const svg = this.$refs.qrcode.querySelector('svg');
                     const svgData = new XMLSerializer().serializeToString(svg);
@@ -44,7 +62,11 @@
         {{-- Competition header --}}
         <x-filament::section>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
-                <span>{{ tenant_date($competition->competition_date) }}</span>
+                @if ($isMultiDay)
+                    <span x-text="(day !== 'all' && dayInfo[day]?.date) || {{ json_encode($compDateStr) }}"></span>
+                @else
+                    <span>{{ $compDateStr }}</span>
+                @endif
                 @if ($competition->location_name)
                     @if ($competition->location_url)
                         <span>&middot; <a href="{{ $competition->location_url }}" target="_blank" rel="noopener noreferrer" class="hover:underline">{{ $competition->location_name }}</a></span>
@@ -52,11 +74,20 @@
                         <span>&middot; {{ $competition->location_name }}</span>
                     @endif
                 @endif
-                @if ($competition->start_time)
-                    <span>&middot; Starts {{ tenant_time($competition->start_time) }}</span>
-                @endif
-                @if ($competition->end_time)
-                    <span>&middot; Ends {{ tenant_time($competition->end_time) }}</span>
+                @if ($isMultiDay)
+                    <span x-show="(day !== 'all' && dayInfo[day]?.start) || {{ json_encode(!!$compStartStr) }}"
+                          x-cloak
+                          x-text="'· Starts ' + ((day !== 'all' && dayInfo[day]?.start) || {{ json_encode($compStartStr ?? '') }})"></span>
+                    <span x-show="(day !== 'all' && dayInfo[day]?.end) || {{ json_encode(!!$compEndStr) }}"
+                          x-cloak
+                          x-text="'· Ends ' + ((day !== 'all' && dayInfo[day]?.end) || {{ json_encode($compEndStr ?? '') }})"></span>
+                @else
+                    @if ($competition->start_time)
+                        <span>&middot; Starts {{ tenant_time($competition->start_time) }}</span>
+                    @endif
+                    @if ($competition->end_time)
+                        <span>&middot; Ends {{ tenant_time($competition->end_time) }}</span>
+                    @endif
                 @endif
                 <span class="sm:ml-auto flex items-center gap-2 text-xs text-gray-400">
                     Updated {{ tenant_time(now()) }}
@@ -139,7 +170,35 @@
                     3 => 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border border-orange-300 dark:border-orange-700',
                 ];
                 $competitionBreaks = $competition->breaks;
-                $compDate = \Carbon\Carbon::parse($competition->competition_date)->format('Y-m-d');
+                $compDate    = \Carbon\Carbon::parse($competition->competition_date)->format('Y-m-d');
+                // org-admin approach: each day gets its own timeline with breaks computed for that day's date
+                $buildDayTimeline = function ($dayDivisions, $dayDate, $dayId = null) use ($competitionBreaks) {
+                    $dayBreaks = $competitionBreaks
+                        ->filter(fn ($b) => (string) $b->competition_day_id === (string) $dayId)
+                        ->map(fn ($b) => [
+                            'name'      => $b->name,
+                            'start_str' => substr($b->start_time, 0, 5),
+                            'end_str'   => $b->endTime(),
+                            'ts'        => \Carbon\Carbon::parse($dayDate . ' ' . $b->start_time)->timestamp,
+                        ])->sortBy('ts')->values();
+                    $timeline = [];
+                    $bIdx = 0;
+                    foreach ($dayDivisions->sortBy('running_order') as $div) {
+                        if ($div->planned_start_at) {
+                            while ($bIdx < $dayBreaks->count() && $dayBreaks[$bIdx]['ts'] <= $div->planned_start_at->timestamp) {
+                                $timeline[] = array_merge(['type' => 'break'], $dayBreaks[$bIdx]);
+                                $bIdx++;
+                            }
+                        }
+                        $timeline[] = ['type' => 'div', 'div' => $div];
+                    }
+                    while ($bIdx < $dayBreaks->count()) {
+                        $timeline[] = array_merge(['type' => 'break'], $dayBreaks[$bIdx]);
+                        $bIdx++;
+                    }
+                    return $timeline;
+                };
+                // Fallback colSortedBreaks for single-day competitions
                 $colSortedBreaks = $competitionBreaks->map(fn ($b) => [
                     'name'      => $b->name,
                     'start_str' => substr($b->start_time, 0, 5),
@@ -147,6 +206,20 @@
                     'ts'        => \Carbon\Carbon::parse($compDate . ' ' . $b->start_time)->timestamp,
                 ])->sortBy('ts')->values();
             @endphp
+
+            {{-- Day filter --}}
+            @if ($compDays->isNotEmpty())
+                <div class="mb-3 flex items-center gap-2 flex-wrap">
+                    @foreach ($compDays as $cday)
+                        <button type="button"
+                            x-on:click="day = '{{ $cday->id }}'"
+                            :class="day === '{{ $cday->id }}' ? 'bg-primary-500 text-white border-primary-500' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-primary-400'"
+                            class="px-3 py-1 rounded-full text-xs font-medium border transition-colors">
+                            {{ tenant_date($cday->date) }}@if($cday->label) &mdash; {{ $cday->label }}@endif
+                        </button>
+                    @endforeach
+                </div>
+            @endif
 
             {{-- Legend --}}
             <div class="mb-3 flex flex-wrap gap-4 text-xs text-gray-600 dark:text-gray-400">
@@ -166,17 +239,32 @@
                 <div class="flex gap-1.5">
                     @foreach ($activeLocations as $location)
                         @php
-                            $mobileTimeline = [];
-                            $mBIdx = 0;
-                            foreach ($divisions[$location] as $div) {
-                                if ($div->planned_start_at) {
-                                    while ($mBIdx < $colSortedBreaks->count()
-                                        && $colSortedBreaks[$mBIdx]['ts'] <= $div->planned_start_at->timestamp) {
-                                        $mobileTimeline[] = array_merge(['type' => 'break'], $colSortedBreaks[$mBIdx]);
-                                        $mBIdx++;
-                                    }
+                            if ($compDays->isNotEmpty()) {
+                                $mobilePerDay = [];
+                                foreach ($compDays as $cday) {
+                                    $mobilePerDay[$cday->id] = $buildDayTimeline(
+                                        $divisions[$location]->where('competition_day_id', $cday->id),
+                                        \Carbon\Carbon::parse($cday->date)->format('Y-m-d'),
+                                        $cday->id
+                                    );
                                 }
-                                $mobileTimeline[] = ['type' => 'div', 'div' => $div];
+                            } else {
+                                $mobileTimeline = [];
+                                $mBIdx = 0;
+                                foreach ($divisions[$location] as $div) {
+                                    if ($div->planned_start_at) {
+                                        while ($mBIdx < $colSortedBreaks->count()
+                                            && $colSortedBreaks[$mBIdx]['ts'] <= $div->planned_start_at->timestamp) {
+                                            $mobileTimeline[] = array_merge(['type' => 'break'], $colSortedBreaks[$mBIdx]);
+                                            $mBIdx++;
+                                        }
+                                    }
+                                    $mobileTimeline[] = ['type' => 'div', 'div' => $div];
+                                }
+                                while ($mBIdx < $colSortedBreaks->count()) {
+                                    $mobileTimeline[] = array_merge(['type' => 'break'], $colSortedBreaks[$mBIdx]);
+                                    $mBIdx++;
+                                }
                             }
                         @endphp
                         <div class="flex-1 min-w-0">
@@ -184,41 +272,83 @@
                                 {{ $location }}
                             </div>
                             <div class="space-y-1">
-                                @foreach ($mobileTimeline as $row)
-                                    @if ($row['type'] === 'break')
-                                        <div class="w-full rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-1 py-1.5 text-center">
-                                            <span class="text-xs font-semibold text-amber-700 dark:text-amber-400 leading-none">Break</span>
-                                        </div>
-                                    @else
-                                        @php
-                                            $div = $row['div'];
-                                            $isMyDiv = in_array($div->id, $myDivisionIds);
-                                            $cardBg  = $div->status === 'complete'
-                                                ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
-                                                : 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700';
-                                            if ($isMyDiv) $cardBg .= ' ring-2 ring-gray-800 dark:ring-white';
-                                        @endphp
-                                        <button
-                                            type="button"
-                                            @click="selected === {{ $div->id }} ? (selected = null, $dispatch('sched-panel-close')) : (selected = {{ $div->id }}, $dispatch('sched-panel-open', { id: {{ $div->id }} }))"
-                                            :class="selected === {{ $div->id }} ? 'ring-2 ring-offset-1 ring-blue-500' : ''"
-                                            class="w-full rounded border {{ $cardBg }} px-1.5 py-1.5 text-left transition-shadow"
-                                        >
-                                            <div class="flex items-center justify-between gap-1">
-                                                <span class="font-mono text-xs font-bold leading-none text-gray-800 dark:text-white">{{ $div->code }}</span>
-                                                @if ($div->status === 'complete')
-                                                    <svg class="flex-none h-2.5 w-2.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                                                    </svg>
-                                                @elseif ($div->planned_start_at)
-                                                    <span class="text-gray-400 leading-none tabular-nums" style="font-size:9px">{{ tenant_time($div->planned_start_at) }}</span>
+                                @if ($compDays->isNotEmpty())
+                                    @foreach ($compDays as $cday)
+                                        <div x-show="day === '{{ $cday->id }}'">
+                                            @foreach ($mobilePerDay[$cday->id] as $row)
+                                                @if ($row['type'] === 'break')
+                                                    <div class="w-full rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-1 py-1.5 text-center mb-1">
+                                                        <span class="text-xs font-semibold text-amber-700 dark:text-amber-400 leading-none">Break</span>
+                                                    </div>
+                                                @else
+                                                    @php
+                                                        $div = $row['div'];
+                                                        $isMyDiv = in_array($div->id, $myDivisionIds);
+                                                        $cardBg  = $div->status === 'complete'
+                                                            ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
+                                                            : 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700';
+                                                        if ($isMyDiv) $cardBg .= ' ring-2 ring-gray-800 dark:ring-white';
+                                                    @endphp
+                                                    <button
+                                                        type="button"
+                                                        @click="selected === {{ $div->id }} ? (selected = null, $dispatch('sched-panel-close')) : (selected = {{ $div->id }}, $dispatch('sched-panel-open', { id: {{ $div->id }} }))"
+                                                        :class="selected === {{ $div->id }} ? 'ring-2 ring-offset-1 ring-blue-500' : ''"
+                                                        class="w-full rounded border {{ $cardBg }} px-1.5 py-1.5 text-left transition-shadow mb-1"
+                                                    >
+                                                        <div class="flex items-center justify-between gap-1">
+                                                            <span class="font-mono text-xs font-bold leading-none text-gray-800 dark:text-white">{{ $div->code }}</span>
+                                                            @if ($div->status === 'complete')
+                                                                <svg class="flex-none h-2.5 w-2.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                                                </svg>
+                                                            @elseif ($div->planned_start_at)
+                                                                <span class="text-gray-400 leading-none tabular-nums" style="font-size:9px">{{ tenant_time($div->planned_start_at) }}</span>
+                                                            @endif
+                                                        </div>
+                                                        <div class="text-xs text-gray-500 dark:text-gray-400 leading-tight mt-0.5 truncate">{{ $div->competitionEvent->name }}</div>
+                                                        <div class="text-gray-600 dark:text-gray-300 leading-tight truncate" style="font-size:10px">{{ $div->label }}</div>
+                                                    </button>
                                                 @endif
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                @else
+                                    @foreach ($mobileTimeline as $row)
+                                        @if ($row['type'] === 'break')
+                                            <div class="w-full rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-1 py-1.5 text-center">
+                                                <span class="text-xs font-semibold text-amber-700 dark:text-amber-400 leading-none">Break</span>
                                             </div>
-                                            <div class="text-xs text-gray-500 dark:text-gray-400 leading-tight mt-0.5 truncate">{{ $div->competitionEvent->name }}</div>
-                                            <div class="text-gray-600 dark:text-gray-300 leading-tight truncate" style="font-size:10px">{{ $div->label }}</div>
-                                        </button>
-                                    @endif
-                                @endforeach
+                                        @else
+                                            @php
+                                                $div = $row['div'];
+                                                $isMyDiv = in_array($div->id, $myDivisionIds);
+                                                $cardBg  = $div->status === 'complete'
+                                                    ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
+                                                    : 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700';
+                                                if ($isMyDiv) $cardBg .= ' ring-2 ring-gray-800 dark:ring-white';
+                                            @endphp
+                                            <button
+                                                type="button"
+                                                @click="selected === {{ $div->id }} ? (selected = null, $dispatch('sched-panel-close')) : (selected = {{ $div->id }}, $dispatch('sched-panel-open', { id: {{ $div->id }} }))"
+                                                :class="selected === {{ $div->id }} ? 'ring-2 ring-offset-1 ring-blue-500' : ''"
+                                                class="w-full rounded border {{ $cardBg }} px-1.5 py-1.5 text-left transition-shadow"
+                                            >
+                                                <div class="flex items-center justify-between gap-1">
+                                                    <span class="font-mono text-xs font-bold leading-none text-gray-800 dark:text-white">{{ $div->code }}</span>
+                                                    @if ($div->status === 'complete')
+                                                        <svg class="flex-none h-2.5 w-2.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                                        </svg>
+                                                    @elseif ($div->planned_start_at)
+                                                        <span class="text-gray-400 leading-none tabular-nums" style="font-size:9px">{{ tenant_time($div->planned_start_at) }}</span>
+                                                    @endif
+                                                </div>
+                                                <div class="text-xs text-gray-500 dark:text-gray-400 leading-tight mt-0.5 truncate">{{ $div->competitionEvent->name }}</div>
+                                                <div class="text-gray-600 dark:text-gray-300 leading-tight truncate" style="font-size:10px">{{ $div->label }}</div>
+                                            </button>
+                                        @endif
+                                    @endforeach
+                                @endif
                             </div>
                         </div>
                     @endforeach
@@ -313,17 +443,32 @@
                 <div class="flex gap-4 items-start" style="min-width: max-content;">
                     @foreach ($activeLocations as $location)
                         @php
-                            $desktopTimeline = [];
-                            $dBIdx = 0;
-                            foreach ($divisions[$location] as $div) {
-                                if ($div->planned_start_at) {
-                                    while ($dBIdx < $colSortedBreaks->count()
-                                        && $colSortedBreaks[$dBIdx]['ts'] <= $div->planned_start_at->timestamp) {
-                                        $desktopTimeline[] = array_merge(['type' => 'break'], $colSortedBreaks[$dBIdx]);
-                                        $dBIdx++;
-                                    }
+                            if ($compDays->isNotEmpty()) {
+                                $desktopPerDay = [];
+                                foreach ($compDays as $cday) {
+                                    $desktopPerDay[$cday->id] = $buildDayTimeline(
+                                        $divisions[$location]->where('competition_day_id', $cday->id),
+                                        \Carbon\Carbon::parse($cday->date)->format('Y-m-d'),
+                                        $cday->id
+                                    );
                                 }
-                                $desktopTimeline[] = ['type' => 'div', 'div' => $div];
+                            } else {
+                                $desktopTimeline = [];
+                                $dBIdx = 0;
+                                foreach ($divisions[$location] as $div) {
+                                    if ($div->planned_start_at) {
+                                        while ($dBIdx < $colSortedBreaks->count()
+                                            && $colSortedBreaks[$dBIdx]['ts'] <= $div->planned_start_at->timestamp) {
+                                            $desktopTimeline[] = array_merge(['type' => 'break'], $colSortedBreaks[$dBIdx]);
+                                            $dBIdx++;
+                                        }
+                                    }
+                                    $desktopTimeline[] = ['type' => 'div', 'div' => $div];
+                                }
+                                while ($dBIdx < $colSortedBreaks->count()) {
+                                    $desktopTimeline[] = array_merge(['type' => 'break'], $colSortedBreaks[$dBIdx]);
+                                    $dBIdx++;
+                                }
                             }
                         @endphp
                         <div class="flex-none w-64">
@@ -332,73 +477,147 @@
                             </h2>
 
                             <div class="space-y-2">
-                                @foreach ($desktopTimeline as $row)
-                                    @if ($row['type'] === 'break')
-                                        <div class="px-3 py-2 my-1 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
-                                            <div class="flex items-center gap-2">
-                                                <svg class="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path d="M5.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75A.75.75 0 0 0 7.25 3h-1.5ZM12.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75a.75.75 0 0 0-.75-.75h-1.5Z"/>
-                                                </svg>
-                                                <span class="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">{{ $row['name'] }}</span>
-                                            </div>
-                                            <div class="text-xs text-amber-600 dark:text-amber-500 mt-0.5 pl-5">{{ $row['start_str'] }}–{{ $row['end_str'] }}</div>
-                                        </div>
-                                    @else
-                                        @php
-                                            $div = $row['div'];
-                                            $isMyDiv   = in_array($div->id, $myDivisionIds);
-                                            $cardClass = $div->status === 'complete'
-                                                ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
-                                                : 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700';
-                                            if ($isMyDiv) $cardClass .= ' ring-2 ring-gray-800 dark:ring-white';
-                                        @endphp
-                                        <div class="rounded-md border px-3 py-2 shadow-sm {{ $cardClass }}">
-                                            <div class="flex items-center justify-between gap-2">
-                                                <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
-                                                @if ($div->status === 'complete')
-                                                    <x-heroicon-m-check-circle class="h-4 w-4 text-green-600 dark:text-green-400" />
-                                                @elseif ($div->planned_start_at)
+                                @if ($compDays->isNotEmpty())
+                                    @foreach ($compDays as $cday)
+                                        <div x-show="day === '{{ $cday->id }}'">
+                                            @foreach ($desktopPerDay[$cday->id] as $row)
+                                                @if ($row['type'] === 'break')
+                                                    <div class="px-3 py-2 my-1 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                                                        <div class="flex items-center gap-2">
+                                                            <svg class="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                                <path d="M5.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75A.75.75 0 0 0 7.25 3h-1.5ZM12.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75a.75.75 0 0 0-.75-.75h-1.5Z"/>
+                                                            </svg>
+                                                            <span class="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">{{ $row['name'] }}</span>
+                                                        </div>
+                                                        <div class="text-xs text-amber-600 dark:text-amber-500 mt-0.5 pl-5">{{ $row['start_str'] }}–{{ $row['end_str'] }}</div>
+                                                    </div>
+                                                @else
                                                     @php
-                                                        $driftMin = $div->actual_start_at
-                                                            ? (int) round($div->planned_start_at->diffInMinutes($div->actual_start_at, false))
-                                                            : null;
+                                                        $div = $row['div'];
+                                                        $isMyDiv   = in_array($div->id, $myDivisionIds);
+                                                        $cardClass = $div->status === 'complete'
+                                                            ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
+                                                            : 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700';
+                                                        if ($isMyDiv) $cardClass .= ' ring-2 ring-gray-800 dark:ring-white';
                                                     @endphp
-                                                    <span class="flex items-center gap-1 shrink-0">
-                                                        <span class="text-xs tabular-nums text-gray-400 dark:text-gray-500">{{ tenant_time($div->planned_start_at) }}</span>
-                                                        @if ($driftMin !== null && abs($driftMin) < 1440)
+                                                    <div class="rounded-md border px-3 py-2 shadow-sm {{ $cardClass }}">
+                                                        <div class="flex items-center justify-between gap-2">
+                                                            <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
+                                                            @if ($div->status === 'complete')
+                                                                <x-heroicon-m-check-circle class="h-4 w-4 text-green-600 dark:text-green-400" />
+                                                            @elseif ($div->planned_start_at)
+                                                                @php
+                                                                    $driftMin = $div->actual_start_at
+                                                                        ? (int) round($div->planned_start_at->diffInMinutes($div->actual_start_at, false))
+                                                                        : null;
+                                                                @endphp
+                                                                <span class="flex items-center gap-1 shrink-0">
+                                                                    <span class="text-xs tabular-nums text-gray-400 dark:text-gray-500">{{ tenant_time($div->planned_start_at) }}</span>
+                                                                    @if ($driftMin !== null && abs($driftMin) < 1440)
+                                                                        @php
+                                                                            if ($driftMin < 0)      $driftCls = 'bg-blue-100 text-blue-700';
+                                                                            elseif ($driftMin === 0) $driftCls = 'bg-green-100 text-green-700';
+                                                                            elseif ($driftMin <= 5)  $driftCls = 'bg-green-100 text-green-700';
+                                                                            elseif ($driftMin <= 15) $driftCls = 'bg-amber-100 text-amber-700';
+                                                                            else                    $driftCls = 'bg-red-100 text-red-700';
+                                                                            $driftLabel = $driftMin < 0 ? abs($driftMin) . 'm early' : ($driftMin === 0 ? 'On time' : '+' . $driftMin . 'm');
+                                                                        @endphp
+                                                                        <span class="inline-block rounded px-1 py-0.5 text-xs font-medium {{ $driftCls }}">{{ $driftLabel }}</span>
+                                                                    @endif
+                                                                </span>
+                                                            @endif
+                                                        </div>
+                                                        <div class="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{{ $div->competitionEvent->name }}</div>
+                                                        <div class="text-xs font-medium text-gray-800 dark:text-gray-200 mt-0.5">{{ $div->label }}</div>
+                                                        @if ($div->status === 'complete')
                                                             @php
-                                                                if ($driftMin < 0)      $driftCls = 'bg-blue-100 text-blue-700';
-                                                                elseif ($driftMin === 0) $driftCls = 'bg-green-100 text-green-700';
-                                                                elseif ($driftMin <= 5)  $driftCls = 'bg-green-100 text-green-700';
-                                                                elseif ($driftMin <= 15) $driftCls = 'bg-amber-100 text-amber-700';
-                                                                else                    $driftCls = 'bg-red-100 text-red-700';
-                                                                $driftLabel = $driftMin < 0 ? abs($driftMin) . 'm early' : ($driftMin === 0 ? 'On time' : '+' . $driftMin . 'm');
+                                                                $placements = $div->activeEnrolmentEvents
+                                                                    ->filter(fn ($ee) => $ee->result?->placement)
+                                                                    ->sortBy(fn ($ee) => $ee->result->placement)
+                                                                    ->take(3);
                                                             @endphp
-                                                            <span class="inline-block rounded px-1 py-0.5 text-xs font-medium {{ $driftCls }}">{{ $driftLabel }}</span>
+                                                            @foreach ($placements as $ee)
+                                                                @php
+                                                                    $pName = $ee->enrolment->competitor?->full_name ?? '—';
+                                                                    $medal = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . '.' };
+                                                                @endphp
+                                                                <div class="text-xs text-gray-700 dark:text-gray-300 mt-0.5">{{ $medal }} {{ $pName }}</div>
+                                                            @endforeach
                                                         @endif
-                                                    </span>
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endforeach
+                                @else
+                                    @foreach ($desktopTimeline as $row)
+                                        @if ($row['type'] === 'break')
+                                            <div class="px-3 py-2 my-1 rounded bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                                                <div class="flex items-center gap-2">
+                                                    <svg class="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M5.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75A.75.75 0 0 0 7.25 3h-1.5ZM12.75 3a.75.75 0 0 0-.75.75v12.5c0 .414.336.75.75.75h1.5a.75.75 0 0 0 .75-.75V3.75a.75.75 0 0 0-.75-.75h-1.5Z"/>
+                                                    </svg>
+                                                    <span class="text-xs font-semibold text-amber-700 dark:text-amber-400 truncate">{{ $row['name'] }}</span>
+                                                </div>
+                                                <div class="text-xs text-amber-600 dark:text-amber-500 mt-0.5 pl-5">{{ $row['start_str'] }}–{{ $row['end_str'] }}</div>
+                                            </div>
+                                        @else
+                                            @php
+                                                $div = $row['div'];
+                                                $isMyDiv   = in_array($div->id, $myDivisionIds);
+                                                $cardClass = $div->status === 'complete'
+                                                    ? 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700'
+                                                    : 'bg-indigo-100 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-700';
+                                                if ($isMyDiv) $cardClass .= ' ring-2 ring-gray-800 dark:ring-white';
+                                            @endphp
+                                            <div class="rounded-md border px-3 py-2 shadow-sm {{ $cardClass }}">
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <span class="font-mono text-xs font-bold text-gray-900 dark:text-white">{{ $div->code }}</span>
+                                                    @if ($div->status === 'complete')
+                                                        <x-heroicon-m-check-circle class="h-4 w-4 text-green-600 dark:text-green-400" />
+                                                    @elseif ($div->planned_start_at)
+                                                        @php
+                                                            $driftMin = $div->actual_start_at
+                                                                ? (int) round($div->planned_start_at->diffInMinutes($div->actual_start_at, false))
+                                                                : null;
+                                                        @endphp
+                                                        <span class="flex items-center gap-1 shrink-0">
+                                                            <span class="text-xs tabular-nums text-gray-400 dark:text-gray-500">{{ tenant_time($div->planned_start_at) }}</span>
+                                                            @if ($driftMin !== null && abs($driftMin) < 1440)
+                                                                @php
+                                                                    if ($driftMin < 0)      $driftCls = 'bg-blue-100 text-blue-700';
+                                                                    elseif ($driftMin === 0) $driftCls = 'bg-green-100 text-green-700';
+                                                                    elseif ($driftMin <= 5)  $driftCls = 'bg-green-100 text-green-700';
+                                                                    elseif ($driftMin <= 15) $driftCls = 'bg-amber-100 text-amber-700';
+                                                                    else                    $driftCls = 'bg-red-100 text-red-700';
+                                                                    $driftLabel = $driftMin < 0 ? abs($driftMin) . 'm early' : ($driftMin === 0 ? 'On time' : '+' . $driftMin . 'm');
+                                                                @endphp
+                                                                <span class="inline-block rounded px-1 py-0.5 text-xs font-medium {{ $driftCls }}">{{ $driftLabel }}</span>
+                                                            @endif
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                <div class="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{{ $div->competitionEvent->name }}</div>
+                                                <div class="text-xs font-medium text-gray-800 dark:text-gray-200 mt-0.5">{{ $div->label }}</div>
+                                                @if ($div->status === 'complete')
+                                                    @php
+                                                        $placements = $div->activeEnrolmentEvents
+                                                            ->filter(fn ($ee) => $ee->result?->placement)
+                                                            ->sortBy(fn ($ee) => $ee->result->placement)
+                                                            ->take(3);
+                                                    @endphp
+                                                    @foreach ($placements as $ee)
+                                                        @php
+                                                            $pName = $ee->enrolment->competitor?->full_name ?? '—';
+                                                            $medal = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . '.' };
+                                                        @endphp
+                                                        <div class="text-xs text-gray-700 dark:text-gray-300 mt-0.5">{{ $medal }} {{ $pName }}</div>
+                                                    @endforeach
                                                 @endif
                                             </div>
-                                            <div class="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{{ $div->competitionEvent->name }}</div>
-                                            <div class="text-xs font-medium text-gray-800 dark:text-gray-200 mt-0.5">{{ $div->label }}</div>
-                                            @if ($div->status === 'complete')
-                                                @php
-                                                    $placements = $div->activeEnrolmentEvents
-                                                        ->filter(fn ($ee) => $ee->result?->placement)
-                                                        ->sortBy(fn ($ee) => $ee->result->placement)
-                                                        ->take(3);
-                                                @endphp
-                                                @foreach ($placements as $ee)
-                                                    @php
-                                                        $pName = $ee->enrolment->competitor?->full_name ?? '—';
-                                                        $medal = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . '.' };
-                                                    @endphp
-                                                    <div class="text-xs text-gray-700 dark:text-gray-300 mt-0.5">{{ $medal }} {{ $pName }}</div>
-                                                @endforeach
-                                            @endif
-                                        </div>
-                                    @endif
-                                @endforeach
+                                        @endif
+                                    @endforeach
+                                @endif
                             </div>
                         </div>
                     @endforeach

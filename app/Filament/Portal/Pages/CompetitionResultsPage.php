@@ -54,7 +54,7 @@ class CompetitionResultsPage extends Page
                 ->whereIn('status', ['complete', 'running'])
             )
             ->with([
-                'competition',
+                'competition.competitionDays',
                 'competitor',
                 'activeEvents.competitionEvent',
                 'activeEvents.division',

@@ -54,7 +54,9 @@ class SchedulePage extends Page
     #[Computed]
     public function getCompetition(): ?Competition
     {
-        return $this->competition_id ? Competition::find($this->competition_id) : null;
+        return $this->competition_id
+            ? Competition::with('competitionDays')->find($this->competition_id)
+            : null;
     }
 
     public function getLocations(): array

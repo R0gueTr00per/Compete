@@ -3,6 +3,7 @@
 namespace App\Filament\OrgAdmin\Pages;
 
 use App\Models\Competition;
+use App\Models\CompetitionDay;
 use App\Models\CompetitionEvent;
 use App\Models\Enrolment;
 use App\Models\Result;
@@ -46,6 +47,9 @@ class Results extends Page
     #[Url]
     public ?string $selectedDojo = null;
 
+    #[Url]
+    public ?string $selectedDay = null;
+
     public function mount(): void
     {
         if (! $this->competition_id) {
@@ -65,6 +69,19 @@ class Results extends Page
         $this->selectedEvent = null;
         $this->selectedDojo  = null;
         $this->search        = null;
+        $this->selectedDay   = null;
+    }
+
+    #[Computed]
+    public function getCompetitionDays(): \Illuminate\Support\Collection
+    {
+        if (! $this->competition_id) {
+            return collect();
+        }
+
+        return CompetitionDay::where('competition_id', $this->competition_id)
+            ->orderBy('date')
+            ->get();
     }
 
     #[Computed]
@@ -75,6 +92,7 @@ class Results extends Page
         }
 
         $results = Result::whereHas('enrolmentEvent.enrolment', fn ($q) => $q->where('competition_id', $this->competition_id))
+            ->when($this->selectedDay, fn ($q) => $q->whereHas('enrolmentEvent.division', fn ($q2) => $q2->where('competition_day_id', $this->selectedDay)))
             ->whereNotNull('placement')
             ->whereBetween('placement', [1, 3])
             ->where('disqualified', false)
@@ -112,6 +130,7 @@ class Results extends Page
         }
 
         $results = Result::whereHas('enrolmentEvent.enrolment', fn ($q) => $q->where('competition_id', $this->competition_id))
+            ->when($this->selectedDay, fn ($q) => $q->whereHas('enrolmentEvent.division', fn ($q2) => $q2->where('competition_day_id', $this->selectedDay)))
             ->whereNotNull('placement')
             ->whereBetween('placement', [1, 3])
             ->where('disqualified', false)
@@ -213,7 +232,8 @@ class Results extends Page
 
         $query = $competition->competitionEvents()
             ->with([
-                'divisions'                                          => fn ($q) => $q->where('status', 'complete'),
+                'divisions' => fn ($q) => $q->where('status', 'complete')
+                    ->when($this->selectedDay, fn ($q) => $q->where('competition_day_id', $this->selectedDay)),
                 'divisions.enrolmentEvents'                          => fn ($q) => $q->where('removed', false),
                 'divisions.enrolmentEvents.enrolment.competitor',
                 'divisions.enrolmentEvents.result.judgeScores',
