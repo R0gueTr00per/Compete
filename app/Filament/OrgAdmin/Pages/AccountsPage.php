@@ -53,7 +53,7 @@ class AccountsPage extends Page implements HasTable
             ->whereNotIn('ec.status', ['draft'])
             ->selectRaw("
                 SUM(CASE WHEN ec.payment_status = 'received'
-                    THEN COALESCE(ec.payment_amount, ec.total_amount) ELSE 0 END) AS total_paid,
+                    THEN ec.total_amount ELSE 0 END) AS total_paid,
                 SUM(CASE WHEN ec.payment_status != 'received'
                     THEN COALESCE(ec.total_amount, 0) ELSE 0 END) AS outstanding
             ")

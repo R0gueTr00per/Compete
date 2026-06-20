@@ -19,7 +19,7 @@
     foreach ($carts as $cart) {
         $pf = (float) ($cart->platform_fee_rate ?? $orgFee);
         if ($cart->isPaid()) {
-            $totalPaid += (float) ($cart->payment_amount ?? $cart->outstandingAmount($pf));
+            $totalPaid += (float) $cart->total_amount;
         } else {
             $outstanding += $cart->outstandingAmount($pf);
         }

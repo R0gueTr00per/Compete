@@ -173,7 +173,7 @@ class Dashboard extends BaseDashboard
                   ->orWhere(fn ($q2) => $q2->where('status', 'complete')
                       ->where('competition_date', '>=', $cutoff));
             })
-            ->with('portalMessages')
+            ->with(['portalMessages', 'competitionDays'])
             ->orderBy('competition_date')
             ->get();
     }
@@ -237,6 +237,7 @@ class Dashboard extends BaseDashboard
             ->with([
                 'competition',
                 'cart',
+                'checkIns',
                 'activeEvents.competitionEvent',
                 'activeEvents.division',
                 'activeEvents.result',
