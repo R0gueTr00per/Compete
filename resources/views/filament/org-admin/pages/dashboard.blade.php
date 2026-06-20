@@ -57,20 +57,17 @@
                         'advertise'         => 'Advertise',
                         'open'              => 'Open',
                         'enrolments_closed' => 'Registrations Closed',
-                        'check_in'          => 'Check-in',
                         'running'           => 'Running',
                         'complete'          => 'Complete',
                         default             => ucfirst($competition->status),
                     };
                     $statusBadgeClass = match ($competition->status) {
                         'running'  => 'bg-blue-100/60 text-blue-700 border-blue-200/60 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40',
-                        'check_in' => 'bg-amber-100/60 text-amber-700 border-amber-200/60 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40',
                         'open'     => 'bg-green-100/60 text-green-700 border-green-200/60 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40',
                         'complete' => 'bg-gray-100/60 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40',
                         default    => 'bg-gray-100/60 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40',
                     };
                     $enrolmentsColor = $competition->status === 'open'     ? 'success'  : 'gray';
-                    $checkInColor    = $competition->status === 'check_in' ? 'primary'  : 'gray';
                     $schedulingColor = $competition->status === 'enrolments_closed' ? 'primary' : 'gray';
                     $scoringColor    = $competition->status === 'running'  ? 'warning'  : 'gray';
 
@@ -94,7 +91,6 @@
                     $spotlightSection = match($competition->status) {
                         'open'              => 'enrolments',
                         'enrolments_closed' => 'scheduling',
-                        'check_in'          => 'checkin',
                         'running'           => 'scoring',
                         default             => null,
                     };
@@ -125,7 +121,6 @@
                     $cardAccent = match ($competition->status) {
                         'open'              => 'accent-green',
                         'enrolments_closed' => 'accent-amber',
-                        'check_in'          => 'accent-amber',
                         'running'           => 'accent-blue',
                         'complete'          => 'accent-gray',
                         default             => 'accent-violet',
@@ -135,7 +130,6 @@
                         'planning'          => 'shadow-[0_0_20px_-5px_rgba(167,139,250,0.45)]',
                         'advertise'         => 'shadow-[0_0_20px_-5px_rgba(167,139,250,0.45)]',
                         'enrolments_closed' => 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.45)]',
-                        'check_in'          => 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.45)]',
                         'running'           => 'shadow-[0_0_20px_-5px_rgba(96,165,250,0.45)]',
                         default             => '',
                     };
@@ -182,10 +176,10 @@
                     @endif
 
                     @php
-                        $allStatuses = ['planning', 'advertise', 'open', 'enrolments_closed', 'check_in', 'running', 'complete'];
-                        $stepLine1   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for', 'enrolments_closed' => 'Registrations', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
-                        $stepLine2   = ['planning' => '',         'advertise' => '',          'open' => 'Registrations', 'enrolments_closed' => 'Closed', 'check_in' => '',          'running' => '',        'complete' => ''];
-                        $stepTitle   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for Registrations', 'enrolments_closed' => 'Registrations Closed', 'check_in' => 'Check-in', 'running' => 'Running', 'complete' => 'Complete'];
+                        $allStatuses = ['planning', 'advertise', 'open', 'enrolments_closed', 'running', 'complete'];
+                        $stepLine1   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for', 'enrolments_closed' => 'Registrations', 'running' => 'Running', 'complete' => 'Complete'];
+                        $stepLine2   = ['planning' => '',         'advertise' => '',          'open' => 'Registrations', 'enrolments_closed' => 'Closed', 'running' => '',        'complete' => ''];
+                        $stepTitle   = ['planning' => 'Planning', 'advertise' => 'Advertise', 'open' => 'Open for Registrations', 'enrolments_closed' => 'Registrations Closed', 'running' => 'Running', 'complete' => 'Complete'];
                         $currentIdx  = (int) array_search($competition->status, $allStatuses);
                         $totalSteps  = count($allStatuses);
 
@@ -331,16 +325,6 @@
                                     $progressExtra = '· registration closed';
                                 }
                             }
-                        } elseif ($competition->status === 'check_in') {
-                            $showProgressBar = true;
-                            $checkedIn       = $competition->checkins_count;
-                            $enrolled        = $competition->enrolments_count;
-                            $progressPct     = $enrolled > 0 ? (int) round(($checkedIn / $enrolled) * 100) : null;
-                            $progressText    = $checkedIn . ' / ' . $enrolled . ' checked in';
-                            $absent          = $enrolled - $checkedIn;
-                            if ($absent > 0) {
-                                $progressAbsent = $absent . ' absent';
-                            }
                         } elseif ($competition->status === 'running') {
                             $showProgressBar = true;
                             $completed       = $competition->scheduled_completed_divisions_count;
@@ -386,7 +370,6 @@
                             'advertise' => ['scheduling', 'scoring'],
                             'open'      => ['scoring'],
                             'enrolments_closed' => ['scoring'],
-                            'check_in'  => ['scheduling'],
                             'running'   => ['scheduling'],
                             'complete'  => ['checkin'],
                             default     => ['scoring'],
@@ -407,9 +390,9 @@
                             </div>
                         @endif
 
-                        @if (($isOrgAdmin || $officialRole?->can_access_checkin) && in_array($competition->status, ['check_in', 'running']))
+                        @if (($isOrgAdmin || $officialRole?->can_access_checkin) && in_array($competition->status, ['enrolments_closed', 'running']))
                             <div class="{{ in_array('checkin', $hideOnMobile) ? 'hidden sm:block' : '' }} {{ $spotlightSection === 'checkin' ? 'btn-spotlight' : '' }}">
-                                <x-filament::button size="sm" :color="$checkInColor" tag="a" href="{{ route('filament.org-admin.pages.check-in') }}?competition_id={{ $competition->id }}">
+                                <x-filament::button size="sm" color="gray" tag="a" href="{{ route('filament.org-admin.pages.check-in') }}?competition_id={{ $competition->id }}">
                                     Check-in
                                 </x-filament::button>
                             </div>

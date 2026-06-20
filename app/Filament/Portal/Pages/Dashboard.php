@@ -169,7 +169,7 @@ class Dashboard extends BaseDashboard
         return Competition::where('organisation_id', app('tenant')?->id)
             ->where('is_template', false)
             ->where(function ($q) use ($cutoff) {
-                $q->whereIn('status', ['advertise', 'open', 'enrolments_closed', 'check_in', 'running'])
+                $q->whereIn('status', ['advertise', 'open', 'enrolments_closed', 'running'])
                   ->orWhere(fn ($q2) => $q2->where('status', 'complete')
                       ->where('competition_date', '>=', $cutoff));
             })

@@ -209,7 +209,7 @@ class ProfilesPage extends Page implements HasForms
         // Only block deactivation, not reactivation
         if ($profile->is_active) {
             $enrolledInActive = $profile->enrolments()
-                ->whereHas('competition', fn ($q) => $q->whereIn('status', ['open', 'enrolments_closed', 'check_in', 'running']))
+                ->whereHas('competition', fn ($q) => $q->whereIn('status', ['open', 'enrolments_closed', 'running']))
                 ->exists();
 
             if ($enrolledInActive) {
@@ -281,7 +281,7 @@ class ProfilesPage extends Page implements HasForms
                 }
 
                 $enrolledInActive = $profile->enrolments()
-                    ->whereHas('competition', fn ($q) => $q->whereIn('status', ['open', 'enrolments_closed', 'check_in', 'running']))
+                    ->whereHas('competition', fn ($q) => $q->whereIn('status', ['open', 'enrolments_closed', 'running']))
                     ->exists();
 
                 if ($enrolledInActive) {

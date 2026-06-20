@@ -133,16 +133,22 @@ class ManageCompetitionSchedule extends Page
                 ->action(function (array $data) {
                     $competition = $this->getRecord();
 
-                    if ($this->selectedDayId) {
-                        $day = CompetitionDay::find($this->selectedDayId);
-                        if ($day) {
-                            $day->breaks()->delete();
-                            foreach ($data['breaks'] as $break) {
-                                $day->breaks()->create(array_merge($break, [
-                                    'competition_id' => $competition->id,
-                                ]));
-                            }
-                        }
+                    if (! $this->selectedDayId) {
+                        Notification::make()->danger()->title('No day selected.')->send();
+                        return;
+                    }
+
+                    $day = CompetitionDay::find($this->selectedDayId);
+                    if (! $day) {
+                        Notification::make()->danger()->title('Day not found.')->send();
+                        return;
+                    }
+
+                    $day->breaks()->delete();
+                    foreach ($data['breaks'] as $break) {
+                        $day->breaks()->create(array_merge($break, [
+                            'competition_id' => $competition->id,
+                        ]));
                     }
 
                     app(ScheduleCalculatorService::class)->recalculateAll($competition->fresh());

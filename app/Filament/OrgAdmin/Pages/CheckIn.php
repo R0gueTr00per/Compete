@@ -3,6 +3,7 @@
 namespace App\Filament\OrgAdmin\Pages;
 
 use App\Models\Competition;
+use App\Models\CompetitionDay;
 use App\Models\Enrolment;
 use App\Services\CheckInService;
 use App\Notifications\Notification;
@@ -12,9 +13,9 @@ use Livewire\Attributes\Url;
 
 class CheckIn extends Page
 {
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static ?string $navigationIcon  = 'heroicon-o-clipboard-document-check';
     protected static ?string $navigationGroup = 'Competitions';
-    protected static ?int $navigationSort = 4;
+    protected static ?int    $navigationSort  = 4;
     protected static ?string $navigationLabel = 'Check-in';
     protected static string $view = 'filament.admin.pages.check-in';
 
@@ -31,11 +32,17 @@ class CheckIn extends Page
     public ?int $competition_id = null;
 
     #[Url]
+    public ?int $selectedDayId = null;
+
+    #[Url]
     public ?string $code = null;
 
     public string $search = '';
     public array $weights = [];
     public array $pendingWeightConfirm = [];
+
+    // [enrolmentId => dayId] — tracks weight confirmed this session per enrolment+day
+    public array $weightConfirmedForDay = [];
 
     public function mount(): void
     {
@@ -50,26 +57,62 @@ class CheckIn extends Page
             }
         }
 
-        if ($this->competition_id) {
+        if (! $this->competition_id) {
+            $today = now()->toDateString();
+            $orgId = app('tenant')?->id;
+
+            $competition = Competition::whereIn('status', ['enrolments_closed', 'running'])
+                ->where('organisation_id', $orgId)
+                ->whereHas('competitionDays', fn ($q) => $q->where('date', $today))
+                ->first()
+                ?? Competition::whereIn('status', ['enrolments_closed', 'running'])
+                    ->where('organisation_id', $orgId)
+                    ->orderBy('competition_date')
+                    ->first();
+
+            if ($competition) {
+                $this->competition_id = $competition->id;
+            }
+        }
+
+        if ($this->competition_id && ! $this->selectedDayId) {
+            $this->autoSelectDay();
+        }
+    }
+
+    private function autoSelectDay(): void
+    {
+        if (! $this->competition_id) {
             return;
         }
 
         $today = now()->toDateString();
+        $days  = CompetitionDay::where('competition_id', $this->competition_id)
+            ->orderBy('date')
+            ->get();
 
-        $orgId = app('tenant')?->id;
-
-        $competition = Competition::whereIn('status', ['check_in', 'running'])
-            ->where('organisation_id', $orgId)
-            ->whereHas('competitionDays', fn ($q) => $q->where('date', $today))
-            ->first()
-            ?? Competition::whereIn('status', ['check_in', 'running'])
-                ->where('organisation_id', $orgId)
-                ->orderBy('competition_date')
-                ->first();
-
-        if ($competition) {
-            $this->competition_id = $competition->id;
+        if ($days->isEmpty()) {
+            return;
         }
+
+        $todayDay = $days->first(fn ($d) => $d->date->toDateString() === $today);
+        $this->selectedDayId = ($todayDay ?? $days->first())->id;
+    }
+
+    public function updatedCompetitionId(): void
+    {
+        $this->selectedDayId         = null;
+        $this->weights               = [];
+        $this->pendingWeightConfirm  = [];
+        $this->weightConfirmedForDay = [];
+        $this->autoSelectDay();
+    }
+
+    public function updatedSelectedDayId(): void
+    {
+        $this->weights               = [];
+        $this->pendingWeightConfirm  = [];
+        $this->weightConfirmedForDay = [];
     }
 
     public function updatedCode(): void
@@ -81,6 +124,7 @@ class CheckIn extends Page
 
             if (! $this->competition_id && $enrolment) {
                 $this->competition_id = $enrolment->competition_id;
+                $this->autoSelectDay();
             }
 
             if ($enrolment && $enrolment->competition_id === $this->competition_id) {
@@ -96,11 +140,23 @@ class CheckIn extends Page
 
     public function getCompetitions(): array
     {
-        return Competition::whereIn('status', ['check_in', 'running'])
+        return Competition::whereIn('status', ['enrolments_closed', 'running'])
             ->where('organisation_id', app('tenant')?->id)
             ->orderBy('competition_date', 'desc')
             ->pluck('name', 'id')
             ->toArray();
+    }
+
+    #[Computed]
+    public function competitionDays()
+    {
+        if (! $this->competition_id) {
+            return collect();
+        }
+
+        return CompetitionDay::where('competition_id', $this->competition_id)
+            ->orderBy('date')
+            ->get();
     }
 
     #[Computed]
@@ -118,12 +174,20 @@ class CheckIn extends Page
             ->with([
                 'competitor',
                 'cart',
+                'checkIns.competitionDay',
                 'activeEvents.division',
-                'activeEvents.competitionEvent' => fn ($q) => $q->withExists([
-                    'divisions as has_weight_divisions' => fn ($q) => $q->whereNotNull('weight_class_id'),
-                ]),
+                'activeEvents.competitionEvent',
             ])
             ->whereHas('activeEvents');
+
+        // Filter to competitors who have divisions on the selected day
+        if ($this->selectedDayId) {
+            $query->whereHas('activeEvents', fn ($q) =>
+                $q->whereHas('division', fn ($q2) =>
+                    $q2->where('competition_day_id', $this->selectedDayId)
+                )
+            );
+        }
 
         if ($this->code) {
             $query->where('checkin_code', $this->code);
@@ -140,39 +204,58 @@ class CheckIn extends Page
 
     public function checkIn(int $enrolmentId): void
     {
-        $enrolment = Enrolment::with('activeEvents.competitionEvent')->find($enrolmentId);
+        if (! $this->selectedDayId) {
+            return;
+        }
+
+        $enrolment = Enrolment::with('activeEvents.division')->find($enrolmentId);
         if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
             return;
         }
 
-        // Block check-in if any weight-check event has no confirmed weight
-        $missingWeight = $enrolment->activeEvents->filter(
-            fn ($ee) => $ee->competitionEvent->requires_weight_check
-                && ! $ee->weight_confirmed_kg
+        $needsWeightForDay = $enrolment->activeEvents->contains(fn ($ee) =>
+            $ee->division?->competition_day_id === $this->selectedDayId
+            && $ee->division?->weight_class_id !== null
         );
 
-        if ($missingWeight->isNotEmpty()) {
-            $eventNames = $missingWeight
-                ->map(fn ($ee) => $ee->competitionEvent->name)
-                ->join(', ');
+        $weightConfirmedThisSession = ($this->weightConfirmedForDay[$enrolmentId] ?? null) === $this->selectedDayId;
+
+        if ($needsWeightForDay && ! $weightConfirmedThisSession) {
             Notification::make()
                 ->title('Weight required before check-in')
-                ->body("Enter and confirm weight for: {$eventNames}")
+                ->body('Enter and confirm weight for weight-bracket events today.')
                 ->danger()
                 ->send();
             return;
         }
 
-        $competition = Competition::find($this->competition_id);
-        if ($competition?->status === 'running') {
+        $dayHasStarted = \App\Models\Division::where('competition_day_id', $this->selectedDayId)
+            ->whereIn('status', ['running', 'complete'])
+            ->exists();
+        if ($dayHasStarted) {
             Notification::make()
-                ->title('Competition has begun')
-                ->body('This competitor is being checked in late — some events they were enrolled in may have been missed.')
+                ->title('Events have begun')
+                ->body('Some events for this day have already started — verify this competitor has not been called.')
                 ->warning()
                 ->send();
         }
 
-        app(CheckInService::class)->checkIn($enrolment);
+        // Capture confirmed weight for today's check-in record
+        $weightKg = null;
+        if ($needsWeightForDay) {
+            $weightKg = $enrolment->activeEvents
+                ->first(fn ($ee) =>
+                    $ee->division?->competition_day_id === $this->selectedDayId
+                    && $ee->weight_confirmed_kg !== null
+                )?->weight_confirmed_kg;
+        }
+
+        app(CheckInService::class)->checkIn(
+            $enrolment,
+            $this->selectedDayId,
+            $weightKg ? (float) $weightKg : null
+        );
+
         Notification::make()->title('Checked in.')->success()->send();
 
         $this->code = null;
@@ -206,6 +289,10 @@ class CheckIn extends Page
 
     public function undoCheckIn(int $enrolmentId): void
     {
+        if (! $this->selectedDayId) {
+            return;
+        }
+
         $enrolment = Enrolment::find($enrolmentId);
         if (! $enrolment || $enrolment->competition_id !== $this->competition_id) {
             return;
@@ -227,19 +314,19 @@ class CheckIn extends Page
             return;
         }
 
-        $competition = Competition::find($this->competition_id);
+        app(CheckInService::class)->undoCheckIn($enrolment, $this->selectedDayId);
 
-        app(CheckInService::class)->undoCheckIn($enrolment);
+        $dayHasStarted = \App\Models\Division::where('competition_day_id', $this->selectedDayId)
+            ->whereIn('status', ['running', 'complete'])
+            ->exists();
 
-        $notification = Notification::make()->title('Check-in reversed.');
+        Notification::make()
+            ->title('Check-in reversed.')
+            ->when($dayHasStarted, fn ($n) => $n->body('Events have begun for this day — verify this competitor has not yet been called.'))
+            ->warning()
+            ->send();
 
-        if ($competition?->status === 'running') {
-            $notification->body('Competition is running — verify this competitor has not yet been called.')->warning();
-        } else {
-            $notification->warning();
-        }
-
-        $notification->send();
+        unset($this->weightConfirmedForDay[$enrolmentId]);
     }
 
     public function confirmWeight(int $enrolmentId): void
@@ -256,24 +343,24 @@ class CheckIn extends Page
             return;
         }
 
-        $changes = app(CheckInService::class)->applyWeightWithDivisions($enrolment, $weight);
+        $changes = app(CheckInService::class)->applyWeightWithDivisions($enrolment, $weight, $this->selectedDayId);
 
         if ($changes->isNotEmpty()) {
-            // Division changed — show confirmation panel (change already in DB)
             $this->pendingWeightConfirm[$enrolmentId] = [
                 'weight_kg' => $weight,
                 'changes'   => $changes->toArray(),
             ];
         } else {
             unset($this->weights[$enrolmentId]);
+            $this->weightConfirmedForDay[$enrolmentId] = $this->selectedDayId;
             Notification::make()->title('Weight confirmed.')->success()->send();
         }
     }
 
     public function acceptDivisionChange(int $enrolmentId): void
     {
-        // Division already updated in DB — just dismiss the confirmation panel
         unset($this->pendingWeightConfirm[$enrolmentId], $this->weights[$enrolmentId]);
+        $this->weightConfirmedForDay[$enrolmentId] = $this->selectedDayId;
         Notification::make()->title('Weight confirmed — division updated.')->success()->send();
     }
 
@@ -284,12 +371,13 @@ class CheckIn extends Page
             app(CheckInService::class)->revertDivisionChanges($pending['changes']);
         }
         unset($this->pendingWeightConfirm[$enrolmentId], $this->weights[$enrolmentId]);
+        $this->weightConfirmedForDay[$enrolmentId] = $this->selectedDayId;
         Notification::make()->title('Weight confirmed — original division kept.')->success()->send();
     }
 
     public function cancelWeightChange(int $enrolmentId): void
     {
-        $pending  = $this->pendingWeightConfirm[$enrolmentId] ?? null;
+        $pending   = $this->pendingWeightConfirm[$enrolmentId] ?? null;
         $enrolment = Enrolment::find($enrolmentId);
 
         if ($enrolment && $enrolment->competition_id === $this->competition_id) {
@@ -297,9 +385,22 @@ class CheckIn extends Page
             if ($pending) {
                 $svc->revertDivisionChanges($pending['changes']);
             }
-            $svc->revertWeight($enrolment);
+            $svc->revertWeight($enrolment, $this->selectedDayId);
         }
 
-        unset($this->pendingWeightConfirm[$enrolmentId]);
+        unset($this->pendingWeightConfirm[$enrolmentId], $this->weights[$enrolmentId]);
+    }
+
+    public function cancelEventRegistration(int $enrolmentId): void
+    {
+        $pending = $this->pendingWeightConfirm[$enrolmentId] ?? null;
+        if (! $pending) {
+            return;
+        }
+
+        app(CheckInService::class)->cancelEventRegistration($pending['changes']);
+
+        unset($this->pendingWeightConfirm[$enrolmentId], $this->weights[$enrolmentId]);
+        Notification::make()->title('Removed from event — weight mismatch.')->warning()->send();
     }
 }

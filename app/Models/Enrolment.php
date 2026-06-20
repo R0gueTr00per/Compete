@@ -155,4 +155,18 @@ class Enrolment extends Model
     {
         return $this->hasMany(EnrolmentEvent::class)->where('removed', false);
     }
+
+    public function checkIns(): HasMany
+    {
+        return $this->hasMany(EnrolmentCheckIn::class);
+    }
+
+    public function checkedInForDay(int $dayId): bool
+    {
+        if ($this->relationLoaded('checkIns')) {
+            return $this->checkIns->contains('competition_day_id', $dayId);
+        }
+
+        return $this->checkIns()->where('competition_day_id', $dayId)->exists();
+    }
 }

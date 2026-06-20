@@ -39,7 +39,7 @@ class MyDojosPage extends Page
 
         $dojoNames = $dojos->pluck('name');
 
-        return Competition::whereIn('status', ['open', 'enrolments_closed', 'check_in', 'running', 'complete'])
+        return Competition::whereIn('status', ['open', 'enrolments_closed', 'running', 'complete'])
             ->where('organisation_id', app('tenant')?->id)
             ->whereHas('enrolments', fn ($q) => $q->whereIn('dojo_name', $dojoNames))
             ->with([

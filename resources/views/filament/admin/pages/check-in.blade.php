@@ -14,6 +14,25 @@
             </select>
         </x-filament::input.wrapper>
 
+        {{-- Day selector tabs --}}
+        @php $competitionDays = $this->competitionDays; @endphp
+        @if ($competition_id && $competitionDays->count() > 1)
+            <div class="mt-3 flex flex-wrap gap-2">
+                @foreach ($competitionDays as $day)
+                    <button
+                        type="button"
+                        wire:click="$set('selectedDayId', {{ $day->id }})"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                            {{ $selectedDayId === $day->id
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700' }}"
+                    >
+                        {{ $day->date->format('D j M') }}
+                    </button>
+                @endforeach
+            </div>
+        @endif
+
         <div class="mt-3 flex items-center rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-primary-500">
             <input
                 type="text"
@@ -93,7 +112,7 @@
 
     @if (! $this->competition_id)
         <p class="text-center text-gray-400 py-12">Select a competition to begin check-in.</p>
-    @elseif (! in_array(($competition = \App\Models\Competition::find($this->competition_id))?->status, ['enrolments_closed', 'check_in', 'running']))
+    @elseif (! in_array(($competition = \App\Models\Competition::find($this->competition_id))?->status, ['enrolments_closed', 'running']))
         <p class="text-center text-gray-400 py-12">Check-in is not available yet — registrations are still open or competition has not closed.</p>
     @else
         @php $enrolments = $this->getEnrolments(); @endphp
@@ -103,22 +122,32 @@
                 @if (! $this->search && ! $this->code)
                     Search by name or enter a check-in code to find competitors.
                 @else
-                    No competitors found.
+                    No competitors found{{ $selectedDayId ? ' with events on this day' : '' }}.
                 @endif
             </p>
         @else
             <div id="enrolment-list"></div>
             @php
-                $notCheckedIn = $enrolments->filter(fn ($e) => ! $e->checked_in && $e->status !== 'withdrawn');
-                $checkedIn    = $enrolments->filter(fn ($e) => $e->checked_in);
-                $withdrawn    = $enrolments->filter(fn ($e) => $e->status === 'withdrawn');
+                $notCheckedIn = $enrolments->filter(fn ($e) =>
+                    ! $e->checkedInForDay($selectedDayId ?? 0) && $e->status !== 'withdrawn'
+                );
+                $checkedIn = $enrolments->filter(fn ($e) =>
+                    $e->checkedInForDay($selectedDayId ?? 0)
+                );
+                $withdrawn = $enrolments->filter(fn ($e) => $e->status === 'withdrawn');
             @endphp
 
             @if ($notCheckedIn->isNotEmpty())
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3">Not checked in ({{ $notCheckedIn->count() }})</h2>
                 <div class="space-y-3 mb-8">
                     @foreach ($notCheckedIn as $enrolment)
-                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null, 'competitionStatus' => $competition->status])
+                        @include('filament.admin.partials.checkin-card', [
+                            'enrolment'            => $enrolment,
+                            'selectedDayId'        => $selectedDayId,
+                            'weightConfirmedForDay' => $this->weightConfirmedForDay,
+                            'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null,
+                            'competitionStatus'    => $competition->status,
+                        ])
                     @endforeach
                 </div>
             @endif
@@ -127,7 +156,13 @@
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-success-600 mb-3">Checked in ({{ $checkedIn->count() }})</h2>
                 <div class="space-y-3 mb-8">
                     @foreach ($checkedIn as $enrolment)
-                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null, 'competitionStatus' => $competition->status])
+                        @include('filament.admin.partials.checkin-card', [
+                            'enrolment'            => $enrolment,
+                            'selectedDayId'        => $selectedDayId,
+                            'weightConfirmedForDay' => $this->weightConfirmedForDay,
+                            'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null,
+                            'competitionStatus'    => $competition->status,
+                        ])
                     @endforeach
                 </div>
             @endif
@@ -136,7 +171,13 @@
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-danger-600 mb-3">Withdrawn ({{ $withdrawn->count() }})</h2>
                 <div class="space-y-3 mb-8">
                     @foreach ($withdrawn as $enrolment)
-                        @include('filament.admin.partials.checkin-card', ['enrolment' => $enrolment, 'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null, 'competitionStatus' => $competition->status])
+                        @include('filament.admin.partials.checkin-card', [
+                            'enrolment'            => $enrolment,
+                            'selectedDayId'        => $selectedDayId,
+                            'weightConfirmedForDay' => $this->weightConfirmedForDay,
+                            'pendingDivisionChange' => $this->pendingWeightConfirm[$enrolment->id] ?? null,
+                            'competitionStatus'    => $competition->status,
+                        ])
                     @endforeach
                 </div>
             @endif

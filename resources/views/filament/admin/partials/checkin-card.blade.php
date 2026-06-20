@@ -2,12 +2,29 @@
     $profile            = $enrolment->competitor;
     $fullName           = $profile?->full_name ?? '—';
     $competitionStatus  = $competitionStatus ?? null;
-    $checkedIn          = $enrolment->checked_in;
-    $needsWeight        = $enrolment->activeEvents->contains(fn ($ee) => $ee->competitionEvent->requires_weight_check);
-    $weightDone         = $enrolment->activeEvents
-        ->filter(fn ($ee) => $ee->competitionEvent->requires_weight_check)
-        ->every(fn ($ee) => $ee->weight_confirmed_kg);
-    $dojoLabel          = match ($enrolment->dojo_type) {
+    $selectedDayId      = $selectedDayId ?? null;
+    $weightConfirmedForDay = $weightConfirmedForDay ?? [];
+
+    // Day-specific check-in state
+    $checkedInToday = $selectedDayId && $enrolment->checkedInForDay($selectedDayId);
+
+    // Weight required if any active division on the selected day has a weight class
+    $needsWeight = $selectedDayId && $enrolment->activeEvents->contains(fn ($ee) =>
+        $ee->division?->competition_day_id === $selectedDayId
+        && $ee->division?->weight_class_id !== null
+    );
+
+    $weightConfirmedThisSession = $selectedDayId
+        && ($weightConfirmedForDay[$enrolment->id] ?? null) === $selectedDayId;
+
+    $weightDone = $weightConfirmedThisSession;
+
+    // Prior-day check-in history (days other than today)
+    $priorCheckIns = $enrolment->checkIns
+        ->filter(fn ($ci) => $ci->competition_day_id !== $selectedDayId)
+        ->sortBy('checked_in_at');
+
+    $dojoLabel = match ($enrolment->dojo_type) {
         'guest' => 'Guest — ' . ($enrolment->guest_style ?? 'Guest'),
         'lfp'   => $enrolment->dojo_name ?? 'LFP',
         default => null,
@@ -18,9 +35,9 @@
     $cartOutstanding    = $cart ? $cart->outstandingAmount($platformFee) : 0.0;
 
     // Total account balance — all unpaid carts for this user in this org
-    $tenantId           = app('tenant')?->id;
-    $userId             = $cart?->user_id;
-    $accountBalance     = \App\Models\EnrolmentCart::where('user_id', $userId)
+    $tenantId       = app('tenant')?->id;
+    $userId         = $cart?->user_id;
+    $accountBalance = \App\Models\EnrolmentCart::where('user_id', $userId)
         ->where('status', 'submitted')
         ->where('payment_status', '!=', 'received')
         ->whereHas('enrolments', fn ($q) => $q->withTrashed()
@@ -32,7 +49,7 @@
     $hasOtherCarts = $accountBalance > $cartOutstanding + 0.005;
 @endphp
 
-<div data-enrolment-id="{{ $enrolment->id }}" class="rounded-xl border {{ $checkedIn ? 'border-success-200 dark:border-success-800' : 'border-gray-200 dark:border-slate-700' }} bg-white dark:bg-slate-900 shadow-sm p-4">
+<div data-enrolment-id="{{ $enrolment->id }}" class="rounded-xl border {{ $checkedInToday ? 'border-success-200 dark:border-success-800' : 'border-gray-200 dark:border-slate-700' }} bg-white dark:bg-slate-900 shadow-sm p-4">
 
     {{-- Header row: name + check-in button --}}
     <div class="flex items-center justify-between gap-3 mb-3">
@@ -61,11 +78,12 @@
         </div>
 
         <div class="shrink-0">
-            @if ($checkedIn)
+            @if ($checkedInToday)
+                @php $todayCheckIn = $enrolment->checkIns->firstWhere('competition_day_id', $selectedDayId); @endphp
                 <div class="flex items-center gap-2">
                     <span class="inline-flex items-center gap-1 text-xs font-medium text-success-700 dark:text-success-400">
                         <x-heroicon-s-check-circle class="w-4 h-4" />
-                        {{ $enrolment->checked_in_at?->format('H:i') }}
+                        {{ $todayCheckIn?->checked_in_at?->format('H:i') }}
                     </span>
                     <x-filament::button size="xs" color="gray" wire:click="undoCheckIn({{ $enrolment->id }})">
                         Undo
@@ -79,8 +97,21 @@
         </div>
     </div>
 
-    {{-- Single weight input for the whole enrolment --}}
-    @if ($needsWeight)
+    {{-- Prior-day check-in history --}}
+    @if ($priorCheckIns->isNotEmpty())
+        <div class="mb-3 flex flex-wrap gap-2">
+            @foreach ($priorCheckIns as $ci)
+                <span class="inline-flex items-center gap-1 text-xs text-success-600 dark:text-success-400 bg-success-50 dark:bg-success-900/20 rounded-full px-2 py-0.5">
+                    <x-heroicon-s-check-circle class="w-3 h-3" />
+                    {{ $ci->competitionDay?->date?->format('D j M') }}
+                    <span class="text-success-400 dark:text-success-600">{{ $ci->checked_in_at?->format('H:i') }}</span>
+                </span>
+            @endforeach
+        </div>
+    @endif
+
+    {{-- Weight input for today's weight-bracket events --}}
+    @if ($needsWeight && ! $checkedInToday)
         <div class="mb-3 p-3 rounded-lg bg-gray-50 dark:bg-slate-800">
             @if ($pendingDivisionChange)
                 {{-- Division was changed automatically — confirm or revert --}}
@@ -97,18 +128,17 @@
                 @endforeach
                 <div class="flex flex-wrap gap-2 mt-3">
                     <x-filament::button size="xs" color="success" wire:click="acceptDivisionChange({{ $enrolment->id }})">
-                        Accept
+                        Accept new division
                     </x-filament::button>
                     <x-filament::button size="xs" color="gray" wire:click="ignoreDivisionChange({{ $enrolment->id }})">
                         Keep original division
                     </x-filament::button>
-                    <x-filament::button size="xs" color="danger" wire:click="cancelWeightChange({{ $enrolment->id }})">
-                        Cancel (undo weight)
+                    <x-filament::button size="xs" color="danger" wire:click="cancelEventRegistration({{ $enrolment->id }})">
+                        Cancel event registration
                     </x-filament::button>
                 </div>
             @elseif ($weightDone)
-                @php $confirmedKg = $enrolment->activeEvents->firstWhere(fn($ee) => $ee->weight_confirmed_kg)?->weight_confirmed_kg; @endphp
-                <p class="text-xs text-success-600 font-medium weight-confirm-enter">✓ Weight confirmed: {{ number_format($confirmedKg, 1) }} kg</p>
+                <p class="text-xs text-success-600 font-medium weight-confirm-enter">✓ Weight confirmed for today</p>
             @else
                 <p class="text-sm text-gray-500 mb-2">Check-in Weight</p>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -173,9 +203,14 @@
         </div>
     @endif
 
-    {{-- Events list --}}
+    {{-- Events list (filtered to selected day) --}}
+    @php
+        $dayEvents = $selectedDayId
+            ? $enrolment->activeEvents->filter(fn ($ee) => $ee->division?->competition_day_id === $selectedDayId)
+            : $enrolment->activeEvents;
+    @endphp
     <div class="divide-y divide-gray-100 dark:divide-slate-800">
-        @foreach ($enrolment->activeEvents->sortBy('division.code') as $ee)
+        @foreach ($dayEvents->sortBy('division.code') as $ee)
             <div class="py-2">
                 <p class="text-sm text-gray-700 dark:text-gray-300">
                     @if ($ee->division)

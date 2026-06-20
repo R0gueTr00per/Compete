@@ -57,7 +57,7 @@ class CompetitionInsightService
             $data         = $this->buildPlanningDataContext($competition);
             $systemPrompt = $this->buildPlanningSystemPrompt($competition);
             $userPrompt   = $this->buildPlanningUserPrompt($data);
-        } elseif (in_array($status, ['check_in', 'running'])) {
+        } elseif (in_array($status, ['enrolments_closed', 'running'])) {
             $data         = $this->buildRunningDataContext($competition);
             $systemPrompt = $this->buildRunningSystemPrompt($competition);
             $userPrompt   = $this->buildRunningUserPrompt($data);

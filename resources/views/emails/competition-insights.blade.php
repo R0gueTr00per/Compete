@@ -4,7 +4,6 @@
 **Date:** {{ tenant_date($competition->competition_date) }}
 **Status:** {{ match($competition->status) {
     'enrolments_closed' => 'Registrations Closed',
-    'check_in'          => 'Check-in',
     default             => ucfirst($competition->status),
 } }}
 **Generated:** {{ tenant_datetime($insight->generated_at) }}

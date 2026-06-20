@@ -26,7 +26,7 @@ class ManageCompetitionInsights extends Page
         $this->record = $this->resolveRecord($record);
 
         abort_unless(
-            in_array($this->record->status, ['planning', 'advertise', 'open', 'enrolments_closed', 'check_in', 'running', 'complete']),
+            in_array($this->record->status, ['planning', 'advertise', 'open', 'enrolments_closed', 'running', 'complete']),
             403
         );
     }

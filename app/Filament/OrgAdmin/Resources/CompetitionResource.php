@@ -153,7 +153,6 @@ class CompetitionResource extends Resource
                                             'advertise'         => 'Advertise',
                                             'open'              => 'Open for registration',
                                             'enrolments_closed' => 'Registrations Closed',
-                                            'check_in'          => 'Check-in',
                                             'running'           => 'Running',
                                             'complete'          => 'Complete',
                                         ])
@@ -281,7 +280,6 @@ class CompetitionResource extends Resource
                         'advertise'         => 'Advertise',
                         'open'              => 'Open',
                         'enrolments_closed' => 'Registrations Closed',
-                        'check_in'          => 'Check-in',
                         'running'           => 'Running',
                         'complete'          => 'Complete',
                         default             => ucfirst($state),
@@ -291,7 +289,6 @@ class CompetitionResource extends Resource
                         'advertise'         => 'info',
                         'open'              => 'success',
                         'enrolments_closed' => 'gray',
-                        'check_in'          => 'warning',
                         'running'           => 'info',
                         'complete'          => 'primary',
                         default             => 'gray',
@@ -310,7 +307,6 @@ class CompetitionResource extends Resource
                         'advertise'         => 'Advertise',
                         'open'              => 'Open',
                         'enrolments_closed' => 'Registrations Closed',
-                        'check_in'          => 'Check-in',
                         'running'           => 'Running',
                         'complete'          => 'Complete',
                     ]),
@@ -380,22 +376,19 @@ class CompetitionResource extends Resource
                     Action::make('advance')
                         ->label(fn (Competition $record) => match ($record->status) {
                             'open'              => 'Close Registrations',
-                            'enrolments_closed' => 'Begin Check-ins',
-                            'check_in'          => 'Start Competition',
+                            'enrolments_closed' => 'Start Competition',
                             'running'           => 'Conclude Competition',
                             default             => 'Advance',
                         })
                         ->icon(fn (Competition $record) => match ($record->status) {
                             'open'              => 'heroicon-o-lock-closed',
-                            'enrolments_closed' => 'heroicon-o-clipboard-document-check',
-                            'check_in'          => 'heroicon-o-play',
+                            'enrolments_closed' => 'heroicon-o-play',
                             'running'           => 'heroicon-o-flag',
                             default             => 'heroicon-o-arrow-right',
                         })
                         ->color(fn (Competition $record) => match ($record->status) {
                             'open'              => 'warning',
                             'enrolments_closed' => 'primary',
-                            'check_in'          => 'info',
                             'running'           => 'danger',
                             default             => 'gray',
                         })
@@ -403,26 +396,15 @@ class CompetitionResource extends Resource
                         ->modalDescription(function (Competition $record) {
                             return match ($record->status) {
                                 'open'              => 'Close registrations for this competition?',
-                                'enrolments_closed' => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
-                                'check_in' => (function () use ($record) {
-                                    $completedDivisions = $record->allDivisions()
-                                        ->where('divisions.status', 'complete')
-                                        ->count();
-                                    $msg = 'This will start the competition. Undo check-in will be disabled and scoring will become active.';
-                                    if ($completedDivisions > 0) {
-                                        $msg .= " Warning: {$completedDivisions} division(s) are already marked as complete.";
-                                    }
-                                    return $msg;
-                                })(),
-                                'running'  => 'Conclude this competition? Results will become visible to competitors.',
-                                default    => 'Are you sure?',
+                                'enrolments_closed' => 'This will start the competition and make scoring active.',
+                                'running'           => 'Conclude this competition? Results will become visible to competitors.',
+                                default             => 'Are you sure?',
                             };
                         })
                         ->visible(fn (Competition $record) => ! in_array($record->status, ['planning', 'advertise', 'complete']))
                         ->action(fn (Competition $record) => $record->update(['status' => match ($record->status) {
                             'open'              => 'enrolments_closed',
-                            'enrolments_closed' => 'check_in',
-                            'check_in'          => 'running',
+                            'enrolments_closed' => 'running',
                             'running'           => 'complete',
                             default             => $record->status,
                         }])),

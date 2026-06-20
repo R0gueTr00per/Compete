@@ -25,6 +25,9 @@ class ScoringEntry extends Page
     public ?int $competition_id = null;
 
     #[Url]
+    public ?int $competition_day_id = null;
+
+    #[Url]
     public ?string $filter_location = null;
 
     public static function canAccess(): bool
@@ -58,7 +61,7 @@ class ScoringEntry extends Page
                 ->warning()
                 ->send();
             $this->redirect(
-                Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
+                Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'competition_day_id' => $this->competition_day_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
                 navigate: true
             );
             return;
@@ -68,9 +71,14 @@ class ScoringEntry extends Page
 
         // Bulk-insert missing results so rows never touch DB for result creation
         if ($division->status !== 'complete') {
+            $dayId = $division->competition_day_id;
             $eeIds = EnrolmentEvent::where('division_id', $this->division_id)
                 ->where('removed', false)
-                ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+                ->when(
+                    $dayId,
+                    fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                    fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+                )
                 ->pluck('id');
 
             if ($eeIds->isNotEmpty()) {
@@ -99,7 +107,7 @@ class ScoringEntry extends Page
     {
         $this->releaseLock($this->division_id);
         $this->redirect(
-            Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
+            Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'competition_day_id' => $this->competition_day_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
             navigate: true
         );
     }
@@ -109,7 +117,7 @@ class ScoringEntry extends Page
     {
         $this->releaseLock($this->division_id);
         $this->redirect(
-            Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
+            Scoring::getUrl(array_filter(['competition_id' => $this->competition_id, 'competition_day_id' => $this->competition_day_id, 'highlight_division' => $this->division_id, 'filter_location' => $this->filter_location])),
             navigate: true
         );
     }

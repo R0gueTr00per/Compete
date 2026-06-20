@@ -150,8 +150,13 @@ class ScoringPanel extends Component
 
     public function markAllPresent(): void
     {
+        $dayId = $this->divisionDayId();
         $ids = EnrolmentEvent::where('division_id', $this->division_id)
-            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->when(
+                $dayId,
+                fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+            )
             ->where('removed', false)
             ->pluck('id')
             ->toArray();
@@ -162,8 +167,13 @@ class ScoringPanel extends Component
 
     public function unmarkAllPresent(): void
     {
+        $dayId = $this->divisionDayId();
         $ids = EnrolmentEvent::where('division_id', $this->division_id)
-            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->when(
+                $dayId,
+                fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+            )
             ->where('removed', false)
             ->pluck('id')
             ->toArray();
@@ -182,9 +192,14 @@ class ScoringPanel extends Component
             $event    = $division?->competitionEvent;
 
             if ($this->rollcallRequired) {
+                $dayId = $division?->competition_day_id;
                 $activeEeIds = EnrolmentEvent::where('division_id', $this->division_id)
                     ->where('removed', false)
-                    ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+                    ->when(
+                        $dayId,
+                        fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                        fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+                    )
                     ->pluck('id');
 
                 $activePresent = collect($this->rollcallPresent)->intersect($activeEeIds);
@@ -214,9 +229,14 @@ class ScoringPanel extends Component
 
                 $presentCount = $activePresent->count();
             } else {
+                $dayId = $division?->competition_day_id;
                 $presentCount = EnrolmentEvent::where('division_id', $this->division_id)
                     ->where('removed', false)
-                    ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+                    ->when(
+                        $dayId,
+                        fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                        fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+                    )
                     ->count();
             }
 
@@ -320,8 +340,13 @@ class ScoringPanel extends Component
         $division = Division::with('competitionEvent')->find($this->division_id);
         $filter   = $division?->competitionEvent?->division_filter ?? '';
 
+        $dayId = $division?->competition_day_id;
         $rows = EnrolmentEvent::where('division_id', $this->division_id)
-            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->when(
+                $dayId,
+                fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+            )
             ->with(['enrolment.competitor', 'enrolment.rank'])
             ->get()->toBase();
 
@@ -355,9 +380,14 @@ class ScoringPanel extends Component
         $division = $this->selectedDivision;
         $filter   = $division?->competitionEvent?->division_filter ?? '';
 
+        $dayId = $division?->competition_day_id;
         $eeCollection = EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
-            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->when(
+                $dayId,
+                fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+            )
             ->with([
                 'enrolment.competitor',
                 'enrolment.rank',
@@ -553,6 +583,11 @@ class ScoringPanel extends Component
         return $div->competitionEvent->scoreCategories()->get();
     }
 
+    private function divisionDayId(): ?int
+    {
+        return Division::where('id', $this->division_id)->value('competition_day_id');
+    }
+
     private function snapshotCategories(Division $division): void
     {
         $mode = $division->competitionEvent->score_category_mode ?? 'single';
@@ -616,9 +651,14 @@ class ScoringPanel extends Component
         $division = $this->selectedDivision;
         if (! $division) return '';
 
+        $dayId = $division?->competition_day_id;
         $count = EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
-            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->when(
+                $dayId,
+                fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+            )
             ->count();
 
         $event = $division->competitionEvent;
@@ -1231,9 +1271,14 @@ class ScoringPanel extends Component
             return;
         }
 
+        $dayId = $this->divisionDayId();
         $competitors = EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
-            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->when(
+                $dayId,
+                fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+            )
             ->with('enrolment.competitor', 'enrolment.rank')
             ->get()->toBase();
 
@@ -1348,9 +1393,14 @@ class ScoringPanel extends Component
             return;
         }
 
+        $dayId = $this->divisionDayId();
         $competitors = EnrolmentEvent::where('division_id', $this->division_id)
             ->where('removed', false)
-            ->whereHas('enrolment', fn ($q) => $q->where('status', 'checked_in'))
+            ->when(
+                $dayId,
+                fn ($q, $id) => $q->whereHas('enrolment.checkIns', fn ($q2) => $q2->where('competition_day_id', $id)),
+                fn ($q) => $q->whereHas('enrolment', fn ($q2) => $q2->where('status', 'checked_in'))
+            )
             ->with('enrolment.competitor')
             ->get()->toBase()
             ->keyBy('id');
@@ -1830,6 +1880,7 @@ class ScoringPanel extends Component
         $this->redirect(
             ScoringPage::getUrl(array_filter([
                 'competition_id'     => $this->competition_id,
+                'competition_day_id' => $this->divisionDayId(),
                 'highlight_division' => $this->division_id,
             ])),
             navigate: true
@@ -1904,6 +1955,7 @@ class ScoringPanel extends Component
         $this->redirect(
             ScoringPage::getUrl(array_filter([
                 'competition_id'     => $this->competition_id,
+                'competition_day_id' => $this->divisionDayId(),
                 'highlight_division' => $this->division_id,
             ])),
             navigate: true

@@ -140,6 +140,39 @@
                                     </div>
                                 </div>
 
+                                {{-- Per-day check-in status pills --}}
+                                @if (! $isWithdrawnE && $enrolment->checkIns->isNotEmpty())
+                                    @php
+                                        // Days on which this enrolment has divisions
+                                        $enrolmentDays = $enrolment->activeEvents
+                                            ->map(fn ($ee) => $ee->division?->competitionDay)
+                                            ->filter()
+                                            ->unique('id')
+                                            ->sortBy('date');
+                                        $showDays = $enrolmentDays->isNotEmpty()
+                                            ? $enrolmentDays
+                                            : $enrolment->competition?->competitionDays?->sortBy('date') ?? collect();
+                                    @endphp
+                                    @if ($showDays->count() > 0)
+                                        <div class="flex flex-wrap gap-1.5 mb-2">
+                                            @foreach ($showDays as $day)
+                                                @php $isCheckedIn = $enrolment->checkedInForDay($day->id); @endphp
+                                                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium
+                                                    {{ $isCheckedIn
+                                                        ? 'bg-success-100 dark:bg-success-900/30 text-success-700 dark:text-success-400'
+                                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' }}">
+                                                    @if ($isCheckedIn)
+                                                        <x-heroicon-s-check-circle class="w-3 h-3" />
+                                                    @else
+                                                        <x-heroicon-o-minus-circle class="w-3 h-3" />
+                                                    @endif
+                                                    {{ $day->date->format('D j M') }}
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                @endif
+
                                 <div class="space-y-1">
                                     @foreach ($enrolment->activeEvents as $ee)
                                         <div class="text-xs {{ $isWithdrawnE ? 'text-gray-500 line-through' : 'text-gray-600 dark:text-gray-400' }}">

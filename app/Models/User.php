@@ -158,7 +158,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         return $this->competitionOfficials()
             ->whereHas('competition', fn ($q) => $q
                 ->where('organisation_id', $org->id)
-                ->whereIn('status', ['check_in', 'running'])
+                ->whereIn('status', ['enrolments_closed', 'running'])
             )->exists();
     }
 
@@ -167,7 +167,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
         return $this->competitionOfficials()
             ->whereHas('competition', fn ($q) => $q
                 ->where('organisation_id', $org->id)
-                ->whereIn('status', ['check_in', 'running'])
+                ->whereIn('status', ['enrolments_closed', 'running'])
             )
             ->with('officialRole')
             ->first()

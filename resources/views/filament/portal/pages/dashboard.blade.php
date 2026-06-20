@@ -66,7 +66,6 @@
                     'advertise'         => 'Coming Soon',
                     'open'              => 'Open',
                     'enrolments_closed' => 'Registrations Closed',
-                    'check_in'          => 'Check-in',
                     'running'           => 'In Progress',
                     'complete'          => 'Finished',
                     default             => ucfirst($competition->status),
@@ -76,7 +75,6 @@
                     'advertise'         => 'bg-indigo-100/60 text-indigo-700 border-indigo-200/60 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-700/40',
                     'open'              => 'bg-green-100/60 text-green-700 border-green-200/60 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40',
                     'enrolments_closed' => 'bg-gray-100/60 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40',
-                    'check_in'          => 'bg-amber-100/60 text-amber-700 border-amber-200/60 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40',
                     'running'           => 'bg-blue-100/60 text-blue-700 border-blue-200/60 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-700/40',
                     default             => 'bg-gray-100/60 text-gray-500 border-gray-200/60 dark:bg-gray-800/40 dark:text-gray-400 dark:border-gray-700/40',
                 };
@@ -85,7 +83,6 @@
                     'advertise'         => 'heroicon-m-megaphone',
                     'open'              => 'heroicon-m-lock-open',
                     'enrolments_closed' => 'heroicon-m-lock-closed',
-                    'check_in'          => 'heroicon-m-qr-code',
                     'running'           => 'heroicon-m-play',
                     'complete'          => 'heroicon-m-check',
                     default             => null,
@@ -95,7 +92,6 @@
                     'advertise'         => 'border-l-indigo-400 dark:border-l-indigo-500',
                     'open'              => 'border-l-green-400 dark:border-l-green-500',
                     'enrolments_closed' => 'border-l-gray-300 dark:border-l-slate-600',
-                    'check_in'          => 'border-l-amber-400 dark:border-l-amber-500',
                     'running'           => 'border-l-blue-400 dark:border-l-blue-500',
                     'complete'          => 'border-l-gray-300 dark:border-l-slate-600',
                     default             => 'border-l-gray-200 dark:border-l-slate-700',
@@ -104,12 +100,11 @@
                 $glowClass = match($competition->status) {
                     'advertise' => 'shadow-[0_0_20px_-5px_rgba(129,140,248,0.35)]',
                     'open'      => 'shadow-[0_0_20px_-5px_rgba(74,222,128,0.35)]',
-                    'check_in'  => 'shadow-[0_0_20px_-5px_rgba(251,191,36,0.35)]',
                     'running'   => 'shadow-[0_0_20px_-5px_rgba(96,165,250,0.35)]',
                     default     => '',
                 };
 
-                $showSchedule  = in_array($competition->status, ['check_in', 'running']);
+                $showSchedule  = $competition->status === 'running';
                 $enrolmentOpen = $competition->isEnrolmentOpen();
 
                 $compEnrolments = $profiles->map(fn($p) => $allEnrolments->get($p->id)?->get($competition->id))
@@ -224,7 +219,7 @@
                             $isUnpaid      = $isEnrolled && ! $isWithdrawn && $enrolment->cart && ! $enrolment->cart->isPaid();
                             $canShowPayQr  = $isUnpaid && (app('tenant')?->instructorsCanAcceptPayments() ?? false);
                             $canShowQr     = $isEnrolled && ! $isWithdrawn && $enrolment->checkin_code
-                                && ($canShowPayQr || in_array($competition->status, ['check_in', 'running']));
+                                && ($canShowPayQr || in_array($competition->status, ['enrolments_closed', 'running']));
                         @endphp
 
                         @if (! $isEnrolled && ! $inCart && ! $canRegister) @continue @endif

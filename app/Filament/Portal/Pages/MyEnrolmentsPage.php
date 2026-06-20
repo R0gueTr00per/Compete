@@ -40,10 +40,11 @@ class MyEnrolmentsPage extends Page
                 'competition.organisation',
                 'enrolments' => fn ($q) => $q->withTrashed()->whereNotIn('status', ['draft'])
                     ->with([
-                        'competition',
+                        'competition.competitionDays',
                         'competitor',
+                        'checkIns',
                         'activeEvents.competitionEvent',
-                        'activeEvents.division',
+                        'activeEvents.division.competitionDay',
                         'activeEvents.previousDivision',
                         'enrolmentEvents' => fn ($q2) => $q2->where('removed', true)
                             ->with('competitionEvent', 'division'),

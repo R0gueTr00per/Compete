@@ -83,7 +83,6 @@ class Dashboard extends BaseDashboard
             'advertise'         => 'Advertise',
             'open'              => 'Open',
             'enrolments_closed' => 'Enrolments Closed',
-            'check_in'          => 'Check-in',
             'running'           => 'Running',
             'complete'          => 'Complete',
         ];
@@ -108,10 +107,9 @@ class Dashboard extends BaseDashboard
                         return "{$n} division(s) have not been assigned to a location. Open for enrolment anyway?";
                     })(),
                     ['open',              'enrolments_closed'] => 'Close enrolments for this competition?',
-                    ['enrolments_closed', 'check_in']         => 'This will begin the check-in phase. Scoring will not be active until the competition starts.',
-                    ['check_in', 'running']  => (function () use ($competition) {
+                    ['enrolments_closed', 'running'] => (function () use ($competition) {
                         $done = $competition->allDivisions()->where('divisions.status', 'complete')->count();
-                        $msg = 'This will start the competition. Undo check-in will be disabled and scoring will become active.';
+                        $msg = 'This will start the competition. Scoring will become active.';
                         return $done > 0 ? $msg . " Warning: {$done} division(s) are already marked as complete." : $msg;
                     })(),
                     ['running',  'complete'] => (function () use ($competition) {

@@ -135,11 +135,11 @@ class Scoring extends Page
         ->with(['competitionEvent', 'completedBy.selfProfile', 'scoringLockedBy'])
         ->withCount([
             'enrolmentEvents as checked_in_count' => fn ($q) => $q->whereHas(
-                'enrolment', fn ($q2) => $q2->where('status', 'checked_in')
+                'enrolment.checkIns', fn ($q2) => $q2->whereColumn('competition_day_id', 'divisions.competition_day_id')
             ),
-            'enrolmentEvents as competitors_count' => fn ($q) => $q->whereHas(
-                'enrolment', fn ($q2) => $q2->where('status', 'checked_in')
-            )->where('removed', false),
+            'enrolmentEvents as competitors_count' => fn ($q) => $q->where('removed', false)->whereHas(
+                'enrolment.checkIns', fn ($q2) => $q2->whereColumn('competition_day_id', 'divisions.competition_day_id')
+            ),
             'enrolmentEvents as absent_count' => fn ($q) => $q->where('removed', true),
             'enrolmentEvents as scoring_count' => fn ($q) => $q->where('removed', false)->whereHas('result', fn ($q2) =>
                 $q2->where(fn ($q3) => $q3
@@ -219,7 +219,10 @@ class Scoring extends Page
         }
 
         $breaks = CompetitionBreak::where('competition_id', $this->competition_id)
-            ->when($this->competition_day_id, fn ($q) => $q->where('competition_day_id', $this->competition_day_id))
+            ->when($this->competition_day_id, fn ($q) => $q->where(fn ($inner) =>
+                $inner->where('competition_day_id', $this->competition_day_id)
+                      ->orWhereNull('competition_day_id')
+            ))
             ->orderBy('start_time')
             ->get();
 
@@ -268,9 +271,10 @@ class Scoring extends Page
 
         $this->redirect(
             $entryClass::getUrl(array_filter([
-                'division_id'     => $divisionId,
-                'competition_id'  => $this->competition_id,
-                'filter_location' => $this->filter_location,
+                'division_id'        => $divisionId,
+                'competition_id'     => $this->competition_id,
+                'competition_day_id' => $this->competition_day_id,
+                'filter_location'    => $this->filter_location,
             ])),
             navigate: true
         );
