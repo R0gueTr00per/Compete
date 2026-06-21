@@ -118,7 +118,7 @@ class EnrolmentResource extends Resource
 
                 TextColumn::make('payment_accepted_by')
                     ->label('Payment taken by')
-                    ->getStateUsing(fn (Enrolment $record) => $record->cart?->acceptedBy?->name ?? '—')
+                    ->getStateUsing(fn (Enrolment $record) => $record->cart?->acceptedBy?->full_name ?? '—')
                     ->visibleFrom('md'),
 
                 TextColumn::make('status')

@@ -196,7 +196,7 @@
                                 <p class="text-right text-success-600">
                                     Paid {{ tenant_date($cart->payment_received_at) }}
                                     @if ($cart->payment_method) via {{ ucfirst($cart->payment_method) }} @endif
-                                    @if ($cart->acceptedBy) &mdash; taken by {{ $cart->acceptedBy->name }} @endif
+                                    @if ($cart->acceptedBy) &mdash; taken by {{ $cart->acceptedBy->full_name }} @endif
                                 </p>
                             @endif
                         </div>
