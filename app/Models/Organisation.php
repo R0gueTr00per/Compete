@@ -122,6 +122,11 @@ class Organisation extends Model
         return $this->hasMany(OrganisationAnnualFeeReminder::class);
     }
 
+    public function news(): HasMany
+    {
+        return $this->hasMany(OrganisationNews::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

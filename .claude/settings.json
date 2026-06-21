@@ -163,7 +163,8 @@
       "Bash(ssh -o StrictHostKeyChecking=no kompetic@116.90.62.48 \"cd ~/public_html && php artisan migrate --force && php artisan config:clear && php artisan view:clear && php artisan cache:clear && php artisan filament:cache-components && php artisan optimize\")",
       "Bash(php -l app/Services/CheckInService.php)",
       "Bash(php -l app/Models/EnrolmentCheckIn.php)",
-      "Bash(php -r \"echo 'PHP syntax OK';\")"
+      "Bash(php -r \"echo 'PHP syntax OK';\")",
+      "Bash(env)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

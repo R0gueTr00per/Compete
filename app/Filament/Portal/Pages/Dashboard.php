@@ -6,6 +6,7 @@ use App\Jobs\GenerateEnrolmentSummariesJob;
 use App\Models\Competition;
 use App\Models\Enrolment;
 use App\Models\EnrolmentCart;
+use App\Models\OrganisationNews;
 use App\Filament\Portal\Pages\CartPage;
 use App\Filament\Portal\Pages\MyEnrolmentsPage as AccountPage;
 use App\Notifications\Notification;
@@ -175,6 +176,15 @@ class Dashboard extends BaseDashboard
             })
             ->with(['portalMessages', 'competitionDays'])
             ->orderBy('competition_date')
+            ->get();
+    }
+
+    public function getActiveNews(): \Illuminate\Support\Collection
+    {
+        return OrganisationNews::where('organisation_id', app('tenant')?->id)
+            ->active()
+            ->orderBy('sort_order')
+            ->orderBy('created_at')
             ->get();
     }
 

@@ -4,6 +4,7 @@
         $activeCompetitions = $this->getActiveCompetitions();
         $cartKeys           = $this->getCartDraftKeys();
         $allEnrolments      = $this->getAllEnrolments();
+        $activeNews         = $this->getActiveNews();
 
         // Competition currently in the draft cart (if any), for cross-competition conflict detection
         $cartCompetitionId  = null;
@@ -14,6 +15,22 @@
 
         $incompleteProfiles = $profiles->filter(fn ($p) => ! $p->profile_complete);
     @endphp
+
+    {{-- Org news --}}
+    @foreach ($activeNews as $newsItem)
+        <div class="flex items-start gap-3 p-4 mb-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
+            <x-heroicon-o-megaphone class="w-5 h-5 text-primary-600 dark:text-primary-400 shrink-0 mt-0.5" />
+            <div class="flex-1 min-w-0">
+                @if ($newsItem->title)
+                    <p class="text-sm font-semibold text-primary-800 dark:text-primary-200 mb-1">{{ $newsItem->title }}</p>
+                @endif
+                <div class="text-sm text-primary-900 dark:text-primary-100 prose prose-sm dark:prose-invert max-w-none
+                            prose-p:my-0 prose-ul:my-1 prose-ol:my-1 prose-li:my-0">
+                    {!! $newsItem->content !!}
+                </div>
+            </div>
+        </div>
+    @endforeach
 
     {{-- Incomplete profile banner --}}
     @if ($incompleteProfiles->isNotEmpty())
