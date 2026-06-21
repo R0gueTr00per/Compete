@@ -125,6 +125,7 @@ class AccountsPage extends Page implements HasTable
                           ->whereNotIn('status', ['draft'])
                           ->with(['competitor', 'activeEvents.competitionEvent', 'activeEvents.division',
                                   'enrolmentEvents.competitionEvent', 'enrolmentEvents.division']),
+                      'acceptedBy',
                       'refunds.enrolment' => fn ($q2) => $q2->withTrashed()->with('competitor'),
                       'refunds.issuedBy',
                   ]),
