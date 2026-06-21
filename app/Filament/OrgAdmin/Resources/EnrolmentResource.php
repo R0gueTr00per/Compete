@@ -73,6 +73,7 @@ class EnrolmentResource extends Resource
                     'competitor',
                     'rank',
                     'competition',
+                    'cart.acceptedBy',
                     'activeEvents.competitionEvent',
                     'activeEvents.division',
                     'activeEvents.previousDivision',
@@ -113,6 +114,11 @@ class EnrolmentResource extends Resource
                     ->label('Registered')
                     ->formatStateUsing(fn ($state) => $state ? tenant_datetime($state) : '—')
                     ->sortable()
+                    ->visibleFrom('md'),
+
+                TextColumn::make('payment_accepted_by')
+                    ->label('Payment taken by')
+                    ->getStateUsing(fn (Enrolment $record) => $record->cart?->acceptedBy?->name ?? '—')
                     ->visibleFrom('md'),
 
                 TextColumn::make('status')

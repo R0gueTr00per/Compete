@@ -156,9 +156,10 @@ class AcceptPaymentPage extends Page
         $totalDue    = $cart->outstandingAmount($platformFee);
 
         $cart->forceFill([
-            'payment_status'      => 'received',
-            'payment_amount'      => $totalDue,
-            'payment_received_at' => now(),
+            'payment_status'              => 'received',
+            'payment_amount'              => $totalDue,
+            'payment_received_at'         => now(),
+            'payment_accepted_by_user_id' => auth()->id(),
         ])->save();
 
         Notification::make()->title('Payment recorded.')->success()->send();

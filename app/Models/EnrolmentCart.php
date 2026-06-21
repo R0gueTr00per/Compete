@@ -27,6 +27,7 @@ class EnrolmentCart extends Model
         'payment_status',
         'payment_amount',
         'payment_received_at',
+        'payment_accepted_by_user_id',
         'transaction_reference',
     ];
 
@@ -58,6 +59,11 @@ class EnrolmentCart extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function acceptedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'payment_accepted_by_user_id');
     }
 
     public function competition(): BelongsTo
