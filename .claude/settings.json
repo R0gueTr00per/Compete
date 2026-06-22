@@ -170,7 +170,13 @@
       "Bash(php -l resources/views/filament/portal/pages/dashboard.blade.php)",
       "Bash(php -l resources/views/filament/org-admin/pages/dashboard.blade.php)",
       "Bash(php -l resources/views/filament/org-admin/pages/scoring.blade.php)",
-      "Bash(php -l resources/views/filament/portal/pages/cart-page.blade.php)"
+      "Bash(php -l resources/views/filament/portal/pages/cart-page.blade.php)",
+      "Bash(grep 'placement\\\\|cap\\\\|$cap')",
+      "Bash(grep -A5 -B5 '<=.*cap\\\\|cap.*null\\\\|$cap')",
+      "Bash(grep -A5 -B5 '<=.*cap\\\\|cap.*null\\\\|\\\\$cap')",
+      "Bash(grep -A10 \"PLACE\\\\|placement\\\\|#\\\\$\")",
+      "Bash(grep -n \"placement\\\\|#\\\\$\\\\|place\\\\b\")",
+      "Bash(grep -n 'cap\\\\|\\\\$cap\\\\|placement.*cap\\\\|awarded_places' x:/Repos/Compete/app/Services/ScoringService.php)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

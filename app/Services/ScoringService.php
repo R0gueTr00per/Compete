@@ -271,13 +271,6 @@ class ScoringService
             }
         }
 
-        $event = $division->competitionEvent;
-        $cap   = match (true) {
-            $results->count() <= 2  => $event->awarded_places_2    ?? 2,
-            $results->count() === 3 => $event->awarded_places_3    ?? 3,
-            default                => $event->awarded_places_4plus ?? 3,
-        };
-
         if (! empty($updates)) {
             $whens    = [];
             $bindings = [];
@@ -285,7 +278,7 @@ class ScoringService
             foreach ($updates as $u) {
                 $whens[]    = 'WHEN ? THEN ?';
                 $bindings[] = $u['id'];
-                $bindings[] = $u['placement'] <= $cap ? $u['placement'] : null;
+                $bindings[] = $u['placement'];
             }
 
             $ids          = array_column($updates, 'id');
