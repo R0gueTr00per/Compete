@@ -800,12 +800,36 @@
             && $rows->isNotEmpty()
             && $rows->every(fn ($r) => $r->result->disqualified || $r->result->forfeited || $r->result->total_score !== null)
             && $rows->filter(fn ($r) => ! $r->result->disqualified && ! $r->result->forfeited)->isNotEmpty();
+
+        $tiebreakerPending = false;
+        if ($isAllScored) {
+            $cumPos = 0;
+            foreach (
+                $rows->filter(fn ($r) => ! $r->result->disqualified && ! $r->result->forfeited && $r->result->total_score !== null)
+                     ->sortByDesc(fn ($r) => (float) $r->result->total_score)
+                     ->groupBy(fn ($r) => (string) $r->result->total_score)
+                as $tg
+            ) {
+                $startPos = $cumPos + 1;
+                if ($tg->count() > 1 && $startPos <= $awardedCap) {
+                    $notOverridden = $tg->filter(fn ($r) => ! $r->result->placement_overridden);
+                    if ($notOverridden->some(fn ($r) => $r->result->tiebreaker_score === null)
+                        || $notOverridden->pluck('result.tiebreaker_score')->unique()->count() < $notOverridden->count()
+                    ) {
+                        $tiebreakerPending = true;
+                        break;
+                    }
+                }
+                $cumPos += $tg->count();
+            }
+        }
+
         $standingsRows = $rows
             ->filter(fn ($r) => $r->result->placement !== null && $r->result->placement <= $awardedCap)
             ->sortBy(fn ($r) => $r->result->placement)
             ->values();
     @endphp
-    @if ($isAllScored && $standingsRows->isNotEmpty())
+    @if ($isAllScored && ! $tiebreakerPending && $standingsRows->isNotEmpty())
         <div class="mt-4 rounded-lg border border-success-300 dark:border-success-700 bg-success-50 dark:bg-success-900/20 px-4 py-3">
             <p class="text-xs font-semibold uppercase tracking-wider text-success-700 dark:text-success-400 mb-2">Results</p>
             @foreach ($standingsRows as $row)

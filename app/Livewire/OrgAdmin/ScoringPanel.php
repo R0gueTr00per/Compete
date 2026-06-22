@@ -338,12 +338,42 @@ class ScoringPanel extends Component
 
         if ($results->isEmpty()) return false;
 
-        return $results->every(fn ($r) => $r->disqualified || $r->forfeited || match ($method) {
+        $allScored = $results->every(fn ($r) => $r->disqualified || $r->forfeited || match ($method) {
             'judges_total', 'judges_average' => $r->total_score !== null,
             'win_loss'                       => $r->win_loss !== null,
             'first_to_n', 'timed_points'    => $r->total_score !== null,
             default                          => true,
         });
+
+        if (! $allScored) return false;
+
+        if (in_array($method, ['judges_total', 'judges_average'])) {
+            $cap = match (true) {
+                $results->count() <= 2  => $division->competitionEvent->awarded_places_2    ?? 2,
+                $results->count() === 3 => $division->competitionEvent->awarded_places_3    ?? 3,
+                default                 => $division->competitionEvent->awarded_places_4plus ?? 3,
+            };
+            $cumPos = 0;
+            foreach (
+                $results->filter(fn ($r) => ! $r->disqualified && ! $r->forfeited && $r->total_score !== null)
+                        ->sortByDesc(fn ($r) => (float) $r->total_score)
+                        ->groupBy(fn ($r) => (string) $r->total_score)
+                as $group
+            ) {
+                $startPos = $cumPos + 1;
+                if ($group->count() > 1 && $startPos <= $cap) {
+                    $notOverridden = $group->filter(fn ($r) => ! $r->placement_overridden);
+                    if ($notOverridden->some(fn ($r) => $r->tiebreaker_score === null)
+                        || $notOverridden->pluck('tiebreaker_score')->unique()->count() < $notOverridden->count()
+                    ) {
+                        return false;
+                    }
+                }
+                $cumPos += $group->count();
+            }
+        }
+
+        return true;
     }
 
     // ─── Note modal ──────────────────────────────────────────────────────────

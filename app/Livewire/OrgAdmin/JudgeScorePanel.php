@@ -601,6 +601,13 @@ class JudgeScorePanel extends Component
 
     // ─── Scoring cleared ─────────────────────────────────────────────────────
 
+    #[On('scores-saved')]
+    public function onScoresSaved(int $divisionId): void
+    {
+        if ($divisionId !== $this->division_id) return;
+        unset($this->competitorRows);
+    }
+
     #[On('division-reactivated')]
     public function onDivisionReactivated(): void
     {
