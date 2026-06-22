@@ -27,7 +27,7 @@
                     <span class="flex items-center gap-2 flex-wrap">
                         {{ $comp->name }}
                         @if ($enrolmentsClosed)
-                            <span class="animate-pulse inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white" style="background-color:#dc2626;">Enrolments Closed</span>
+                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-white bg-red-600">Enrolments Closed</span>
                         @endif
                     </span>
                 </x-slot>
@@ -40,7 +40,7 @@
                             <button
                                 wire:click="startRemove({{ $item['enrolment']->id }})"
                                 type="button"
-                                class="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-950 transition-colors"
+                                class="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-950 transition-colors"
                                 title="Remove from cart"
                             >
                                 <x-heroicon-s-x-mark class="h-4 w-4" />
@@ -132,13 +132,12 @@
 
         @php $hasClosedEnrolments = $this->hasClosedEnrolments(); @endphp
 
-        @if ($hasClosedEnrolments)
-            <div class="mt-4 rounded-lg bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 px-4 py-3 text-sm text-danger-700 dark:text-danger-400">
-                Your cart contains items for competitions where enrolments are closed. Please remove these items before submitting.
-            </div>
-        @endif
-
         <div class="mt-4 flex flex-wrap gap-3">
+            @if ($hasClosedEnrolments)
+                <div class="w-full rounded-lg bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 px-4 py-3 text-sm text-danger-700 dark:text-danger-400">
+                    Your cart contains items for competitions where enrolments are closed. Please remove these items before submitting.
+                </div>
+            @endif
             <x-filament::button wire:click="submitCart" size="lg" :disabled="$hasClosedEnrolments">Submit Registration</x-filament::button>
             <x-filament::button href="{{ route('filament.portal.pages.dashboard') }}" tag="a" color="gray" size="lg">
                 Back to Dashboard

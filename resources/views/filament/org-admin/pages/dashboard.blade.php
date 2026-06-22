@@ -11,37 +11,6 @@
         $officialRole  = $this->getOfficialRole();
     @endphp
 
-    <style>
-        @keyframes chevron-pulse {
-            0%, 100% { filter: drop-shadow(0 0 3px var(--primary-glow, #818cf8)); }
-            50%       { filter: drop-shadow(0 0 9px var(--primary-glow, #818cf8)) drop-shadow(0 0 2px var(--primary-glow, #818cf8)); }
-        }
-        @keyframes chevron-activate {
-            0%   { transform: scale(1) translateY(0); }
-            38%  { transform: scale(1.07) translateY(-5px); }
-            68%  { transform: scale(0.96) translateY(2px); }
-            100% { transform: scale(1) translateY(0); }
-        }
-        @keyframes chevron-enter {
-            0%   { filter: drop-shadow(0 0 0px rgba(255,255,255,0)); }
-            35%  { filter: drop-shadow(0 0 8px rgba(255,255,255,0.65)); }
-            100% { filter: drop-shadow(0 0 0px rgba(255,255,255,0)); }
-        }
-        .chevron-first  { clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%); }
-        .chevron-middle { clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%, 11px 50%); }
-        .chevron-last   { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%); }
-        .chevron-pulse-active  { animation: chevron-pulse 2.5s ease-in-out infinite; }
-        .chevron-bounce        { animation: chevron-activate 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both !important; }
-        .chevron-entering      { animation: chevron-enter 850ms ease-out both; }
-        .chevron-partial-left  { clip-path: polygon(0 0, 100% 50%, 0 100%); }
-        .chevron-partial-right { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%); }
-        @keyframes icon-shimmer {
-            0%, 100% { filter: brightness(1) drop-shadow(0 0 0px currentColor); }
-            50%       { filter: brightness(1.6) drop-shadow(0 0 3px currentColor); }
-        }
-        .icon-shimmer { animation: icon-shimmer 2.5s ease-in-out infinite; }
-    </style>
-
     @if ($competitions->isEmpty())
         <x-filament::section>
             <p class="text-center text-gray-500 py-8">No active competitions.@if($isOrgAdmin) <a href="{{ route('filament.org-admin.resources.competitions.create') }}" class="text-primary-600 underline">Create one</a>.@endif</p>
@@ -480,7 +449,7 @@
                                                 @foreach ($bulletLines as $line)
                                                     <li class="text-xs text-gray-600 dark:text-gray-300 flex items-start gap-1.5">
                                                         <span class="text-primary-500 mt-0.5 flex-shrink-0">•</span>
-                                                        <span class="line-clamp-1 sm:line-clamp-none">{{ $line }}</span>
+                                                        <span>{{ $line }}</span>
                                                     </li>
                                                 @endforeach
                                             </ul>
@@ -526,9 +495,13 @@
                                     <li class="flex items-start gap-2" wire:key="dash-task-{{ $task->id }}">
                                         <button
                                             wire:click="markTaskComplete({{ $task->id }})"
-                                            class="mt-0.5 flex-shrink-0 w-4 h-4 rounded border-2 border-gray-300 dark:border-gray-500 hover:border-success-500 dark:hover:border-success-400 transition-colors"
+                                            wire:loading.attr="disabled"
+                                            wire:target="markTaskComplete({{ $task->id }})"
+                                            class="mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-500 hover:border-success-500 dark:hover:border-success-400 transition-colors flex items-center justify-center disabled:opacity-50"
                                             title="Mark complete"
-                                        ></button>
+                                        >
+                                            <svg wire:loading wire:target="markTaskComplete({{ $task->id }})" class="w-3 h-3 animate-spin text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                                        </button>
                                         <span class="text-xs text-gray-600 dark:text-gray-300">{{ $task->title }}</span>
                                     </li>
                                 @endforeach
@@ -594,5 +567,7 @@
         </div>
     @endif
 
-    <div wire:poll.10s class="hidden"></div>
+    @if ($competitions->where('status', 'running')->isNotEmpty())
+        <div wire:poll.10s class="hidden"></div>
+    @endif
 </x-filament-panels::page>

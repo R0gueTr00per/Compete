@@ -10,13 +10,24 @@ Route::get('/', function () {
     if (app('tenant')) {
         return redirect('/portal');
     }
-    // Root domain → landing page with org search
-    $query = request()->query('q');
-    $orgs  = $query
-        ? \App\Models\Organisation::active()->where('name', 'like', '%' . $query . '%')->get()
-        : collect();
-    return view('landing', compact('orgs', 'query'));
+    return view('landing');
 })->name('landing');
+
+Route::get('/orgs/search', function () {
+    $query = trim(request()->query('q', ''));
+    if (strlen($query) < 2) {
+        return response()->json([]);
+    }
+    $orgs = \App\Models\Organisation::active()
+        ->where('name', 'like', '%' . $query . '%')
+        ->get(['name', 'slug'])
+        ->map(fn ($org) => [
+            'name' => $org->name,
+            'slug' => $org->slug,
+            'url'  => config('app.scheme') . '://' . $org->slug . '.' . config('app.domain', 'kompetic.com') . '/portal',
+        ]);
+    return response()->json($orgs);
+})->name('orgs.search');
 
 Route::get('/schedule/{competition}', [PublicScheduleController::class, 'show'])->name('public.schedule');
 

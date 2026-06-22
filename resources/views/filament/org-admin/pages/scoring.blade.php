@@ -49,7 +49,7 @@
                         class="pl-7 pr-6 py-1.5 w-28 text-sm rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                     />
                     @if ($this->search_code)
-                        <button wire:click="$set('search_code', null)" class="absolute right-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        <button wire:click="$set('search_code', null)" class="absolute right-0.5 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" aria-label="Clear search">
                             <x-heroicon-m-x-mark class="w-3.5 h-3.5" />
                         </button>
                     @endif
@@ -58,9 +58,12 @@
 
             @if ($this->competition_id && $selectedComp?->status === 'running' && ! $divisionList->isEmpty() && $incompleteCount > 0)
                 <button wire:click="jumpToNextIncomplete"
-                    class="inline-flex items-center gap-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    x-on:keydown.j.window="if (!['INPUT','TEXTAREA','SELECT'].includes($event.target.tagName)) { $event.preventDefault(); $wire.jumpToNextIncomplete(); }"
+                    class="inline-flex items-center gap-1 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    title="Next incomplete (J)">
                     <x-heroicon-m-arrow-down-circle class="w-3.5 h-3.5" />
                     Next incomplete ({{ $incompleteCount }})
+                    <kbd class="hidden sm:inline ml-1 font-mono text-[0.6rem] px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600">J</kbd>
                 </button>
             @endif
         </div>
@@ -100,34 +103,6 @@
             @endif
         </p>
     @else
-        <style>
-            @keyframes scoring-row-pulse {
-                0%   { box-shadow: 0 0 0 0 rgba(99,102,241,.6); }
-                35%  { box-shadow: 0 0 0 10px rgba(99,102,241,.2); }
-                100% { box-shadow: 0 0 0 16px rgba(99,102,241,0); }
-            }
-            .scoring-row-pulse {
-                animation: scoring-row-pulse .8s ease-out forwards;
-            }
-            @keyframes scoring-row-return {
-                0%   { box-shadow: 0 0 0 3px rgba(99,102,241,.9); background-image: linear-gradient(rgba(99,102,241,.18), rgba(99,102,241,.18)); }
-                40%  { box-shadow: 0 0 0 5px rgba(99,102,241,.3); background-image: linear-gradient(rgba(99,102,241,.12), rgba(99,102,241,.12)); }
-                100% { box-shadow: 0 0 0 2px rgba(99,102,241,.5); background-image: linear-gradient(rgba(99,102,241,0),  rgba(99,102,241,0)); }
-            }
-            .scoring-row-return {
-                animation: scoring-row-return 2.5s ease-out forwards;
-            }
-            input[type=number]::-webkit-outer-spin-button,
-            input[type=number]::-webkit-inner-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-            }
-            input[type=number] {
-                -moz-appearance: textfield;
-            }
-            button { touch-action: manipulation; }
-        </style>
-
         {{-- Overall progress --}}
         @php
             $divisionItems  = $divisionList->where('type', 'division');
@@ -179,6 +154,8 @@
                     wire:click="navigateToDivision({{ $div->id }})"
                     x-data="{ tapped: false }"
                     @mousedown="tapped = true"
+                    @mouseup="setTimeout(() => tapped = false, 300)"
+                    @mouseleave="tapped = false"
                     :class="tapped ? 'ring-2 ring-primary-400 dark:ring-primary-500 opacity-75' : ''"
                     class="relative flex items-center justify-between gap-3 rounded-lg border border-l-4 px-4 py-3 cursor-pointer
                         {{ $rowClass }} {{ $rowAccent }}

@@ -10,6 +10,24 @@
     @if ($this->competition_id)
         @php $competition = $this->getSelectedCompetition(); @endphp
 
+        {{-- Step indicator --}}
+        @if ($this->profile_id)
+            <div class="mb-4 flex items-center gap-0">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-l-full text-xs font-semibold {{ $this->details_confirmed ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300' : 'bg-primary-600 text-white' }}">
+                    @if ($this->details_confirmed)
+                        <x-heroicon-m-check-circle class="w-3.5 h-3.5" />
+                    @else
+                        <span class="w-3.5 h-3.5 flex items-center justify-center rounded-full border-2 border-current text-[0.6rem] font-bold leading-none">1</span>
+                    @endif
+                    Details
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-r-full text-xs font-semibold {{ $this->details_confirmed ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500' }}">
+                    <span class="w-3.5 h-3.5 flex items-center justify-center rounded-full border-2 border-current text-[0.6rem] font-bold leading-none">2</span>
+                    Choose Events
+                </div>
+            </div>
+        @endif
+
         {{-- Combined context bar --}}
         @if ($competition)
             <div class="mb-5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">

@@ -9,11 +9,15 @@ return new class extends Migration
     {
         DB::table('competitions')->where('status', 'check_in')->update(['status' => 'running']);
 
-        DB::statement("ALTER TABLE competitions MODIFY COLUMN status ENUM('planning','advertise','open','enrolments_closed','running','complete') DEFAULT 'planning'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE competitions MODIFY COLUMN status ENUM('planning','advertise','open','enrolments_closed','running','complete') DEFAULT 'planning'");
+        }
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE competitions MODIFY COLUMN status ENUM('planning','advertise','open','enrolments_closed','check_in','running','complete') DEFAULT 'planning'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE competitions MODIFY COLUMN status ENUM('planning','advertise','open','enrolments_closed','check_in','running','complete') DEFAULT 'planning'");
+        }
     }
 };

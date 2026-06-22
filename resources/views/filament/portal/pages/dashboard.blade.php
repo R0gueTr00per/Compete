@@ -350,6 +350,11 @@
                                             <span class="text-warning-600">(late)</span>
                                         @endif
                                     </span>
+                                    @if ($isUnpaid)
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-[0.65rem] font-semibold bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/40">
+                                            UNPAID
+                                        </span>
+                                    @endif
                                 </div>
 
                                 {{-- Profile attributes row --}}
@@ -400,39 +405,7 @@
                                             @if ($dayEvents->isNotEmpty())
                                                 <div class="flex flex-wrap gap-1.5">
                                                     @foreach ($dayEvents as $ee)
-                                                        <div class="inline-flex items-stretch rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs shadow-sm overflow-hidden">
-                                                            @if ($ee->result)
-                                                                @if ($ee->result->disqualified)
-                                                                    <div class="flex items-center px-2 bg-danger-50 dark:bg-danger-900/20 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                                        <span class="font-semibold text-danger-600 dark:text-danger-400">DQ</span>
-                                                                    </div>
-                                                                @elseif ($ee->result->placement)
-                                                                    @php $placeEmoji = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . 'th' }; @endphp
-                                                                    <div class="flex items-center px-2 bg-gray-50 dark:bg-slate-700/50 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                                        <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $placeEmoji }}</span>
-                                                                    </div>
-                                                                @elseif ($ee->result->win_loss)
-                                                                    <div class="flex items-center px-2 bg-gray-50 dark:bg-slate-700/50 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                                        <span class="font-semibold {{ $ee->result->win_loss === 'win' ? 'text-success-600 dark:text-success-400' : ($ee->result->win_loss === 'loss' ? 'text-danger-600 dark:text-danger-400' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
-                                                                    </div>
-                                                                @endif
-                                                            @endif
-                                                            @if ($ee->division)
-                                                                <div class="flex items-center justify-center px-2.5 bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 shrink-0">
-                                                                    <span class="font-mono font-bold text-gray-600 dark:text-gray-300">{{ $ee->division->code }}</span>
-                                                                </div>
-                                                            @endif
-                                                            <div class="flex flex-col px-2.5 py-1.5">
-                                                                <span class="font-medium text-gray-700 dark:text-gray-300 leading-snug">
-                                                                    {{ $ee->competitionEvent->name }}@if ($ee->competitionEvent->requires_partner) <span class="ml-1 {{ $ee->yakusuko_complete ? 'text-success-500' : 'text-warning-500' }}">{{ $ee->yakusuko_complete ? '✓' : '?' }} Partner</span>@endif
-                                                                </span>
-                                                                @if ($ee->division)
-                                                                    <span class="text-[0.65rem] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{{ $ee->division->label }}</span>
-                                                                @else
-                                                                    <span class="text-[0.65rem] italic text-gray-400 dark:text-gray-500 mt-0.5">TBC</span>
-                                                                @endif
-                                                            </div>
-                                                        </div>
+                                                        @include('filament.portal.partials.event-chip', ['ee' => $ee])
                                                     @endforeach
                                                 </div>
                                             @endif
@@ -445,39 +418,7 @@
                                             <span class="text-xs font-semibold text-gray-400 dark:text-gray-500 mb-1.5 block">Day TBC</span>
                                             <div class="flex flex-wrap gap-1.5">
                                                 @foreach ($unassigned as $ee)
-                                                    <div class="inline-flex items-stretch rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs shadow-sm overflow-hidden">
-                                                        @if ($ee->result)
-                                                            @if ($ee->result->disqualified)
-                                                                <div class="flex items-center px-2 bg-danger-50 dark:bg-danger-900/20 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                                    <span class="font-semibold text-danger-600 dark:text-danger-400">DQ</span>
-                                                                </div>
-                                                            @elseif ($ee->result->placement)
-                                                                @php $placeEmoji = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . 'th' }; @endphp
-                                                                <div class="flex items-center px-2 bg-gray-50 dark:bg-slate-700/50 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                                    <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $placeEmoji }}</span>
-                                                                </div>
-                                                            @elseif ($ee->result->win_loss)
-                                                                <div class="flex items-center px-2 bg-gray-50 dark:bg-slate-700/50 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                                    <span class="font-semibold {{ $ee->result->win_loss === 'win' ? 'text-success-600 dark:text-success-400' : ($ee->result->win_loss === 'loss' ? 'text-danger-600 dark:text-danger-400' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
-                                                                </div>
-                                                            @endif
-                                                        @endif
-                                                        @if ($ee->division)
-                                                            <div class="flex items-center justify-center px-2.5 bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 shrink-0">
-                                                                <span class="font-mono font-bold text-gray-600 dark:text-gray-300">{{ $ee->division->code }}</span>
-                                                            </div>
-                                                        @endif
-                                                        <div class="flex flex-col px-2.5 py-1.5">
-                                                            <span class="font-medium text-gray-700 dark:text-gray-300 leading-snug">
-                                                                {{ $ee->competitionEvent->name }}@if ($ee->competitionEvent->requires_partner) <span class="ml-1 {{ $ee->yakusuko_complete ? 'text-success-500' : 'text-warning-500' }}">{{ $ee->yakusuko_complete ? '✓' : '?' }} Partner</span>@endif
-                                                            </span>
-                                                            @if ($ee->division)
-                                                                <span class="text-[0.65rem] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{{ $ee->division->label }}</span>
-                                                            @else
-                                                                <span class="text-[0.65rem] italic text-gray-400 dark:text-gray-500 mt-0.5">TBC</span>
-                                                            @endif
-                                                        </div>
-                                                    </div>
+                                                    @include('filament.portal.partials.event-chip', ['ee' => $ee])
                                                 @endforeach
                                             </div>
                                         </div>
@@ -485,39 +426,7 @@
                                 @else
                                     <div class="mt-2 sm:ml-11 flex flex-wrap gap-1.5">
                                         @forelse ($enrolment->activeEvents as $ee)
-                                            <div class="inline-flex items-stretch rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-xs shadow-sm overflow-hidden">
-                                                @if ($ee->result)
-                                                    @if ($ee->result->disqualified)
-                                                        <div class="flex items-center px-2 bg-danger-50 dark:bg-danger-900/20 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                            <span class="font-semibold text-danger-600 dark:text-danger-400">DQ</span>
-                                                        </div>
-                                                    @elseif ($ee->result->placement)
-                                                        @php $placeEmoji = match($ee->result->placement) { 1 => '🥇', 2 => '🥈', 3 => '🥉', default => $ee->result->placement . 'th' }; @endphp
-                                                        <div class="flex items-center px-2 bg-gray-50 dark:bg-slate-700/50 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                            <span class="font-semibold text-gray-700 dark:text-gray-300">{{ $placeEmoji }}</span>
-                                                        </div>
-                                                    @elseif ($ee->result->win_loss)
-                                                        <div class="flex items-center px-2 bg-gray-50 dark:bg-slate-700/50 border-r border-gray-200 dark:border-slate-600 shrink-0">
-                                                            <span class="font-semibold {{ $ee->result->win_loss === 'win' ? 'text-success-600 dark:text-success-400' : ($ee->result->win_loss === 'loss' ? 'text-danger-600 dark:text-danger-400' : 'text-gray-500') }}">{{ ucfirst($ee->result->win_loss) }}</span>
-                                                        </div>
-                                                    @endif
-                                                @endif
-                                                @if ($ee->division)
-                                                    <div class="flex items-center justify-center px-2.5 bg-gray-100 dark:bg-gray-700 border-r border-gray-200 dark:border-gray-600 shrink-0">
-                                                        <span class="font-mono font-bold text-gray-600 dark:text-gray-300">{{ $ee->division->code }}</span>
-                                                    </div>
-                                                @endif
-                                                <div class="flex flex-col px-2.5 py-1.5">
-                                                    <span class="font-medium text-gray-700 dark:text-gray-300 leading-snug">
-                                                        {{ $ee->competitionEvent->name }}@if ($ee->competitionEvent->requires_partner) <span class="ml-1 {{ $ee->yakusuko_complete ? 'text-success-500' : 'text-warning-500' }}">{{ $ee->yakusuko_complete ? '✓' : '?' }} Partner</span>@endif
-                                                    </span>
-                                                    @if ($ee->division)
-                                                        <span class="text-[0.65rem] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{{ $ee->division->label }}</span>
-                                                    @else
-                                                        <span class="text-[0.65rem] italic text-gray-400 dark:text-gray-500 mt-0.5">TBC</span>
-                                                    @endif
-                                                </div>
-                                            </div>
+                                            @include('filament.portal.partials.event-chip', ['ee' => $ee])
                                         @empty
                                             <p class="text-xs text-gray-400">No events in this enrolment.</p>
                                         @endforelse
@@ -593,11 +502,5 @@
         </div>
     @endif
 
-    {{-- Manage profiles link --}}
-    <div class="mt-4 text-right">
-        <x-filament::button href="{{ route('filament.portal.pages.profiles') }}" tag="a" color="gray" size="sm" icon="heroicon-o-users">
-            Manage profiles
-        </x-filament::button>
-    </div>
 
 </x-filament-panels::page>

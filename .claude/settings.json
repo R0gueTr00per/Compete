@@ -164,7 +164,13 @@
       "Bash(php -l app/Services/CheckInService.php)",
       "Bash(php -l app/Models/EnrolmentCheckIn.php)",
       "Bash(php -r \"echo 'PHP syntax OK';\")",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(php -l app/Filament/Portal/Pages/Dashboard.php)",
+      "Bash(php -l routes/web.php)",
+      "Bash(php -l resources/views/filament/portal/pages/dashboard.blade.php)",
+      "Bash(php -l resources/views/filament/org-admin/pages/dashboard.blade.php)",
+      "Bash(php -l resources/views/filament/org-admin/pages/scoring.blade.php)",
+      "Bash(php -l resources/views/filament/portal/pages/cart-page.blade.php)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

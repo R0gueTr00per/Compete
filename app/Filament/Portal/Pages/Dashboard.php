@@ -9,6 +9,7 @@ use App\Models\EnrolmentCart;
 use App\Models\OrganisationNews;
 use App\Filament\Portal\Pages\CartPage;
 use App\Filament\Portal\Pages\MyEnrolmentsPage as AccountPage;
+use App\Filament\Portal\Pages\ProfilesPage;
 use App\Notifications\Notification;
 use App\Services\EnrolmentService;
 use Filament\Actions\Action;
@@ -129,6 +130,11 @@ class Dashboard extends BaseDashboard
             ->sum(fn ($cart) => $cart->outstandingAmount($platformFee));
 
         $actions = [
+            Action::make('profiles')
+                ->label('Profiles')
+                ->icon('heroicon-o-users')
+                ->url(ProfilesPage::getUrl())
+                ->color('gray'),
             Action::make('cart')
                 ->label('Cart')
                 ->icon('heroicon-o-shopping-cart')

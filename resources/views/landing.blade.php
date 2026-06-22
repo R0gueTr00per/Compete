@@ -80,6 +80,24 @@
         }
         .btn-nav:hover { background:var(--indigo-lt); transform:translateY(-1px); }
 
+        /* ── MOBILE NAV ── */
+        .nav-hamburger { display:none; background:none; border:none; cursor:pointer; padding:.25rem; color:var(--gray-lt); }
+        .mobile-menu {
+            display:none; flex-direction:column; gap:.5rem;
+            padding:1rem 2rem 1.25rem; border-top:1px solid rgba(99,102,241,.12);
+            background:rgba(15,23,42,.97);
+        }
+        .mobile-menu.open { display:flex; }
+        .mobile-menu a { color:var(--gray-lt); text-decoration:none; font-size:.95rem; font-weight:500; padding:.35rem 0; transition:color .15s; }
+        .mobile-menu a:hover { color:white; }
+        @media(max-width:640px) {
+            .nav-hamburger { display:block; }
+            .nav-links { display:none !important; }
+        }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; }
+        .nav-links a { color:var(--gray); font-size:.875rem; text-decoration:none; transition:color .15s; }
+        .nav-links a:hover { color:var(--indigo-lt); }
+
         /* ── HERO ── */
         .hero {
             position:relative; overflow:hidden;
@@ -321,13 +339,28 @@
 <body>
 
     <!-- ═══ NAV ═══ -->
-    <nav aria-label="Main navigation">
+    <nav aria-label="Main navigation" x-data="{ mobileOpen: false }">
         <div class="nav-inner">
             <a href="/" class="nav-logo" aria-label="Kompetic home">Kompetic</a>
             <div class="nav-right">
+                <div class="nav-links" aria-label="Site sections">
+                    <a href="#features">Features</a>
+                    <a href="#partner">Partner Program</a>
+                </div>
                 <span class="badge-beta" aria-label="Currently in beta">Beta</span>
                 <a href="{{ route('filament.portal.auth.login') }}" class="btn-nav">Log In</a>
+                <button class="nav-hamburger" x-on:click="mobileOpen = !mobileOpen" :aria-expanded="mobileOpen" aria-label="Toggle navigation">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path x-show="!mobileOpen" stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                        <path x-show="mobileOpen" stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
             </div>
+        </div>
+        <div class="mobile-menu" :class="mobileOpen ? 'open' : ''" aria-hidden="!mobileOpen">
+            <a href="#features" x-on:click="mobileOpen = false">Features</a>
+            <a href="#partner" x-on:click="mobileOpen = false">Partner Program</a>
+            <a href="{{ route('filament.portal.auth.login') }}">Log In</a>
         </div>
     </nav>
 
@@ -354,39 +387,62 @@
             </div>
 
             <!-- Org Search -->
-            <div class="org-search-wrap">
+            <div class="org-search-wrap" x-data="{
+                query: '',
+                results: null,
+                loading: false,
+                timer: null,
+                async search() {
+                    if (this.query.trim().length < 2) { this.results = null; return; }
+                    clearTimeout(this.timer);
+                    this.timer = setTimeout(async () => {
+                        this.loading = true;
+                        try {
+                            const res = await fetch('{{ route('orgs.search') }}?q=' + encodeURIComponent(this.query));
+                            this.results = await res.json();
+                        } finally {
+                            this.loading = false;
+                        }
+                    }, 300);
+                }
+            }">
                 <p class="org-search-label">Already have an account? Find your organisation:</p>
-                <form method="GET" action="/" class="search-row" role="search">
+                <div class="search-row" role="search">
                     <input
                         type="text"
-                        name="q"
+                        x-model="query"
+                        x-on:input="search()"
                         placeholder="Search organisations..."
-                        value="{{ $query ?? '' }}"
                         aria-label="Search organisations"
                         inputmode="search"
+                        autocomplete="off"
                     >
-                    <button type="submit">Search</button>
-                </form>
+                    <button type="button" x-on:click="search()" :disabled="loading" aria-label="Search">
+                        <span x-show="!loading">Search</span>
+                        <span x-show="loading" aria-hidden="true">…</span>
+                    </button>
+                </div>
 
-                @if(isset($query) && $query !== '')
-                    <div class="org-results" aria-live="polite">
-                        @if($orgs->isNotEmpty())
-                            @foreach($orgs as $org)
-                                <a href="{{ config('app.scheme') . '://' . $org->slug . '.' . config('app.domain', 'kompetic.com') . '/portal' }}" class="org-card">
+                <div x-show="results !== null" class="org-results" aria-live="polite">
+                    <template x-if="results && results.length > 0">
+                        <div style="display:flex;flex-direction:column;gap:.5rem;">
+                            <template x-for="org in results" :key="org.slug">
+                                <a :href="org.url" class="org-card">
                                     <div>
-                                        <div class="org-name">{{ $org->name }}</div>
-                                        <div class="org-url">{{ $org->slug }}.kompetic.com</div>
+                                        <div class="org-name" x-text="org.name"></div>
+                                        <div class="org-url" x-text="org.slug + '.kompetic.com'"></div>
                                     </div>
                                     <svg class="org-arrow" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                     </svg>
                                 </a>
-                            @endforeach
-                        @else
-                            <p class="no-results">No organisations found for "<strong>{{ $query }}</strong>". Check the name with your competition organiser.</p>
-                        @endif
-                    </div>
-                @endif
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="results && results.length === 0">
+                        <p class="no-results">No organisations found for "<span x-text="query"></span>". Check the name with your competition organiser.</p>
+                    </template>
+                </div>
             </div>
 
         </div>
@@ -548,10 +604,9 @@
 
     <script>
         (function () {
-            // Skip if user prefers reduced motion (already handled by CSS, but skip JS cost too)
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-            const STAGGER = 90; // ms between cards in the same row
+            const STAGGER = 90;
 
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
@@ -563,14 +618,31 @@
                 });
             }, { threshold: 0.12 });
 
-            // Feature cards — stagger within each grid row
-            document.querySelectorAll('.card').forEach((card, i) => {
-                // Cards are in a 3-col grid; stagger by column position
-                card.dataset.revealDelay = (i % 3) * STAGGER;
-                observer.observe(card);
-            });
+            // Feature cards — stagger by actual rendered column count
+            const grid = document.querySelector('.grid-features');
+            const cards = document.querySelectorAll('.card');
+            if (grid && cards.length) {
+                const colCount = () => {
+                    const firstCard = cards[0];
+                    if (!firstCard) return 1;
+                    const gridLeft = grid.getBoundingClientRect().left;
+                    let cols = 1;
+                    let prevLeft = firstCard.getBoundingClientRect().left;
+                    for (let i = 1; i < cards.length; i++) {
+                        const left = cards[i].getBoundingClientRect().left;
+                        if (left > prevLeft) cols++;
+                        else break;
+                        prevLeft = left;
+                    }
+                    return cols;
+                };
+                const cols = colCount();
+                cards.forEach((card, i) => {
+                    card.dataset.revealDelay = cols > 1 ? (i % cols) * STAGGER : 0;
+                    observer.observe(card);
+                });
+            }
 
-            // Section headings and partner box
             document.querySelectorAll('.section-head, .partner-box').forEach(el => {
                 observer.observe(el);
             });

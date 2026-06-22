@@ -107,3 +107,56 @@
     from { opacity: 0; transform: scaleX(0); transform-origin: left; }
     to   { opacity: 1; transform: scaleX(1); transform-origin: left; }
 }
+
+/* ── Chevron status tracker (org-admin dashboard) ── */
+@keyframes chevron-pulse {
+    0%, 100% { filter: drop-shadow(0 0 3px var(--primary-glow, #818cf8)); }
+    50%       { filter: drop-shadow(0 0 9px var(--primary-glow, #818cf8)) drop-shadow(0 0 2px var(--primary-glow, #818cf8)); }
+}
+@keyframes chevron-activate {
+    0%   { transform: scale(1) translateY(0); }
+    38%  { transform: scale(1.07) translateY(-5px); }
+    68%  { transform: scale(0.96) translateY(2px); }
+    100% { transform: scale(1) translateY(0); }
+}
+@keyframes chevron-enter {
+    0%   { filter: drop-shadow(0 0 0px rgba(255,255,255,0)); }
+    35%  { filter: drop-shadow(0 0 8px rgba(255,255,255,0.65)); }
+    100% { filter: drop-shadow(0 0 0px rgba(255,255,255,0)); }
+}
+.chevron-first  { clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%); }
+.chevron-middle { clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%, 11px 50%); }
+.chevron-last   { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%); }
+.chevron-pulse-active  { animation: chevron-pulse 2.5s ease-in-out infinite; }
+.chevron-bounce        { animation: chevron-activate 400ms cubic-bezier(0.34, 1.56, 0.64, 1) both !important; }
+.chevron-entering      { animation: chevron-enter 850ms ease-out both; }
+.chevron-partial-left  { clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.chevron-partial-right { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%); }
+@keyframes icon-shimmer {
+    0%, 100% { filter: brightness(1) drop-shadow(0 0 0px currentColor); }
+    50%       { filter: brightness(1.6) drop-shadow(0 0 3px currentColor); }
+}
+.icon-shimmer { animation: icon-shimmer 2.5s ease-in-out infinite; }
+
+/* ── Scoring row animations ── */
+@keyframes scoring-row-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(99,102,241,.6); }
+    35%  { box-shadow: 0 0 0 10px rgba(99,102,241,.2); }
+    100% { box-shadow: 0 0 0 16px rgba(99,102,241,0); }
+}
+.scoring-row-pulse { animation: scoring-row-pulse .8s ease-out forwards; }
+
+@keyframes scoring-row-return {
+    0%   { box-shadow: 0 0 0 3px rgba(99,102,241,.9); background-image: linear-gradient(rgba(99,102,241,.18), rgba(99,102,241,.18)); }
+    40%  { box-shadow: 0 0 0 5px rgba(99,102,241,.3); background-image: linear-gradient(rgba(99,102,241,.12), rgba(99,102,241,.12)); }
+    100% { box-shadow: 0 0 0 2px rgba(99,102,241,.5); background-image: linear-gradient(rgba(99,102,241,0),  rgba(99,102,241,0)); }
+}
+.scoring-row-return { animation: scoring-row-return 2.5s ease-out forwards; }
+
+/* Hide number input spinners globally in scoring/forms */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Ensure buttons respond instantly to touch */
+button { touch-action: manipulation; }
