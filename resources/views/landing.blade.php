@@ -247,6 +247,98 @@
             padding:.2rem .55rem; border-radius:9999px; margin-left:.45rem; vertical-align:middle;
         }
 
+        /* ── CARD EXAMPLES ── */
+        .card-example {
+            margin-top:1.1rem; padding:.7rem .85rem;
+            background:rgba(0,0,0,.28); border:1px solid rgba(99,102,241,.1);
+            border-radius:10px; font-size:.71rem; line-height:1.65; color:var(--gray);
+        }
+        .ex-label {
+            font-size:.58rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+            color:#475569; margin-bottom:.45rem;
+        }
+        .ex-row {
+            display:flex; align-items:center; gap:.45rem;
+            padding:.28rem 0; border-bottom:1px solid rgba(255,255,255,.04);
+        }
+        .ex-row:last-child { border-bottom:none; }
+        .ex-badge {
+            display:inline-flex; align-items:center; gap:.2rem;
+            padding:.1rem .45rem; border-radius:9999px;
+            font-size:.58rem; font-weight:700; border:1px solid; white-space:nowrap;
+        }
+        .ex-green  { background:rgba(34,197,94,.12); color:#86efac; border-color:rgba(34,197,94,.25); }
+        .ex-amber  { background:rgba(251,191,36,.1); color:#fde68a; border-color:rgba(251,191,36,.25); }
+        .ex-blue   { background:rgba(96,165,250,.12); color:#93c5fd; border-color:rgba(96,165,250,.25); }
+        .ex-indigo { background:rgba(99,102,241,.18); color:var(--indigo-lt); border-color:rgba(99,102,241,.3); }
+        .ex-gray   { background:rgba(255,255,255,.06); color:#94a3b8; border-color:rgba(255,255,255,.1); }
+        .ex-purple { background:rgba(168,85,247,.15); color:#c084fc; border-color:rgba(168,85,247,.25); }
+        .ex-val  { color:#e2e8f0; font-weight:600; }
+        .ex-dim  { color:#475569; }
+        .ex-mono { font-family:'SF Mono','Fira Code',monospace; }
+        .ex-prog { display:flex; align-items:center; gap:.5rem; margin-bottom:.45rem; }
+        .ex-bar  { flex:1; height:4px; background:rgba(255,255,255,.08); border-radius:2px; overflow:hidden; }
+        .ex-bar-fill { height:100%; border-radius:2px; background:#22c55e; }
+
+        /* ── AI FEEDBACK ── */
+        .ai-feedback-section {
+            padding:6rem 2rem; background:var(--navy);
+            position:relative; overflow:hidden;
+        }
+        .ai-feedback-section::before {
+            content:''; position:absolute; top:-20%; right:-10%;
+            width:600px; height:600px;
+            background:radial-gradient(circle,rgba(168,85,247,.1),transparent 70%); pointer-events:none;
+        }
+        .ai-feedback-inner { position:relative; max-width:860px; margin:0 auto; }
+
+        .feedback-showcase {
+            opacity:0; transform:translateY(24px);
+            transition:opacity .6s ease-out, transform .6s ease-out;
+        }
+        .feedback-showcase.is-visible { opacity:1; transform:translateY(0); }
+        @media(prefers-reduced-motion:reduce){ .feedback-showcase { opacity:1; transform:none; transition:none; } }
+
+        .feedback-card {
+            background:linear-gradient(135deg,rgba(30,41,59,.95),rgba(15,23,42,.95));
+            border:1px solid rgba(168,85,247,.3);
+            border-radius:20px; overflow:hidden;
+            box-shadow:0 20px 60px rgba(0,0,0,.4), 0 0 0 1px rgba(168,85,247,.1);
+        }
+        .feedback-card-header {
+            display:flex; align-items:center; gap:1rem;
+            padding:1.25rem 1.5rem; flex-wrap:wrap;
+            background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(168,85,247,.1));
+            border-bottom:1px solid rgba(168,85,247,.15);
+        }
+        .feedback-avatar {
+            width:42px; height:42px; border-radius:50%; flex-shrink:0;
+            background:linear-gradient(135deg,var(--indigo),var(--purple));
+            display:flex; align-items:center; justify-content:center;
+            font-size:.85rem; font-weight:800; color:white;
+        }
+        .feedback-name { font-size:.975rem; font-weight:700; color:white; }
+        .feedback-event { font-size:.78rem; color:var(--gray); margin-top:.15rem; }
+        .placement-badge {
+            margin-left:auto;
+            background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(236,72,153,.15));
+            border:1px solid rgba(168,85,247,.35);
+            color:#c084fc; font-size:.78rem; font-weight:700;
+            padding:.3rem .85rem; border-radius:9999px; white-space:nowrap;
+        }
+        .feedback-body { padding:1.5rem; }
+        .feedback-ai-label {
+            display:inline-flex; align-items:center; gap:.4rem;
+            font-size:.7rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+            color:#c084fc; margin-bottom:1rem;
+        }
+        .feedback-ai-label svg { width:14px; height:14px; }
+        .feedback-text { font-size:.925rem; color:var(--gray-lt); line-height:1.75; margin-bottom:1.25rem; }
+        .feedback-caption {
+            text-align:center; color:var(--gray); font-size:.8rem;
+            margin-top:1.25rem; font-style:italic;
+        }
+
         /* ── PARTNER ── */
         .partner {
             padding:6rem 2rem; background:var(--navy);
@@ -345,6 +437,7 @@
             <div class="nav-right">
                 <div class="nav-links" aria-label="Site sections">
                     <a href="#features">Features</a>
+                    <a href="#ai-feedback">For Competitors</a>
                     <a href="#partner">Partner Program</a>
                 </div>
                 <span class="badge-beta" aria-label="Currently in beta">Beta</span>
@@ -359,6 +452,7 @@
         </div>
         <div class="mobile-menu" :class="mobileOpen ? 'open' : ''" aria-hidden="!mobileOpen">
             <a href="#features" x-on:click="mobileOpen = false">Features</a>
+            <a href="#ai-feedback" x-on:click="mobileOpen = false">For Competitors</a>
             <a href="#partner" x-on:click="mobileOpen = false">Partner Program</a>
             <a href="{{ route('filament.portal.auth.login') }}">Log In</a>
         </div>
@@ -464,14 +558,28 @@
                 </div>
                 <h3>Tournament Management</h3>
                 <p>Create events, configure divisions, build draws and manage the full competition lifecycle from a single intuitive panel.</p>
+                <div class="card-example">
+                    <div class="ex-label">Your competitions</div>
+                    <div class="ex-row"><span class="ex-val">Spring Championship 2025</span><span class="ex-badge ex-blue" style="margin-left:auto">▶ Running</span></div>
+                    <div class="ex-row"><span class="ex-val">Winter Invitational</span><span class="ex-badge ex-green" style="margin-left:auto">Open</span></div>
+                    <div class="ex-row"><span class="ex-val">Autumn Regional</span><span class="ex-badge ex-gray" style="margin-left:auto">Planning</span></div>
+                </div>
             </article>
 
             <article class="card">
                 <div class="icon-wrap" aria-hidden="true">
                     <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 </div>
-                <h3>Registrations &amp; Enrolments</h3>
-                <p>Streamline competitor sign-ups with custom enrolment forms, automatic confirmation notifications, and capacity limits per division.</p>
+                <h3>Registrations</h3>
+                <p>Streamline competitor sign-ups with custom registration forms, automatic confirmation notifications, and capacity limits per division.</p>
+                <div class="card-example">
+                    <div style="display:flex;gap:0;margin-bottom:.55rem;">
+                        <span class="ex-badge ex-green" style="border-radius:9999px 0 0 9999px;padding:.2rem .6rem;">✓ Details</span>
+                        <span class="ex-badge ex-indigo" style="border-radius:0 9999px 9999px 0;padding:.2rem .6rem;border-left:none;">2 Choose Events</span>
+                    </div>
+                    <div class="ex-row"><span>Kata</span><span class="ex-dim">— Intermediate Female U18</span><span class="ex-badge ex-green" style="margin-left:auto">✓</span></div>
+                    <div class="ex-row"><span>Open Kumite</span><span class="ex-dim">— Adult Male</span><span class="ex-badge ex-green" style="margin-left:auto">✓</span></div>
+                </div>
             </article>
 
             <article class="card">
@@ -480,6 +588,11 @@
                 </div>
                 <h3>QR Check-In &amp; Weigh-Ins</h3>
                 <p>Scan competitors in at the door using unique QR codes and record weigh-in results on the spot. Fast, contactless, and eliminates manual paper lists on event day.</p>
+                <div class="card-example">
+                    <div class="ex-row"><span class="ex-badge ex-green">✓ Checked in</span><span class="ex-val">Alex Kim</span><span class="ex-dim" style="margin-left:auto">9:42 am</span></div>
+                    <div class="ex-row"><span class="ex-dim">Events:</span><span>Kata &middot; Open Kumite</span></div>
+                    <div class="ex-row"><span class="ex-dim">Weigh-in:</span><span class="ex-val">61.2 kg</span><span class="ex-badge ex-green" style="margin-left:auto">✓ Recorded</span></div>
+                </div>
             </article>
 
             <article class="card">
@@ -488,6 +601,12 @@
                 </div>
                 <h3>Live Scoring</h3>
                 <p>Score timed bouts in real time with configurable round timers, tiebreak rounds, and overtime support. Judges use quick-tap score events; spectators and athletes see results the moment they're posted.</p>
+                <div class="card-example">
+                    <div class="ex-prog"><div class="ex-bar"><div class="ex-bar-fill" style="width:63%"></div></div><span>14 / 22 complete</span></div>
+                    <div class="ex-row" style="background:rgba(34,197,94,.08);border-radius:6px;padding:.3rem .5rem;margin-bottom:.2rem;border-bottom:none;"><span class="ex-mono ex-val">K-INT-F</span><span>Kata — Mat A</span><span class="ex-badge ex-green" style="margin-left:auto">Complete</span></div>
+                    <div class="ex-row" style="background:rgba(251,191,36,.08);border-radius:6px;padding:.3rem .5rem;margin-bottom:.2rem;border-bottom:none;"><span class="ex-mono" style="color:#fde68a;font-weight:700">K-BEG-M</span><span>Kata — Mat B</span><span class="ex-badge ex-amber" style="margin-left:auto">In progress</span></div>
+                    <div class="ex-row" style="padding:.3rem .5rem;"><span class="ex-mono ex-dim">K-ADV-F</span><span class="ex-dim">Kata — Mat A</span><span class="ex-dim" style="margin-left:auto">Waiting</span></div>
+                </div>
             </article>
 
             <article class="card">
@@ -495,7 +614,20 @@
                     <svg fill="none" viewBox="0 0 24 24" stroke="#818cf8" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 </div>
                 <h3>Competitor Portal</h3>
-                <p>Athletes manage their profiles, view event schedules, track enrolments, manage dojo affiliations, and access results through a clean self-service portal.</p>
+                <p>Athletes manage their profiles, view event schedules, track registrations, manage dojo affiliations, and access results through a clean self-service portal.</p>
+                <div class="card-example">
+                    <div class="ex-row" style="align-items:flex-start;gap:.6rem">
+                        <div style="width:30px;height:30px;border-radius:6px;background:linear-gradient(135deg,var(--indigo),var(--purple));display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;font-size:.5rem;font-weight:800;color:white;line-height:1.2;letter-spacing:.03em">
+                            <span>JUN</span><span style="font-size:.85rem;line-height:1">8</span>
+                        </div>
+                        <div style="flex:1;min-width:0">
+                            <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap"><span class="ex-val">Spring Championship 2025</span><span class="ex-badge ex-green">Open</span></div>
+                            <div class="ex-dim">Check-in 8:30 am &middot; City Sports Centre</div>
+                        </div>
+                    </div>
+                    <div class="ex-row"><span class="ex-dim">Jordan Lee</span><span class="ex-badge ex-indigo" style="margin-left:auto">Register now →</span></div>
+                    <div class="ex-row"><span>&#x1F948;</span><span>2nd &mdash; Kata (Intermediate Female U18)</span></div>
+                </div>
             </article>
 
             <article class="card">
@@ -504,6 +636,11 @@
                 </div>
                 <h3>Notifications &amp; Messaging</h3>
                 <p>Keep everyone in the loop with automatic confirmations, schedule updates, and draw announcements. Send targeted competition messages to competitors for last-minute changes — no manual emailing required.</p>
+                <div class="card-example">
+                    <div class="ex-row" style="align-items:flex-start"><span style="font-size:.9rem;flex-shrink:0">📧</span><div><div class="ex-val">Registration confirmed</div><div class="ex-dim">Spring Championship — 2 athletes registered</div></div></div>
+                    <div class="ex-row" style="align-items:flex-start"><span style="font-size:.9rem;flex-shrink:0">📢</span><div><div class="ex-val">Message from organiser</div><div class="ex-dim">Weigh-ins begin at 7:45 am. Please arrive early.</div></div></div>
+                    <div class="ex-row" style="align-items:flex-start"><span style="font-size:.9rem;flex-shrink:0">📧</span><div><div class="ex-val">Your results are in</div><div class="ex-dim">Personal feedback + placements now available in your portal</div></div></div>
+                </div>
             </article>
 
             <article class="card">
@@ -512,6 +649,11 @@
                 </div>
                 <h3>Event Organisation</h3>
                 <p>A full back-office for event organisers — manage members, clubs, officials and events across multiple locations from one place.</p>
+                <div class="card-example">
+                    <div class="ex-row"><span class="ex-dim">Members</span><span class="ex-val">94</span><span class="ex-dim" style="margin-left:auto">Clubs</span><span class="ex-val">6</span></div>
+                    <div class="ex-row"><span class="ex-dim">Officials</span><span class="ex-val">8</span><span class="ex-dim" style="margin-left:auto">Locations</span><span class="ex-val">3</span></div>
+                    <div class="ex-row"><span class="ex-dim">Competitions run</span><span class="ex-val">17 all-time</span><span class="ex-dim" style="margin-left:auto">Upcoming</span><span class="ex-val">2</span></div>
+                </div>
             </article>
 
             <article class="card">
@@ -520,6 +662,14 @@
                 </div>
                 <h3>Flexible Event Configuration</h3>
                 <p>Configure every event exactly how your sport demands — set weight categories, age groups, scoring formats, and tiebreak rules. No two disciplines are the same, and Kompetic doesn't pretend they are.</p>
+                <div class="card-example">
+                    <div class="ex-label">Kumite — event config</div>
+                    <div class="ex-row"><span class="ex-dim">Format</span><span>Round-robin → Final</span></div>
+                    <div class="ex-row"><span class="ex-dim">Scoring</span><span>Points (time-based bouts)</span></div>
+                    <div class="ex-row"><span class="ex-dim">Age bands</span><span>U14 &middot; U18 &middot; Adult &middot; Masters</span></div>
+                    <div class="ex-row"><span class="ex-dim">Weight classes</span><span>-60 kg &middot; -70 kg &middot; +70 kg</span></div>
+                    <div class="ex-row"><span class="ex-dim">Max / division</span><span class="ex-val">8</span><span class="ex-dim" style="margin-left:auto">Tiebreak</span><span>Sudden death</span></div>
+                </div>
             </article>
 
             <article class="card">
@@ -528,6 +678,14 @@
                 </div>
                 <h3>Competition Templates</h3>
                 <p>Save your event configuration as a reusable template. Spin up repeat tournaments — same divisions, rules, and scoring settings — in minutes instead of hours.</p>
+                <div class="card-example">
+                    <div class="ex-label">Saved templates</div>
+                    <div class="ex-row" style="align-items:flex-start">
+                        <div style="flex:1"><div class="ex-val">📋 Autumn Regional</div><div class="ex-dim">Kata &middot; Kumite &middot; Weapons &middot; 5 age bands &middot; Mat A / B / C</div></div>
+                        <span class="ex-badge ex-indigo" style="flex-shrink:0">Use →</span>
+                    </div>
+                    <div class="ex-row"><span class="ex-dim">Last used for</span><span>Winter Invitational &mdash; set up in 4 min</span></div>
+                </div>
             </article>
 
             <article class="card">
@@ -536,6 +694,13 @@
                 </div>
                 <h3>Results &amp; Placements</h3>
                 <p>Rankings are calculated automatically from live scores and published instantly. Manual placement overrides handle edge cases without disrupting the rest of the draw.</p>
+                <div class="card-example">
+                    <div class="ex-label">Kata — Intermediate Female U18</div>
+                    <div class="ex-row"><span>🥇</span><span class="ex-val">Kim, Sarah</span><span class="ex-dim" style="margin-left:auto">47.5 pts</span></div>
+                    <div class="ex-row"><span>🥈</span><span class="ex-val">Tanaka, Yuki</span><span class="ex-dim" style="margin-left:auto">45.0 pts</span></div>
+                    <div class="ex-row"><span>🥉</span><span class="ex-val">Santos, Rosa</span><span class="ex-dim" style="margin-left:auto">43.5 pts</span></div>
+                    <div class="ex-row"><span class="ex-dim">4.</span><span class="ex-dim">Park, Ji-won</span><span class="ex-dim" style="margin-left:auto">42.0 pts</span></div>
+                </div>
             </article>
 
             <article class="card ai">
@@ -544,8 +709,50 @@
                 </div>
                 <h3>AI Insights <span class="ai-pill">AI</span></h3>
                 <p>Kompetic analyses your event data to surface performance trends, participation patterns, and actionable recommendations — helping you run better competitions every time.</p>
+                <div class="card-example" style="border-color:rgba(168,85,247,.15)">
+                    <div style="color:#86efac;font-size:.68rem;font-weight:700;margin-bottom:.3rem">✅ Action Items</div>
+                    <div class="ex-dim" style="padding-left:.5rem;margin-bottom:.45rem">&middot; 3 solo divisions — combine Kata Beginner U12 + U14</div>
+                    <div style="color:#c084fc;font-size:.68rem;font-weight:700;margin-bottom:.3rem">🌟 What's Going Well</div>
+                    <div class="ex-dim" style="padding-left:.5rem;margin-bottom:.45rem">&middot; 18 new registrations in last 7 days — strong momentum</div>
+                    <div style="color:#93c5fd;font-size:.68rem;font-weight:700;margin-bottom:.3rem">💰 Financial Summary</div>
+                    <div class="ex-dim" style="padding-left:.5rem">&middot; $1,240 received &middot; $320 outstanding (4 registrations)</div>
+                </div>
             </article>
 
+        </div>
+    </section>
+
+    <!-- ═══ AI FEEDBACK ═══ -->
+    <section class="ai-feedback-section" id="ai-feedback" aria-labelledby="ai-feedback-heading">
+        <div class="ai-feedback-inner">
+            <div class="section-head" style="margin-bottom:3rem;">
+                <span class="label">For Competitors</span>
+                <h2 id="ai-feedback-heading">Every athlete leaves with<br><span class="grad">personalised AI coaching</span></h2>
+                <p class="sub">After each competition, Kompetic automatically generates personalised feedback and encouragement for every competitor — celebrating wins, recognising growth, and pointing to what to work on next.</p>
+            </div>
+
+            <div class="feedback-showcase">
+                <div class="feedback-card">
+                    <div class="feedback-card-header">
+                        <div class="feedback-avatar" aria-hidden="true">AK</div>
+                        <div>
+                            <div class="feedback-name">Alex Kim</div>
+                            <div class="feedback-event">3 events &mdash; Spring Championship 2025</div>
+                        </div>
+                        <div class="placement-badge">&#x1F948; 2nd Place</div>
+                    </div>
+                    <div class="feedback-body">
+                        <div class="feedback-ai-label" aria-label="AI-generated feedback">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="#c084fc" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                            AI Feedback
+                        </div>
+                        <p class="feedback-text">
+                            Alex had a strong day, taking 2nd in Kata and adding a 3rd in the Open Kumite division — two podium finishes across very different disciplines in a single competition. They also competed in Team Kata, contributing confidently to the group's performance throughout. Results like these show real range and consistency, and both placings reflect genuine skill under pressure. Keep building on it — the top step is well within reach.
+                        </p>
+                    </div>
+                </div>
+                <p class="feedback-caption">Example AI feedback — generated automatically and delivered to each competitor after results are finalised.</p>
+            </div>
         </div>
     </section>
 
@@ -643,7 +850,7 @@
                 });
             }
 
-            document.querySelectorAll('.section-head, .partner-box').forEach(el => {
+            document.querySelectorAll('.section-head, .partner-box, .feedback-showcase').forEach(el => {
                 observer.observe(el);
             });
         })();
