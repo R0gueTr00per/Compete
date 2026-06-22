@@ -95,9 +95,10 @@ class Competition extends Model
     {
         return (float) $this->carts()
             ->where('status', 'submitted')
+            ->with('enrolments')
             ->get()
             ->sum(fn (EnrolmentCart $cart) => (float) ($cart->platform_fee_rate ?? 0)
-                * $cart->enrolments()->whereNotIn('status', ['draft'])->count());
+                * $cart->enrolments->whereNotIn('status', ['draft'])->count());
     }
 
     public function scopeTemplates(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder

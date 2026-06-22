@@ -1,9 +1,4 @@
 <x-filament-panels::page>
-    @script
-    <script>
-        document.addEventListener('livewire:navigated', () => $wire.$refresh());
-    </script>
-    @endscript
 
     @php
         $competitions  = $this->getActiveCompetitions();
@@ -64,28 +59,7 @@
                         default             => null,
                     };
                 @endphp
-                <div x-data="{
-                    qrOpen: false,
-                    copied: false,
-                    async copyQr() {
-                        const svg = this.$refs.qrcode.querySelector('svg');
-                        const svgData = new XMLSerializer().serializeToString(svg);
-                        const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-                        const url = URL.createObjectURL(blob);
-                        const img = new Image();
-                        await new Promise(resolve => { img.onload = resolve; img.src = url; });
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.naturalWidth;
-                        canvas.height = img.naturalHeight;
-                        canvas.getContext('2d').drawImage(img, 0, 0);
-                        URL.revokeObjectURL(url);
-                        canvas.toBlob(async png => {
-                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-                            this.copied = true;
-                            setTimeout(() => this.copied = false, 2000);
-                        }, 'image/png');
-                    }
-                }">
+                <div x-data="{ ...qrCopy(), qrOpen: false }">
                 @php
                     $cardAccent = match ($competition->status) {
                         'open'              => 'accent-green',
@@ -568,6 +542,6 @@
     @endif
 
     @if ($competitions->where('status', 'running')->isNotEmpty())
-        <div wire:poll.10s class="hidden"></div>
+        <div wire:poll.30s class="hidden"></div>
     @endif
 </x-filament-panels::page>

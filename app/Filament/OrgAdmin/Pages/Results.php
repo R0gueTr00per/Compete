@@ -205,8 +205,9 @@ class Results extends Page
         }
 
         return Enrolment::where('competition_id', $this->competition_id)
+            ->select('dojo_type', 'dojo_name', 'guest_style')
             ->distinct()
-            ->get(['dojo_type', 'dojo_name', 'guest_style'])
+            ->get()
             ->map(fn ($e) => $e->dojo_type === 'guest' ? $e->guest_style : $e->dojo_name)
             ->filter()
             ->unique()

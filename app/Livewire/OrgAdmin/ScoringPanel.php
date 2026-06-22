@@ -271,19 +271,18 @@ class ScoringPanel extends Component
 
             Division::find($this->division_id)?->update(['placement_override_mode' => false, 'awarded_places' => null, 'status' => 'assigned', 'category_config' => null]);
 
-            $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
-            Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
-                $result->judgeScores()->delete();
-                $result->scoreEvents()->delete();
-                $result->forceFill([
-                    'total_score'          => null,
-                    'tiebreaker_score'     => null,
-                    'placement'            => null,
-                    'placement_overridden' => false,
-                    'win_loss'             => null,
-                    'disqualified'         => false,
-                ])->save();
-            });
+            $eeIds     = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+            $resultIds = Result::whereIn('enrolment_event_id', $eeIds)->pluck('id');
+            JudgeScore::whereIn('result_id', $resultIds)->delete();
+            ScoreEvent::whereIn('result_id', $resultIds)->delete();
+            Result::whereIn('id', $resultIds)->update([
+                'total_score'          => null,
+                'tiebreaker_score'     => null,
+                'placement'            => null,
+                'placement_overridden' => false,
+                'win_loss'             => null,
+                'disqualified'         => false,
+            ]);
 
             EnrolmentEvent::where('division_id', $this->division_id)->update(['removed' => false]);
 
@@ -313,18 +312,17 @@ class ScoringPanel extends Component
         $ee = EnrolmentEvent::find($enrolmentEventId);
         if (! $ee || $ee->division_id !== $this->division_id) return;
 
-        $eeIds = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
-        Result::whereIn('enrolment_event_id', $eeIds)->each(function (Result $result) {
-            $result->judgeScores()->delete();
-            $result->forceFill([
-                'total_score'          => null,
-                'tiebreaker_score'     => null,
-                'placement'            => null,
-                'placement_overridden' => false,
-                'win_loss'             => null,
-                'disqualified'         => false,
-            ])->save();
-        });
+        $eeIds     = EnrolmentEvent::where('division_id', $this->division_id)->pluck('id');
+        $resultIds = Result::whereIn('enrolment_event_id', $eeIds)->pluck('id');
+        JudgeScore::whereIn('result_id', $resultIds)->delete();
+        Result::whereIn('id', $resultIds)->update([
+            'total_score'          => null,
+            'tiebreaker_score'     => null,
+            'placement'            => null,
+            'placement_overridden' => false,
+            'win_loss'             => null,
+            'disqualified'         => false,
+        ]);
         $this->judgeScores    = [];
         $this->savedResultIds = [];
 

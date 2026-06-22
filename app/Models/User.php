@@ -247,11 +247,6 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser, Has
             ->withTimestamps();
     }
 
-    public function socialAccounts(): HasMany
-    {
-        return $this->hasMany(SocialAccount::class);
-    }
-
     public function instructorOf(): HasMany
     {
         return $this->hasMany(\App\Models\Dojo::class, 'instructor_id');
