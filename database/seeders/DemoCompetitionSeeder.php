@@ -40,7 +40,6 @@ class DemoCompetitionSeeder extends Seeder
             [
                 'competition_date'              => '2027-06-15',
                 'start_time'                    => '09:00:00',
-                'checkin_time'                  => '08:00:00',
                 'enrolment_due_date'            => '2027-06-01',
                 'location_name'                 => 'Demo Sports Centre',
                 'location_address'              => '1 Demo Street, Melbourne VIC 3000',

@@ -23,7 +23,6 @@ class LfpRound1Seeder extends Seeder
             [
                 'competition_date'     => '2026-09-19',
                 'start_time'           => '09:00:00',
-                'checkin_time'         => '08:00:00',
                 'enrolment_due_date'   => '2026-09-05',
                 'location_name'        => 'LFP Training Centre',
                 'location_address'     => 'Dragon St, Melbourne VIC 3000',

@@ -461,7 +461,9 @@ PROMPT;
             'days_until'         => (int) $daysUntil,
             'status'             => 'planning',
             'start_time'         => $competition->start_time ? \Carbon\Carbon::parse($competition->start_time)->format('g:i a') : null,
-            'checkin_time'       => $competition->checkin_time ? \Carbon\Carbon::parse($competition->checkin_time)->format('g:i a') : null,
+            'checkin_time'       => $competition->competitionDays->first()?->checkin_time
+                                        ? \Carbon\Carbon::parse($competition->competitionDays->first()->checkin_time)->format('g:i a')
+                                        : null,
             'enrolment_due'      => $competition->enrolment_due_date?->format('d M Y'),
             'location_name'      => $competition->location_name,
             'target_competitors' => $competition->target_competitors,

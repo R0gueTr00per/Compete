@@ -143,9 +143,15 @@
                         <span class="text-[0.65rem] font-bold uppercase tracking-wide opacity-90">
                             {{ $competition->competition_date->format('M') }}
                         </span>
-                        <span class="text-xl font-bold leading-none mt-0.5">
-                            {{ $competition->competition_date->format('j') }}
-                        </span>
+                        @if ($isMultiDay)
+                            <span class="text-sm font-bold leading-none mt-0.5">
+                                {{ $competition->competition_date->format('j') }}&ndash;{{ $competition->competitionDays->last()->date->format('j') }}
+                            </span>
+                        @else
+                            <span class="text-xl font-bold leading-none mt-0.5">
+                                {{ $competition->competition_date->format('j') }}
+                            </span>
+                        @endif
                     </div>
 
                     <div class="flex-1 min-w-0">
@@ -175,18 +181,39 @@
                                     @endif
                                 @endif
                             @endif
-                            @if ($competition->checkin_time)
-                                @if ($competition->location_name) &mdash; @endif
-                                Check-in {{ tenant_time($competition->checkin_time) }}
-                            @endif
-                            @if ($competition->start_time)
-                                @if ($competition->location_name || $competition->checkin_time) &mdash; @endif
-                                Starts {{ tenant_time($competition->start_time) }}
-                            @endif
-                            @if ($competition->end_time)
-                                &mdash; Ends {{ tenant_time($competition->end_time) }}
+                            @if (!$isMultiDay)
+                                @php $firstDay = $competition->competitionDays->first(); @endphp
+                                @if ($firstDay?->checkin_time)
+                                    @if ($competition->location_name) &mdash; @endif
+                                    Check-in {{ tenant_time($firstDay->checkin_time) }}
+                                @endif
+                                @if ($competition->start_time)
+                                    @if ($competition->location_name || $firstDay?->checkin_time) &mdash; @endif
+                                    Starts {{ tenant_time($competition->start_time) }}
+                                @endif
+                                @if ($competition->end_time)
+                                    &mdash; Ends {{ tenant_time($competition->end_time) }}
+                                @endif
                             @endif
                         </p>
+                        @if ($isMultiDay)
+                            <div class="mt-1 space-y-0.5">
+                                @foreach ($competition->competitionDays as $compDay)
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        <span class="font-medium text-gray-700 dark:text-gray-300">{{ $compDay->date->format('D j M') }}</span>
+                                        @if ($compDay->checkin_time)
+                                            &mdash; Check-in {{ tenant_time($compDay->checkin_time) }}
+                                        @endif
+                                        @if ($compDay->start_time)
+                                            &mdash; Starts {{ tenant_time($compDay->start_time) }}
+                                        @endif
+                                        @if ($compDay->end_time)
+                                            &mdash; Ends {{ tenant_time($compDay->end_time) }}
+                                        @endif
+                                    </p>
+                                @endforeach
+                            </div>
+                        @endif
                         @if ($enrolledCount > 0 && $competition->status !== 'advertise')
                             <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                                 {{ $enrolledCount }} {{ Str::plural('athlete', $enrolledCount) }} registered &middot; {{ tenant_money($totalFee) }} total

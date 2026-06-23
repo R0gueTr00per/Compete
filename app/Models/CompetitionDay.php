@@ -11,6 +11,7 @@ class CompetitionDay extends Model
     protected $fillable = [
         'competition_id',
         'date',
+        'checkin_time',
         'start_time',
         'end_time',
     ];

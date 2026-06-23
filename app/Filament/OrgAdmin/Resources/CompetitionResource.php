@@ -104,6 +104,9 @@ class CompetitionResource extends Resource
                                         ->schema([
                                             DatePicker::make('date')
                                                 ->required(),
+                                            TimePicker::make('checkin_time')
+                                                ->seconds(false)
+                                                ->nullable(),
                                             TimePicker::make('start_time')
                                                 ->required()
                                                 ->seconds(false),
@@ -111,7 +114,7 @@ class CompetitionResource extends Resource
                                                 ->seconds(false)
                                                 ->nullable(),
                                         ])
-                                        ->columns(3)
+                                        ->columns(4)
                                         ->defaultItems(1)
                                         ->minItems(1)
                                         ->addActionLabel('Add day')
@@ -119,10 +122,6 @@ class CompetitionResource extends Resource
                                         ->columnSpanFull(),
 
                                     DatePicker::make('enrolment_due_date')
-                                        ->nullable(),
-
-                                    TimePicker::make('checkin_time')
-                                        ->seconds(false)
                                         ->nullable(),
 
                                     TextInput::make('location_name')
@@ -472,7 +471,6 @@ class CompetitionResource extends Resource
                                 'competition_date'                => $data['first_date'],
                                 'start_time'                      => $record->start_time,
                                 'end_time'                        => $record->end_time,
-                                'checkin_time'                    => $record->checkin_time,
                                 'location_name'                   => $record->location_name,
                                 'location_address'                => $record->location_address,
                                 'location_url'                    => $record->location_url,
@@ -490,9 +488,10 @@ class CompetitionResource extends Resource
 
                             foreach ($sourceDays as $day) {
                                 $new->competitionDays()->create([
-                                    'date'       => \Carbon\Carbon::parse($day->date)->addDays($offsetDays)->toDateString(),
-                                    'start_time' => $day->start_time,
-                                    'end_time'   => $day->end_time,
+                                    'date'         => \Carbon\Carbon::parse($day->date)->addDays($offsetDays)->toDateString(),
+                                    'checkin_time' => $day->checkin_time,
+                                    'start_time'   => $day->start_time,
+                                    'end_time'     => $day->end_time,
                                 ]);
                             }
                             $new->syncDerivedDates();
@@ -526,7 +525,6 @@ class CompetitionResource extends Resource
                                 'competition_date'                => null,
                                 'enrolment_due_date'              => null,
                                 'start_time'                      => $record->start_time,
-                                'checkin_time'                    => $record->checkin_time,
                                 'location_name'                   => $record->location_name,
                                 'location_address'                => $record->location_address,
                                 'location_url'                    => $record->location_url,

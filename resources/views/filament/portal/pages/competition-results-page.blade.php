@@ -57,12 +57,13 @@
                                         {{ $competition->location_name }}
                                     @endif
                                 @endif
-                                @if ($competition->checkin_time)
+                                @php $firstDay = $competition->competitionDays->first(); @endphp
+                                @if ($firstDay?->checkin_time)
                                     @if ($competition->location_name) &mdash; @endif
-                                    Check-in {{ tenant_time($competition->checkin_time) }}
+                                    Check-in {{ tenant_time($firstDay->checkin_time) }}
                                 @endif
                                 @if ($competition->start_time)
-                                    @if ($competition->location_name || $competition->checkin_time) &mdash; @endif
+                                    @if ($competition->location_name || $firstDay?->checkin_time) &mdash; @endif
                                     Starts {{ tenant_time($competition->start_time) }}
                                 @endif
                                 @if ($competition->end_time)

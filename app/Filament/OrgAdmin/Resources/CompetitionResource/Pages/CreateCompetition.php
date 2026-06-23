@@ -74,7 +74,6 @@ class CreateCompetition extends CreateRecord
                             $set('location_name', $template->location_name);
                             $set('location_address', $template->location_address);
                             $set('start_time', $template->start_time);
-                            $set('checkin_time', $template->checkin_time);
                             $set('target_competitors', $template->target_competitors);
 
                             Notification::make()
@@ -99,6 +98,9 @@ class CreateCompetition extends CreateRecord
                                 ->schema([
                                     DatePicker::make('date')
                                         ->required(),
+                                    TimePicker::make('checkin_time')
+                                        ->seconds(false)
+                                        ->nullable(),
                                     TimePicker::make('start_time')
                                         ->required()
                                         ->seconds(false),
@@ -106,7 +108,7 @@ class CreateCompetition extends CreateRecord
                                         ->seconds(false)
                                         ->nullable(),
                                 ])
-                                ->columns(3)
+                                ->columns(4)
                                 ->defaultItems(1)
                                 ->minItems(1)
                                 ->addActionLabel('Add day')
@@ -114,10 +116,6 @@ class CreateCompetition extends CreateRecord
                                 ->columnSpanFull(),
 
                             DatePicker::make('enrolment_due_date')
-                                ->nullable(),
-
-                            TimePicker::make('checkin_time')
-                                ->seconds(false)
                                 ->nullable(),
 
                             TextInput::make('location_name')
@@ -266,9 +264,10 @@ class CreateCompetition extends CreateRecord
     {
         foreach ($this->pendingDays as $day) {
             $this->record->competitionDays()->create([
-                'date'       => $day['date'],
-                'start_time' => $day['start_time'] ?? null,
-                'end_time'   => $day['end_time'] ?? null,
+                'date'         => $day['date'],
+                'checkin_time' => $day['checkin_time'] ?? null,
+                'start_time'   => $day['start_time'] ?? null,
+                'end_time'     => $day['end_time'] ?? null,
             ]);
         }
 

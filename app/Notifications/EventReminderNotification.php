@@ -32,12 +32,18 @@ class EventReminderNotification extends Notification implements ShouldQueue
                 . ($ee->division ? " ({$ee->division->label})" : ''))
             ->join(', ');
 
-        return (new MailMessage)
+        $mail = (new MailMessage)
             ->subject("Reminder: {$this->competition->name} is in 7 days")
             ->greeting("Hi {$notifiable->name},")
             ->line("This is a reminder that **{$this->competition->name}** is on **{$date}**.")
-            ->line("Your events: {$events}")
-            ->line("Check-in from: " . \Carbon\Carbon::parse($this->competition->checkin_time)->format('H:i'))
+            ->line("Your events: {$events}");
+
+        $checkinTime = $this->competition->competitionDays()->orderBy('date')->first()?->checkin_time;
+        if ($checkinTime) {
+            $mail->line("Check-in from: " . \Carbon\Carbon::parse($checkinTime)->format('H:i'));
+        }
+
+        return $mail
             ->line("Location: {$this->competition->location_name}")
             ->action('View my registrations', url('/portal/account'))
             ->line('See you on the mat!');
