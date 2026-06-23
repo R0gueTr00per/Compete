@@ -82,6 +82,9 @@ class Enrolment extends Model
             return false;
         }
         $competition = $this->competition;
+        if (in_array($competition->status, ['running', 'complete'])) {
+            return false;
+        }
         if (now()->isAfter($competition->competition_date->endOfDay())) {
             return false;
         }
