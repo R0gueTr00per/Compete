@@ -793,8 +793,6 @@
 
     @endif
 
-    <livewire:org-admin.tiebreaker-panel :division-id="$division_id" />
-
     @php
         $isAllScored = in_array($method, ['judges_total', 'judges_average'])
             && $rows->isNotEmpty()

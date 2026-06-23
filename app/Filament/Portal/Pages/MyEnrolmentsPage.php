@@ -150,7 +150,7 @@ class MyEnrolmentsPage extends Page
 
     public function canEditEvents(Enrolment $enrolment): bool
     {
-        if (in_array($enrolment->status, ['withdrawn', 'checked_in', 'draft'])) {
+        if (in_array($enrolment->status, ['withdrawn', 'draft'])) {
             return false;
         }
         $status = $enrolment->competition->status;

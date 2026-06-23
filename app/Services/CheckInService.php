@@ -23,15 +23,6 @@ class CheckInService
                 'checked_in_by' => auth()->id(),
             ]
         );
-
-        // Stamp first-ever check-in on the enrolment
-        if (! $enrolment->checked_in_at) {
-            $enrolment->update([
-                'checked_in'    => true,
-                'checked_in_at' => now(),
-                'status'        => 'checked_in',
-            ]);
-        }
     }
 
     public function undoCheckIn(Enrolment $enrolment, int $dayId): void
@@ -40,17 +31,10 @@ class CheckInService
             ->where('competition_day_id', $dayId)
             ->delete();
 
-        // If no remaining check-ins, revert enrolment to pre-checked-in state
-        if (! EnrolmentCheckIn::where('enrolment_id', $enrolment->id)->exists()) {
-            $enrolment->update([
-                'checked_in'    => false,
-                'checked_in_at' => null,
-                'status'        => 'confirmed',
-            ]);
-
-            // Clear weight confirmations so they can be re-entered next time
-            $enrolment->activeEvents()->update(['weight_confirmed_kg' => null]);
-        }
+        // Clear weight confirmations for this day so they can be re-entered next time
+        $enrolment->activeEvents()
+            ->whereHas('division', fn ($q) => $q->where('competition_day_id', $dayId))
+            ->update(['weight_confirmed_kg' => null]);
     }
 
     /**

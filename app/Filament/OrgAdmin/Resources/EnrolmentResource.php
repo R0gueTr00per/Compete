@@ -72,8 +72,9 @@ class EnrolmentResource extends Resource
                 ->with([
                     'competitor',
                     'rank',
-                    'competition',
+                    'competition.competitionDays',
                     'cart.acceptedBy',
+                    'checkIns',
                     'activeEvents.competitionEvent',
                     'activeEvents.division',
                     'activeEvents.previousDivision',
@@ -124,28 +125,49 @@ class EnrolmentResource extends Resource
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (string $state) => match ($state) {
-                        'pending'    => 'Pending',
-                        'confirmed'  => 'Confirmed',
-                        'checked_in' => 'Checked In',
-                        'withdrawn'  => 'Withdrawn',
-                        default      => ucfirst($state),
+                        'pending'   => 'Pending',
+                        'confirmed' => 'Confirmed',
+                        'withdrawn' => 'Withdrawn',
+                        default     => ucfirst($state),
                     })
                     ->color(fn (string $state) => match ($state) {
-                        'pending'    => 'warning',
-                        'confirmed'  => 'success',
-                        'checked_in' => 'info',
-                        'withdrawn'  => 'danger',
-                        default      => 'gray',
+                        'pending'   => 'warning',
+                        'confirmed' => 'success',
+                        'withdrawn' => 'danger',
+                        default     => 'gray',
+                    }),
+
+                TextColumn::make('check_in_days')
+                    ->label('Check-in')
+                    ->badge()
+                    ->getStateUsing(function (Enrolment $record): string {
+                        $total   = $record->competition?->competitionDays?->count() ?? 0;
+                        $checked = $record->checkIns->count();
+
+                        if ($checked === 0) {
+                            return '—';
+                        }
+                        if ($total <= 1) {
+                            return 'Checked In';
+                        }
+                        return "{$checked} of {$total} days";
+                    })
+                    ->color(function (Enrolment $record): string {
+                        $total   = $record->competition?->competitionDays?->count() ?? 0;
+                        $checked = $record->checkIns->count();
+
+                        if ($checked === 0) return 'gray';
+                        if ($total > 0 && $checked >= $total) return 'success';
+                        return 'info';
                     }),
 
             ])
             ->filters([
                 SelectFilter::make('status')
                     ->options([
-                        'pending'    => 'Pending',
-                        'confirmed'  => 'Confirmed',
-                        'checked_in' => 'Checked in',
-                        'withdrawn'  => 'Withdrawn',
+                        'pending'   => 'Pending',
+                        'confirmed' => 'Confirmed',
+                        'withdrawn' => 'Withdrawn',
                     ]),
                 SelectFilter::make('payment_status')
                     ->label('Payment')

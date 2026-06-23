@@ -78,7 +78,7 @@ class Enrolment extends Model
 
     public function canWithdraw(): bool
     {
-        if (in_array($this->status, ['withdrawn', 'checked_in', 'draft'])) {
+        if (in_array($this->status, ['withdrawn', 'draft'])) {
             return false;
         }
         $competition = $this->competition;

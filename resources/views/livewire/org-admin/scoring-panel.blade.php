@@ -67,6 +67,9 @@
                     <livewire:org-admin.judge-score-panel
                         :division-id="$division_id"
                         wire:key="judge-{{ $division_id }}" />
+                    <livewire:org-admin.tiebreaker-panel
+                        :division-id="$division_id"
+                        wire:key="tiebreaker-{{ $division_id }}" />
                 @endif
             @endif
 
