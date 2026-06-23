@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\EnrolmentCart;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -27,15 +28,15 @@ class AccountStatementNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $org      = app('tenant');
         $currency = tenant_currency();
         $net      = $this->outstanding - $this->refundDue;
 
         $message = (new MailMessage)
-            ->subject('Account statement — ' . app('tenant')?->name)
+            ->subject('Account statement — ' . $org?->name)
             ->greeting('Hi ' . $notifiable->getFilamentName() . ',')
-            ->line('Here is your current account summary with ' . app('tenant')?->name . '.');
+            ->line('Here is your current account summary with ' . $org?->name . '.');
 
-        // Balance summary
         if (abs($net) < 0.01) {
             $message->line('**Balance: Settled ✓**');
         } elseif ($net > 0) {
@@ -46,11 +47,10 @@ class AccountStatementNotification extends Notification
 
         $message->line('---');
 
-        // Per-cart detail
         foreach ($this->carts as $cart) {
-            $comp        = $cart->competition;
-            $enrolments  = $cart->enrolments->filter(fn ($e) => ! $e->trashed())->whereNotIn('status', ['draft']);
-            $refunds     = $cart->refunds ?? collect();
+            $comp       = $cart->competition;
+            $enrolments = $cart->enrolments->filter(fn ($e) => ! $e->trashed())->whereNotIn('status', ['draft']);
+            $refunds    = $cart->refunds ?? collect();
 
             if ($enrolments->isEmpty() && $refunds->isEmpty()) continue;
 
@@ -79,8 +79,11 @@ class AccountStatementNotification extends Notification
             $message->line('---');
         }
 
-        $message->line('If you have any questions please contact the organisation directly.');
+        $message->line('If you have any questions please contact the organisation directly.')
+            ->action('View my account', route('filament.portal.pages.account'));
 
-        return $message->action('View my account', route('filament.portal.pages.account'));
+        $portalUrl = $org ? EmailFooterHelper::portalUrl($org) : '';
+
+        return EmailFooterHelper::append($message, $org ?: null, $portalUrl);
     }
 }

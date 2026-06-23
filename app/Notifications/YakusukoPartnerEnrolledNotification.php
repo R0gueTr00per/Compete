@@ -2,12 +2,12 @@
 
 namespace App\Notifications;
 
+use App\Mail\YakusukoPartnerEnrolledMail;
 use App\Models\Competition;
 use App\Models\CompetitionEvent;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class YakusukoPartnerEnrolledNotification extends Notification implements ShouldQueue
@@ -25,17 +25,13 @@ class YakusukoPartnerEnrolledNotification extends Notification implements Should
         return ['mail'];
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(object $notifiable): YakusukoPartnerEnrolledMail
     {
-        return (new MailMessage)
-            ->subject("Yakusuko partner confirmed — {$this->competition->name}")
-            ->greeting("Hi {$notifiable->getFilamentName()},")
-            ->line("Your Yakusuko partner **{$this->partner->getFilamentName()}** has registered for the same event.")
-            ->line("**Competition:** {$this->competition->name}")
-            ->line("**Date:** " . $this->competition->competition_date->format('l, d F Y'))
-            ->line("**Event:** {$this->event->event_code} — {$this->event->name}")
-            ->line("Both of you are now confirmed as Yakusuko partners for this event.")
-            ->action('View my registrations', url('/portal'))
-            ->line("See you at the competition!");
+        return new YakusukoPartnerEnrolledMail(
+            $this->competition,
+            $this->event,
+            $this->partner,
+            $notifiable,
+        );
     }
 }

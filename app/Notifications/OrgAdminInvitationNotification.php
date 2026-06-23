@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\OrganisationMembership;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -41,18 +42,20 @@ class OrgAdminInvitationNotification extends Notification implements ShouldQueue
             ->subject("You've been invited to {$org->name} on Kompetic");
 
         if ($isNewUser) {
-            return $message
+            $message
                 ->greeting('Hello,')
                 ->line("You've been invited to join **{$org->name}** as a {$roleLabel} on Kompetic.")
                 ->line('Click the button below to set up your account and get started.')
                 ->action('Accept Invitation', $acceptUrl)
                 ->line('This invitation expires in 7 days.');
+        } else {
+            $message
+                ->greeting('Hello,')
+                ->line("You've been added to **{$org->name}** as a {$roleLabel} on Kompetic.")
+                ->action('Access Organisation', $acceptUrl)
+                ->line('This link expires in 7 days.');
         }
 
-        return $message
-            ->greeting('Hello,')
-            ->line("You've been added to **{$org->name}** as a {$roleLabel} on Kompetic.")
-            ->action('Access Organisation', $acceptUrl)
-            ->line('This link expires in 7 days.');
+        return EmailFooterHelper::append($message, $org, EmailFooterHelper::portalUrl($org));
     }
 }

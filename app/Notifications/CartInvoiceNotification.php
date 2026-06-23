@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\EnrolmentCart;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -11,6 +12,7 @@ use Illuminate\Notifications\Notification;
 class CartInvoiceNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+
     /**
      * @param  array{competition: string, competition_date: string, location_name: ?string, items: array, grand_total: float}  $invoice
      */
@@ -26,6 +28,8 @@ class CartInvoiceNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $org = $this->cart->competition?->organisation;
+
         $message = (new MailMessage)
             ->subject('Registration Invoice')
             ->greeting("Hi {$notifiable->getFilamentName()},")
@@ -40,8 +44,8 @@ class CartInvoiceNotification extends Notification implements ShouldQueue
             }
 
             foreach ($item['events'] as $event) {
-                $division = $event['division_label'] ? " — {$event['division_label']}" : '';
-                $message->line("  • {$event['event_name']}{$division}: \$" . number_format($event['fee'], 2));
+                $division = $event['division_label'] ? " / {$event['division_label']}" : '';
+                $message->line("• **{$event['event_name']}**{$division}: \$" . number_format($event['fee'], 2));
             }
 
             if ($item['late_surcharge'] !== null) {
@@ -68,8 +72,11 @@ class CartInvoiceNotification extends Notification implements ShouldQueue
             $message->line('Includes GST of $' . number_format($totalGst, 2));
         }
 
-        $message->line('Payment is collected at the competition check-in desk.');
+        $message->line('Payment is collected at the competition check-in desk.')
+            ->action('View portal', url('/portal'));
 
-        return $message->action('View portal', url('/portal'));
+        $portalUrl = $org ? EmailFooterHelper::portalUrl($org) : '';
+
+        return EmailFooterHelper::append($message, $org, $portalUrl);
     }
 }

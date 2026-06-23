@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Models\Organisation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -32,8 +33,16 @@ class SupportRequestMail extends Mailable
 
     public function content(): Content
     {
+        $org       = Organisation::where('slug', $this->organisationSlug)->first();
+        $portalUrl = config('app.scheme') . '://' . $this->organisationSlug . '.' . config('app.domain', 'kompetic.com') . '/portal';
+
         return new Content(
             markdown: 'emails.support-request',
+            with: [
+                'org'            => $org,
+                'portalUrl'      => $portalUrl,
+                'marketingEmail' => false,
+            ],
         );
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,7 +29,7 @@ class PendingEmailVerificationNotification extends Notification implements Shoul
             ['id' => $this->user->getKey(), 'hash' => sha1($this->user->pending_email)],
         );
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject('Confirm your new email address')
             ->greeting('Confirm your email change')
             ->line('You requested to change your login email address to **' . $this->user->pending_email . '**.')
@@ -36,5 +37,7 @@ class PendingEmailVerificationNotification extends Notification implements Shoul
             ->action('Confirm Email Change', $verifyUrl)
             ->line('This link expires in 24 hours.')
             ->line('If you did not request this change, you can safely ignore this email — your current address will remain unchanged.');
+
+        return EmailFooterHelper::append($message);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\EnrolmentCart;
 use App\Models\Refund;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -22,10 +23,11 @@ class RefundIssuedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $comp      = $this->cart->competition;
-        $compName  = $comp?->name ?? 'Competition';
-        $compDate  = $comp?->competition_date ? tenant_date($comp->competition_date) : '';
-        $currency  = tenant_currency();
+        $comp     = $this->cart->competition;
+        $compName = $comp?->name ?? 'Competition';
+        $compDate = $comp?->competition_date ? tenant_date($comp->competition_date) : '';
+        $currency = tenant_currency();
+        $org      = $comp?->organisation;
 
         $message = (new MailMessage)
             ->subject("Refund issued — {$compName}")
@@ -50,10 +52,12 @@ class RefundIssuedNotification extends Notification
 
         $totalRefunded = $this->refunds->sum('amount');
         $message->line('---')
-            ->line('**Total refunded: ' . $currency . ' ' . number_format((float) $totalRefunded, 2) . '**');
+            ->line('**Total refunded: ' . $currency . ' ' . number_format((float) $totalRefunded, 2) . '**')
+            ->line('If you have any questions, please contact the organisation directly.')
+            ->action('View my registrations', route('filament.portal.pages.account'));
 
-        $message->line('If you have any questions, please contact the organisation directly.');
+        $portalUrl = $org ? EmailFooterHelper::portalUrl($org) : '';
 
-        return $message->action('View my registrations', route('filament.portal.pages.account'));
+        return EmailFooterHelper::append($message, $org, $portalUrl);
     }
 }

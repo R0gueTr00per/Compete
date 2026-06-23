@@ -28,12 +28,18 @@ class CompetitionInsightsMail extends Mailable
 
     public function content(): Content
     {
+        $org       = $this->competition->organisation;
+        $portalUrl = config('app.scheme') . '://' . $org->slug . '.' . config('app.domain', 'kompetic.com') . '/portal';
+
         return new Content(
             markdown: 'emails.competition-insights',
             with: [
-                'competition' => $this->competition,
-                'insight'     => $this->insight,
-                'sections'    => $this->parseSections($this->insight->content),
+                'competition'    => $this->competition,
+                'insight'        => $this->insight,
+                'sections'       => $this->parseSections($this->insight->content),
+                'org'            => $org,
+                'portalUrl'      => $portalUrl,
+                'marketingEmail' => false,
             ],
         );
     }

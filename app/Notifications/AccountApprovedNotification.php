@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\Organisation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -30,11 +31,15 @@ class AccountApprovedNotification extends Notification implements \Illuminate\Co
             ? "Your membership for **{$this->org->name}** has been approved."
             : 'Great news — your account has been approved and is now active.';
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject('Your account is now active')
             ->greeting("Hi {$name},")
             ->line($orgLine)
             ->line('You can now log in and enrol in competitions.')
             ->action('Log in now', $loginUrl);
+
+        $portalUrl = $this->org ? EmailFooterHelper::portalUrl($this->org) : '';
+
+        return EmailFooterHelper::append($message, $this->org, $portalUrl);
     }
 }

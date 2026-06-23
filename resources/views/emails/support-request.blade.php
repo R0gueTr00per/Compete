@@ -13,7 +13,5 @@
 
 {{ $notes }}
 
----
-
-*Sent via the Kompetic support form*
+@include('emails.partials.email-footer')
 </x-mail::message>

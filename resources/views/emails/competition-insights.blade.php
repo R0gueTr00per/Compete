@@ -24,4 +24,6 @@ View Full Insights
 </x-mail::button>
 
 *Powered by {{ $insight->model_used }} via {{ config('app.name') }}*
+
+@include('emails.partials.email-footer')
 </x-mail::message>

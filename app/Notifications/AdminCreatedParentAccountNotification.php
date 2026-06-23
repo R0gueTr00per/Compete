@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\Enrolment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,26 +26,20 @@ class AdminCreatedParentAccountNotification extends Notification implements Shou
     public function toMail(object $notifiable): MailMessage
     {
         $competition = $this->enrolment->competition;
+        $org         = $competition->organisation;
         $childName   = $this->enrolment->competitor?->full_name ?? 'your child';
         $parentName  = $notifiable->getFilamentName();
 
         $events = $this->enrolment->activeEvents()
             ->with(['competitionEvent', 'division'])
-            ->get()
-            ->map(function ($ee) {
-                $label = $ee->competitionEvent->name;
-                if ($ee->division) {
-                    $label .= ': ' . $ee->division->label;
-                }
-                return $label;
-            });
+            ->get();
 
         $resetUrl = \Illuminate\Support\Facades\URL::signedRoute('filament.portal.auth.password-reset.reset', [
             'token' => $this->resetToken,
             'email' => $notifiable->email,
         ]);
 
-        $orgName = $competition->organisation?->name;
+        $orgName = $org?->name;
         $subject = $orgName
             ? "Welcome to {$orgName} — {$childName} has been registered"
             : "Welcome to Compete — {$childName} has been registered";
@@ -60,21 +55,28 @@ class AdminCreatedParentAccountNotification extends Notification implements Shou
             ->line("**Date:** {$competition->competition_date->format('l, d F Y')}");
 
         if ($competition->location_name) {
-            $locationLine = $competition->location_name;
+            $location = $competition->location_name;
             if ($competition->location_address) {
-                $locationLine .= ', ' . $competition->location_address;
+                $location .= ', ' . $competition->location_address;
             }
-            $message->line("**Venue:** {$locationLine}");
+            $message->line("**Venue:** {$location}");
         }
 
-        $message->line("**{$childName}'s events:**");
+        $message->line("**{$childName}'s registered events:**");
 
-        foreach ($events as $event) {
-            $message->line("- {$event}");
+        foreach ($events as $ee) {
+            $message->line(
+                "• **{$ee->competitionEvent->event_code} — {$ee->competitionEvent->name}**"
+                . ($ee->division ? " / {$ee->division->label}" : '')
+            );
         }
 
-        $message->line('To set your password and manage your child\'s registrations, click the button below.');
+        $message
+            ->line("To set your password and manage {$childName}'s registrations, click the button below.")
+            ->action('Set your password', $resetUrl);
 
-        return $message->action('Set your password', $resetUrl);
+        $portalUrl = $org ? EmailFooterHelper::portalUrl($org) : '';
+
+        return EmailFooterHelper::append($message, $org, $portalUrl);
     }
 }

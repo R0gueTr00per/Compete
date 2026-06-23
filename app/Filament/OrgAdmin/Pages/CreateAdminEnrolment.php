@@ -10,6 +10,7 @@ use App\Models\OrganisationMembership;
 use App\Models\User;
 use App\Notifications\AdminCreatedAccountNotification;
 use App\Notifications\AdminCreatedParentAccountNotification;
+use App\Notifications\EnrolmentConfirmedNotification;
 use App\Models\Rank;
 use App\Services\DivisionAssignmentService;
 use App\Services\EnrolmentService;
@@ -631,9 +632,11 @@ class CreateAdminEnrolment extends Page implements HasForms
         if ($newAdultUser !== null) {
             $resetToken = Password::broker()->createToken($newAdultUser);
             $newAdultUser->notify(new AdminCreatedAccountNotification($enrolment, $resetToken));
+            $newAdultUser->notify(new EnrolmentConfirmedNotification($enrolment));
         } elseif ($newParentUser !== null) {
             $resetToken = Password::broker()->createToken($newParentUser);
             $newParentUser->notify(new AdminCreatedParentAccountNotification($enrolment, $resetToken));
+            $newParentUser->notify(new EnrolmentConfirmedNotification($enrolment));
         }
 
         Notification::make()->title('Enrolment created successfully.')->success()->send();

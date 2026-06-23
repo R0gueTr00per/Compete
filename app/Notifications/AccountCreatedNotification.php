@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\Organisation;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,8 +47,12 @@ class AccountCreatedNotification extends Notification implements ShouldQueue
             $message->line('An account has been created for you on Compete.');
         }
 
-        return $message
+        $message
             ->line('Click the button below to set your password and access your account.')
             ->action('Set your password', $resetUrl);
+
+        $portalUrl = $this->org ? EmailFooterHelper::portalUrl($this->org) : '';
+
+        return EmailFooterHelper::append($message, $this->org, $portalUrl);
     }
 }

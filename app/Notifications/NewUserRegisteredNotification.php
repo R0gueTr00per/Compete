@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\OrganisationMembership;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
@@ -37,10 +38,14 @@ class NewUserRegisteredNotification extends Notification implements \Illuminate\
             $body    = "**{$name}** ({$this->newUser->email}) has registered and is awaiting approval.";
         }
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject($subject)
             ->greeting('New registration')
             ->line($body)
             ->action('Review in Users', $url);
+
+        $portalUrl = $org ? EmailFooterHelper::portalUrl($org) : '';
+
+        return EmailFooterHelper::append($message, $org, $portalUrl);
     }
 }

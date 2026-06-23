@@ -21,7 +21,7 @@
 {{-- Footer --}}
 <x-slot:footer>
 <x-mail::footer>
-© {{ date('Y') }} {{ config('app.name') }}. {{ __('All rights reserved.') }}
+[Kompetic]({{ config('app.scheme') . '://' . config('app.domain', 'kompetic.com') }}) — Tournament Management
 </x-mail::footer>
 </x-slot:footer>
 </x-mail::layout>

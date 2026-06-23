@@ -32,22 +32,5 @@ Register now
 
 Log in to your competitor portal to view competition details and register your profile(s).
 
----
-
-@if ($org->contact_phone || $org->contact_email || $org->website)
----
-
-**Contact {{ $org->name }}:**
-@if ($org->contact_phone)
-Phone: {{ $org->contact_phone }}
-@endif
-@if ($org->contact_email)
-Email: {{ $org->contact_email }}
-@endif
-@if ($org->website)
-Website: [{{ $org->website }}]({{ $org->website }})
-@endif
-@endif
-
-*You are receiving this email because you are a member of {{ $org->name }} on [Kompetic]({{ config('app.scheme') . '://' . config('app.domain', 'kompetic.com') }}). To stop receiving these emails, update your preferences in your [competitor portal]({{ $portalUrl . '/preferences' }}).*
+@include('emails.partials.email-footer')
 </x-mail::message>

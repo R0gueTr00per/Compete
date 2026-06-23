@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Mail\Support\EmailFooterHelper;
 use App\Models\Enrolment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -25,55 +26,56 @@ class AdminCreatedAccountNotification extends Notification implements ShouldQueu
     public function toMail(object $notifiable): MailMessage
     {
         $competition = $this->enrolment->competition;
-        $name = $notifiable->getFilamentName();
+        $org         = $competition->organisation;
+        $name        = $notifiable->getFilamentName();
 
         $events = $this->enrolment->activeEvents()
             ->with(['competitionEvent', 'division'])
-            ->get()
-            ->map(function ($ee) {
-                $label = $ee->competitionEvent->name;
-                if ($ee->division) {
-                    $label .= ': ' . $ee->division->label;
-                }
-                return $label;
-            });
+            ->get();
 
         $resetUrl = \Illuminate\Support\Facades\URL::signedRoute('filament.portal.auth.password-reset.reset', [
             'token' => $this->resetToken,
             'email' => $notifiable->email,
         ]);
 
-        $orgName = $competition->organisation?->name;
+        $orgName = $org?->name;
         $subject = $orgName
             ? "Welcome to {$orgName} — your account is ready"
-            : "Welcome to Compete — your account is ready";
+            : 'Welcome to Compete — your account is ready';
 
         $message = (new MailMessage)
             ->subject($subject)
             ->greeting("Hi {$name},")
             ->line($orgName
                 ? "An account has been created for you on **{$orgName}** and you have been registered for the following competition:"
-                : "An account has been created for you on Compete and you have been registered for the following competition:"
+                : 'An account has been created for you on Compete and you have been registered for the following competition:'
             )
             ->line("**{$competition->name}**")
             ->line("**Date:** {$competition->competition_date->format('l, d F Y')}");
 
         if ($competition->location_name) {
-            $locationLine = $competition->location_name;
+            $location = $competition->location_name;
             if ($competition->location_address) {
-                $locationLine .= ', ' . $competition->location_address;
+                $location .= ', ' . $competition->location_address;
             }
-            $message->line("**Venue:** {$locationLine}");
+            $message->line("**Venue:** {$location}");
         }
 
-        $message->line('**Your events:**');
+        $message->line('**Your registered events:**');
 
-        foreach ($events as $event) {
-            $message->line("- {$event}");
+        foreach ($events as $ee) {
+            $message->line(
+                "• **{$ee->competitionEvent->event_code} — {$ee->competitionEvent->name}**"
+                . ($ee->division ? " / {$ee->division->label}" : '')
+            );
         }
 
-        $message->line('To set your password and access your account, click the button below.');
+        $message
+            ->line('To set your password and access your account, click the button below.')
+            ->action('Set your password', $resetUrl);
 
-        return $message->action('Set your password', $resetUrl);
+        $portalUrl = $org ? EmailFooterHelper::portalUrl($org) : '';
+
+        return EmailFooterHelper::append($message, $org, $portalUrl);
     }
 }
