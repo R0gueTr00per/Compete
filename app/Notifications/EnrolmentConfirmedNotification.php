@@ -12,7 +12,10 @@ class EnrolmentConfirmedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public readonly Enrolment $enrolment) {}
+    public function __construct(public readonly Enrolment $enrolment)
+    {
+        $this->queue = 'mail';
+    }
 
     public function via(object $notifiable): array
     {

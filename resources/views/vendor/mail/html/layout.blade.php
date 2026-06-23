@@ -33,6 +33,9 @@ width: 100% !important;
 <table class="content" width="100%" cellpadding="0" cellspacing="0" role="presentation">
 {!! $header ?? '' !!}
 
+<!-- Accent bar -->
+<tr><td bgcolor="#2563a8" style="background-color:#2563a8;height:4px;font-size:4px;line-height:4px;">&nbsp;</td></tr>
+
 <!-- Email Body -->
 <tr>
 <td class="body" width="100%" cellpadding="0" cellspacing="0" style="border: hidden !important;">

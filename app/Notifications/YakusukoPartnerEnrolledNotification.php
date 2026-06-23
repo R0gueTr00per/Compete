@@ -18,7 +18,9 @@ class YakusukoPartnerEnrolledNotification extends Notification implements Should
         private readonly Competition $competition,
         private readonly CompetitionEvent $event,
         private readonly User $partner,
-    ) {}
+    ) {
+        $this->queue = 'mail';
+    }
 
     public function via(object $notifiable): array
     {

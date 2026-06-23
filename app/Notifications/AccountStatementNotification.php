@@ -2,14 +2,17 @@
 
 namespace App\Notifications;
 
-use App\Mail\Support\EmailFooterHelper;
+use App\Mail\AccountStatementMail;
 use App\Models\EnrolmentCart;
-use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 
-class AccountStatementNotification extends Notification
+class AccountStatementNotification extends Notification implements ShouldQueue
 {
+    use Queueable;
+
     /**
      * @param Collection<EnrolmentCart> $carts       All submitted carts for this org (with enrolments + refunds loaded)
      * @param float                     $outstanding  Total outstanding fees
@@ -19,71 +22,17 @@ class AccountStatementNotification extends Notification
         public readonly Collection $carts,
         public readonly float      $outstanding,
         public readonly float      $refundDue,
-    ) {}
+    ) {
+        $this->queue = 'mail';
+    }
 
     public function via(object $notifiable): array
     {
         return ['mail'];
     }
 
-    public function toMail(object $notifiable): MailMessage
+    public function toMail(object $notifiable): AccountStatementMail
     {
-        $org      = app('tenant');
-        $currency = tenant_currency();
-        $net      = $this->outstanding - $this->refundDue;
-
-        $message = (new MailMessage)
-            ->subject('Account statement — ' . $org?->name)
-            ->greeting('Hi ' . $notifiable->getFilamentName() . ',')
-            ->line('Here is your current account summary with ' . $org?->name . '.');
-
-        if (abs($net) < 0.01) {
-            $message->line('**Balance: Settled ✓**');
-        } elseif ($net > 0) {
-            $message->line('**Balance: ' . $currency . ' ' . number_format($net, 2) . ' outstanding**');
-        } else {
-            $message->line('**Balance: ' . $currency . ' ' . number_format(abs($net), 2) . ' refund due**');
-        }
-
-        $message->line('---');
-
-        foreach ($this->carts as $cart) {
-            $comp       = $cart->competition;
-            $enrolments = $cart->enrolments->filter(fn ($e) => ! $e->trashed())->whereNotIn('status', ['draft']);
-            $refunds    = $cart->refunds ?? collect();
-
-            if ($enrolments->isEmpty() && $refunds->isEmpty()) continue;
-
-            $message->line('**' . ($comp?->name ?? 'Competition') . '**'
-                . ($comp ? ' — ' . tenant_date($comp->competition_date) : ''));
-
-            $isPaid = $cart->isPaid();
-            foreach ($enrolments as $enrolment) {
-                $status = match (true) {
-                    $enrolment->status === 'withdrawn' => 'Withdrawn',
-                    $isPaid                            => 'Paid',
-                    default                            => 'Outstanding ' . $currency . ' ' . number_format((float) $enrolment->fee_calculated, 2),
-                };
-                $message->line(($enrolment->competitor?->full_name ?? 'Competitor') . ' — ' . $status);
-            }
-
-            foreach ($refunds as $refund) {
-                $label = $refund->status === 'issued' ? 'Refunded' : 'Refund pending';
-                $message->line(
-                    ($refund->enrolment?->competitor?->full_name ?? 'Refund')
-                    . ' — ' . $label . ': ' . $currency . ' ' . number_format((float) $refund->amount, 2)
-                    . ' (' . ($refund->reason ?? '') . ')'
-                );
-            }
-
-            $message->line('---');
-        }
-
-        $message->line('If you have any questions please contact the organisation directly.')
-            ->action('View my account', route('filament.portal.pages.account'));
-
-        $portalUrl = $org ? EmailFooterHelper::portalUrl($org) : '';
-
-        return EmailFooterHelper::append($message, $org ?: null, $portalUrl);
+        return new AccountStatementMail($this->carts, $this->outstanding, $this->refundDue, $notifiable);
     }
 }

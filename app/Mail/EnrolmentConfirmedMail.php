@@ -27,6 +27,10 @@ class EnrolmentConfirmedMail extends Mailable
             ->with(['competitionEvent', 'division'])
             ->get();
 
+        $qrImageUrl = $this->enrolment->checkin_code
+            ? $portalUrl . '/qr/' . $this->enrolment->checkin_code
+            : null;
+
         return $this
             ->to($this->recipient->email, $this->recipient->getFilamentName())
             ->subject('Registration confirmed — ' . $competition->name)
@@ -38,6 +42,7 @@ class EnrolmentConfirmedMail extends Mailable
                 'events'         => $events,
                 'recipientName'  => $this->recipient->getFilamentName(),
                 'profileName'    => $this->enrolment->competitor?->full_name ?? $this->recipient->getFilamentName(),
+                'qrImageUrl'     => $qrImageUrl,
                 'marketingEmail' => false,
             ]);
     }

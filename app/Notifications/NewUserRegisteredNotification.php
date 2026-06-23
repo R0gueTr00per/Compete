@@ -16,7 +16,9 @@ class NewUserRegisteredNotification extends Notification implements \Illuminate\
     public function __construct(
         protected User $newUser,
         protected ?OrganisationMembership $membership = null
-    ) {}
+    ) {
+        $this->queue = 'mail';
+    }
 
     public function via(object $notifiable): array
     {
@@ -30,7 +32,7 @@ class NewUserRegisteredNotification extends Notification implements \Illuminate\
 
         if ($org) {
             $url     = config('app.scheme') . '://' . $org->slug . '.' . config('app.domain', 'kompetic.com') . '/manage/members';
-            $subject = "New member awaiting approval — {$org->name}";
+            $subject = "New member awaiting approval â€” {$org->name}";
             $body    = "**{$name}** ({$this->newUser->email}) has registered on the {$org->name} portal and is awaiting your approval.";
         } else {
             $url     = url(route('filament.admin.resources.users.index'));

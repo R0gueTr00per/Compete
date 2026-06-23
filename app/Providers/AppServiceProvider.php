@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +31,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Password::defaults(fn () => Password::min(8)->mixedCase()->numbers()->symbols());
+
+        Queue::after(function (JobProcessed $event) {
+            if ($event->job->getQueue() === 'mail') {
+                sleep(15);
+            }
+        });
 
         if (DB::connection()->getDriverName() === 'sqlite') {
             DB::statement('PRAGMA journal_mode=WAL;');

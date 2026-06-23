@@ -13,6 +13,11 @@ class PortalVerifyEmailNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    public function __construct()
+    {
+        $this->queue = 'mail';
+    }
+
     public function via(object $notifiable): array
     {
         return ['mail'];
@@ -27,7 +32,7 @@ class PortalVerifyEmailNotification extends Notification implements ShouldQueue
         );
 
         $message = (new MailMessage)
-            ->subject('Verify your email address — Compete')
+            ->subject('Verify your email address â€” Compete')
             ->greeting('Almost there!')
             ->line('Please click the button below to verify your email address.')
             ->action('Verify Email Address', $verifyUrl)

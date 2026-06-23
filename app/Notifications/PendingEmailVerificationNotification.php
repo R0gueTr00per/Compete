@@ -14,7 +14,10 @@ class PendingEmailVerificationNotification extends Notification implements Shoul
 {
     use Queueable;
 
-    public function __construct(private User $user) {}
+    public function __construct(private User $user)
+    {
+        $this->queue = 'mail';
+    }
 
     public function via(object $notifiable): array
     {
@@ -36,7 +39,7 @@ class PendingEmailVerificationNotification extends Notification implements Shoul
             ->line('Click the button below to confirm this change.')
             ->action('Confirm Email Change', $verifyUrl)
             ->line('This link expires in 24 hours.')
-            ->line('If you did not request this change, you can safely ignore this email — your current address will remain unchanged.');
+            ->line('If you did not request this change, you can safely ignore this email â€” your current address will remain unchanged.');
 
         return EmailFooterHelper::append($message);
     }

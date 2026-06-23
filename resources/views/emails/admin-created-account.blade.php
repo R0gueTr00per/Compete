@@ -1,19 +1,23 @@
 <x-mail::message>
 
-{{-- Success banner --}}
+{{-- Welcome banner --}}
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:24px;">
 <tr>
 <td bgcolor="#1a3564" align="center" style="padding:22px 20px;background-color:#1a3564;">
-<p style="font-size:32px;margin:0;line-height:1;color:#7eb8f7;">✓</p>
-<p style="color:#ffffff;font-size:19px;font-weight:700;margin:8px 0 4px 0;line-height:1.2;">Registration Confirmed</p>
-<p style="color:rgba(255,255,255,0.75);font-size:14px;margin:0;">{{ $competition->name }}</p>
+<p style="font-size:28px;margin:0;line-height:1;color:#7eb8f7;">👋</p>
+<p style="color:#ffffff;font-size:19px;font-weight:700;margin:8px 0 4px 0;line-height:1.2;">Welcome to {{ $org->name }}</p>
+<p style="color:rgba(255,255,255,0.75);font-size:14px;margin:0;">Your account has been created</p>
 </td>
 </tr>
 </table>
 
 Hi {{ $recipientName }},
 
-Registration for **{{ $profileName }}** has been confirmed.
+@if ($childName)
+An account has been set up for you as the parent / guardian of **{{ $childName }}**, who has been registered for the following competition.
+@else
+An account has been created for you on **{{ $org->name }}** and you have been registered for the following competition.
+@endif
 
 {{-- Competition details --}}
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0;border:1px solid #dde5f0;">
@@ -33,7 +37,7 @@ Registration for **{{ $profileName }}** has been confirmed.
 @if ($competition->location_name)
 <tr>
 <td style="padding:8px 12px 8px 0;color:#64748b;font-size:13px;border-top:1px solid #f1f5f9;vertical-align:top;">Venue</td>
-<td style="padding:8px 0;color:#1a3564;font-size:14px;font-weight:600;border-top:1px solid #f1f5f9;vertical-align:top;">{{ $competition->location_name }}</td>
+<td style="padding:8px 0;color:#1a3564;font-size:14px;font-weight:600;border-top:1px solid #f1f5f9;vertical-align:top;">{{ $competition->location_name }}{{ $competition->location_address ? ', ' . $competition->location_address : '' }}</td>
 </tr>
 @endif
 @if ($competition->start_time)
@@ -42,10 +46,6 @@ Registration for **{{ $profileName }}** has been confirmed.
 <td style="padding:8px 0;color:#1a3564;font-size:14px;font-weight:600;border-top:1px solid #f1f5f9;vertical-align:top;">{{ tenant_time($competition->start_time) }}</td>
 </tr>
 @endif
-<tr>
-<td style="padding:8px 12px 8px 0;color:#64748b;font-size:13px;border-top:1px solid #f1f5f9;vertical-align:top;">Fee</td>
-<td style="padding:8px 0;color:#1a3564;font-size:14px;font-weight:600;border-top:1px solid #f1f5f9;vertical-align:top;">${{ number_format($enrolment->fee_calculated, 2) }}@if ($enrolment->is_late) <span style="color:#92400e;font-size:12px;font-weight:400;"> (late surcharge applied)</span>@endif</td>
-</tr>
 </table>
 </td></tr>
 </table>
@@ -53,35 +53,28 @@ Registration for **{{ $profileName }}** has been confirmed.
 {{-- Events --}}
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0;border:1px solid #dde5f0;">
 <tr><td bgcolor="#2563a8" style="padding:9px 16px;background-color:#2563a8;">
-<p style="color:#ffffff;font-size:11px;font-weight:700;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Registered Events</p>
+<p style="color:#ffffff;font-size:11px;font-weight:700;margin:0;text-transform:uppercase;letter-spacing:0.08em;">{{ $childName ? $childName . "'s Registered Events" : 'Registered Events' }}</p>
 </td></tr>
 @foreach ($events as $i => $event)
-<tr><td style="padding:10px 16px;border-top:{{ $i === 0 ? 'none' : '1px solid #f1f5f9' }};">
+<tr><td style="padding:10px 16px;{{ $i > 0 ? 'border-top:1px solid #f1f5f9;' : '' }}">
 <p style="margin:0;font-size:14px;color:#1a3564;"><strong>{{ $event->competitionEvent->event_code }} — {{ $event->competitionEvent->name }}</strong></p>
 <p style="margin:3px 0 0;font-size:13px;color:#64748b;">{{ $event->division?->label ?? '—' }}</p>
 </td></tr>
 @endforeach
 </table>
 
-@if ($enrolment->checkin_code)
-{{-- Check-in --}}
+{{-- Set password CTA --}}
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0;border:1px solid #dde5f0;">
 <tr><td bgcolor="#0f766e" style="padding:9px 16px;background-color:#0f766e;">
-<p style="color:#ffffff;font-size:11px;font-weight:700;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Check-in</p>
+<p style="color:#ffffff;font-size:11px;font-weight:700;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Next Step</p>
 </td></tr>
-<tr><td align="center" style="padding:16px;">
-@if ($qrImageUrl)
-<p style="margin:0 0 10px;font-size:13px;color:#64748b;">Show this QR code at the check-in desk</p>
-<img src="{{ $qrImageUrl }}" width="180" height="180" alt="Check-in QR code" style="width:180px;height:180px;display:block;margin:0 auto 12px;">
-@endif
-<p style="margin:0 0 4px;font-size:12px;color:#64748b;">Check-in code</p>
-<p style="margin:0;font-size:22px;font-weight:700;letter-spacing:0.15em;color:#1a3564;font-family:monospace;">{{ $enrolment->checkin_code }}</p>
+<tr><td style="padding:16px;">
+<p style="margin:0;font-size:14px;color:#374151;">Set your password to access the competitor portal, view your registrations, and get your check-in QR code.</p>
 </td></tr>
 </table>
-@endif
 
-<x-mail::button :url="$portalUrl">
-View registrations & QR code
+<x-mail::button :url="$resetUrl">
+Set your password
 </x-mail::button>
 
 @include('emails.partials.email-footer')

@@ -68,4 +68,20 @@ Route::get('/portal/verify-email-change/{id}/{hash}', \App\Http\Controllers\Auth
 
 Route::get('/portal/email-verified', fn () => view('portal.email-verified'))->name('portal.email-verified');
 
+// Public QR code image for check-in — used in confirmation emails
+Route::get('/portal/qr/{code}', function (string $code) {
+    $enrolment = \App\Models\Enrolment::where('checkin_code', $code)->firstOrFail();
+    $value = url('/manage/check-in') . '?competition_id=' . $enrolment->competition_id . '&code=' . $code;
+
+    $renderer = new \BaconQrCode\Renderer\ImageRenderer(
+        new \BaconQrCode\Renderer\RendererStyle\RendererStyle(300),
+        new \BaconQrCode\Renderer\Image\SvgImageBackEnd()
+    );
+    $svg = (new \BaconQrCode\Writer($renderer))->writeString($value);
+
+    return response($svg, 200)
+        ->header('Content-Type', 'image/svg+xml')
+        ->header('Cache-Control', 'public, max-age=86400');
+})->name('portal.qr-code');
+
 require __DIR__.'/auth.php';
