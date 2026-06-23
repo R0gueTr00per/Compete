@@ -13,6 +13,7 @@ class CompetitionInsightService
 
     // Preferred model keywords in priority order (first match wins)
     private const MODEL_PREFERENCES = [
+        'gemini-2.5-flash-lite',
         'gemini-2.5-flash',
         'gemini-2.0-flash',
         'gemini',
@@ -20,7 +21,7 @@ class CompetitionInsightService
 
     private function resolveModel(): string
     {
-        return Cache::remember('google_ai_model_v4', now()->addHours(24), function () {
+        return Cache::remember('google_ai_model_v5', now()->addHours(24), function () {
             $apiKey = config('services.google_ai.api_key');
 
             $response = Http::timeout(10)->get(
@@ -36,6 +37,8 @@ class CompetitionInsightService
             $ids = collect($response->json('data', []))
                 ->pluck('id')
                 ->map(fn ($id) => str_starts_with($id, 'models/') ? substr($id, 7) : $id);
+
+            \Log::info('Google AI available models', ['ids' => $ids->values()->all()]);
 
             foreach (self::MODEL_PREFERENCES as $preference) {
                 $match = $ids->first(fn ($id) => str_starts_with($id, $preference));
@@ -85,14 +88,31 @@ class CompetitionInsightService
 
         $client = $factory->make();
 
-        $response = $client->chat()->create([
-            'model'    => $model,
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user',   'content' => $userPrompt],
-            ],
-            'max_tokens' => $status === 'complete' ? 8000 : 4000,
-        ]);
+        $maxTokens = $status === 'complete' ? 8000 : 4000;
+        $messages  = [
+            ['role' => 'system', 'content' => $systemPrompt],
+            ['role' => 'user',   'content' => $userPrompt],
+        ];
+
+        try {
+            $response = $client->chat()->create([
+                'model'      => $model,
+                'messages'   => $messages,
+                'max_tokens' => $maxTokens,
+            ]);
+        } catch (\Throwable $e) {
+            $msg = strtolower($e->getMessage());
+            if (str_contains($msg, 'high demand') || str_contains($msg, '503') || str_contains($msg, 'overloaded')) {
+                $model    = 'gemini-2.5-flash';
+                $response = $client->chat()->create([
+                    'model'      => $model,
+                    'messages'   => $messages,
+                    'max_tokens' => $maxTokens,
+                ]);
+            } else {
+                throw $e;
+            }
+        }
 
         $content = $response->choices[0]->message->content;
 
@@ -131,6 +151,7 @@ class CompetitionInsightService
         $pending          = $enrolments->whereNotIn('status', ['withdrawn'])->count();
         $withdrawn        = $enrolments->where('status', 'withdrawn')->count();
         $lateCount        = $enrolments->where('is_late', true)->count();
+        $checkedInCount   = $enrolments->whereNotIn('status', ['withdrawn'])->where('checked_in', true)->count();
         $carts            = $enrolments->map(fn ($e) => $e->cart)->filter()->unique('id');
         $outstandingEnrol = $enrolments->whereNotIn('status', ['withdrawn'])->filter(fn ($e) => ! $e->cart?->isPaid());
         $receivedEnrol    = $enrolments->filter(fn ($e) => $e->cart?->isPaid());
@@ -178,7 +199,7 @@ class CompetitionInsightService
 
         $eventData = $competition->competitionEvents->map(function ($event) use ($checkedInIdSet, $isPastPlanning) {
             $divisions      = $isPastPlanning
-                ? $event->divisions->filter(fn ($d) => !empty($d->location_label) || $d->status === 'combined')
+                ? $event->divisions->filter(fn ($d) => !empty($d->location_label))
                 : $event->divisions;
             $totalDivisions = $divisions->count();
 
@@ -214,7 +235,7 @@ class CompetitionInsightService
         // Past planning: unscheduled divisions are effectively cancelled — exclude them.
         $allDivisionsLoaded = $competition->competitionEvents->flatMap(fn ($e) => $e->divisions);
         $activeDivisions    = $isPastPlanning
-            ? $allDivisionsLoaded->filter(fn ($d) => !empty($d->location_label) || $d->status === 'combined')
+            ? $allDivisionsLoaded->filter(fn ($d) => !empty($d->location_label))
             : $allDivisionsLoaded;
         $divUnassigned      = $isPastPlanning ? 0 : $allDivisionsLoaded->whereNull('location_label')->whereNotIn('status', ['combined'])->count();
         $divTotal           = $activeDivisions->count();
@@ -252,6 +273,7 @@ class CompetitionInsightService
                 'payment_outstanding_amount' => round($outstandingAmt, 2),
                 'payment_received_count'     => $receivedEnrol->count(),
                 'payment_received_amount'    => round($receivedAmt, 2),
+                'checked_in'                 => $checkedInCount,
             ],
             'competitors'       => [
                 'total'   => $competitors->count(),
@@ -315,7 +337,7 @@ You provide structured insights to competition organisers while enrolments are o
 Check each of the following and raise a bullet point for every issue found — do not skip any that apply. Reference actual numbers in every bullet. Pair each issue with a concrete recommendation:
 - Divisions with zero competitors (empty) — risk of not running
 - Divisions with only one competitor — cannot compete in standard format; consider combining or contacting the competitor
-- Event types where empty divisions outnumber active ones
+- Events where empty divisions outnumber active ones
 - Overall enrolment significantly below target competitor count (if set)
 - Enrolment due date within 14 days with low overall numbers — urgency to promote
 - Outstanding payments: who owes, how much
@@ -329,8 +351,8 @@ Present as bullet points — 2–4 genuine positives: strong enrolment numbers, 
 ## 📊 Participation Patterns
 Present as bullet points — competitor demographics: age bands, rank distribution, gender balance, dojo spread. Note any imbalances or surprises.
 
-## 🏆 Event Type & Division Readiness
-One bullet per event type: competitor count, empty vs active divisions, format, any risk of not running. Include a recommendation for each at-risk event type.
+## 🏆 Event & Division Readiness
+One bullet per event: competitor count, empty vs active divisions, format, any risk of not running. Include a recommendation for each at-risk event.
 
 ## 💰 Financial Summary
 Present as bullet points: fees received vs outstanding, projected total if all outstanding are collected, any notable patterns.
@@ -344,6 +366,7 @@ Rules:
 - If a section genuinely has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
+- When stating totals or achievements, always use competitor counts or division counts as the unit — never use the number of events (e.g. do NOT say "all 8 events have 100% check-in"; instead say "all 711 competitors checked in")
 PROMPT;
     }
 
@@ -399,7 +422,7 @@ Status: {$data['status']}
 Enrolment closes: {$data['enrolment_due']}
 Locations: {$data['locations']}{$targetLine}
 
-EVENT TYPES ({$eventCount} total)
+EVENTS ({$eventCount} events | {$d['total']} divisions)
 {$events}
 
 ENROLMENTS
@@ -511,6 +534,7 @@ Rules:
 - If a section has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
+- When stating totals or achievements, always use competitor counts or division counts as the unit — never use the number of events (e.g. do NOT say "all 8 events have 100% check-in"; instead say "all 711 competitors checked in")
 PROMPT;
     }
 
@@ -546,7 +570,7 @@ Check-in time: {$data['checkin_time']}
 Enrolment closes: {$data['enrolment_due']}
 Target competitors: {$data['target_competitors']}
 
-EVENT TYPES ({$eventCount} configured)
+EVENTS ({$eventCount} events | {$d['total']} divisions)
 {$events}
 
 DIVISION SETUP
@@ -587,8 +611,8 @@ Present as bullet points — 2–4 genuine positives: strong final enrolment num
 ## 👥 Competitor & Division Readiness
 Present as bullet points: overall enrolment summary, then note any empty or solo divisions with a competition-day recommendation (e.g. merge on the day or cancel). Highlight divisions with very few competitors that may not be viable to run in standard format.
 
-## 🏆 Event Type Overview
-One bullet per event type: competitor count, division breakdown, any concerns. Flag event types where empty divisions outnumber active ones.
+## 🏆 Event Overview
+One bullet per event: competitor count, division breakdown, any concerns. Flag events where empty divisions outnumber active ones.
 
 ## 💰 Financial Summary
 Present as bullet points: outstanding vs received payments, any patterns worth noting, recommended follow-up needed before competition day.
@@ -601,6 +625,7 @@ Rules:
 - If a section has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
+- When stating totals or achievements, always use competitor counts or division counts as the unit — never use the number of events (e.g. do NOT say "all 8 events have 100% check-in"; instead say "all 711 competitors checked in")
 PROMPT;
     }
 
@@ -646,7 +671,7 @@ Date: {$data['date']} ({$daysLabel})
 Status: closed (enrolments no longer accepted)
 Locations: {$data['locations']}{$targetLine}
 
-EVENT TYPES ({$eventCount} total)
+EVENTS ({$eventCount} events | {$d['total']} divisions)
 {$events}
 
 ENROLMENTS (final)
@@ -783,22 +808,22 @@ You provide real-time insights to organisers during an active competition (check
 
 ## ✅ Action Items
 Urgent items requiring immediate attention right now. Check each of the following and raise a bullet for every issue found:
-- Any event where check-in is zero (competitors enrolled but none checked in) — may indicate a no-show or check-in table issue
+- Overall check-in rate is very low (under 50%) — may indicate a check-in table issue or competitors not yet on-site
 - Outstanding payments that need collecting today
-- Any event types with no active competitors (empty) that may still be on the run sheet
-- Any mat or event running significantly behind schedule (>15 min drift) — flag which division/event and by how much
+- Any events with no active competitors (empty) that may still be on the run sheet
+- Any event running significantly behind schedule on average (>15 min avg drift) — flag the event name and average drift only, do not list individual divisions
 
 ## 🌟 What's Going Well
 Present as bullet points — 2–4 genuine positives about how the competition is running: strong check-in rates, good competitor turnout, events running smoothly, scoring progressing well, or the schedule holding to time. Keep it brief and encouraging.
 
 ## 🏃 Scoring Progress
-Present as bullet points — one bullet per event type: how many divisions are scored vs remaining. State the counts factually — do not characterise low percentages as a problem, since competitions score sequentially and progress naturally increases throughout the day. Only flag an event type if it has fallen notably behind all other event types for no apparent reason.
+Present as bullet points — one bullet per event: how many divisions are scored vs remaining. State the counts factually — do not characterise low percentages as a problem, since competitions score sequentially and progress naturally increases throughout the day. Only flag an event if it has fallen notably behind all other events for no apparent reason.
 
 ## ⏱️ Schedule Status
 Present as bullet points: overall average start drift (positive = running late, negative = running early), one bullet per event type noting average drift and any divisions that stand out as significantly late or early. If no planned times are set, say so in one bullet.
 
 ## 👥 Check-in Status
-Present as bullet points: overall check-in rate, then one bullet per event type noting the check-in count vs enrolled. Keep observations factual — check-in typically happens close to event start time, so low rates early in the day are normal.
+Present as bullet points: overall competitor check-in rate only (checked-in enrolments vs total active enrolments). Do not break down by event — check-in is per competitor, not per event. Keep observations factual — check-in typically happens close to competition start, so low rates early in the day are normal.
 
 ## 💰 Outstanding Payments
 Present as bullet points: any payments still outstanding on competition day, and whether these need to be collected now or can be followed up post-event.
@@ -813,6 +838,7 @@ Rules:
 - If a section has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
+- When stating totals or achievements, always use competitor counts or division counts as the unit — never use the number of events (e.g. do NOT say "all 8 events have 100% check-in"; instead say "all 711 competitors checked in")
 PROMPT;
     }
 
@@ -834,11 +860,7 @@ PROMPT;
             ->join("\n");
 
         $events = collect($data['events'])->map(function ($e) {
-            $checkinRate = $e['competitor_count'] > 0
-                ? round(($e['checked_in'] / $e['competitor_count']) * 100) . '%'
-                : 'n/a';
             return "- {$e['name']} | Competitors: {$e['competitor_count']} | "
-                . "Checked in: {$e['checked_in']} ({$checkinRate}) | "
                 . "Divisions: {$e['total_divisions']} total, {$e['empty_divisions']} empty";
         })->join("\n");
 
@@ -858,24 +880,7 @@ PROMPT;
                 ? ', avg duration deviation: ' . ($e['avg_duration_deviation'] >= 0 ? '+' : '') . $e['avg_duration_deviation'] . ' min vs plan'
                 : '';
 
-            $divLines = collect($e['divisions'])
-                ->filter(fn ($d) => $d['planned_start'] !== null || $d['actual_start'] !== null)
-                ->map(function ($d) {
-                    $driftStr = $d['drift_minutes'] !== null
-                        ? ($d['drift_minutes'] >= 0 ? '+' . $d['drift_minutes'] : (string) $d['drift_minutes']) . 'min'
-                        : '—';
-                    $durStr = $d['actual_duration_minutes'] !== null
-                        ? ", ran {$d['actual_duration_minutes']}min" . ($d['planned_duration_minutes'] !== null ? " (plan: {$d['planned_duration_minutes']}min)" : '')
-                        : '';
-                    $devStr = $d['duration_deviation_minutes'] !== null
-                        ? ', dev: ' . ($d['duration_deviation_minutes'] >= 0 ? '+' : '') . $d['duration_deviation_minutes'] . 'min'
-                        : '';
-                    $planned = $d['planned_start'] ?? '—';
-                    $actual  = $d['actual_start'] ?? 'not started';
-                    return "  - {$d['code']} ({$d['status']}): planned {$planned} → actual {$actual} ({$driftStr}{$durStr}{$devStr})";
-                })->join("\n");
-
-            return "- {$e['event_name']}: {$avgDrift}{$avgDur}{$avgDev}" . ($divLines ? "\n{$divLines}" : '');
+            return "- {$e['event_name']}: {$avgDrift}{$avgDur}{$avgDev}";
         })->join("\n");
 
         return <<<PROMPT
@@ -896,7 +901,8 @@ SCHEDULE TIMING
 Overall avg start drift: {$avgDriftStr} | Behind >5min: {$t['behind_5min_count']} | Ahead >5min: {$t['ahead_5min_count']}
 {$timingEventLines}
 
-CHECK-IN & EVENT TYPES ({$eventCount} total)
+CHECK-IN & EVENTS ({$eventCount} events | {$s['total_active']} divisions)
+Overall check-in: {$en['checked_in']}/{$en['active']} enrolments checked in
 {$events}
 
 PAYMENTS
@@ -951,14 +957,14 @@ Summarise outcomes as bullet points covering:
 - Demographic highlights (age bands, rank spread, gender balance, dojo count)
 - Any surprises or notable patterns
 
-## 🏆 Event Type Outcomes
-One bullet per event type. Format: **Event type name**: final competitor count, divisions that ran vs cancelled, whether it over- or under-performed. Note any event types with a high cancelled division rate.
+## 🏆 Event Outcomes
+One bullet per event. Format: **Event name**: final competitor count, divisions that ran vs cancelled, whether it over- or under-performed. Note any events with a high cancelled division rate.
 
 ## ⏱️ Timing Analysis
 Present as bullet points:
 - Overall schedule discipline: average start drift across all divisions (positive = late, negative = early)
-- One bullet per event type: average start drift and average actual division duration where data exists
-- Flag any event type whose actual duration suggests the per-division time estimate needs adjusting
+- One bullet per event: average start drift and average actual division duration where data exists
+- Flag any event whose actual duration suggests the per-division time estimate needs adjusting
 - If no timing data is available, say so in a single bullet
 
 ## 💰 Financial Outcome
@@ -979,6 +985,7 @@ Rules:
 - If a section genuinely has nothing notable, say so in one bullet
 - Do not invent information not present in the data
 - Use plain language suitable for a non-technical sports administrator
+- When stating totals or achievements, always use competitor counts or division counts as the unit — never use the number of events (e.g. do NOT say "all 8 events have 100% check-in"; instead say "all 711 competitors checked in")
 PROMPT;
     }
 
@@ -1041,7 +1048,7 @@ Name: {$data['name']}
 Date: {$data['date']}
 Locations: {$data['locations']}{$targetLine}
 
-EVENT TYPES ({$eventCount} total)
+EVENTS ({$eventCount} events | {$d['total']} divisions)
 {$events}
 
 ENROLMENTS (final)
