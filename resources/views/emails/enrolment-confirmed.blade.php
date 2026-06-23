@@ -72,7 +72,7 @@ Registration for **{{ $profileName }}** has been confirmed.
 <tr><td align="center" style="padding:16px;">
 @if ($qrImageUrl)
 <p style="margin:0 0 10px;font-size:13px;color:#64748b;">Show this QR code at the check-in desk</p>
-<img src="{{ $qrImageUrl }}" width="180" height="180" alt="Check-in QR code" style="width:180px;height:180px;display:block;margin:0 auto 12px;">
+<img src="{{ $qrImageUrl }}" width="180" height="180" alt="Check-in QR code" style="width:180px;height:180px;max-width:100%;display:block;margin:0 auto 12px;">
 @endif
 <p style="margin:0 0 4px;font-size:12px;color:#64748b;">Check-in code</p>
 <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:0.15em;color:#1a3564;font-family:monospace;">{{ $enrolment->checkin_code }}</p>

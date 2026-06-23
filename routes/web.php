@@ -74,7 +74,7 @@ Route::get('/portal/qr/{code}', function (string $code) {
     $value = url('/manage/check-in') . '?competition_id=' . $enrolment->competition_id . '&code=' . $code;
 
     $renderer = new \BaconQrCode\Renderer\ImageRenderer(
-        new \BaconQrCode\Renderer\RendererStyle\RendererStyle(300),
+        new \BaconQrCode\Renderer\RendererStyle\RendererStyle(180),
         new \BaconQrCode\Renderer\Image\SvgImageBackEnd()
     );
     $svg = (new \BaconQrCode\Writer($renderer))->writeString($value);

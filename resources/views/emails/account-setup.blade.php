@@ -19,7 +19,7 @@ Hi {{ $recipientName }},
 <p style="color:#ffffff;font-size:11px;font-weight:700;margin:0;text-transform:uppercase;letter-spacing:0.08em;">Next Step</p>
 </td></tr>
 <tr><td style="padding:16px;">
-<p style="margin:0;font-size:14px;color:#374151;">Set your password to activate your account and access the competitor portal — view upcoming competitions, manage registrations, and get your check-in QR code.</p>
+<p style="margin:0;font-size:14px;color:#374151;">Set your password to activate your account and access the competitor portal — view upcoming competitions and manage your registrations.</p>
 </td></tr>
 </table>
 
