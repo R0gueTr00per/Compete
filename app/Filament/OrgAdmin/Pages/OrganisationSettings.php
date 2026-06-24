@@ -3,6 +3,7 @@
 namespace App\Filament\OrgAdmin\Pages;
 
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
@@ -14,6 +15,7 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
@@ -43,6 +45,7 @@ class OrganisationSettings extends Page implements HasForms
         $groupPreset = in_array($groupName, ['Dojo', 'Club', 'Team', null]) ? ($groupName ?? 'Dojo') : 'Other';
 
         $this->form->fill([
+            'logo'                     => $tenant?->logo,
             'ai_context'               => $tenant?->ai_context,
             'ai_tone_presets'          => $tenant?->ai_tone_presets ?? [],
             'auto_email_insights'      => $tenant?->auto_email_insights ?? true,
@@ -168,6 +171,31 @@ class OrganisationSettings extends Page implements HasForms
                             ->maxLength(500),
                     ]),
 
+                Section::make('Branding')
+                    ->description('Customise your organisation\'s appearance across the platform.')
+                    ->schema([
+                        FileUpload::make('logo')
+                            ->label('Organisation logo')
+                            ->helperText('Shown in the site header next to your organisation name. PNG or SVG with transparent background recommended.')
+                            ->image()
+                            ->imagePreviewHeight('80')
+                            ->disk('public')
+                            ->directory('org-logos')
+                            ->visibility('public')
+                            ->maxSize(2048)
+                            ->getUploadedFileUsing(function (string $file): ?array {
+                                if (! Storage::disk('public')->exists($file)) {
+                                    return null;
+                                }
+                                return [
+                                    'name' => basename($file),
+                                    'size' => 0,
+                                    'type' => null,
+                                    'url'  => asset('storage/' . $file),
+                                ];
+                            }),
+                    ]),
+
                 Section::make('Groups')
                     ->description('Customise what groups are called in your organisation.')
                     ->schema([
@@ -230,12 +258,21 @@ class OrganisationSettings extends Page implements HasForms
 
         $data = $this->form->getState();
 
+        $newLogo = $data['logo'] ?? null;
+        if (is_array($newLogo)) {
+            $newLogo = array_values($newLogo)[0] ?? null;
+        }
+        if ($tenant->logo && $newLogo !== $tenant->logo) {
+            Storage::disk('public')->delete($tenant->logo);
+        }
+
         $groupPreset = $data['group_name_preset'] ?? 'Dojo';
         $groupName   = $groupPreset === 'Other'
             ? ($data['group_name_custom'] ?? 'Dojo')
             : $groupPreset;
 
         $tenant->update([
+            'logo'                     => $newLogo,
             'ai_context'               => strip_tags($data['ai_context'] ?? ''),
             'ai_tone_presets'          => $data['ai_tone_presets'] ?? [],
             'auto_email_insights'      => $data['auto_email_insights'] ?? true,

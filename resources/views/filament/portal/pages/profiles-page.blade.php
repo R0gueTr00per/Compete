@@ -69,11 +69,9 @@
 
         @forelse ($profiles as $profile)
             @php
-                $profileAccent = ! $profile->is_active
-                    ? 'border-l-gray-300 dark:border-l-gray-600'
-                    : (! $profile->profile_complete
-                        ? 'border-l-amber-400 dark:border-l-amber-500'
-                        : 'border-l-primary-400 dark:border-l-primary-500');
+                $profileAccent = $profile->is_active
+                    ? 'border-l-green-400 dark:border-l-green-500 profile-card-active'
+                    : 'border-l-gray-300 dark:border-l-gray-600 profile-card-inactive';
             @endphp
             <x-filament::section class="mb-4 border-l-4 {{ $profileAccent }}">
                 <x-slot name="heading">

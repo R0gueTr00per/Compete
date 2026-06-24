@@ -117,13 +117,8 @@
                                         </button>
                                         @if ($isPaid)
                                             <x-filament::badge color="success" class="shrink-0">Paid</x-filament::badge>
-                                        @elseif (app('tenant')?->instructorsCanAcceptPayments())
-                                            <x-filament::button
-                                                href="{{ \App\Filament\Portal\Pages\AcceptPaymentPage::getUrl(['code' => $enrolment->checkin_code]) }}"
-                                                tag="a" color="warning" size="xs"
-                                                class="shrink-0">
-                                                Accept payment
-                                            </x-filament::button>
+                                        @else
+                                            <x-filament::badge color="warning" class="shrink-0">Unpaid</x-filament::badge>
                                         @endif
                                     </div>
 
@@ -174,6 +169,14 @@
                                                         on {{ tenant_date($enrolment->cart->payment_received_at) }}
                                                     @endif
                                                 </p>
+                                            @elseif (app('tenant')?->instructorsCanAcceptPayments())
+                                                <div class="pt-2">
+                                                    <x-filament::button
+                                                        href="{{ \App\Filament\Portal\Pages\AcceptPaymentPage::getUrl(['code' => $enrolment->checkin_code]) }}"
+                                                        tag="a" color="warning" size="sm">
+                                                        Accept payment
+                                                    </x-filament::button>
+                                                </div>
                                             @endif
 
                                         </div>

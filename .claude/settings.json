@@ -201,7 +201,9 @@
       "Bash(nslookup -type=TXT default._domainkey.kompetic.com 8.8.8.8)",
       "Bash(nslookup mail.kompetic.com 8.8.8.8)",
       "Bash(php -r \"echo extension_loaded\\('imagick'\\) ? 'imagick OK' : 'no imagick'; echo PHP_EOL; echo extension_loaded\\('gd'\\) ? 'gd OK' : 'no gd';\")",
-      "Bash(php -l \"x:/Repos/Compete/app/Services/CompetitionInsightService.php\")"
+      "Bash(php -l \"x:/Repos/Compete/app/Services/CompetitionInsightService.php\")",
+      "Bash(ls -la \"x:\\\\Repos\\\\Compete\\\\\" | head -20)",
+      "Read(//x/Repos/**)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

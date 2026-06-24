@@ -140,7 +140,7 @@ class Dashboard extends BaseDashboard
                 ->icon('heroicon-o-shopping-cart')
                 ->url(CartPage::getUrl())
                 ->badge($count > 0 ? (string) $count : null)
-                ->color('gray'),
+                ->color($count > 0 ? 'success' : 'gray'),
         ];
 
         if ($outstanding > 0) {

@@ -177,9 +177,15 @@ class OrgAdminPanelProvider extends PanelProvider
                 function () {
                     $tenant = app('tenant');
                     if (! $tenant) return '';
+                    $logoHtml = '';
+                    if ($tenant->logo && \Illuminate\Support\Facades\Storage::disk('public')->exists($tenant->logo)) {
+                        $logoUrl  = asset('storage/' . $tenant->logo);
+                        $logoHtml = '<img src="' . e($logoUrl) . '" alt="" style="max-height:1.75rem;width:auto;object-fit:contain;flex-shrink:0;">';
+                    }
                     return new \Illuminate\Support\HtmlString(
                         '<div class="fi-topbar-org-name" style="display:flex;align-items:center;padding:0 0.75rem 0 0.25rem;gap:0.5rem;min-width:0;">' .
                         '<div style="flex-shrink:0;width:1px;height:1.25rem;background:rgba(255,255,255,0.25);"></div>' .
+                        $logoHtml .
                         '<span style="font-size:0.875rem;font-weight:600;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">' .
                         e($tenant->name) .
                         '</span></div>'

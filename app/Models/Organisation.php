@@ -19,6 +19,7 @@ class Organisation extends Model
         'contact_phone',
         'contact_email',
         'website',
+        'logo',
         'ai_context',
         'ai_tone_presets',
         'auto_email_insights',

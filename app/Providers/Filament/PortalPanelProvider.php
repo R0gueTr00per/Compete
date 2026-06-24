@@ -171,10 +171,16 @@ class PortalPanelProvider extends PanelProvider
 
                     /* Main content + cards */
                     .fi-main, body.fi-body { background-color: var(--app-bg) !important; }
-                    .fi-section, .fi-wi-stats-overview-stat, .fi-ta-ctn { background-color: var(--app-card) !important; border-color: var(--app-card-border) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important; }
+                    .fi-section, .fi-wi-stats-overview-stat, .fi-ta-ctn { background-color: var(--app-card) !important; border-top-color: var(--app-card-border) !important; border-right-color: var(--app-card-border) !important; border-bottom-color: var(--app-card-border) !important; box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important; }
                     .dark .fi-section, .dark .fi-wi-stats-overview-stat, .dark .fi-ta-ctn { box-shadow: none !important; }
                     .fi-section-header, .fi-ta-header-cell, .fi-ta-header, .fi-ta-ctn thead, .fi-ta-ctn thead tr, .fi-ta-ctn thead th { background-color: var(--app-card-header) !important; border-bottom-color: var(--app-card-border) !important; }
                     .fi-modal-window { background-color: var(--app-card) !important; }
+
+                    /* Profile card glow */
+                    .fi-section.profile-card-active { box-shadow: 0 0 20px -5px rgba(74,222,128,0.35) !important; }
+                    .dark .fi-section.profile-card-active { box-shadow: 0 0 20px -5px rgba(74,222,128,0.35) !important; }
+                    .fi-section.profile-card-inactive { box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important; }
+                    .dark .fi-section.profile-card-inactive { box-shadow: none !important; }
                 </style>')
             )
             ->renderHook(
@@ -182,9 +188,15 @@ class PortalPanelProvider extends PanelProvider
                 function () {
                     $tenant = app('tenant');
                     if (! $tenant) return '';
+                    $logoHtml = '';
+                    if ($tenant->logo && \Illuminate\Support\Facades\Storage::disk('public')->exists($tenant->logo)) {
+                        $logoUrl  = asset('storage/' . $tenant->logo);
+                        $logoHtml = '<img src="' . e($logoUrl) . '" alt="" style="max-height:1.75rem;width:auto;object-fit:contain;flex-shrink:0;">';
+                    }
                     return new \Illuminate\Support\HtmlString(
                         '<div class="fi-topbar-org-name" style="display:flex;align-items:center;padding:0 0.75rem 0 0.25rem;gap:0.5rem;min-width:0;">' .
                         '<div style="flex-shrink:0;width:1px;height:1.25rem;background:rgba(255,255,255,0.25);"></div>' .
+                        $logoHtml .
                         '<span style="font-size:0.875rem;font-weight:600;color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">' .
                         e($tenant->name) .
                         '</span></div>'
@@ -330,6 +342,38 @@ class PortalPanelProvider extends PanelProvider
             ->renderHook(
                 'panels::body.end',
                 fn () => new \Illuminate\Support\HtmlString(view('partials.kompetic-watermark')->render())
+            )
+            ->renderHook(
+                'panels::head.end',
+                function () {
+                    if (! auth()->check()) return '';
+                    $count = \App\Models\EnrolmentCart::where('user_id', auth()->id())
+                        ->where('status', 'draft')
+                        ->first()
+                        ?->draftEnrolments()
+                        ->count() ?? 0;
+                    if ($count === 0) return '';
+                    return new \Illuminate\Support\HtmlString('<style>
+                        .fi-sidebar-item-button[href$="/portal/cart"] {
+                            background-color: #16a34a !important;
+                            border-right-color: #15803d !important;
+                        }
+                        .fi-sidebar-item-button[href$="/portal/cart"] span,
+                        .fi-sidebar-item-button[href$="/portal/cart"] svg,
+                        .fi-sidebar-item-button[href$="/portal/cart"] svg * {
+                            color: #fff !important;
+                            fill: currentColor !important;
+                        }
+                        .fi-sidebar-item-button[href$="/portal/cart"] .fi-badge,
+                        .fi-sidebar-item-button[href$="/portal/cart"] .fi-badge span {
+                            background-color: #fff !important;
+                            color: #16a34a !important;
+                        }
+                        .dark .fi-sidebar-item-button[href$="/portal/cart"] {
+                            background-color: #15803d !important;
+                        }
+                    </style>');
+                }
             );
     }
 }
