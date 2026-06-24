@@ -203,7 +203,8 @@
       "Bash(php -r \"echo extension_loaded\\('imagick'\\) ? 'imagick OK' : 'no imagick'; echo PHP_EOL; echo extension_loaded\\('gd'\\) ? 'gd OK' : 'no gd';\")",
       "Bash(php -l \"x:/Repos/Compete/app/Services/CompetitionInsightService.php\")",
       "Bash(ls -la \"x:\\\\Repos\\\\Compete\\\\\" | head -20)",
-      "Read(//x/Repos/**)"
+      "Read(//x/Repos/**)",
+      "Bash(grep -v \"\\\\.php$\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

@@ -47,11 +47,14 @@
                 $cartColor  = $cartIsPaid ? 'success' : 'warning';
             @endphp
 
+            @if ($cartActive->isEmpty() && ! $cartIsPaid)
+                @continue
+            @endif
+
             <x-filament::section
                 class="mb-6"
                 :collapsible="$cartIsPaid"
                 :collapsed="$cartIsPaid"
-                persist-collapsed
                 id="cart-{{ $cart->id }}"
             >
                 {{-- Cart / transaction header --}}
@@ -63,10 +66,14 @@
                         @endif
                     </div>
                 </x-slot>
-                <x-slot name="description">
-                    {{ tenant_money($cartTotal) }}
-                    @if ($cart->payment_method) &mdash; {{ ucfirst($cart->payment_method) }}@endif
-                </x-slot>
+                @if ($cart->payment_method)
+                    <x-slot name="description">{{ ucfirst($cart->payment_method) }}</x-slot>
+                @endif
+                @if ($cartIsPaid)
+                    <x-slot name="headerEnd">
+                        <span class="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-300 mr-1">{{ tenant_money($cartTotal) }}</span>
+                    </x-slot>
+                @endif
 
                 {{-- Per-competition groups --}}
                 @foreach ($byComp as $compId => $compEnrolments)
@@ -96,13 +103,6 @@
 
                         @foreach ($compEnrolments as $enrolment)
                             @if ($enrolment->trashed())
-                                <div class="rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2.5 opacity-50">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <p class="text-sm text-gray-500 line-through">{{ $enrolment->competitor?->full_name }}</p>
-                                        <x-filament::badge color="gray" size="sm">Replaced</x-filament::badge>
-                                    </div>
-                                    <p class="text-xs text-gray-400 mt-0.5">Original registration — replaced by new registration</p>
-                                </div>
                                 @continue
                             @endif
 
@@ -246,10 +246,10 @@
                                             <span class="font-semibold text-gray-900 dark:text-white tabular-nums">{{ tenant_money($enrolment->fee_calculated + $platformFee) }}</span>
                                         </div>
                                         @if ($isPaid)
-                                            <p class="text-xs text-success-600 text-right">
-                                                Paid {{ tenant_money($enrolment->payment_amount ?? ($enrolment->fee_calculated + $platformFee)) }}
-                                                @if ($enrolment->payment_received_at) on {{ tenant_date($enrolment->payment_received_at) }}@endif
-                                            </p>
+                                            <div class="flex items-center justify-between pt-0.5 text-xs text-success-600">
+                                                <span>Paid {{ $enrolment->payment_received_at ? tenant_date($enrolment->payment_received_at) : '' }}</span>
+                                                <span class="tabular-nums">{{ tenant_money($enrolment->payment_amount ?? ($enrolment->fee_calculated + $platformFee)) }}</span>
+                                            </div>
                                         @endif
                                     @endif
                                 </div>

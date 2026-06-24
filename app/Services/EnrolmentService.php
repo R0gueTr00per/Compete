@@ -484,6 +484,16 @@ class EnrolmentService
                 'refund_requested'  => $isPaid,
             ])->save();
 
+            if (! $isPaid && $enrolment->cart_id) {
+                $enrolment->loadMissing('cart');
+                $cart         = $enrolment->cart;
+                $platformRate = (float) ($cart->platform_fee_rate ?? app('tenant')?->platform_fee ?? 0);
+                $activeEnrols = $cart->enrolments()->whereNotIn('status', ['draft', 'withdrawn']);
+                $cart->forceFill([
+                    'total_amount' => $activeEnrols->sum('fee_calculated') + $activeEnrols->count() * $platformRate,
+                ])->save();
+            }
+
             if ($isPaid && $enrolment->cart_id) {
                 $enrolment->loadMissing('cart');
                 // Late surcharge and platform fee are non-refundable
