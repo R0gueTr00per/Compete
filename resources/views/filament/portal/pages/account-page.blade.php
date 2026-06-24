@@ -292,10 +292,14 @@
 
         @if ($carts->count() > 1)
             @php
-                $allActive      = $carts->flatMap(fn ($c) => $c->enrolments->filter(fn ($e) => ! $e->trashed() && $e->status !== 'withdrawn'));
-                $grandPaid        = $carts->filter(fn ($c) => $c->isPaid())->sum(fn ($c) => (float) $c->total_amount);
-                $grandOutstanding = $carts->filter(fn ($c) => ! $c->isPaid())->sum(fn ($c) => (float) $c->total_amount);
-                $grandTotal       = $carts->sum(fn ($c) => (float) $c->total_amount);
+                $hasActiveEnrolments = fn ($c) => $c->enrolments->contains(
+                    fn ($e) => ! $e->trashed() && $e->status !== 'withdrawn'
+                );
+                $visibleCarts     = $carts->filter(fn ($c) => $c->isPaid() || $hasActiveEnrolments($c));
+                $grandPaid        = $visibleCarts->filter(fn ($c) => $c->isPaid())->sum(fn ($c) => (float) $c->total_amount);
+                $grandOutstanding = $visibleCarts->filter(fn ($c) => ! $c->isPaid())->sum(fn ($c) => (float) $c->total_amount);
+                $grandRefunds     = $visibleCarts->flatMap(fn ($c) => $c->refunds)->where('status', 'pending')->sum('amount');
+                $net              = $grandOutstanding - $grandRefunds;
             @endphp
             <x-filament::section>
                 <div class="flex items-center justify-between gap-6 flex-wrap">
@@ -311,11 +315,16 @@
                             <p class="text-lg font-bold text-warning-600">{{ tenant_money($grandOutstanding) }}</p>
                         </div>
                     @endif
+                    @if ($grandRefunds > 0)
+                        <div class="text-center">
+                            <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Refund due</p>
+                            <p class="text-lg font-bold text-danger-600">{{ tenant_money($grandRefunds) }}</p>
+                        </div>
+                    @endif
                     <div class="text-center ml-auto">
                         <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Net balance</p>
-                        @php $net = $grandTotal - $grandPaid; @endphp
-                        <p class="text-lg font-bold {{ $net > 0 ? 'text-warning-600' : ($net < 0 ? 'text-danger-600' : 'text-success-600') }}">
-                            {{ $net == 0 ? 'Settled' : tenant_money(abs($net)) . ($net < 0 ? ' refund due' : ' owing') }}
+                        <p class="text-lg font-bold {{ $net > 0.01 ? 'text-warning-600' : ($net < -0.01 ? 'text-danger-600' : 'text-success-600') }}">
+                            {{ abs($net) < 0.01 ? 'Settled' : tenant_money(abs($net)) . ($net < 0 ? ' refund due' : ' owing') }}
                         </p>
                     </div>
                 </div>

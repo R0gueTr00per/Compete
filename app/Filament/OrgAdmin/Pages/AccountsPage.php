@@ -223,7 +223,10 @@ class AccountsPage extends Page implements HasTable
                         $owed    = $this->outstandingForUser($r);
                         $refund  = $this->pendingRefundsForUser($r);
                         $net     = $owed - $refund;
-                        if (abs($net) < 0.01) return 'Settled';
+                        if (abs($net) < 0.01) {
+                            $paid = $this->userCarts($r)->filter(fn ($c) => $c->isPaid())->sum(fn ($c) => (float) $c->total_amount);
+                            return 'Paid ' . tenant_money($paid);
+                        }
                         return ($net > 0 ? 'Owes ' : 'Due ') . tenant_money(abs($net));
                     })
                     ->color(function (User $r) {

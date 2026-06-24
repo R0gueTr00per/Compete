@@ -57,11 +57,11 @@
                 : 'bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800') }}">
         <p class="text-xs font-medium
             {{ abs($net) < 0.01 ? 'text-gray-500 dark:text-gray-400' : ($net > 0 ? 'text-warning-600 dark:text-warning-400' : 'text-danger-600 dark:text-danger-400') }}">
-            @if (abs($net) < 0.01) Settled @elseif ($net > 0) Owes @else Refund due @endif
+            @if (abs($net) < 0.01) Paid @elseif ($net > 0) Owes @else Refund due @endif
         </p>
         <p class="text-lg font-bold tabular-nums
             {{ abs($net) < 0.01 ? 'text-gray-600 dark:text-gray-300' : ($net > 0 ? 'text-warning-700 dark:text-warning-300' : 'text-danger-700 dark:text-danger-300') }}">
-            {{ abs($net) < 0.01 ? '—' : tenant_money(abs($net)) }}
+            {{ abs($net) < 0.01 ? tenant_money($totalPaid) : tenant_money(abs($net)) }}
         </p>
     </div>
     @endif
@@ -76,6 +76,7 @@
     @php
         $comp        = $cart->competition;
         $enrolments  = $cart->enrolments->whereNotIn('status', ['draft'])->values();
+        $activeEnrols = $enrolments->filter(fn ($e) => ! $e->trashed() && $e->status !== 'withdrawn');
         $platformFee = (float) ($cart->platform_fee_rate ?? $orgFee);
         $refunds     = $cart->refunds ?? collect();
         $isPaid      = $cart->isPaid();
@@ -83,8 +84,14 @@
         $addRate     = (float) ($cart->fee_additional_rate ?? 0);
         $cartAccent  = $isPaid
             ? 'border-l-green-400 dark:border-l-green-500'
-            : 'border-l-danger-400 dark:border-l-danger-500';
+            : ($activeEnrols->isEmpty()
+                ? 'border-l-gray-300 dark:border-l-gray-600'
+                : 'border-l-warning-400 dark:border-l-warning-500');
     @endphp
+
+    @if ($activeEnrols->isEmpty() && ! $isPaid && $refunds->isEmpty())
+        @continue
+    @endif
 
     <div class="mb-4 rounded-lg border border-gray-200 dark:border-gray-700 border-l-4 {{ $cartAccent }} bg-white dark:bg-gray-900 overflow-hidden"
          x-data="{ open: {{ $isPaid ? 'false' : 'true' }} }">
@@ -101,8 +108,8 @@
                 </p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                <x-filament::badge :color="$isPaid ? 'success' : 'warning'" size="sm">
-                    {{ $isPaid ? 'Paid' : 'Outstanding' }}
+                <x-filament::badge :color="$isPaid ? 'success' : ($activeEnrols->isEmpty() ? 'gray' : 'warning')" size="sm">
+                    {{ $isPaid ? 'Paid' : ($activeEnrols->isEmpty() ? 'Withdrawn' : 'Outstanding') }}
                 </x-filament::badge>
                 <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 tabular-nums">{{ tenant_money($cart->total_amount) }}</span>
                 <svg class="w-4 h-4 text-gray-400 transition-transform duration-200"
@@ -127,6 +134,9 @@
                         $eAddRate    = ($isEOfficial && $cart->fee_official_additional_rate !== null) ? (float) $cart->fee_official_additional_rate : $addRate;
                         $isWithdrawn = $enrolment->status === 'withdrawn';
                     @endphp
+                    @if ($isWithdrawn && ! $isPaid)
+                        @continue
+                    @endif
                     <div class="px-4 py-3 {{ $isWithdrawn ? 'opacity-60' : '' }}">
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-sm font-medium text-gray-900 dark:text-white {{ $isWithdrawn ? 'line-through' : '' }}">
