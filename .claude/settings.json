@@ -204,7 +204,11 @@
       "Bash(php -l \"x:/Repos/Compete/app/Services/CompetitionInsightService.php\")",
       "Bash(ls -la \"x:\\\\Repos\\\\Compete\\\\\" | head -20)",
       "Read(//x/Repos/**)",
-      "Bash(grep -v \"\\\\.php$\")"
+      "Bash(grep -v \"\\\\.php$\")",
+      "Bash(composer outdated *)",
+      "WebFetch(domain:packagist.org)",
+      "WebFetch(domain:filamentphp.com)",
+      "WebFetch(domain:pestphp.com)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",

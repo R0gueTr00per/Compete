@@ -56,7 +56,7 @@ class OrganisationResource extends Resource
                             public function validate(string $attribute, mixed $value, \Closure $fail): void {
                                 $reserved = ['www', 'mail', 'api', 'admin', 'app', 'manage', 'portal', 'static',
                                              'cdn', 'help', 'support', 'ftp', 'smtp', 'pop', 'imap', 'ns', 'ns1',
-                                             'ns2', 'dev', 'staging', 'test', 'beta', 'kompetic', 'preprod'];
+                                             'ns2', 'dev', 'staging', 'test', 'beta', 'kompetic', 'preprod', 'formetic'];
                                 if (in_array(strtolower($value), $reserved, true)) {
                                     $fail("The sub-domain \"{$value}\" is reserved and cannot be used.");
                                 }
