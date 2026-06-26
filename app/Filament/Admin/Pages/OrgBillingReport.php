@@ -5,10 +5,9 @@ namespace App\Filament\Admin\Pages;
 use App\Filament\Admin\Widgets\AnnualFeeRemindersWidget;
 use App\Models\Competition;
 use App\Notifications\Notification;
-use Filament\Actions\Action as PageAction;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
-use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -21,11 +20,11 @@ class OrgBillingReport extends Page implements HasTable
 {
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-banknotes';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Billing';
-    protected static ?string $navigationGroup = 'System';
+    protected static string | \UnitEnum | null $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 3;
-    protected static string  $view            = 'filament.admin.pages.org-billing-report';
+    protected string $view            = 'filament.admin.pages.org-billing-report';
 
     public static function canAccess(): bool
     {
@@ -44,7 +43,7 @@ class OrgBillingReport extends Page implements HasTable
         ];
     }
 
-    public function getHeaderWidgetsColumns(): int | string | array
+    public function getHeaderWidgetsColumns(): int | array
     {
         return 1;
     }
@@ -52,7 +51,7 @@ class OrgBillingReport extends Page implements HasTable
     protected function getHeaderActions(): array
     {
         return [
-            PageAction::make('adjustBilling')
+            Action::make('adjustBilling')
                 ->label('Adjust competition billing')
                 ->icon('heroicon-o-adjustments-horizontal')
                 ->form([

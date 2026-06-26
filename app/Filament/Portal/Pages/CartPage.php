@@ -11,10 +11,10 @@ use Filament\Pages\Page;
 class CartPage extends Page
 {
     protected static ?string $title          = 'Cart';
-    protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-shopping-cart';
     protected static ?string $navigationLabel = 'Cart';
     protected static ?int    $navigationSort  = 5;
-    protected static string  $view            = 'filament.portal.pages.cart-page';
+    protected string $view            = 'filament.portal.pages.cart-page';
     protected static ?string $slug            = 'cart';
 
     public ?int $removingId = null;

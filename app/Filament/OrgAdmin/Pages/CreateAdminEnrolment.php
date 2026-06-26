@@ -18,13 +18,13 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Hash;
@@ -36,11 +36,12 @@ class CreateAdminEnrolment extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-plus-circle';
-    protected static ?string $navigationGroup = 'Competitions';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-plus-circle';
+    protected static string | \UnitEnum | null $navigationGroup = 'Competitions';
     protected static ?int    $navigationSort  = 3;
     protected static ?string $navigationLabel = 'Create Registration';
-    protected static string  $view            = 'filament.admin.pages.create-admin-enrolment';
+    protected static ?string $title           = 'Create Registration';
+    protected string $view            = 'filament.admin.pages.create-admin-enrolment';
     protected static ?string $slug            = 'create-enrolment';
 
     public static function canAccess(): bool
@@ -91,7 +92,7 @@ class CreateAdminEnrolment extends Page implements HasForms
         $this->dojo_type = 'lfp';
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([
             Section::make('Competition & Competitor')

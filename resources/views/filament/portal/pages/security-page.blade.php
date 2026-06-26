@@ -23,7 +23,7 @@
             </div>
         </x-filament::section>
     @else
-        <form wire:submit="requestEmailChange">
+        <form wire:submit.prevent="requestEmailChange">
             {{ $this->emailForm }}
 
             <div class="mt-4">
@@ -34,7 +34,7 @@
         </form>
     @endif
 
-    <form wire:submit="savePassword">
+    <form wire:submit.prevent="savePassword">
         {{ $this->passwordForm }}
 
         <div class="mt-4">

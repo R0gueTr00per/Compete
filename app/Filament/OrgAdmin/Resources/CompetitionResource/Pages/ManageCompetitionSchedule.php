@@ -13,15 +13,15 @@ use Filament\Forms\Components\TimePicker;
 use App\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
-use Filament\Support\Enums\MaxWidth;
+use Filament\Support\Enums\Width;
 
 class ManageCompetitionSchedule extends Page
 {
     use InteractsWithRecord;
 
     protected static string $resource = CompetitionResource::class;
-    protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
-    protected static string $view = 'filament.admin.pages.scheduling-board';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-calendar-days';
+    protected string $view = 'filament.admin.pages.scheduling-board';
 
     public ?int $filterEventType = null;
     public bool $unassignedCollapsed = false;
@@ -42,9 +42,9 @@ class ManageCompetitionSchedule extends Page
         return 'Scheduling';
     }
 
-    public function getMaxContentWidth(): MaxWidth|string|null
+    public function getMaxContentWidth(): Width|string|null
     {
-        return MaxWidth::Full;
+        return Width::Full;
     }
 
     public function getTitle(): string
@@ -89,7 +89,7 @@ class ManageCompetitionSchedule extends Page
                     $label = $day ? ' (' . $day->date->format('D j M') . ')' : '';
                     return 'Breaks for this day apply to all mats. Events are automatically scheduled around them.' . $label;
                 })
-                ->modalWidth(MaxWidth::TwoExtraLarge)
+                ->modalWidth(Width::TwoExtraLarge)
                 ->fillForm(function () {
                     $breaks = $this->selectedDayId
                         ? CompetitionDay::find($this->selectedDayId)?->breaks ?? collect()

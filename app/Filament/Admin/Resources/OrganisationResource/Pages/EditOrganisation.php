@@ -10,7 +10,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\TextInput;
 use App\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Filament\Tables\Actions\Action;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -21,7 +21,7 @@ class EditOrganisation extends EditRecord implements HasTable
     use InteractsWithTable;
 
     protected static string $resource = OrganisationResource::class;
-    protected static string $view = 'filament.admin.resources.organisation.pages.edit-organisation';
+    protected string $view = 'filament.admin.resources.organisation.pages.edit-organisation';
 
     protected function getRedirectUrl(): string
     {

@@ -4,12 +4,14 @@ namespace App\Filament\Portal\Pages\Auth;
 
 use App\Models\OrganisationMembership;
 use App\Notifications\NewUserRegisteredNotification;
+use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
-use Filament\Http\Responses\Auth\Contracts\RegistrationResponse;
+use Filament\Auth\Http\Responses\Contracts\RegistrationResponse;
 use Illuminate\Validation\Rule;
 use App\Notifications\Notification;
-use Filament\Pages\Auth\Register as BaseRegister;
+use Filament\Auth\Pages\Register as BaseRegister;
+use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
 
@@ -33,7 +35,7 @@ class Register extends BaseRegister
     {
         try {
             $this->rateLimit(2);
-        } catch (\Illuminate\Http\Exceptions\ThrottleRequestsException $exception) {
+        } catch (TooManyRequestsException $exception) {
             $this->getRateLimitedNotification($exception)?->send();
             return null;
         }
@@ -104,25 +106,20 @@ class Register extends BaseRegister
         return $this->getUserModel()::create($data);
     }
 
-    protected function getForms(): array
+    public function form(Schema $schema): Schema
     {
-        return [
-            'form' => $this->form(
-                $this->makeForm()
-                    ->schema([
-                        $this->getEmailFormComponent()
-                            ->autofocus()
-                            ->rules([
-                                Rule::unique('users', 'email')
-                                    ->where('organisation_id', app('tenant')?->id),
-                            ])
-                            ->validationMessages(['unique' => 'An account already exists for this email address.']),
-                        $this->getPasswordFormComponent(),
-                        $this->getPasswordConfirmationFormComponent(),
+        return $schema
+            ->components([
+                $this->getEmailFormComponent()
+                    ->autofocus()
+                    ->rules([
+                        Rule::unique('users', 'email')
+                            ->where('organisation_id', app('tenant')?->id),
                     ])
-                    ->statePath('data'),
-            ),
-        ];
+                    ->validationMessages(['unique' => 'An account already exists for this email address.']),
+                $this->getPasswordFormComponent(),
+                $this->getPasswordConfirmationFormComponent(),
+            ]);
     }
 
     protected function getFormActions(): array

@@ -16,7 +16,7 @@ class ScoringEntry extends Page
     use HasScoringLock;
 
     protected static bool   $shouldRegisterNavigation = false;
-    protected static string $view                     = 'filament.org-admin.pages.scoring-entry';
+    protected string $view                     = 'filament.org-admin.pages.scoring-entry';
 
     #[Url]
     public ?int $division_id = null;

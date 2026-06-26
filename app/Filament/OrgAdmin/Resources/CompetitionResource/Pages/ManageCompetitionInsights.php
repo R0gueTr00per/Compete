@@ -18,8 +18,8 @@ class ManageCompetitionInsights extends Page
     use InteractsWithRecord;
 
     protected static string $resource = CompetitionResource::class;
-    protected static ?string $navigationIcon = 'heroicon-o-sparkles';
-    protected static string $view = 'filament.org-admin.pages.competition-insights';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-sparkles';
+    protected string $view = 'filament.org-admin.pages.competition-insights';
 
     public function mount(int|string $record): void
     {

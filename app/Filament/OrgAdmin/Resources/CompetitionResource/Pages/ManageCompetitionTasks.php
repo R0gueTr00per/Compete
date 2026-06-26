@@ -16,8 +16,8 @@ class ManageCompetitionTasks extends Page
     use InteractsWithRecord;
 
     protected static string $resource = CompetitionResource::class;
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
-    protected static string $view = 'filament.org-admin.pages.competition-tasks';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected string $view = 'filament.org-admin.pages.competition-tasks';
 
     public array $newTask = ['title' => '', 'notes' => ''];
     public bool $addingTask = false;

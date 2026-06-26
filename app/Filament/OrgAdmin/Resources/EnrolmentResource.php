@@ -12,11 +12,11 @@ use App\Services\EnrolmentService;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ActionGroup;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -29,8 +29,8 @@ class EnrolmentResource extends Resource
     protected static ?string $modelLabel        = 'Registration';
     protected static ?string $pluralModelLabel  = 'Registrations';
     protected static ?string $navigationLabel   = 'Registrations';
-    protected static ?string $navigationIcon    = 'heroicon-o-clipboard-document-check';
-    protected static ?string $navigationGroup = 'Competitions';
+    protected static string | \BackedEnum | null $navigationIcon    = 'heroicon-o-clipboard-document-check';
+    protected static string | \UnitEnum | null $navigationGroup = 'Competitions';
     protected static ?int    $navigationSort  = 2;
 
     public static function canAccess(): bool
@@ -59,7 +59,7 @@ class EnrolmentResource extends Resource
         return false;
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([]);
     }

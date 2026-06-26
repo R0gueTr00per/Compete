@@ -245,7 +245,7 @@
     </div>
 
     {{-- ── Footer CTA ──────────────────────────────────────────────────────── --}}
-    <div class="mt-8 rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950/30 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div class="mt-8 rounded-xl border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-gray-800 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
             <p class="text-sm font-semibold text-primary-900 dark:text-primary-100">Still need help?</p>
             <p class="text-sm text-primary-700 dark:text-primary-300 mt-0.5">Our support team is here for you. Send us a message and we'll get back to you as soon as possible.</p>

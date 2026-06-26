@@ -5,7 +5,7 @@ namespace App\Filament\OrgAdmin\Resources\MemberResource\RelationManagers;
 use App\Filament\OrgAdmin\Resources\CompetitorResource;
 use App\Models\CompetitorProfile;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Actions\Action;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;

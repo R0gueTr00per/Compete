@@ -7,7 +7,7 @@
         <x-filament::section>
             <x-slot name="heading">Move "{{ $graduatingProfile?->full_name }}" to their own account</x-slot>
 
-            <x-filament-panels::form wire:submit="graduateProfile">
+            <form wire:submit.prevent="graduateProfile">
                 {{ $this->graduateForm }}
 
                 <div class="flex items-center gap-3 pt-2">
@@ -18,7 +18,7 @@
                         Cancel
                     </x-filament::button>
                 </div>
-            </x-filament-panels::form>
+            </form>
         </x-filament::section>
 
     {{-- Delete confirmation --}}
@@ -46,14 +46,14 @@
         <x-filament::section>
             <x-slot name="heading">{{ $this->editing === 'new' ? 'Add a profile' : 'Edit profile' }}</x-slot>
 
-            <x-filament-panels::form wire:submit="saveProfile">
+            <form wire:submit.prevent="saveProfile">
                 {{ $this->form }}
 
                 <div class="flex items-center gap-3 pt-2">
                     <x-filament::button type="submit">Save</x-filament::button>
                     <x-filament::button type="button" color="gray" wire:click="cancelEdit">Cancel</x-filament::button>
                 </div>
-            </x-filament-panels::form>
+            </form>
         </x-filament::section>
 
     {{-- Profile list --}}

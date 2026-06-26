@@ -3,11 +3,11 @@
 namespace App\Filament\Portal\Pages;
 
 use App\Notifications\PendingEmailVerificationNotification;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
@@ -16,11 +16,11 @@ class SecurityPage extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-lock-closed';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-lock-closed';
     protected static ?string $navigationLabel = 'Security';
-    protected static ?string $navigationGroup = 'Account';
+    protected static string | \UnitEnum | null $navigationGroup = 'Account';
     protected static ?int    $navigationSort  = 185;
-    protected static string  $view            = 'filament.portal.pages.security-page';
+    protected string $view            = 'filament.portal.pages.security-page';
     protected static ?string $slug            = 'security';
 
     public ?array $emailData    = [];
@@ -43,9 +43,9 @@ class SecurityPage extends Page implements HasForms
         $this->passwordForm->fill([]);
     }
 
-    public function emailForm(Form $form): Form
+    public function emailForm(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('Change email')
                     ->schema([
@@ -65,9 +65,9 @@ class SecurityPage extends Page implements HasForms
             ->statePath('emailData');
     }
 
-    public function passwordForm(Form $form): Form
+    public function passwordForm(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('Change password')
                     ->schema([

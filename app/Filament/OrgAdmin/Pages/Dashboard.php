@@ -14,7 +14,7 @@ use Filament\Pages\Dashboard as BaseDashboard;
 
 class Dashboard extends BaseDashboard
 {
-    protected static string $view = 'filament.org-admin.pages.dashboard';
+    protected string $view = 'filament.org-admin.pages.dashboard';
 
     public static function canAccess(): bool
     {

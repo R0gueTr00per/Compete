@@ -12,16 +12,16 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -35,8 +35,8 @@ use Illuminate\Support\Str;
 class CompetitorResource extends Resource
 {
     protected static ?string $model = CompetitorProfile::class;
-    protected static ?string $navigationIcon = 'heroicon-o-user-group';
-    protected static ?string $navigationGroup = 'Competitors';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-user-group';
+    protected static string | \UnitEnum | null $navigationGroup = 'Competitors';
     protected static ?int $navigationSort = 1;
     protected static ?string $navigationLabel = 'Profiles';
     protected static ?string $recordTitleAttribute = 'surname';
@@ -75,7 +75,7 @@ class CompetitorResource extends Resource
             ->where('organisation_id', app('tenant')?->id);
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([
             Section::make('Ownership')

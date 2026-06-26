@@ -3,11 +3,11 @@
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Validation\Rules\Unique;
@@ -17,7 +17,7 @@ class LocationsRelationManager extends RelationManager
     protected static string $relationship = 'competitionLocations';
     protected static ?string $title = 'Locations';
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([
             TextInput::make('name')

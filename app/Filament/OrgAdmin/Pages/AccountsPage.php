@@ -12,7 +12,7 @@ use App\Notifications\RefundIssuedNotification;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Pages\Page;
-use Filament\Tables\Actions\Action;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -25,11 +25,11 @@ class AccountsPage extends Page implements HasTable
 {
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-users';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-users';
     protected static ?string $navigationLabel = 'Accounts';
-    protected static ?string $navigationGroup = 'Finance';
+    protected static string | \UnitEnum | null $navigationGroup = 'Finance';
     protected static ?int    $navigationSort  = 5;
-    protected static string  $view            = 'filament.org-admin.pages.accounts';
+    protected string $view            = 'filament.org-admin.pages.accounts';
 
     public static function canAccess(): bool
     {

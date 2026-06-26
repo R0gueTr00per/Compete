@@ -8,7 +8,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -18,8 +18,8 @@ use Illuminate\Database\Eloquent\Builder;
 class OrganisationNewsResource extends Resource
 {
     protected static ?string $model = OrganisationNews::class;
-    protected static ?string $navigationIcon  = 'heroicon-o-newspaper';
-    protected static ?string $navigationGroup = 'System';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-newspaper';
+    protected static string | \UnitEnum | null $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 0;
     protected static ?string $navigationLabel = 'News';
 
@@ -37,7 +37,7 @@ class OrganisationNewsResource extends Resource
             ->where('organisation_id', app('tenant')?->id);
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([
             TextInput::make('title')

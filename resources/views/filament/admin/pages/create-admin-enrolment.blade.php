@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <form wire:submit="submit">
+    <form wire:submit.prevent="submit">
         {{ $this->form }}
 
         <div class="mt-6 flex gap-3">

@@ -13,11 +13,11 @@ use Livewire\Attributes\Url;
 
 class CheckIn extends Page
 {
-    protected static ?string $navigationIcon  = 'heroicon-o-clipboard-document-check';
-    protected static ?string $navigationGroup = 'Competitions';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-clipboard-document-check';
+    protected static string | \UnitEnum | null $navigationGroup = 'Competitions';
     protected static ?int    $navigationSort  = 4;
     protected static ?string $navigationLabel = 'Check-in';
-    protected static string $view = 'filament.admin.pages.check-in';
+    protected string $view = 'filament.admin.pages.check-in';
 
     public static function canAccess(): bool
     {

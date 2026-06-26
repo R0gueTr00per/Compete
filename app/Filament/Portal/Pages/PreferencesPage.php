@@ -2,11 +2,11 @@
 
 namespace App\Filament\Portal\Pages;
 
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 
@@ -14,11 +14,11 @@ class PreferencesPage extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-adjustments-horizontal';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-adjustments-horizontal';
     protected static ?string $navigationLabel = 'Preferences';
-    protected static ?string $navigationGroup = 'Account';
+    protected static string | \UnitEnum | null $navigationGroup = 'Account';
     protected static ?int    $navigationSort  = 190;
-    protected static string  $view            = 'filament.portal.pages.preferences-page';
+    protected string $view            = 'filament.portal.pages.preferences-page';
     protected static ?string $slug            = 'preferences';
 
     public ?array $data = [];
@@ -30,9 +30,9 @@ class PreferencesPage extends Page implements HasForms
         ]);
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('Email notifications')
                     ->schema([

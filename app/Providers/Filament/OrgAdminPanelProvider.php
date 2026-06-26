@@ -101,6 +101,7 @@ class OrgAdminPanelProvider extends PanelProvider
                     '<link rel="stylesheet" href="' . \Illuminate\Support\Facades\Vite::asset('resources/css/filament-app.css') . '">' .
                     '<style>
                     :root {
+                        --primary-glow:       oklch(0.705 0.213 47.604);
                         --app-topbar:         #1e3a6e;
                         --app-accent:         #e07828;
                         --app-sidebar:        #f8fafc;
@@ -173,7 +174,7 @@ class OrgAdminPanelProvider extends PanelProvider
                 )
             )
             ->renderHook(
-                'panels::topbar.start',
+                'panels::topbar.logo.after',
                 function () {
                     $tenant = app('tenant');
                     if (! $tenant) return '';

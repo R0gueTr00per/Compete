@@ -184,7 +184,7 @@ class PortalPanelProvider extends PanelProvider
                 </style>')
             )
             ->renderHook(
-                'panels::topbar.start',
+                'panels::topbar.logo.after',
                 function () {
                     $tenant = app('tenant');
                     if (! $tenant) return '';

@@ -3,13 +3,13 @@
 namespace App\Filament\OrgAdmin\Pages;
 
 use App\Mail\SupportRequestMail;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Mail;
@@ -18,11 +18,11 @@ class Support extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-lifebuoy';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-lifebuoy';
     protected static ?string $navigationLabel = 'Support';
-    protected static ?string $navigationGroup = 'Account';
+    protected static string | \UnitEnum | null $navigationGroup = 'Account';
     protected static ?int    $navigationSort  = 200;
-    protected static string  $view            = 'filament.org-admin.pages.support';
+    protected string $view            = 'filament.org-admin.pages.support';
 
     public ?array $data = [];
 
@@ -36,9 +36,9 @@ class Support extends Page implements HasForms
         ]);
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('Contact Kompetic Support')
                     ->description('Use this form to contact the Kompetic platform support team for help with billing, technical issues, or platform questions.')

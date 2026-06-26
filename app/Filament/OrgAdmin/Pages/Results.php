@@ -14,11 +14,11 @@ use Livewire\Attributes\Url;
 
 class Results extends Page
 {
-    protected static ?string $navigationIcon  = 'heroicon-o-trophy';
-    protected static ?string $navigationGroup = 'Competitions';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-trophy';
+    protected static string | \UnitEnum | null $navigationGroup = 'Competitions';
     protected static ?int    $navigationSort  = 6;
     protected static ?string $navigationLabel = 'Results';
-    protected static string  $view            = 'filament.admin.pages.results';
+    protected string $view            = 'filament.admin.pages.results';
 
     public static function canAccess(): bool
     {

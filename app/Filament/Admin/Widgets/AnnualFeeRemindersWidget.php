@@ -4,7 +4,7 @@ namespace App\Filament\Admin\Widgets;
 
 use App\Models\OrganisationAnnualFeeReminder;
 use App\Notifications\Notification;
-use Filament\Tables\Actions\Action;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;

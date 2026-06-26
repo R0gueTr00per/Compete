@@ -47,12 +47,12 @@
         </x-filament::section>
 
         <x-filament::section heading="Verify and Activate">
-            <x-filament-panels::form wire:submit="confirmSetup">
+            <form wire:submit.prevent="confirmSetup">
                 {{ $this->form }}
-                <x-filament-panels::form.actions
+                <x-filament::actions
                     :actions="$this->getCachedFormActions()"
                 />
-            </x-filament-panels::form>
+            </form>
         </x-filament::section>
     @endif
 </x-filament-panels::page>

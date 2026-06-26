@@ -5,18 +5,18 @@
         'fi-resource-record-' . $record->getKey(),
     ])
 >
-    <x-filament-panels::form
+    <form
         id="form"
         :wire:key="$this->getId() . '.forms.' . $this->getFormStatePath()"
-        wire:submit="save"
+        wire:submit.prevent="save"
     >
         {{ $this->form }}
 
-        <x-filament-panels::form.actions
+        <x-filament::actions
             :actions="$this->getCachedFormActions()"
             :full-width="$this->hasFullWidthFormActions()"
         />
-    </x-filament-panels::form>
+    </form>
 
     {{ $this->table }}
 

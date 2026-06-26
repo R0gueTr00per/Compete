@@ -15,13 +15,13 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 use Livewire\Attributes\Url;
@@ -31,7 +31,7 @@ class EnrolPage extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $title                    = 'Register';
-    protected static string  $view                     = 'filament.portal.pages.enrol-page';
+    protected string $view                     = 'filament.portal.pages.enrol-page';
     protected static ?string $slug                     = 'enrol';
     protected static bool    $shouldRegisterNavigation = false;
 
@@ -326,7 +326,7 @@ class EnrolPage extends Page implements HasForms
 
     // ── Form ────────────────────────────────────────────────────────────────
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([
 

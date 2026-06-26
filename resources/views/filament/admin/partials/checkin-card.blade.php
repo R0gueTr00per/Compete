@@ -142,15 +142,14 @@
             @else
                 <p class="text-sm text-gray-500 mb-2">Check-in Weight</p>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <x-filament::input.wrapper class="w-full sm:w-28">
-                        <x-filament::input
-                            type="number"
-                            step="0.1"
-                            min="1"
-                            wire:model="weights.{{ $enrolment->id }}"
-                            placeholder="{{ $enrolment->weight_kg ?? 'kg' }}"
-                        />
-                    </x-filament::input.wrapper>
+                    <input
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        wire:model="weights.{{ $enrolment->id }}"
+                        placeholder="{{ $enrolment->weight_kg ?? 'kg' }}"
+                        class="w-full sm:w-28 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1.5 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
                     <x-filament::button size="sm" color="primary" wire:click="confirmWeight({{ $enrolment->id }})">
                         Confirm weight
                     </x-filament::button>

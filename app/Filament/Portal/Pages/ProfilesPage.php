@@ -9,11 +9,11 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
 use App\Notifications\AccountCreatedNotification;
@@ -27,9 +27,9 @@ class ProfilesPage extends Page implements HasForms
     use InteractsWithForms;
 
     protected static ?string $title           = 'Profiles';
-    protected static ?string $navigationIcon  = 'heroicon-o-user-group';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-user-group';
     protected static ?string $navigationLabel = 'Profiles';
-    protected static string  $view            = 'filament.portal.pages.profiles-page';
+    protected string $view            = 'filament.portal.pages.profiles-page';
     protected static ?string $slug            = 'profiles';
 
     // Which profile is open in the edit panel (null = none, 'new' = create form)
@@ -58,9 +58,9 @@ class ProfilesPage extends Page implements HasForms
             ->get();
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('Personal Details')
                     ->columns(2)
@@ -113,9 +113,9 @@ class ProfilesPage extends Page implements HasForms
             ->statePath('data');
     }
 
-    public function graduateForm(Form $form): Form
+    public function graduateForm(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Placeholder::make('info')
                     ->label('')

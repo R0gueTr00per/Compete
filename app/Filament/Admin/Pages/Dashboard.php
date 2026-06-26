@@ -12,7 +12,7 @@ use Filament\Pages\Dashboard as BaseDashboard;
 
 class Dashboard extends BaseDashboard
 {
-    protected static string $view = 'filament.admin.pages.dashboard';
+    protected string $view = 'filament.admin.pages.dashboard';
 
     public function getWidgets(): array
     {

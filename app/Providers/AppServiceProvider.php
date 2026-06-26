@@ -19,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind('tenant', fn () => null);
 
         $this->app->bind(
-            \Filament\Http\Responses\Auth\Contracts\LoginResponse::class,
+            \Filament\Auth\Http\Responses\Contracts\LoginResponse::class,
             \App\Http\Responses\LoginResponse::class,
         );
 

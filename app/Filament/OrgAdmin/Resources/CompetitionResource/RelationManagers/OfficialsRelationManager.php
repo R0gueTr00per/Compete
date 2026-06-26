@@ -5,11 +5,11 @@ namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 use App\Models\OfficialRole;
 use App\Models\User;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -18,7 +18,7 @@ class OfficialsRelationManager extends RelationManager
     protected static string $relationship = 'officials';
     protected static ?string $title = 'Officials';
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([
             Select::make('user_id')

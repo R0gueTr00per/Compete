@@ -108,6 +108,10 @@
     to   { opacity: 1; transform: scaleX(1); transform-origin: left; }
 }
 
+/* ── Competition panel headers ── */
+/* bg-primary-50 opacity modifiers don't work with OKLCH vars; direct CSS for dark mode */
+.dark .comp-panel-hdr { background-color: rgb(55 65 81); } /* gray-700 */
+
 /* ── Chevron status tracker (org-admin dashboard) ── */
 @keyframes chevron-pulse {
     0%, 100% { filter: drop-shadow(0 0 3px var(--primary-glow, #818cf8)); }
@@ -132,6 +136,7 @@
 .chevron-entering      { animation: chevron-enter 850ms ease-out both; }
 .chevron-partial-left  { clip-path: polygon(0 0, 100% 50%, 0 100%); }
 .chevron-partial-right { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%); }
+.chevron-clickable:hover { transform: translateY(-2px); filter: brightness(1.12); }
 @keyframes icon-shimmer {
     0%, 100% { filter: brightness(1) drop-shadow(0 0 0px currentColor); }
     50%       { filter: brightness(1.6) drop-shadow(0 0 3px currentColor); }

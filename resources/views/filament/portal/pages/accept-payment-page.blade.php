@@ -4,7 +4,7 @@
     @endphp
 
     {{-- Quick lookup --}}
-    <div class="mb-6 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30">
+    <div class="comp-panel-hdr mb-6 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-gray-800">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Scan competitor's QR code</p>
 
         <div
@@ -35,7 +35,7 @@
                 <button
                     type="button"
                     x-on:click="scanning ? stopScan() : startScan()"
-                    class="flex items-center gap-1.5 rounded-lg border border-primary-400 bg-primary-50 dark:bg-primary-950/50 dark:border-primary-700 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors shrink-0"
+                    class="flex items-center gap-1.5 rounded-lg border border-primary-400 bg-primary-50 dark:bg-gray-700 dark:border-primary-700 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-gray-600 transition-colors shrink-0"
                 >
                     <x-heroicon-m-qr-code class="h-4 w-4" />
                     <span x-text="scanning ? 'Stop' : 'Scan QR'"></span>
@@ -131,32 +131,33 @@
                             </div>
                         </div>
 
-                        <div x-data="{ confirming: false }" class="border-t border-gray-200 dark:border-gray-700 px-5 py-4">
-                            <div x-show="!confirming">
+                        <div class="border-t border-gray-200 dark:border-gray-700 px-5 py-4">
+                            @if ($this->confirmingCartId === $viewCart->id)
+                                <div class="space-y-2">
+                                    <p class="text-sm text-center text-gray-700 dark:text-gray-300">Mark <strong>{{ tenant_money($vcTotal) }}</strong> as received for {{ $viewCart->enrolments->pluck('competitor.full_name')->filter()->unique()->join(', ') }} ({{ $viewCart->competition?->name }})?</p>
+                                    <div class="flex gap-2">
+                                        <x-filament::button
+                                            wire:click="cancelConfirm"
+                                            color="gray"
+                                            class="flex-1 justify-center">
+                                            Cancel
+                                        </x-filament::button>
+                                        <x-filament::button
+                                            wire:click="recordPayment({{ $viewCart->id }})"
+                                            color="success"
+                                            class="flex-1 justify-center">
+                                            Yes, confirm
+                                        </x-filament::button>
+                                    </div>
+                                </div>
+                            @else
                                 <x-filament::button
-                                    x-on:click="confirming = true"
+                                    wire:click="startConfirm({{ $viewCart->id }})"
                                     color="success"
                                     class="w-full justify-center">
                                     Confirm payment received — {{ tenant_money($vcTotal) }}
                                 </x-filament::button>
-                            </div>
-                            <div x-show="confirming" x-cloak class="space-y-2">
-                                <p class="text-sm text-center text-gray-700 dark:text-gray-300">Mark <strong>{{ tenant_money($vcTotal) }}</strong> as received for {{ $viewCart->enrolments->pluck('competitor.full_name')->filter()->unique()->join(', ') }} ({{ $viewCart->competition?->name }})?</p>
-                                <div class="flex gap-2">
-                                    <x-filament::button
-                                        x-on:click="confirming = false"
-                                        color="gray"
-                                        class="flex-1 justify-center">
-                                        Cancel
-                                    </x-filament::button>
-                                    <x-filament::button
-                                        wire:click="recordPayment({{ $viewCart->id }})"
-                                        color="success"
-                                        class="flex-1 justify-center">
-                                        Yes, confirm
-                                    </x-filament::button>
-                                </div>
-                            </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
@@ -170,22 +171,21 @@
                 <p class="text-center text-gray-400 py-8">No competitors found with that name and an outstanding balance.</p>
             @else
                 <div class="space-y-2">
-                    @foreach ($results as $enrolment)
+                    @foreach ($results as $cart)
                         @php
-                            $cart            = $enrolment->cart;
-                            $enrolPlatformFee = (float) ($cart?->platform_fee_rate ?? $platformFee);
-                            $outstanding     = $cart ? $cart->outstandingAmount($enrolPlatformFee) : 0.0;
+                            $srPlatformFee = (float) ($cart->platform_fee_rate ?? $platformFee);
+                            $outstanding   = $cart->outstandingAmount($srPlatformFee);
+                            $names         = $cart->enrolments->pluck('competitor.full_name')->filter()->unique()->join(', ');
                         @endphp
                         <button
                             type="button"
-                            wire:click="viewAccount({{ $enrolment->id }})"
+                            wire:click="viewCart({{ $cart->id }})"
                             class="w-full flex items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 text-left hover:border-gray-400 dark:hover:border-gray-500 transition-colors">
                             <div class="min-w-0">
-                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $enrolment->competitor?->full_name ?? '—' }}</p>
+                                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ $names ?: '—' }}</p>
                                 <p class="text-xs text-gray-400 dark:text-gray-500 truncate">
-                                    {{ $enrolment->competition?->name }}
-                                    @if ($enrolment->competition?->competition_date) &middot; {{ tenant_date($enrolment->competition->competition_date) }} @endif
-                                    @if ($enrolment->dojo_name) &middot; {{ $enrolment->dojo_name }} @endif
+                                    {{ $cart->competition?->name }}
+                                    @if ($cart->competition?->competition_date) &middot; {{ tenant_date($cart->competition->competition_date) }} @endif
                                     &middot; {{ tenant_money($outstanding) }} outstanding
                                 </p>
                             </div>

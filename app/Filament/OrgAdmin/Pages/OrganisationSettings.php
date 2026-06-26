@@ -6,15 +6,15 @@ use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use App\Notifications\Notification;
@@ -24,11 +24,11 @@ class OrganisationSettings extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-cog-6-tooth';
     protected static ?string $navigationLabel = 'Preferences';
-    protected static ?string $navigationGroup = 'System';
+    protected static string | \UnitEnum | null $navigationGroup = 'System';
     protected static ?int $navigationSort = 99;
-    protected static string $view = 'filament.org-admin.pages.organisation-settings';
+    protected string $view = 'filament.org-admin.pages.organisation-settings';
 
     public ?array $data = [];
 
@@ -63,9 +63,9 @@ class OrganisationSettings extends Page implements HasForms
         ]);
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 Section::make('AI Insights')
                     ->description('Customise how AI analyses your competitions.')

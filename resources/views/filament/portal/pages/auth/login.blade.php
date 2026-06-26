@@ -6,13 +6,13 @@
         </x-slot>
     @endif
 
-    <x-filament-panels::form id="form" wire:submit="authenticate">
+    <form id="form" wire:submit.prevent="authenticate">
         {{ $this->form }}
 
-        <x-filament-panels::form.actions
+        <x-filament::actions
             :actions="$this->getCachedFormActions()"
             :full-width="$this->hasFullWidthFormActions()"
         />
-    </x-filament-panels::form>
+    </form>
 
 </x-filament-panels::page.simple>

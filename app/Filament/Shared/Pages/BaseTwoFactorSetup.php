@@ -8,7 +8,7 @@ use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Pages\Concerns\InteractsWithFormActions;
 use Filament\Pages\Page;
@@ -19,7 +19,7 @@ abstract class BaseTwoFactorSetup extends Page
 {
     use InteractsWithFormActions;
 
-    protected static string $view = 'filament.admin.pages.two-factor-setup';
+    protected string $view = 'filament.admin.pages.two-factor-setup';
 
     protected static bool $shouldRegisterNavigation = false;
 
@@ -36,9 +36,9 @@ abstract class BaseTwoFactorSetup extends Page
         $this->form->fill();
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 TextInput::make('code')
                     ->label('Verification code')

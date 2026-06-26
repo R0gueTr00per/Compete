@@ -13,8 +13,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Support\HtmlString;
 use Filament\Pages\Page;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ActionGroup;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -26,11 +26,11 @@ class TransactionsPage extends Page implements HasTable
 {
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-banknotes';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Transactions';
-    protected static ?string $navigationGroup = null;
+    protected static string | \UnitEnum | null $navigationGroup = null;
     protected static bool    $shouldRegisterNavigation = false;
-    protected static string  $view            = 'filament.org-admin.pages.transactions';
+    protected string $view            = 'filament.org-admin.pages.transactions';
 
     public static function canAccess(): bool
     {

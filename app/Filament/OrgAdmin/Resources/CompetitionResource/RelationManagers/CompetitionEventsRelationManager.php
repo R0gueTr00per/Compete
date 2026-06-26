@@ -4,28 +4,26 @@ namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
 use App\Models\CompetitionEvent;
 use App\Services\ScheduleCalculatorService;
-use Awcodes\TableRepeater\Components\TableRepeater;
-use Awcodes\TableRepeater\Header;
-
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Radio;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
-use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\Tabs\Tab;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\HtmlString;
 use App\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Illuminate\Validation\Rules\Unique;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -34,7 +32,7 @@ class CompetitionEventsRelationManager extends RelationManager
     protected static string $relationship = 'competitionEvents';
     protected static ?string $title = 'Event Types';
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([
             Tabs::make()->tabs([
@@ -224,16 +222,10 @@ class CompetitionEventsRelationManager extends RelationManager
                         ->hidden(fn (Get $get) => ! in_array($get('scoring_method'), ['judges_total', 'judges_average']))
                         ->columnSpanFull(),
 
-                    TableRepeater::make('scoreCategories')
+                    Repeater::make('scoreCategories')
                         ->label('Score categories')
                         ->relationship()
                         ->orderColumn('sort_order')
-                        ->headers(fn (Get $get) => array_values(array_filter([
-                            Header::make('name')->label('Category name'),
-                            ($get('score_category_mode') ?? 'single') === 'weighted'
-                                ? Header::make('weight')->label('Weight %')->width('8rem')->markAsRequired()
-                                : null,
-                        ])))
                         ->schema([
                             TextInput::make('name')
                                 ->label('Name')

@@ -5,7 +5,7 @@ namespace App\Filament\OrgAdmin\Pages;
 use App\Models\Competition;
 use App\Notifications\Notification;
 use Filament\Pages\Page;
-use Filament\Tables\Actions\Action;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -17,11 +17,11 @@ class ManageTemplates extends Page implements HasTable
 {
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-bookmark';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-bookmark';
     protected static ?string $navigationLabel = 'Competition Templates';
-    protected static ?string $navigationGroup = 'System';
+    protected static string | \UnitEnum | null $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 5;
-    protected static string  $view            = 'filament.org-admin.pages.manage-templates';
+    protected string $view            = 'filament.org-admin.pages.manage-templates';
 
     public static function canAccess(): bool
     {

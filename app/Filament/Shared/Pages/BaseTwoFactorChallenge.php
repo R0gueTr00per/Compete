@@ -4,7 +4,7 @@ namespace App\Filament\Shared\Pages;
 
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Pages\Concerns\InteractsWithFormActions;
 use Filament\Pages\Page;
@@ -14,7 +14,7 @@ abstract class BaseTwoFactorChallenge extends Page
 {
     use InteractsWithFormActions;
 
-    protected static string $view = 'filament.admin.pages.two-factor-challenge';
+    protected string $view = 'filament.admin.pages.two-factor-challenge';
 
     protected static string $layout = 'filament-panels::components.layout.simple';
 
@@ -35,13 +35,13 @@ abstract class BaseTwoFactorChallenge extends Page
     {
         return [
             'hasTopbar' => false,
-            'maxWidth'  => null,
+            'Width'  => null,
         ];
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
+        return $schema
             ->schema([
                 TextInput::make('code')
                     ->label('Authentication code')

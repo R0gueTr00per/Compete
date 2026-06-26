@@ -171,7 +171,7 @@
                             @endphp
                             <div
                                 wire:key="{{ $competition->id }}-step-{{ $step }}"
-                                class="relative {{ $isCurrent ? 'chevron-pulse-active' : '' }} {{ $isClickable ? 'hover:-translate-y-0.5 hover:brightness-110 cursor-pointer' : '' }}"
+                                class="relative {{ $isCurrent ? 'chevron-pulse-active' : '' }} {{ $isClickable ? 'chevron-clickable cursor-pointer' : '' }}"
                                 style="z-index: {{ $i + 1 }}; {{ $loop->last ? '' : 'margin-right: -11px;' }} transition: all 350ms cubic-bezier(0.34,1.56,0.64,1);"
                                 x-data="{ show: false, bouncing: false, entering: false }"
                                 x-init="setTimeout(() => { show = true; {{ $isPast ? 'entering = true; setTimeout(() => entering = false, 900);' : '' }} }, {{ $i * 120 }})"

@@ -12,8 +12,8 @@ class ManageCompetitionConfig extends Page
     use InteractsWithRecord;
 
     protected static string $resource = CompetitionResource::class;
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
-    protected static string $view = 'filament.admin.pages.competition-config';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected string $view = 'filament.admin.pages.competition-config';
 
     public function mount(int|string $record): void
     {

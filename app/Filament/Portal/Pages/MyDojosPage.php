@@ -7,7 +7,7 @@ use Filament\Pages\Page;
 
 class MyDojosPage extends Page
 {
-    protected static ?string $navigationIcon  = 'heroicon-o-building-storefront';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-building-storefront';
 
     public function getTitle(): string
     {
@@ -18,7 +18,7 @@ class MyDojosPage extends Page
     {
         return 'My ' . tenant_group_name_plural();
     }
-    protected static string  $view            = 'filament.portal.pages.my-dojos-page';
+    protected string $view            = 'filament.portal.pages.my-dojos-page';
     protected static ?string $slug            = 'my-dojos';
     protected static ?int    $navigationSort  = 10;
 

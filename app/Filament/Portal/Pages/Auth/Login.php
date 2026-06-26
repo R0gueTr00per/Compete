@@ -3,9 +3,9 @@
 namespace App\Filament\Portal\Pages\Auth;
 
 use App\Models\User;
-use Filament\Http\Responses\Auth\Contracts\LoginResponse;
+use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use App\Notifications\Notification;
-use Filament\Pages\Auth\Login as BaseLogin;
+use Filament\Auth\Pages\Login as BaseLogin;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -13,8 +13,6 @@ use Illuminate\Validation\ValidationException;
 
 class Login extends BaseLogin
 {
-    protected static string $view = 'filament.portal.pages.auth.login';
-
     public function getHeading(): \Illuminate\Contracts\Support\Htmlable|string
     {
         $name = app('tenant')?->name;

@@ -5,17 +5,17 @@ namespace App\Filament\OrgAdmin\Pages;
 use App\Models\Competition;
 use App\Models\Division;
 use Filament\Pages\Page;
-use Filament\Support\Enums\MaxWidth;
+use Filament\Support\Enums\Width;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 
 class ScheduleView extends Page
 {
-    protected static ?string $navigationIcon     = 'heroicon-o-calendar-days';
-    protected static ?string $navigationGroup    = 'Competitions';
+    protected static string | \BackedEnum | null $navigationIcon     = 'heroicon-o-calendar-days';
+    protected static string | \UnitEnum | null $navigationGroup    = 'Competitions';
     protected static ?int    $navigationSort     = 10;
     protected static ?string $navigationLabel    = 'Schedule';
-    protected static string  $view              = 'filament.admin.pages.schedule-view';
+    protected string $view              = 'filament.admin.pages.schedule-view';
     protected static bool    $shouldRegisterNavigation = false;
 
     public static function canAccess(): bool
@@ -41,9 +41,9 @@ class ScheduleView extends Page
         }
     }
 
-    public function getMaxContentWidth(): MaxWidth|string|null
+    public function getMaxContentWidth(): Width|string|null
     {
-        return MaxWidth::Full;
+        return Width::Full;
     }
 
     public function getTitle(): string

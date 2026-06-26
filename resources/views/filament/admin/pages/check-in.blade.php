@@ -1,18 +1,14 @@
 <x-filament-panels::page>
     {{-- Competition + Search bar --}}
-    <div class="mb-6 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30">
+    <div class="comp-panel-hdr mb-6 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-gray-800">
         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>
-        <x-filament::input.wrapper class="dark:bg-slate-900">
-            <select
-                wire:model.live="competition_id"
-                class="w-full block border-0 bg-transparent py-1.5 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-0 sm:text-sm sm:leading-6 dark:bg-slate-900"
-            >
-                <option value="">— Select competition —</option>
-                @foreach ($this->getCompetitions() as $id => $name)
-                    <option value="{{ $id }}">{{ $name }}</option>
-                @endforeach
-            </select>
-        </x-filament::input.wrapper>
+        <select wire:model.live="competition_id"
+            class="w-full block rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1.5 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
+            <option value="">— Select competition —</option>
+            @foreach ($this->getCompetitions() as $id => $name)
+                <option value="{{ $id }}">{{ $name }}</option>
+            @endforeach
+        </select>
 
         {{-- Day selector tabs --}}
         @php $competitionDays = $this->competitionDays; @endphp
@@ -87,7 +83,7 @@
                     <button
                         type="button"
                         x-on:click="scanning ? stopScan() : startScan()"
-                        class="flex items-center gap-1.5 rounded-lg border border-primary-400 bg-primary-50 dark:bg-primary-950/50 dark:border-primary-700 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors shrink-0"
+                        class="flex items-center gap-1.5 rounded-lg border border-primary-400 bg-primary-50 dark:bg-gray-700 dark:border-primary-700 px-3 py-1.5 text-xs font-semibold text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-gray-600 transition-colors shrink-0"
                     >
                         <x-heroicon-m-qr-code class="h-4 w-4" />
                         <span x-text="scanning ? 'Stop' : 'Scan QR'"></span>

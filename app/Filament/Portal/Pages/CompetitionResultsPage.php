@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\Cache;
 class CompetitionResultsPage extends Page
 {
     protected static ?string $title           = 'Results';
-    protected static ?string $navigationIcon  = 'heroicon-o-trophy';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-trophy';
     protected static ?string $navigationLabel = 'Results';
-    protected static string  $view            = 'filament.portal.pages.competition-results-page';
+    protected string $view            = 'filament.portal.pages.competition-results-page';
     protected static ?string $slug            = 'results';
 
     public function isSummaryGenerating(int $competitionId): bool

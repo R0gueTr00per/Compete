@@ -7,17 +7,17 @@ use App\Models\Organisation;
 use App\Models\OrganisationMembership;
 use App\Models\User;
 use App\Notifications\OrgAdminInvitationNotification;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -25,8 +25,8 @@ use Filament\Tables\Table;
 class OrganisationResource extends Resource
 {
     protected static ?string $model = Organisation::class;
-    protected static ?string $navigationIcon  = 'heroicon-o-building-office-2';
-    protected static ?string $navigationGroup = 'System';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-building-office-2';
+    protected static string | \UnitEnum | null $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 1;
 
     public static function canAccess(): bool
@@ -34,7 +34,7 @@ class OrganisationResource extends Resource
         return auth()->user()?->hasRole('system_admin') ?? false;
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([
             Section::make()->schema([

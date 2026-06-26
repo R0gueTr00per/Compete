@@ -8,18 +8,18 @@ use App\Models\CompetitionEvent;
 use App\Models\Division;
 use App\Services\DivisionGenerationService;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Validation\Rules\Unique;
 use App\Notifications\Notification;
 use Filament\Resources\Pages\ManageRelatedRecords;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
@@ -29,7 +29,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
 {
     protected static string $resource = CompetitionResource::class;
     protected static string $relationship = 'allDivisions';
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-rectangle-stack';
 
     public static function getNavigationLabel(): string
     {
@@ -269,7 +269,7 @@ class ManageCompetitionEvents extends ManageRelatedRecords
         return Division::create($data);
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         $filterIncludes = fn (array $filters) => fn (Get $get): bool => in_array(
             CompetitionEvent::find($get('competition_event_id'))?->effectiveDivisionFilter() ?? '',

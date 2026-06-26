@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 class ActiveUsersChart extends ChartWidget
 {
-    protected static ?string $heading = 'Growth over time (last 12 weeks)';
-    protected static ?string $maxHeight = '150px';
+    protected ?string $heading = 'Growth over time (last 12 weeks)';
+    protected ?string $maxHeight = '150px';
     protected int|string|array $columnSpan = 'full';
 
     public ?string $filter = 'registrations';

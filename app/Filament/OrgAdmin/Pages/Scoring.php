@@ -16,11 +16,11 @@ class Scoring extends Page
 {
     use HasScoringLock;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-calculator';
-    protected static ?string $navigationGroup = 'Competitions';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-calculator';
+    protected static string | \UnitEnum | null $navigationGroup = 'Competitions';
     protected static ?int    $navigationSort  = 5;
     protected static ?string $navigationLabel = 'Scoring';
-    protected static string  $view            = 'filament.org-admin.pages.scoring';
+    protected string $view            = 'filament.org-admin.pages.scoring';
 
     public static function canAccess(): bool
     {

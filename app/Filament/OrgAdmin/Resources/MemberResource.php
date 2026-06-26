@@ -8,18 +8,18 @@ use App\Models\User;
 use App\Notifications\AccountApprovedNotification;
 use App\Notifications\AccountCreatedNotification;
 use App\Notifications\OrgAdminInvitationNotification;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -28,8 +28,8 @@ use Illuminate\Database\Eloquent\Builder;
 class MemberResource extends Resource
 {
     protected static ?string $model = OrganisationMembership::class;
-    protected static ?string $navigationIcon  = 'heroicon-o-users';
-    protected static ?string $navigationGroup = 'System';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-users';
+    protected static string | \UnitEnum | null $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 1;
     protected static ?string $navigationLabel = 'Users';
     protected static ?string $modelLabel      = 'User';
@@ -51,7 +51,7 @@ class MemberResource extends Resource
             ->with('user');
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([
             Section::make()->schema([

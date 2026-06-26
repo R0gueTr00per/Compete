@@ -3,11 +3,11 @@
 namespace App\Filament\OrgAdmin\Resources\CompetitionResource\RelationManagers;
 
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -16,7 +16,7 @@ class CompetitionMessagesRelationManager extends RelationManager
     protected static string $relationship = 'portalMessages';
     protected static ?string $title = 'Portal Messages';
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([
             Textarea::make('message')

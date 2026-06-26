@@ -2,7 +2,7 @@
 
 namespace App\Filament\Portal\Pages\Auth;
 
-use Filament\Pages\Auth\PasswordReset\ResetPassword as BaseResetPassword;
+use Filament\Auth\Pages\PasswordReset\ResetPassword as BaseResetPassword;
 
 class PasswordReset extends BaseResetPassword
 {

@@ -2,7 +2,7 @@
 
 namespace App\Http\Responses;
 
-use Filament\Http\Responses\Auth\Contracts\LoginResponse as LoginResponseContract;
+use Filament\Auth\Http\Responses\Contracts\LoginResponse as LoginResponseContract;
 
 class LoginResponse implements LoginResponseContract
 {

@@ -19,22 +19,22 @@ use App\Services\DivisionAssignmentService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\Tabs\Tab;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
-use Filament\Forms\Get;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Str;
 use App\Notifications\Notification;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\ActionGroup;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -43,8 +43,8 @@ use Illuminate\Database\Eloquent\Builder;
 class CompetitionResource extends Resource
 {
     protected static ?string $model = Competition::class;
-    protected static ?string $navigationIcon = 'heroicon-o-trophy';
-    protected static ?string $navigationGroup = 'Competitions';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-trophy';
+    protected static string | \UnitEnum | null $navigationGroup = 'Competitions';
     protected static ?int $navigationSort = 1;
 
     public static function canAccess(): bool
@@ -82,7 +82,7 @@ class CompetitionResource extends Resource
             ->where('is_template', false);
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([
             Tabs::make()

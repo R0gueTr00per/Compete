@@ -8,7 +8,7 @@ use App\Notifications\OrgAdminInvitationNotification;
 use Filament\Forms\Components\TextInput;
 use App\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Actions\Action;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,9 +17,9 @@ class AdminsRelationManager extends RelationManager
 {
     protected static string $relationship = 'memberships';
     protected static ?string $title = 'Organisation Administrators';
-    protected static ?string $icon = 'heroicon-o-shield-check';
+    protected static string | \BackedEnum | null $icon = 'heroicon-o-shield-check';
 
-    public static function canViewAny(): bool { return true; }
+    public function canViewAny(): bool { return true; }
 
     public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool { return true; }
 

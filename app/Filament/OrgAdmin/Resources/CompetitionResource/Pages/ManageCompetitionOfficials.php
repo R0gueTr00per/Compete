@@ -12,15 +12,15 @@ use Filament\Forms\Components\TextInput;
 use App\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
-use Filament\Support\Enums\MaxWidth;
+use Filament\Support\Enums\Width;
 
 class ManageCompetitionOfficials extends Page
 {
     use InteractsWithRecord;
 
     protected static string $resource = CompetitionResource::class;
-    protected static ?string $navigationIcon = 'heroicon-o-identification';
-    protected static string $view = 'filament.admin.pages.officials-board';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-identification';
+    protected string $view = 'filament.admin.pages.officials-board';
 
     public function mount(int|string $record): void
     {
@@ -32,9 +32,9 @@ class ManageCompetitionOfficials extends Page
         return 'Officials';
     }
 
-    public function getMaxContentWidth(): MaxWidth|string|null
+    public function getMaxContentWidth(): Width|string|null
     {
-        return MaxWidth::Full;
+        return Width::Full;
     }
 
     public function getTitle(): string

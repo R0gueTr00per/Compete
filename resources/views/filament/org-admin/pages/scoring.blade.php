@@ -5,33 +5,29 @@
 
     {{-- Top bar: competition + location --}}
     <div
-        class="mb-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-primary-950/30"
+        class="comp-panel-hdr mb-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 dark:border-primary-800 dark:bg-gray-800"
         x-data="{}"
         x-on:livewire:navigated.window="$wire.$refresh()"
     >
         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-primary-700 dark:text-primary-400">Competition</p>
         <div class="flex flex-wrap gap-3 items-center">
-            <x-filament::input.wrapper class="flex-1 min-w-48">
-                <select wire:model.live="competition_id"
-                    class="w-full block border-0 bg-white dark:bg-gray-800 py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
-                    <option value="">— Select competition —</option>
-                    @foreach ($this->getCompetitions() as $id => $name)
-                        <option value="{{ $id }}">{{ $name }}</option>
-                    @endforeach
-                </select>
-            </x-filament::input.wrapper>
+            <select wire:model.live="competition_id"
+                class="flex-1 min-w-48 block rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1.5 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
+                <option value="">— Select competition —</option>
+                @foreach ($this->getCompetitions() as $id => $name)
+                    <option value="{{ $id }}">{{ $name }}</option>
+                @endforeach
+            </select>
 
             @php $locations = $this->getLocations(); @endphp
             @if (! empty($locations))
-                <x-filament::input.wrapper class="min-w-40">
-                    <select wire:model.live="filter_location"
-                        class="w-full block border-0 bg-white dark:bg-gray-800 py-1.5 text-sm text-gray-900 dark:text-white focus:ring-0">
-                        <option value="">— All locations —</option>
-                        @foreach ($locations as $loc)
-                            <option value="{{ $loc }}">{{ $loc }}</option>
-                        @endforeach
-                    </select>
-                </x-filament::input.wrapper>
+                <select wire:model.live="filter_location"
+                    class="min-w-40 block rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 py-1.5 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary-500">
+                    <option value="">— All locations —</option>
+                    @foreach ($locations as $loc)
+                        <option value="{{ $loc }}">{{ $loc }}</option>
+                    @endforeach
+                </select>
             @endif
 
             @if ($this->competition_id)

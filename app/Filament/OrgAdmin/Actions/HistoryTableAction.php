@@ -1,7 +1,7 @@
 <?php
 namespace App\Filament\OrgAdmin\Actions;
 
-use Filament\Tables\Actions\Action;
+use Filament\Actions\Action;
 use Spatie\Activitylog\Models\Activity;
 
 class HistoryTableAction extends Action

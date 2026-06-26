@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Cache;
 
 class Dashboard extends BaseDashboard
 {
-    protected static string $view = 'filament.portal.pages.dashboard';
+    protected string $view = 'filament.portal.pages.dashboard';
 
     public ?int    $withdrawingId    = null;
     public ?string $withdrawalReason = '';

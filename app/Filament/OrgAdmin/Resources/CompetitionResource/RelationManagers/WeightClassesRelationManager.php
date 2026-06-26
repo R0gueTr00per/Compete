@@ -6,12 +6,12 @@ use App\Models\Division;
 use App\Models\WeightClass;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use App\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Tables\Actions\CreateAction;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -20,7 +20,7 @@ class WeightClassesRelationManager extends RelationManager
     protected static string $relationship = 'weightClasses';
     protected static ?string $title = 'Weight Classes';
 
-    public function form(Form $form): Form
+    public function form(Schema $form): Schema
     {
         return $form->schema([
             TextInput::make('label')

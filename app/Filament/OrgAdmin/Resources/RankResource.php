@@ -5,7 +5,7 @@ namespace App\Filament\OrgAdmin\Resources;
 use App\Filament\OrgAdmin\Resources\RankResource\Pages;
 use App\Models\Rank;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -14,8 +14,8 @@ use Illuminate\Database\Eloquent\Builder;
 class RankResource extends Resource
 {
     protected static ?string $model = Rank::class;
-    protected static ?string $navigationIcon  = 'heroicon-o-star';
-    protected static ?string $navigationGroup = 'System';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-star';
+    protected static string | \UnitEnum | null $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 10;
     protected static ?string $navigationLabel = 'Ranks / Levels';
 
@@ -33,7 +33,7 @@ class RankResource extends Resource
             ->where('organisation_id', app('tenant')?->id);
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([
             TextInput::make('name')

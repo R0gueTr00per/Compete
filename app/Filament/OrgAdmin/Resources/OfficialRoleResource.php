@@ -4,13 +4,13 @@ namespace App\Filament\OrgAdmin\Resources;
 
 use App\Filament\OrgAdmin\Resources\OfficialRoleResource\Pages;
 use App\Models\OfficialRole;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
+use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
-use Filament\Tables\Actions\DeleteAction;
-use Filament\Tables\Actions\EditAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,8 +19,8 @@ use Illuminate\Validation\Rule;
 class OfficialRoleResource extends Resource
 {
     protected static ?string $model = OfficialRole::class;
-    protected static ?string $navigationIcon  = 'heroicon-o-identification';
-    protected static ?string $navigationGroup = 'System';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-identification';
+    protected static string | \UnitEnum | null $navigationGroup = 'System';
     protected static ?int    $navigationSort  = 4;
     protected static ?string $navigationLabel = 'Official Roles';
 
@@ -48,7 +48,7 @@ class OfficialRoleResource extends Resource
         return $data;
     }
 
-    public static function form(Form $form): Form
+    public static function form(Schema $form): Schema
     {
         return $form->schema([
             Section::make()->schema([

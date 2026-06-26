@@ -15,11 +15,11 @@ class PlatformFeesPage extends Page implements HasTable
 {
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon  = 'heroicon-o-banknotes';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-banknotes';
     protected static ?string $navigationLabel = 'Platform Fees';
-    protected static ?string $navigationGroup = 'Finance';
+    protected static string | \UnitEnum | null $navigationGroup = 'Finance';
     protected static ?int    $navigationSort  = 7;
-    protected static string  $view            = 'filament.org-admin.pages.platform-fees';
+    protected string $view            = 'filament.org-admin.pages.platform-fees';
 
     public static function canAccess(): bool
     {

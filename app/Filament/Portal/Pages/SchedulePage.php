@@ -12,9 +12,9 @@ use Livewire\Attributes\Url;
 
 class SchedulePage extends Page
 {
-    protected static ?string $navigationIcon  = 'heroicon-o-calendar-days';
+    protected static string | \BackedEnum | null $navigationIcon  = 'heroicon-o-calendar-days';
     protected static ?string $navigationLabel = 'Schedule';
-    protected static string  $view            = 'filament.portal.pages.schedule-page';
+    protected string $view            = 'filament.portal.pages.schedule-page';
     protected static bool    $shouldRegisterNavigation = false;
 
     #[Url]
