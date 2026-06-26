@@ -259,7 +259,11 @@
       "Bash(xargs grep -l \"topbar\")",
       "Bash(php -l app/Providers/Filament/OrgAdminPanelProvider.php)",
       "Bash(xargs php -l)",
-      "Bash(xargs grep -l \"filament-panels::form\\\\|filament-schemas::form\\\\|filament-schemas::actions\\\\|wire:submit=\\\\\"\")"
+      "Bash(xargs grep -l \"filament-panels::form\\\\|filament-schemas::form\\\\|filament-schemas::actions\\\\|wire:submit=\\\\\"\")",
+      "Bash(grep -rl 'string | \\\\\\\\BackedEnum | null $navigationIcon\\\\|string | \\\\\\\\UnitEnum | null $navigationGroup' app/Filament/)",
+      "Bash(xargs sed -i -e 's/protected static string | \\\\\\\\BackedEnum | null \\\\$navigationIcon/protected static ?string $navigationIcon/g' -e 's/protected static string | \\\\\\\\UnitEnum | null \\\\$navigationGroup/protected static ?string $navigationGroup/g')",
+      "Bash(grep -rn 'static ?string $navigationGroup\\\\|static ?string $navigationIcon' app/Filament/Admin/)",
+      "Bash(grep -rn \"namespace App\\\\\\\\\\\\\\\\Filament\\\\\\\\\\\\\\\\Admin\" app/)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Brad\\AppData\\Local\\Programs\\PHP\\current",
